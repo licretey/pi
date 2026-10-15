@@ -30,7 +30,7 @@ export function openrouterProvider(): Provider<"anthropic-messages" | "openai-co
 			"openai-completions": openAICompletionsApi(),
 		},
 		images: { "openrouter-images": openrouterImagesApi() },
-		// OpenRouter serves TypeSafe's System One protocol at /api/v1/systemone.
+		// OpenRouter 在 /api/v1/systemone 提供 TypeSafe 的 System One 协议。
 		classifiers: { "typesafe-system-one": typesafeSystemOneApi() },
 	});
 }

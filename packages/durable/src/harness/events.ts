@@ -25,7 +25,7 @@ import { type ConversationView, conversationViews } from "./view.ts";
 type Block = AssistantMessage["content"][number];
 type QueuedItem = { id: SubmissionId; mode: InboxItem["mode"] };
 
-/** One change to the in-flight assistant message, relative to that message. */
+/** 在途 assistant 消息的一次变化，相对于该消息本身。 */
 export type MessageChange =
 	| { type: "text_start" | "thinking_start" | "toolcall_start"; contentIndex: number; block: Block }
 	| { type: "text_delta" | "thinking_delta"; contentIndex: number; delta: string }
@@ -37,7 +37,7 @@ export type SnapshotEvent = {
 	type: "snapshot";
 	entries: readonly EntryRecord[];
 	run?: { inputs: readonly SubmissionId[] };
-	/** Current generation attempt: its in-flight partial, retry backoff, or deferred poll. */
+	/** 当前的 generation 尝试：它的在途 partial、重试退避，或 deferred 轮询。 */
 	generation?: {
 		attempt: number;
 		message?: AssistantMessage;
@@ -45,17 +45,17 @@ export type SnapshotEvent = {
 		deferred?: { pollAt: number };
 	};
 	tools: readonly ToolSlot[];
-	/** `pi.live.nestedTools`: nested calls of running tool calls. */
+	/** `pi.live.nestedTools`：运行中工具调用的嵌套调用。 */
 	nestedTools: readonly NestedToolSlot[];
-	/** `pi.live.compactions`: live compactions with their attempt and retry backoff. */
+	/** `pi.live.compactions`：存活的 compaction 及其 attempt 与重试退避。 */
 	compactions: readonly CompactionStatus[];
 	inbox: readonly QueuedItem[];
-	/** `pi.agent`; `{}` when absent. */
+	/** `pi.agent`；缺失时为 `{}`。 */
 	agent: AgentState;
 	usage: UsageState;
 };
 
-/** Experimental agent event, shaped like the coding agent's session events (spec §9.4). */
+/** 实验性的 agent 事件，形状与 coding agent 的 session 事件一致（spec §9.4）。 */
 export type AgentEvent =
 	| SnapshotEvent
 	| { type: "run_start"; inputs: readonly SubmissionId[] }
@@ -63,21 +63,20 @@ export type AgentEvent =
 	| { type: "turn_start" }
 	| { type: "turn_end" }
 	| { type: "message_start"; message: Message }
-	/** `usage` is the partial's current usage, as in the coding agent's JSON mode. */
+	/** `usage` 是 partial 当前的用量，与 coding agent 的 JSON 模式相同。 */
 	| { type: "message_update"; usage: Usage; changes: readonly MessageChange[] }
 	| { type: "message_end"; entry: EntryRecord }
 	| ({ type: "tool_execution_start"; args: JsonObject } & ToolEventCall)
 	| ({
 			type: "tool_execution_update";
-			/** A front trim and then an append of the retained window, or its replacement. */
+			/** 先做头部裁剪再追加保留的窗口，或整体替换。 */
 			output?: { trimStart?: number; append?: string } | { set: string };
 			details?: JsonValue;
 			diagnostics?: readonly ToolDiagnostic[];
 	  } & ToolEventCall)
 	/**
-	 * A model-issued call ends with its result `entry`, a nested call with its `result`. Both are absent when the tool
-	 * task faulted or was orphaned, or when the call's slot left `pi.live` unfinished: its run ended, or its parent
-	 * settled first.
+	 * 模型发起的调用以其结果的 `entry` 结束，嵌套调用以其 `result` 结束。工具任务被故障化或孤儿化，
+	 * 或调用的 slot 未完成就离开了 `pi.live`——run 结束，或父调用先落定——两者都不出现。
 	 */
 	| ({ type: "tool_execution_end"; entry?: EntryRecord; result?: NestedToolExecutionResult } & ToolEventCall)
 	| { type: "inbox_update"; items: readonly QueuedItem[] }
@@ -90,14 +89,14 @@ export type AgentEvent =
 	| { type: "usage_changed"; usage: UsageState }
 	| { type: "task_failed"; taskId: TaskId; kind: string; message: string }
 	| { type: "compaction_start"; taskId: TaskId; reason: CompactionReason; blocking: boolean }
-	/** The task's receipt tells whether it produced a summary; the summary entry has its own events. */
+	/** 任务的回执说明它是否产生了 summary；summary entry 有自己的事件。 */
 	| { type: "compaction_end"; taskId: TaskId; reason: CompactionReason };
 
 /**
- * Which call a tool event is about. `toolCallId` is the call's ID in the transcript and in tool events: the provider's
- * ID for a model-issued call, `<parent call ID>/<key>` for a nested one. Match events by it; do not parse it. `taskId`
- * is the call's tool task, absent for a call that never got one (not offered, or not started in a sequential round).
- * A nested call also names the call that made it, by call ID and by tool task.
+ * 工具事件针对哪个调用。`toolCallId` 是该调用在 transcript 与工具事件中的 ID：模型发起的调用用 provider 的
+ * ID，嵌套调用用 `<父调用 ID>/<key>`。用它匹配事件，不要解析它。`taskId` 是该调用的工具任务；
+ * 从未拿到任务的调用（未被提供，或顺序轮中未启动）没有此字段。
+ * 嵌套调用还会按 call ID 与工具任务指明发起它的调用。
  */
 export type ToolEventCall = {
 	toolCallId: string;
@@ -107,16 +106,16 @@ export type ToolEventCall = {
 	parentTaskId?: TaskId;
 };
 
-/** Serialized stream of one conversation's event batches, one per commit. */
+/** 单个 conversation 事件批次的串行化流，每个 commit 一批。 */
 export interface AgentEventStream {
-	/** The `snapshot` event at attachment. */
+	/** 附着时的 `snapshot` 事件。 */
 	readonly snapshot: SnapshotEvent;
 	start(listener: (events: readonly AgentEvent[], context: Context) => Promise<void>): void;
 	stop(): Promise<WatchEnd>;
 	readonly closed: Promise<WatchEnd>;
 }
 
-/** The typed parts of a view the events read. */
+/** 事件从 view 中读取的类型化部分。 */
 type Parts = {
 	live: LiveState;
 	inbox: InboxState | undefined;
@@ -154,8 +153,8 @@ function queued(inbox: InboxState | undefined): QueuedItem[] {
 }
 
 /**
- * Experimental: attach to one conversation's agent events (spec §9.4). The snapshot and the registration for later
- * commits are captured atomically on the Session line; overflow replaces undelivered batches with one snapshot.
+ * 实验性功能：附着到单个 conversation 的 agent 事件（spec §9.4）。快照与后续 commit 的注册在 Session 线上
+ * 原子地捕获；溢出时用一个快照替换未投递的批次。
  */
 export async function watchEvents(
 	harness: Harness,
@@ -168,13 +167,13 @@ export async function watchEvents(
 	await views.attach(
 		conversationId,
 		async (initial, release, storage) => {
-			// Generations whose held outcome already ended their turn, read on the line with the snapshot.
+			// 被持有的 outcome 已终结其回合的 generation，在线上与快照一起读取。
 			const query = { conversationId, kind: "pi.generation", status: "completing" } as const;
 			const completing = await scanAll((cursor) => storage.scanTasks(query, 100, cursor, context));
 			const held = new Set<TaskId>(completing.map((record) => record.id));
 			let current = initial;
 			snapshot = snapshotOf(initial);
-			// Batches are the watch's values; an overflow delivers a snapshot of the newest view instead.
+			// 批次是 watch 的值；溢出时改为投递最新 view 的一个快照。
 			watch = new CommittedWatch<readonly AgentEvent[]>(
 				[],
 				release,
@@ -192,7 +191,7 @@ export async function watchEvents(
 		},
 		context,
 	);
-	// Like a watch, the acquisition context governs the stream's lifetime.
+	// 与 watch 一样，获取时的 context 决定流的生命周期。
 	const signal = context.abortSignal;
 	if (signal?.aborted) {
 		watch.cancel();
@@ -209,7 +208,7 @@ export async function watchEvents(
 
 type TaskChange = Extract<CommitChange, { type: "task" }>;
 
-/** The tool result for `callId` among `entries`. */
+/** `entries` 中 `callId` 对应的工具结果。 */
 function resultOf(entries: readonly EntryRecord[], callId: string): EntryRecord | undefined {
 	return entries.find((entry) => {
 		const message = entry.model?.[0];
@@ -217,7 +216,7 @@ function resultOf(entries: readonly EntryRecord[], callId: string): EntryRecord 
 	});
 }
 
-/** Every event one publication causes, in the order of spec §9.4. */
+/** 一次 publication 引发的全部事件，按 spec §9.4 的顺序。 */
 function translate(
 	conversationId: ConversationId,
 	before: ConversationView,
@@ -229,7 +228,7 @@ function translate(
 	const entries: EntryRecord[] = [];
 	const tasks = new Map<TaskId, TaskChange["value"]>();
 	const submissions: SubmissionRecord[] = [];
-	// Nested results this commit stored, by nested task ID; read now, since the caller's documents may retire next.
+	// 本次 commit 存储的嵌套结果，按嵌套任务 ID 索引；现在读取，因为调用方的文档可能接下来退役。
 	const nestedResults = new Map<string, NestedToolExecutionResult>();
 	for (const change of publication.changes) {
 		if (
@@ -249,13 +248,13 @@ function translate(
 		}
 	}
 	if (viewOps.length === 0 && entries.length === 0 && tasks.size === 0 && submissions.length === 0) return [];
-	// Entries are appended in ID order; submission records are published in the order the commit first touched them.
+	// entry 按 ID 顺序追加；submission 记录按 commit 首次触及它们的顺序发布。
 	submissions.sort((a, b) => a.id - b.id);
 	const was = parts(before);
 	const now = parts(after);
 	const events: AgentEvent[] = [];
 
-	// Progress: tool starts, the in-flight message, tool updates, retry and deferred state.
+	// 进度：工具启动、在途消息、工具更新、重试与 deferred 状态。
 	const slotsBefore = new Map((was.live.tools ?? []).map((slot) => [slot.callId, slot]));
 	const slots = now.live.tools ?? [];
 	const nestedBefore = new Map((was.live.nestedTools ?? []).map((slot) => [slot.taskId, slot]));
@@ -263,7 +262,7 @@ function translate(
 	for (const slot of [...slots, ...nested]) {
 		const previous = "parentCallId" in slot ? nestedBefore.get(slot.taskId) : slotsBefore.get(slot.callId);
 		if (slot.status !== "running" || previous?.status === "running") continue;
-		// A nested slot carries the arguments the call runs with; a model-issued call's are in its intent checkpoint.
+		// 嵌套 slot 携带调用实际运行所用的参数；模型发起调用的参数在其 intent checkpoint 里。
 		const checkpoint = slot.taskId === undefined ? undefined : tasks.get(slot.taskId)?.state.checkpoint;
 		const args =
 			"parentCallId" in slot
@@ -304,8 +303,8 @@ function translate(
 		events.push({ type: "deferred_poll", pollAt: generation.deferred.pollAt });
 	}
 
-	// Tools that end in this commit: a slot that becomes done, one created done (a call not offered), or an unfinished
-	// one that vanishes because its run ended. A done slot that vanishes ended earlier.
+	// 本次 commit 中结束的工具：变为 done 的 slot、创建即 done 的 slot（未被提供的调用），
+	// 或因 run 结束而消失的未完成 slot。消失的 done slot 早已结束。
 	const toolEnds: Extract<AgentEvent, { type: "tool_execution_end" }>[] = [];
 	const endTool = (slot: ToolSlot, entryId: number | undefined): void => {
 		const entry = entries.find((candidate) => candidate.id === entryId);
@@ -315,14 +314,14 @@ function translate(
 		if (previous.status === "done") continue;
 		const slot = slots.find((candidate) => candidate.callId === previous.callId);
 		if (slot?.status === "done") endTool(slot, slot.entry);
-		// A slot whose run ended in this commit may have had its result appended with it, as for unstarted calls.
+		// 本次 commit 中 run 结束的 slot，其结果可能已随之追加，如同未启动的调用那样。
 		else if (slot === undefined) endTool(previous, resultOf(entries, previous.callId)?.id);
 	}
 	for (const slot of slots) {
 		if (slot.status === "done" && !slotsBefore.has(slot.callId)) endTool(slot, slot.entry);
 	}
-	// Nested calls that end in this commit, the same way, children before the calls that made them: the lists hold
-	// parents first, so walk them backwards.
+	// 本次 commit 中结束的嵌套调用，处理方式相同，子调用先于发起它们的调用：列表把父调用排在前，
+	// 因此倒序遍历。
 	const endNested = (slot: NestedToolSlot): void => {
 		const result = nestedResults.get(String(slot.taskId));
 		events.push({ type: "tool_execution_end", ...callOf(slot), ...(result === undefined ? {} : { result }) });
@@ -337,7 +336,7 @@ function translate(
 		if (slot.status === "done" && !nestedBefore.has(slot.taskId)) endNested(slot);
 	}
 
-	// Entries in append order; a tool's end directly precedes its result's message, as in the coding agent.
+	// entry 按追加顺序；工具的结束事件紧挨在其结果消息之前，与 coding agent 一致。
 	let assistantAppended = false;
 	for (const entry of entries) {
 		events.push(...toolEnds.filter((end) => end.entry === entry));
@@ -346,16 +345,16 @@ function translate(
 			events.push({ type: "entry_appended", entry });
 			continue;
 		}
-		// A streamed answer already started with its first partial.
+		// 流式回答已随其第一个 partial 起始过了。
 		const streamed = message.role === "assistant" && partialBefore !== undefined && !assistantAppended;
 		if (message.role === "assistant") assistantAppended = true;
 		if (!streamed) events.push({ type: "message_start", message });
 		events.push({ type: "message_end", entry });
 	}
-	// Ends without a result entry: a faulted or orphaned tool, or one whose run ended.
+	// 没有结果 entry 的结束：被故障化或孤儿化的工具，或 run 已结束的工具。
 	events.push(...toolEnds.filter((end) => end.entry === undefined));
 
-	// Compaction ends, task failures, then turn and run ends.
+	// 先是 compaction 结束、任务失败，然后是回合与 run 的结束。
 	const compactionsBefore = was.live.compactions ?? [];
 	const compactions = now.live.compactions ?? [];
 	for (const { taskId, reason } of compactionsBefore) {
@@ -363,8 +362,8 @@ function translate(
 			events.push({ type: "compaction_end", taskId, reason });
 		}
 	}
-	// A generation's turn ends when its outcome is committed: at a `completing` hold or at terminal, whichever comes
-	// first, so a successor created at the hold starts after it.
+	// generation 的回合在其 outcome 提交时结束：在 `completing` 持有或终态时，以先到者为准，
+	// 因此在持有时刻创建的后继会在它之后启动。
 	let turnEnded = false;
 	for (const task of tasks.values()) {
 		const status = task.state.status;
@@ -386,10 +385,10 @@ function translate(
 	const runChanged = run?.inputs[0] !== runBefore?.inputs[0];
 	if (runBefore !== undefined && runChanged) events.push({ type: "run_end", inputs: runBefore.inputs });
 
-	// Submissions, document state, then what began.
+	// 先是提交与文档状态，然后是开始的事件。
 	for (const record of submissions) events.push({ type: "submission", record });
 	if (now.inbox !== was.inbox) events.push({ type: "inbox_update", items: queued(now.inbox) });
-	// A retired document reads as its initial value, as in a snapshot.
+	// 已退役的文档读出其初始值，如同快照中的行为。
 	if (now.agent !== was.agent) {
 		events.push({ type: "agent_changed", agent: now.agent ?? AgentDoc.definition.initial() });
 	}
@@ -409,16 +408,16 @@ function translate(
 
 const PARTIAL_PATH = ["docs", "pi.live", "generation", "message"];
 
-/** Translate the view operations on the in-flight message into message changes (spec §9.4). */
+/** 把在途消息上的 view 操作翻译成消息变化（spec §9.4）。 */
 function messageChanges(viewOps: readonly Op[], message: AssistantMessage): MessageChange[] {
 	const changes: MessageChange[] = [];
-	// A block sent whole already holds every later change to it in this batch.
+	// 整块发送的 block 已把之后对它的所有变化都装进本批。
 	const whole = new Set<number>();
 	for (const op of viewOps) {
-		// View operations never replace the root.
+		// view 操作从不替换根。
 		const path = op[1] as Path;
 		if (!startsWith(path, PARTIAL_PATH)) {
-			// The whole message or generation was replaced.
+			// 整条消息或整个 generation 被替换了。
 			if (startsWith(PARTIAL_PATH, path)) return [{ type: "message", message }];
 			continue;
 		}
@@ -449,7 +448,7 @@ function messageChanges(viewOps: readonly Op[], message: AssistantMessage): Mess
 	return changes;
 }
 
-/** The identifying fields of a slot's tool events. */
+/** slot 工具事件的标识字段。 */
 function callOf(slot: ToolSlot | NestedToolSlot): ToolEventCall {
 	return {
 		toolCallId: slot.callId,
@@ -459,7 +458,7 @@ function callOf(slot: ToolSlot | NestedToolSlot): ToolEventCall {
 	};
 }
 
-/** Output, details, and diagnostics changes of a running slot at `at` in `pi.live`, from the view operations on it. */
+/** `pi.live` 中 `at` 处运行中 slot 的输出、details 与诊断变化，来自其上的 view 操作。 */
 function toolUpdate(
 	viewOps: readonly Op[],
 	at: readonly ["tools" | "nestedTools", number],
@@ -482,7 +481,7 @@ function toolUpdate(
 	else if (trimStart > 0 || append !== "") {
 		output = { ...(trimStart > 0 ? { trimStart } : {}), ...(append === "" ? {} : { append }) };
 	}
-	// A safe replay clears a running slot's progress: removed details send `null`, removed diagnostics `[]`.
+	// safe replay 会清空运行中 slot 的进度：被移除的 details 发送 `null`，被移除的诊断发送 `[]`。
 	const update = {
 		...(output === undefined ? {} : { output }),
 		...(slot.details === previous.details ? {} : { details: slot.details ?? null }),

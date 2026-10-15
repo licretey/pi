@@ -1,13 +1,13 @@
 /**
- * MCP server configuration and the servers extensions register with `pi.registerMcpServer()`.
+ * MCP server 配置，以及扩展通过 `pi.registerMcpServer()` 注册的 servers。
  *
- * The core only validates and stores registrations. The MCP extension (built in, or another
- * extension that handles `mcp_servers_change`) connects them next to the servers from `mcp.json`.
+ * 核心只负责校验并存储注册项。MCP 扩展（内置的，或另一个处理 `mcp_servers_change` 的扩展）会把它们与
+ * `mcp.json` 中的 servers 一起建立连接。
  */
 
 /**
- * Regular expression for a tool name pattern where `*` matches any characters, as `toolExposure`,
- * `--tools`, and `--exclude-tools` accept them.
+ * 工具名称模式的正则表达式，其中 `*` 匹配任意字符，如 `toolExposure`、`--tools` 与 `--exclude-tools`
+ * 所接受的格式。
  */
 function toolPatternRegExp(pattern: string): RegExp {
 	const source = pattern
@@ -17,14 +17,14 @@ function toolPatternRegExp(pattern: string): RegExp {
 	return new RegExp(`^${source}$`);
 }
 
-/** Whether a tool name matches any of the entries, each an exact name or a pattern. */
+/** 某个工具名是否匹配任一条目；每个条目要么是精确名称，要么是模式。 */
 export function createToolNameMatcher(entries: readonly string[]): (name: string) => boolean {
 	const names = new Set(entries.filter((entry) => !entry.includes("*")));
 	const patterns = entries.filter((entry) => entry.includes("*")).map(toolPatternRegExp);
 	return (name) => names.has(name) || patterns.some((pattern) => pattern.test(name));
 }
 
-/** MCP resource tools, which reach every server with resources. */
+/** MCP 资源工具，可以触达每个带资源的 server。 */
 export const LIST_MCP_RESOURCES_TOOL = "list_mcp_resources";
 export const LIST_MCP_RESOURCE_TEMPLATES_TOOL = "list_mcp_resource_templates";
 export const READ_MCP_RESOURCE_TOOL = "read_mcp_resource";
@@ -35,45 +35,42 @@ const MCP_RESOURCE_TOOLS: ReadonlySet<string> = new Set([
 	READ_MCP_RESOURCE_TOOL,
 ]);
 
-/** Whether a tool comes from MCP: a server tool (`mcp__<server>__<tool>`) or a resource tool. */
+/** 某个工具是否来自 MCP：server 工具（`mcp__<server>__<tool>`）或资源工具。 */
 export function isMcpToolName(name: string): boolean {
 	return name.startsWith("mcp__") || MCP_RESOURCE_TOOLS.has(name);
 }
 
 /**
- * - `codemode`: tools are callable from codemode scripts but neither declared to the model nor
- *   listed in the codemode description, which lists only the server's namespace. Scripts find them
- *   with `searchTools()`. `codemode-deferred` is accepted as an alias.
- * - `deferred`: not declared to the model until the `tool_search` tool loads them; the model then
- *   calls them directly. Does not need codemode.
- * - `direct`: tools are declared to the model like any other tool (and callable from codemode).
- * - `hidden`: tools are registered but unreachable.
+ * - `codemode`：工具可从 codemode 脚本调用，但既不向模型声明，也不出现在 codemode 描述里——该描述只列出
+ *   server 的命名空间。脚本用 `searchTools()` 找到它们。`codemode-deferred` 作为别名被接受。
+ * - `deferred`：在 `tool_search` 工具加载它们之前不向模型声明；此后模型直接调用。不需要 codemode。
+ * - `direct`：像其他任何工具一样向模型声明（并可在 codemode 中调用）。
+ * - `hidden`：工具已注册，但不可触达。
  */
 export type McpExposure = "codemode" | "deferred" | "direct" | "hidden";
 
 const MCP_EXPOSURES: readonly string[] = ["codemode", "deferred", "direct", "hidden"] satisfies McpExposure[];
 
-/** Older exposure names, accepted in configs and replaced by their current name when validated. */
+/** 旧版 exposure 名称，在配置中接受，校验时替换为其现行名称。 */
 const MCP_EXPOSURE_ALIASES: Readonly<Record<string, McpExposure>> = { "codemode-deferred": "codemode" };
 
 interface McpServerConfigBase {
-	/** Default: `codemode`. */
+	/** 默认：`codemode`。 */
 	exposure?: McpExposure;
 	/**
-	 * What the server offers, in a sentence. The `mcp_servers` system prompt section lists the server
-	 * with it, tool search ranks the server's tools by it, and codemode's `describeNamespace()` returns it.
+	 * 用一句话描述该 server 提供什么。`mcp_servers` 系统提示节会带着它列出该 server，工具搜索按它对 server 的
+	 * 工具排序，codemode 的 `describeNamespace()` 也返回它。
 	 */
 	description?: string;
 	/**
-	 * Exposure of single tools, overriding `exposure`. Keys are tool names as the server offers them,
-	 * or patterns where `*` matches any characters. An exact name wins over patterns; among patterns
-	 * the first match in the object wins. `hidden` removes tools, so `"exposure": "hidden"` with
-	 * overrides for a few tools exposes only those.
+	 * 单个工具的 exposure，覆盖 `exposure`。键是 server 提供的工具名，或者是 `*` 匹配任意字符的模式。精确名称
+	 * 优先于模式；多个模式之间取对象中第一个命中的。`hidden` 会移除工具，因此 `"exposure": "hidden"` 加上对少量
+	 * 工具的覆盖，可以实现只暴露这几个工具。
 	 */
 	toolExposure?: Record<string, McpExposure>;
-	/** Set to false to keep the entry without connecting. Default: true. */
+	/** 设为 false 表示保留条目但不建立连接。默认：true。 */
 	enabled?: boolean;
-	/** Per-request timeout in seconds. Progress notifications from the server reset it. Default: 60. */
+	/** 每次请求的超时（秒）。server 的进度通知会重置它。默认：60。 */
 	timeout?: number;
 }
 
@@ -81,53 +78,52 @@ export interface McpStdioServerConfig extends McpServerConfigBase {
 	type?: "stdio";
 	command: string;
 	args?: string[];
-	/** Values may reference environment variables (`${NAME}`) or commands (`!cmd`). */
+	/** 值可以引用环境变量（`${NAME}`）或命令（`!cmd`）。 */
 	env?: Record<string, string>;
-	/** Relative paths resolve against the session working directory. */
+	/** 相对路径基于会话工作目录解析。 */
 	cwd?: string;
 }
 
-/** OAuth client settings for servers that do not support dynamic client registration. */
+/** 不支持动态客户端注册的服务器所需的 OAuth 客户端设置。 */
+/** 面向不支持动态客户端注册的 server 的 OAuth 客户端设置。 */
 export interface McpOAuthConfig {
-	/** Pre-registered client id. Without it, pi registers a client with the authorization server. */
+	/** 预注册的 client id。没有它时，pi 会向授权服务器注册一个客户端。 */
 	clientId?: string;
-	/** May reference environment variables (`${NAME}`) or commands (`!cmd`). */
+	/** 可以引用环境变量（`${NAME}`）或命令（`!cmd`）。 */
 	clientSecret?: string;
 	/**
-	 * Port of the loopback callback server, for clients registered with a fixed redirect URI. Without
-	 * `callbackUrl`, the redirect URI is `http://127.0.0.1:<port>/callback`.
+	 * 回环（loopback）回调 server 的端口，适用于以固定 redirect URI 注册的客户端。没有 `callbackUrl` 时，
+	 * redirect URI 为 `http://127.0.0.1:<port>/callback`。
 	 */
 	callbackPort?: number;
 	/**
-	 * Redirect URI registered for `clientId`, for example `http://localhost:8080/oauth/callback`. It must
-	 * be an `http` URI on `localhost`, `127.0.0.1`, or `[::1]`. Without a port, the callback server
-	 * listens on `callbackPort` or a free port, which is added to the URI (RFC 8252).
+	 * 已为 `clientId` 注册的 redirect URI，例如 `http://localhost:8080/oauth/callback`。必须是基于 `localhost`、
+	 * `127.0.0.1` 或 `[::1]` 的 `http` URI。未含端口时，回调 server 监听 `callbackPort` 或一个空闲端口，并把该
+	 * 端口加进 URI（RFC 8252）。
 	 */
 	callbackUrl?: string;
-	/** Scopes to request, separated by spaces. Default: the scopes the server advertises. */
+	/** 请求的 scope，以空格分隔。默认：server 公告的 scopes。 */
 	scope?: string;
 	/**
-	 * `client_name` sent with dynamic client registration, for servers that only accept known clients.
-	 * Default: `pi`.
+	 * 动态客户端注册时发送的 `client_name`，适用于只接受已知客户端的 server。默认：`pi`。
 	 */
 	clientName?: string;
 	/**
-	 * How pi identifies itself without `clientId`. `dcr` (default): dynamic client registration. `cimd`:
-	 * pi's Client ID Metadata Document on pi.dev, for authorization servers that allow pi by that URL. The
-	 * server must support it for public clients, and the callback must use the default path `/callback`.
+	 * 没有 `clientId` 时 pi 的自标识方式。`dcr`（默认）：动态客户端注册。`cimd`：pi 在 pi.dev 上的 Client ID
+	 * Metadata Document，适用于接受按该 URL 识别 pi 的授权服务器。server 必须为公开客户端支持它，且回调必须
+	 * 使用默认路径 `/callback`。
 	 */
 	clientRegistration?: "dcr" | "cimd";
 	/**
-	 * Authorization server metadata document (RFC 8414 or OpenID Connect discovery) to use instead of
-	 * discovery through the server, for servers that advertise a wrong authorization server or none.
-	 * The document is trusted as configured. Must use https, except on loopback hosts.
+	 * 授权服务器元数据文档（RFC 8414 或 OpenID Connect discovery），用于替代通过 server 做发现，适用于公告了错误
+	 * 授权服务器或完全不公告的 server。该文档按"已配置"对待而直接信任。必须使用 https，回环主机除外。
 	 */
 	authServerMetadataUrl?: string;
 }
 
 const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
-/** Whether a redirect URI can be served by pi's loopback callback server. */
+/** 某个 redirect URI 能否由 pi 的回环回调 server 提供服务。 */
 export function isLoopbackRedirectUri(value: string): boolean {
 	if (!URL.canParse(value)) return false;
 	const url = new URL(value);
@@ -137,12 +133,12 @@ export function isLoopbackRedirectUri(value: string): boolean {
 export interface McpHttpServerConfig extends McpServerConfigBase {
 	type?: "http";
 	url: string;
-	/** Values may reference environment variables (`${NAME}`) or commands (`!cmd`). */
+	/** 值可以引用环境变量（`${NAME}`）或命令（`!cmd`）。 */
 	headers?: Record<string, string>;
 	oauth?: McpOAuthConfig;
 	/**
-	 * Send the token of a pi provider (`/login <provider>`) instead of using OAuth. Not allowed in project
-	 * `mcp.json` files, and requires https except on loopback hosts, since it sends the credential to `url`.
+	 * 发送 pi 某个 provider 的 token（`/login <provider>`），而不是走 OAuth。项目级 `mcp.json` 不允许这样做；
+	 * 且除回环主机外必须用 https，因为它要把凭证发送到 `url`。
 	 */
 	auth?: { provider: string };
 }
@@ -151,7 +147,7 @@ export type McpServerConfig = McpStdioServerConfig | McpHttpServerConfig;
 
 const SERVER_NAME = /^[A-Za-z0-9_-]+$/;
 
-/** Namespace of a server's tools: `mcp__<server>` with `-` replaced by `_`, like the tool names. */
+/** 某 server 工具的命名空间：`mcp__<server>`，其中 `-` 换成 `_`，与工具名一致。 */
 export function mcpNamespace(server: string): string {
 	return `mcp__${server.replace(/-/g, "_")}`;
 }
@@ -212,12 +208,12 @@ function isExposure(value: unknown): value is McpExposure {
 	return typeof value === "string" && MCP_EXPOSURES.includes(value);
 }
 
-/** The exposure an alias stands for; other values are returned unchanged. */
+/** 别名代表的 exposure；其余值原样返回。 */
 function resolveExposureAlias(value: unknown): unknown {
 	return typeof value === "string" ? (MCP_EXPOSURE_ALIASES[value] ?? value) : value;
 }
 
-/** A copy of the server entry with exposure aliases replaced by their current names. */
+/** 一份服务器条目的副本，其中的 exposure 别名已替换为其现行名称。 */
 function resolveExposureAliases(value: Record<string, unknown>): Record<string, unknown> {
 	const { exposure, toolExposure } = value;
 	const resolved: Record<string, unknown> = { ...value };
@@ -230,7 +226,7 @@ function resolveExposureAliases(value: Record<string, unknown>): Record<string, 
 	return resolved;
 }
 
-/** Exposure of one tool of a server: its `toolExposure` entry, else the server's `exposure`. */
+/** 某 server 的某个工具的 exposure：其 `toolExposure` 条目，否则为 server 的 `exposure`。 */
 export function getMcpToolExposure(config: McpServerConfig, toolName: string): McpExposure {
 	const overrides = config.toolExposure ?? {};
 	const exact = overrides[toolName];
@@ -242,8 +238,7 @@ export function getMcpToolExposure(config: McpServerConfig, toolName: string): M
 }
 
 /**
- * Validate one server entry of the `mcpServers` shape. Returns a copy of the config with exposure
- * aliases resolved, or an error message.
+ * 校验 `mcpServers` 形状的一个 server 条目。返回 exposure 别名已解析的配置副本，或一条错误消息。
  */
 export function validateMcpServerConfig(name: string, raw: unknown): McpServerConfig | string {
 	if (!SERVER_NAME.test(name)) return `invalid server name "${name}" (use letters, digits, "_" and "-")`;
@@ -304,26 +299,26 @@ export function validateMcpServerConfig(name: string, raw: unknown): McpServerCo
 	return `server "${name}" needs either "command" (stdio) or "url" (streamable HTTP)`;
 }
 
-/** A server an extension registered with `pi.registerMcpServer()`. */
+/** 某个扩展通过 `pi.registerMcpServer()` 注册的 server。 */
 export interface RegisteredMcpServer {
 	name: string;
 	config: McpServerConfig;
-	/** Path of the extension that registered the server. */
+	/** 注册该 server 的扩展的路径。 */
 	extensionPath: string;
 }
 
-/** Servers registered by the extensions of one runtime. */
+/** 由一个运行时的所有扩展注册的 servers。 */
 export class McpServerRegistry {
 	private readonly servers = new Map<string, RegisteredMcpServer>();
 	private changeListener: (() => void) | undefined;
 
-	/** Register or replace a server. The caller checks ownership. */
+	/** 注册或替换一个 server。由调用方检查所有权。 */
 	register(server: RegisteredMcpServer): void {
 		this.servers.set(server.name, server);
 		this.changeListener?.();
 	}
 
-	/** Remove a server registered by `extensionPath`. Servers of other extensions are left alone. */
+	/** 移除由 `extensionPath` 注册的 server。其他扩展的 server 不受影响。 */
 	unregister(name: string, extensionPath: string): void {
 		if (this.servers.get(name)?.extensionPath !== extensionPath) return;
 		this.servers.delete(name);
@@ -334,12 +329,12 @@ export class McpServerRegistry {
 		return this.servers.get(name);
 	}
 
-	/** Copies of the registered servers, in registration order. */
+	/** 已注册 server 的副本，按注册顺序。 */
 	list(): RegisteredMcpServer[] {
 		return [...this.servers.values()].map((server) => ({ ...server, config: structuredClone(server.config) }));
 	}
 
-	/** Called after every change. The runner sets it when it binds, to emit `mcp_servers_change`. */
+	/** 每次变更后调用。runner 在绑定时设置它，用来发出 `mcp_servers_change`。 */
 	setChangeListener(listener: (() => void) | undefined): void {
 		this.changeListener = listener;
 	}

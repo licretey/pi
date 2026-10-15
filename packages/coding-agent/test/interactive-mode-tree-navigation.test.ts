@@ -43,7 +43,7 @@ function createTreeUI() {
 			selector = create(vi.fn()).component;
 		},
 		showExtensionSelector: vi.fn(async () => "No summary"),
-		// Dispose newly created indicators so a failing regression cannot leak spinner timers.
+		// 释放新建的指示器，避免回归测试失败时遗留旋转指示器的定时器。
 		showStatusIndicator: vi.fn((indicator: StatusIndicator) => indicator.dispose()),
 		clearStatusIndicator: vi.fn(),
 		restoreQueuedMessagesToEditor: vi.fn(),
@@ -69,12 +69,12 @@ function createTreeUI() {
 describe("InteractiveMode tree navigation availability", () => {
 	beforeEach(() => initTheme("dark"));
 
-	// Regression for #9178 / PR #9179: rejection must not replace the active operation's UI.
+	// #9178 / PR #9179 回归测试：操作被拒绝时不得替换当前操作的界面。
 	it.each(["Summarize", "No summary"])("preserves operation UI when choosing %s while busy", async (choice) => {
 		const { ui, onEscape, select } = createTreeUI();
 		const originalLeafId = ui.sessionManager.getLeafId();
 		ui.showExtensionSelector.mockImplementation(async () => {
-			// Compaction or another navigation can start while the dialog is open.
+			// 对话框打开期间，可能开始压缩或另一次导航。
 			ui.session.isCompacting = true;
 			return choice;
 		});

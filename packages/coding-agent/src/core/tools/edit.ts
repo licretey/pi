@@ -68,24 +68,24 @@ function isSingleEditInput(value: unknown): value is SingleEditInput {
 }
 
 export interface EditToolDetails {
-	/** Display-oriented diff of the changes made */
+	/** 面向显示的更改差异。 */
 	diff: string;
-	/** Standard unified patch of the changes made */
+	/** 标准统一格式的更改补丁。 */
 	patch: string;
-	/** Line number of the first change in the new file (for editor navigation) */
+	/** 新文件中第一处更改的行号（供编辑器导航使用）。 */
 	firstChangedLine?: number;
 }
 
 /**
- * Pluggable operations for the edit tool.
- * Override these to delegate file editing to remote systems (for example SSH).
+ * edit 工具可插拔的操作接口。
+ * 覆盖这些操作即可将文件编辑委托给远程系统（例如 SSH）。
  */
 export interface EditOperations {
-	/** Read file contents as a Buffer */
+	/** 以 Buffer 形式读取文件内容。 */
 	readFile: (absolutePath: string) => Promise<Buffer>;
-	/** Write content to a file */
+	/** 将内容写入文件。 */
 	writeFile: (absolutePath: string, content: string) => Promise<void>;
-	/** Check if file is readable and writable (throw if not) */
+	/** 检查文件是否可读写；否则抛出异常。 */
 	access: (absolutePath: string) => Promise<void>;
 }
 
@@ -96,7 +96,7 @@ const defaultEditOperations: EditOperations = {
 };
 
 export interface EditToolOptions {
-	/** Custom operations for file editing. Default: local filesystem */
+	/** 自定义文件编辑操作。默认使用本地文件系统。 */
 	operations?: EditOperations;
 }
 
@@ -107,8 +107,8 @@ function prepareEditArguments(input: unknown): EditToolInput {
 
 	const args = input as Record<string, unknown>;
 
-	// Some models (Opus 4.6, GLM-5.1) send edits as a JSON string instead of an array.
-	// Others send a single edit object instead of a one-element edits array.
+	// 某些模型（Opus 4.6、GLM-5.1）会将 edits 作为 JSON 字符串而非数组发送。
+	// 另一些模型会直接发送单个编辑对象，而不是只包含一个元素的 edits 数组。
 	if (typeof args.edits === "string") {
 		try {
 			const parsed = JSON.parse(args.edits);
@@ -161,17 +161,15 @@ export function createEditToolDefinition(
 			const absolutePath = resolveToCwd(path, ctx?.cwd || cwd);
 
 			return withFileMutationQueue(absolutePath, async () => {
-				// Do not reject from an abort event listener here: that would release the
-				// mutation queue while an in-flight filesystem operation may still finish.
-				// Checking signal.aborted after each await observes the same aborts while
-				// keeping the queue locked until the current operation has settled.
+				// 不要在此处的 abort 事件监听器中拒绝 Promise，否则文件系统操作尚未结束时就会释放修改队列。
+				// 每个 await 后检查 signal.aborted 可以捕获相同的中止信号，同时保持队列锁定，直到当前操作完成。
 				const throwIfAborted = (): void => {
 					if (signal?.aborted) throw new Error("Operation aborted");
 				};
 
 				throwIfAborted();
 
-				// Check if file exists.
+				// 检查文件是否存在。
 				try {
 					await ops.access(absolutePath);
 				} catch (error: unknown) {
@@ -182,12 +180,12 @@ export function createEditToolDefinition(
 				}
 				throwIfAborted();
 
-				// Read the file.
+				// 读取文件。
 				const buffer = await ops.readFile(absolutePath);
 				const rawContent = buffer.toString("utf-8");
 				throwIfAborted();
 
-				// Strip BOM before matching. The model will not include an invisible BOM in oldText.
+				// 匹配前移除 BOM。模型不会在 oldText 中包含不可见的 BOM。
 				const { bom, text: content } = splitBom(rawContent);
 				const originalEnding = detectLineEnding(content);
 				const normalizedContent = normalizeToLF(content);

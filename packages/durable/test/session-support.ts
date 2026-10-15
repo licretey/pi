@@ -27,17 +27,17 @@ function deferred(): Deferred {
 	return { promise, resolve };
 }
 
-/** A gate that holds calls until released and reports when the first held call arrives. */
+/** 暂停调用直到放行，并在第一个调用被暂停时发出通知的门闩。 */
 export type Gate = {
 	readonly entered: Promise<void>;
 	release(): void;
 };
 
-/** Memory storage with observable commits, held calls, and injected commit failures. */
+/** 可观察提交、可拦截调用并可注入提交失败的内存存储。 */
 export class ControlledStorage extends MemoryStorage {
-	/** Exact borrowed batches admitted by Session. */
+	/** Session 接受的原始借用批次。 */
 	readonly admittedCommits: (readonly StorageWrite[])[] = [];
-	/** Detached batches for value assertions. */
+	/** 用于值断言的脱离引用批次。 */
 	readonly commits: (readonly StorageWrite[])[] = [];
 	mintCount = 0;
 	documentReadCount = 0;
@@ -57,7 +57,7 @@ export class ControlledStorage extends MemoryStorage {
 		return { entered: held.entered.promise, release: () => this.#release("find", held) };
 	}
 
-	/** Simulate a crash during the held commit: it never reaches storage, and later commits proceed. */
+	/** 模拟被拦截的提交期间发生崩溃：该提交不会写入存储，后续提交仍可继续。 */
 	crash(): void {
 		this.#commitGate = undefined;
 	}
@@ -66,7 +66,7 @@ export class ControlledStorage extends MemoryStorage {
 		this.#commitFailure = error;
 	}
 
-	/** Reopen after `close()`, as a fresh process would reopen the same database, keeping every committed record. */
+	/** 在 `close()` 后重新打开存储，模拟新进程重新打开同一数据库，并保留所有已提交记录。 */
 	reopen(): this {
 		(this as unknown as { closed: boolean }).closed = false;
 		return this;
@@ -118,7 +118,7 @@ export class ControlledStorage extends MemoryStorage {
 	}
 }
 
-/** Session kernel plus its controlled storage and every committed publication. */
+/** Session 内核、受控存储以及每次已提交的发布记录。 */
 export function openTestSession(): {
 	readonly storage: ControlledStorage;
 	readonly session: SessionImpl;
@@ -150,12 +150,12 @@ export function documentCopyChanges(
 	);
 }
 
-/** Create one conversation and return its ID. */
+/** 创建一个会话并返回其 ID。 */
 export async function createConversation(session: SessionImpl): Promise<ConversationId> {
 	return session.commit(async (tx) => (await tx.createConversation({ ownership: { kind: "ownerless" } })).id, context);
 }
 
-/** Resolve after pending microtasks and one macrotask turn. */
+/** 等待待处理的微任务及一轮宏任务执行完毕后兑现。 */
 export function flush(): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, 0));
 }

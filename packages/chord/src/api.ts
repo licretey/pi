@@ -18,7 +18,7 @@ import type {
 	Service,
 } from "./types.ts";
 
-/** Create an active host for one complete set of facets. */
+/** 为一整套插件切面创建一个活跃的 host。 */
 export async function createFacetHost(options: FacetOptions): Promise<FacetHost> {
 	const kernel = new FacetKernel(options);
 	await kernel.activate();
@@ -79,7 +79,7 @@ export function defineService<T>(
 ): Service<T>;
 export function defineService(id: string, options?: { readonly local?: boolean }): Service<unknown> {
 	if (id.length === 0) throw new TypeError("Service ID must not be empty");
-	// TODO: check if the reserved namespace should be part of Chord.
+	// TODO：检查保留命名空间是否应属于 Chord。
 	if (id.startsWith("$chord.")) throw new TypeError("Service IDs beginning with $chord. are reserved");
 	return Object.freeze({ id, local: options?.local ?? false });
 }
@@ -93,8 +93,8 @@ export function replicatedState<T>(
 	options?: ReplicatedStateSourceOptions,
 ): AttachedReplicatedState<T>;
 /**
- * Create authoritative state by taking immutable ownership of an alias-free strict-JSON root.
- * The caller must not mutate `initial` after this call.
+ * 以不可变方式接管一个无别名、严格 JSON 的根对象，从而创建权威状态。
+ * 此调用之后，调用方不得再修改 `initial`。
  */
 export function replicatedState<T extends object>(initial: T): MutableReplicatedState<T>;
 export function replicatedState(

@@ -2,7 +2,7 @@ import type { ImageContent, SystemMessage, TextContent, ThinkingContent, ToolCal
 
 type Content = TextContent | ImageContent | ThinkingContent | ToolCall;
 
-/** Extract and join text from message content. */
+/** 从消息内容中提取文本并拼接。 */
 export function contentText(content: string | readonly Content[], separator = "\n"): string {
 	if (typeof content === "string") return content;
 	return content
@@ -11,7 +11,7 @@ export function contentText(content: string | readonly Content[], separator = "\
 		.join(separator);
 }
 
-/** Render a system message as a complete prompt: its content followed by its sections. */
+/** 将系统消息渲染为完整提示词：其内容后跟其各小节。 */
 export function getSystemMessageText(message: SystemMessage): string {
 	const parts = [contentText(message.content)];
 	for (const text of Object.values(message.sections ?? {})) {
@@ -21,9 +21,9 @@ export function getSystemMessageText(message: SystemMessage): string {
 }
 
 /**
- * Render a later system message for APIs that accept system messages mid-conversation.
- * Section changes are framed by name so the model can relate them to the leading prompt.
- * This framing is request-time only and may change between versions.
+ * 为支持在对话中途接收系统消息的 API 渲染后续系统消息。
+ * 小节变化用名称框起来，让模型能将其与开头的提示词关联起来。
+ * 这种框架化仅在请求时生效，且可能在版本间变化。
  */
 export function renderSystemMessageUpdate(message: SystemMessage): string {
 	const parts: string[] = [];

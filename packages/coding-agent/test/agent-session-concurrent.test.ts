@@ -1,6 +1,6 @@
 import { createModelRegistry, getModelRuntime } from "./model-runtime-test-utils.ts";
 /**
- * Tests for AgentSession concurrent prompt guard.
+ * 测试 AgentSession 对并发提示请求的保护机制。
  */
 
 import { existsSync, mkdirSync, rmSync } from "node:fs";
@@ -71,7 +71,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		let abortSignal: AbortSignal | undefined;
 
-		// Use a stream function that responds to abort
+		// 使用能够响应中止信号的流式函数
 		const agent = new Agent({
 			getApiKey: () => "test-key",
 			initialState: {
@@ -101,7 +101,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		const settingsManager = SettingsManager.create(tempDir, tempDir);
 		const authStorage = AuthStorage.create(join(tempDir, "auth.json"));
 		const modelRegistry = await createModelRegistry(authStorage, tempDir);
-		// Set a runtime API key so validation passes
+		// 设置运行时 API 密钥，使校验通过
 		await authStorage.modify("anthropic", async () => ({ type: "api_key", key: "test-key" }));
 
 		session = new AgentSession({
@@ -116,7 +116,7 @@ describe("AgentSession concurrent prompt guard", () => {
 		return session;
 	}
 
-	// A fixed sleep is not enough under full-suite load; wait until the first prompt is streaming.
+	// 全量测试负载下，固定时长的休眠不足以保证时序；应等待第一个提示进入流式状态。
 	async function waitForStreaming(timeoutMs = 5000): Promise<void> {
 		const startedAt = Date.now();
 		while (!session.isStreaming) {
@@ -128,36 +128,36 @@ describe("AgentSession concurrent prompt guard", () => {
 	it("should throw when prompt() called while streaming", async () => {
 		await createSession();
 
-		// Start first prompt (don't await, it will block until abort)
+		// 启动第一个提示（不要等待其完成，它会一直阻塞到中止）
 		const firstPrompt = session.prompt("First message");
 
 		await waitForStreaming();
 
-		// Verify we're streaming
+		// 确认当前处于流式输出状态
 		expect(session.isStreaming).toBe(true);
 
-		// Second prompt should reject
+		// 第二个提示应被拒绝
 		await expect(session.prompt("Second message")).rejects.toThrow(
 			"Agent is already processing. Specify streamingBehavior ('steer' or 'followUp') to queue the message.",
 		);
 
-		// Cleanup
+		// 清理。
 		await session.abort();
-		await firstPrompt.catch(() => {}); // Ignore abort error
+		await firstPrompt.catch(() => {}); // 忽略中止错误。
 	});
 
 	it("should allow steer() while streaming", async () => {
 		await createSession();
 
-		// Start first prompt
+		// 启动第一个提示
 		const firstPrompt = session.prompt("First message");
 		await waitForStreaming();
 
-		// steer should work while streaming
+		// 流式输出期间 steer 应能正常工作
 		await expect(session.steer("Steering message")).resolves.toBe("queued");
 		expect(session.pendingMessageCount).toBe(1);
 
-		// Cleanup
+		// 清理。
 		await session.abort();
 		await firstPrompt.catch(() => {});
 	});
@@ -165,15 +165,15 @@ describe("AgentSession concurrent prompt guard", () => {
 	it("should allow followUp() while streaming", async () => {
 		await createSession();
 
-		// Start first prompt
+		// 启动第一个提示
 		const firstPrompt = session.prompt("First message");
 		await waitForStreaming();
 
-		// followUp should work while streaming
+		// 流式输出期间 followUp 应能正常工作
 		await expect(session.followUp("Follow-up message")).resolves.toBe("queued");
 		expect(session.pendingMessageCount).toBe(1);
 
-		// Cleanup
+		// 清理。
 		await session.abort();
 		await firstPrompt.catch(() => {});
 	});
@@ -289,7 +289,7 @@ describe("AgentSession concurrent prompt guard", () => {
 	});
 
 	it("should allow prompt() after previous completes", async () => {
-		// Create session with a stream that completes immediately
+		// 创建一个流式响应会立即完成的会话
 		const model = getModel("anthropic", "claude-sonnet-4-5")!;
 		const agent = new Agent({
 			getApiKey: () => "test-key",
@@ -323,13 +323,13 @@ describe("AgentSession concurrent prompt guard", () => {
 			resourceLoader: createTestResourceLoader(),
 		});
 
-		// First prompt completes
+		// 第一个提示已完成
 		await session.prompt("First message");
 
-		// Should not be streaming anymore
+		// 此时不应再处于流式输出状态
 		expect(session.isStreaming).toBe(false);
 
-		// Second prompt should work
+		// 第二个提示应能正常执行
 		await expect(session.prompt("Second message")).resolves.not.toThrow();
 	});
 

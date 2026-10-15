@@ -8,7 +8,7 @@ import { hasAzureOpenAICredentials, resolveAzureDeploymentName } from "./azure-u
 import { hasBedrockCredentials } from "./bedrock-utils.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-// Resolve OAuth tokens at module level (async, runs before tests)
+// 在模块级别解析 OAuth 令牌（异步执行，先于测试运行）。
 const [openaiCodexToken] = await Promise.all([resolveApiKey("openai-codex")]);
 
 async function testAbortSignal<TApi extends Api>(llm: Model<TApi>, options: StreamOptionsWithExtras = {}) {
@@ -39,7 +39,7 @@ async function testAbortSignal<TApi extends Api>(llm: Model<TApi>, options: Stre
 	}
 	const msg = await response.result();
 
-	// If we get here without throwing, the abort didn't work
+	// 如果执行到这里且未抛出异常，说明中止操作未生效。
 	expect(msg.stopReason).toBe("aborted");
 	expect(msg.content.length).toBeGreaterThan(0);
 
@@ -69,7 +69,7 @@ async function testImmediateAbort<TApi extends Api>(llm: Model<TApi>, options: S
 }
 
 async function testAbortThenNewMessage<TApi extends Api>(llm: Model<TApi>, options: StreamOptionsWithExtras = {}) {
-	// First request: abort immediately before any response content arrives
+	// 第一次请求：在收到任何响应内容之前立即中止。
 	const controller = new AbortController();
 	controller.abort();
 
@@ -79,13 +79,13 @@ async function testAbortThenNewMessage<TApi extends Api>(llm: Model<TApi>, optio
 
 	const abortedResponse = await complete(llm, context, { ...options, signal: controller.signal });
 	expect(abortedResponse.stopReason).toBe("aborted");
-	// The aborted message has empty content since we aborted before anything arrived
+	// 中止发生在收到内容之前，因此中止消息的内容应为空。
 	expect(abortedResponse.content.length).toBe(0);
 
-	// Add the aborted assistant message to context (this is what happens in the real coding agent)
+	// 将已中止的 assistant 消息加入上下文（真实编码代理也会这样处理）。
 	context.messages.push(abortedResponse);
 
-	// Second request: send a new message - this should work even with the aborted message in context
+	// 第二次请求：发送新消息。即使上下文中包含已中止的消息，也应能正常工作。
 	context.messages.push({
 		role: "user",
 		content: "What is 2 + 2?",

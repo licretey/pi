@@ -97,12 +97,12 @@ describe("session selector path/delete interactions", () => {
 	});
 
 	beforeEach(() => {
-		// Ensure test isolation: keybindings are a global singleton
+		// 确保测试相互隔离：按键绑定是全局单例。
 		setKeybindings(new KeybindingsManager());
 	});
 
 	beforeAll(() => {
-		// session selector uses the global theme instance
+		// 会话选择器使用全局主题实例。
 		initTheme("dark");
 	});
 	it("does not treat Ctrl+Backspace as delete when search query is non-empty", async () => {

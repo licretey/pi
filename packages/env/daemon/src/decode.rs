@@ -1,29 +1,29 @@
-//! WHATWG UTF-8 decoding that matches Node's `new TextDecoder().decode(bytes)` of a whole input when the input arrives
-//! in pieces (Durable `env/decode.ts`): invalid sequences become U+FFFD by the maximal-subpart rule, and only a
-//! byte-order mark at the very start is dropped.
+//! WHATWG UTF-8 解码行为与 Node 对完整输入调用 `new TextDecoder().decode(bytes)` 一致，即使输入分块到达
+//!（Durable 的 `env/decode.ts`）：无效序列按最大子部规则替换为 U+FFFD，并且只会移除
+//! 输入开头的字节顺序标记。
 
 use encoding_rs::{Decoder, UTF_8};
 
-/// Decodes one stream chunk by chunk, dropping a leading byte-order mark.
+/// 逐块解码数据流，并移除开头的字节顺序标记。
 pub struct StreamDecoder {
     decoder: Decoder,
 }
 
 impl StreamDecoder {
     pub fn new() -> StreamDecoder {
-        // Removes a UTF-8 BOM only; plain `new_decoder()` would also sniff UTF-16 BOMs and switch encodings.
+        // 只移除 UTF-8 BOM；普通的 `new_decoder()` 还会检测 UTF-16 BOM 并切换编码。
         StreamDecoder {
             decoder: UTF_8.new_decoder_with_bom_removal(),
         }
     }
 
-    /// Text for `bytes`, holding back an incomplete character; with `last`, the end of the stream.
+    /// 解码 `bytes` 中的文本，并暂存不完整的字符；`last` 表示是否已到数据流末尾。
     pub fn decode(&mut self, bytes: &[u8], last: bool) -> String {
         decode_into(&mut self.decoder, bytes, last)
     }
 }
 
-/// A decoder for a byte range that does not start at the beginning of its input: no BOM handling at all.
+/// 用于解码非输入开头字节范围的解码器：完全不处理 BOM。
 pub fn range_decoder() -> Decoder {
     UTF_8.new_decoder_without_bom_handling()
 }
@@ -38,7 +38,7 @@ pub fn decode_into(decoder: &mut Decoder, bytes: &[u8], last: bool) -> String {
     text
 }
 
-/// Whether decoding the whole input drops its first three bytes as a byte-order mark.
+/// 判断解码完整输入时是否会将开头三个字节作为 BOM 移除。
 pub fn starts_with_bom(bytes: &[u8]) -> bool {
     bytes.starts_with(&[0xef, 0xbb, 0xbf])
 }

@@ -32,12 +32,12 @@ describe("MCP OAuth credential store", () => {
 		backend.withLock(() => ({ result: undefined, next: JSON.stringify({ [SERVER_URL]: state("legacy-token") }) }));
 		const store = new McpOAuthCredentialStore(backend);
 
-		// Reading tokens does not take the legacy state over.
+		// 读取令牌不会接管旧版状态。
 		expect(store.tokens("work", SERVER_URL)?.access_token).toBe("legacy-token");
 		expect(storedKeys(backend)).toEqual([SERVER_URL]);
 
 		expect((await store.forServer("my_work", SERVER_URL).load())?.tokens?.access_token).toBe("legacy-token");
-		// Names differing only in `-` and `_` are the same server.
+		// 名称仅 `-` 与 `_` 不同的服务器会被视为同一服务器。
 		expect(store.tokens("my-work", SERVER_URL)?.access_token).toBe("legacy-token");
 		expect(await store.forServer("personal", SERVER_URL).load()).toBeUndefined();
 		expect(storedKeys(backend)).toEqual([`mcp__my_work|${SERVER_URL}`]);

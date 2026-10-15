@@ -1,5 +1,5 @@
-// Issue triage: sync issues, triage new ones with a pi-durable agent, and serve a small web UI for decisions.
-// See README.md.
+// Issue 分诊：同步 issue，使用 pi-durable 代理处理新 issue，并提供用于决策的简易网页界面。
+// 详细说明见 README.md。
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";

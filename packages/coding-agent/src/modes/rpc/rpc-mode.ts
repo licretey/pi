@@ -1,14 +1,14 @@
 /**
- * RPC mode: Headless operation with JSON stdin/stdout protocol.
+ * RPC 模式：通过标准输入/输出上的 JSON 协议进行无界面操作。
  *
- * Used for embedding the agent in other applications.
- * Receives commands as JSON on stdin, outputs events and responses as JSON on stdout.
+ * 用于将智能体嵌入其他应用。
+ * 从标准输入接收 JSON 命令，并通过标准输出发送 JSON 事件和响应。
  *
- * Protocol:
- * - Commands: JSON objects with `type` field, optional `id` for correlation
- * - Responses: JSON objects with `type: "response"`, `command`, `success`, and optional `data`/`error`
- * - Events: AgentSessionEvent objects streamed as they occur
- * - Extension UI: Extension UI requests are emitted, client responds with extension_ui_response
+ * 协议：
+ * - 命令：包含 `type` 字段的 JSON 对象，可选 `id` 用于关联请求和响应
+ * - 响应：包含 `type: "response"`、`command`、`success` 字段，以及可选 `data`/`error` 的 JSON 对象
+ * - 事件：发生时即时发送的 AgentSessionEvent 对象
+ * - 扩展界面：发出扩展界面请求，由客户端通过 extension_ui_response 响应
  */
 
 import * as crypto from "node:crypto";
@@ -38,7 +38,7 @@ import type {
 	RpcSlashCommand,
 } from "./rpc-types.ts";
 
-// Re-export types for consumers
+// 重新导出类型供调用方使用
 export type {
 	RpcCommand,
 	RpcExtensionUIRequest,
@@ -48,8 +48,8 @@ export type {
 } from "./rpc-types.ts";
 
 /**
- * Run in RPC mode.
- * Listens for JSON commands on stdin, outputs events and responses on stdout.
+ * 以 RPC 模式运行。
+ * 从标准输入读取 JSON 命令，并通过标准输出发送事件和响应。
  */
 export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<never> {
 	takeOverStdout();
@@ -76,18 +76,18 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		return { id, type: "response", command, success: false, error: message };
 	};
 
-	// Pending extension UI requests waiting for response
+	// 等待响应的扩展界面请求
 	const pendingExtensionRequests = new Map<
 		string,
 		{ resolve: (value: any) => void; reject: (error: Error) => void }
 	>();
 
-	// Shutdown request flag
+	// 关闭请求标志
 	let shutdownRequested = false;
 	let shuttingDown = false;
 	const signalCleanupHandlers: Array<() => void> = [];
 
-	/** Helper for dialog methods with signal/timeout support */
+	/** 支持中止信号和超时的对话框辅助函数 */
 	function createDialogPromise<T>(
 		opts: ExtensionUIDialogOptions | undefined,
 		defaultValue: T,
@@ -131,7 +131,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 	}
 
 	/**
-	 * Create an extension UI context that uses the RPC protocol.
+	 * 创建一个使用 RPC 协议的扩展界面上下文。
 	 */
 	const createExtensionUIContext = (): ExtensionUIContext => ({
 		select: (title, options, opts) =>
@@ -150,7 +150,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			),
 
 		notify(message: string, type?: "info" | "warning" | "error"): void {
-			// Fire and forget - no response needed
+			// 发送后无需等待响应。
 			output({
 				type: "extension_ui_request",
 				id: crypto.randomUUID(),
@@ -161,12 +161,12 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		},
 
 		onTerminalInput(): () => void {
-			// Raw terminal input not supported in RPC mode
+			// RPC 模式不支持原始终端输入。
 			return () => {};
 		},
 
 		setStatus(key: string, text: string | undefined): void {
-			// Fire and forget - no response needed
+			// 发送后无需等待响应。
 			output({
 				type: "extension_ui_request",
 				id: crypto.randomUUID(),
@@ -177,23 +177,23 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		},
 
 		setWorkingMessage(_message?: string): void {
-			// Working message not supported in RPC mode - requires TUI loader access
+			// RPC 模式不支持设置运行提示；此功能需要访问 TUI 加载器。
 		},
 
 		setWorkingVisible(_visible: boolean): void {
-			// Working visibility not supported in RPC mode - requires TUI loader access
+			// RPC 模式不支持设置运行提示的可见性；此功能需要访问 TUI 加载器。
 		},
 
 		setWorkingIndicator(_options?: WorkingIndicatorOptions): void {
-			// Working indicator customization not supported in RPC mode - requires TUI loader access
+			// RPC 模式不支持自定义运行指示器；此功能需要访问 TUI 加载器。
 		},
 
 		setHiddenThinkingLabel(_label?: string): void {
-			// Hidden thinking label not supported in RPC mode - requires TUI message rendering access
+			// RPC 模式不支持设置隐藏思考标签；此功能需要访问 TUI 消息渲染器。
 		},
 
 		setWidget(key: string, content: unknown, options?: ExtensionWidgetOptions): void {
-			// Only support string arrays in RPC mode - factory functions are ignored
+			// RPC 模式只支持字符串数组；会忽略工厂函数。
 			if (content === undefined || Array.isArray(content)) {
 				output({
 					type: "extension_ui_request",
@@ -204,19 +204,19 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 					widgetPlacement: options?.placement,
 				} as RpcExtensionUIRequest);
 			}
-			// Component factories are not supported in RPC mode - would need TUI access
+			// RPC 模式不支持组件工厂；实现此功能需要访问 TUI。
 		},
 
 		setFooter(_factory: unknown): void {
-			// Custom footer not supported in RPC mode - requires TUI access
+			// RPC 模式不支持自定义页脚；此功能需要访问 TUI。
 		},
 
 		setHeader(_factory: unknown): void {
-			// Custom header not supported in RPC mode - requires TUI access
+			// RPC 模式不支持自定义页眉；此功能需要访问 TUI。
 		},
 
 		setTitle(title: string): void {
-			// Fire and forget - host can implement terminal title control
+			// 发送后无需等待响应；宿主可自行实现终端标题控制。
 			output({
 				type: "extension_ui_request",
 				id: crypto.randomUUID(),
@@ -226,17 +226,17 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		},
 
 		async custom() {
-			// Custom UI not supported in RPC mode
+			// RPC 模式不支持自定义界面。
 			return undefined as never;
 		},
 
 		pasteToEditor(text: string): void {
-			// Paste handling not supported in RPC mode - falls back to setEditorText
+			// RPC 模式不支持粘贴处理；回退为调用 setEditorText。
 			this.setEditorText(text);
 		},
 
 		setEditorText(text: string): void {
-			// Fire and forget - host can implement editor control
+			// 发送后无需等待响应；宿主可自行实现编辑器控制。
 			output({
 				type: "extension_ui_request",
 				id: crypto.randomUUID(),
@@ -246,8 +246,8 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		},
 
 		getEditorText(): string {
-			// Synchronous method can't wait for RPC response
-			// Host should track editor state locally if needed
+			// 同步方法无法等待 RPC 响应。
+			// 如有需要，宿主应在本地跟踪编辑器状态。
 			return "";
 		},
 
@@ -271,15 +271,15 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		},
 
 		addAutocompleteProvider(): void {
-			// Autocomplete provider composition is not supported in RPC mode
+			// RPC 模式不支持组合自动补全提供方。
 		},
 
 		setEditorComponent(): void {
-			// Custom editor components not supported in RPC mode
+			// RPC 模式不支持自定义编辑器组件。
 		},
 
 		getEditorComponent() {
-			// Custom editor components not supported in RPC mode
+			// RPC 模式不支持自定义编辑器组件。
 			return undefined;
 		},
 
@@ -296,17 +296,17 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		},
 
 		setTheme(_theme: string | Theme) {
-			// Theme switching not supported in RPC mode
+			// RPC 模式不支持切换主题。
 			return { success: false, error: "Theme switching not supported in RPC mode" };
 		},
 
 		getToolsExpanded() {
-			// Tool expansion not supported in RPC mode - no TUI
+			// RPC 模式没有 TUI，因此不支持展开工具。
 			return false;
 		},
 
 		setToolsExpanded(_expanded: boolean) {
-			// Tool expansion not supported in RPC mode - no TUI
+			// RPC 模式没有 TUI，因此不支持展开工具。
 		},
 	});
 
@@ -382,18 +382,18 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 	await rebindSession();
 	registerSignalHandlers();
 
-	// Handle a single command
+	// 处理单条命令。
 	const handleCommand = async (command: RpcCommand): Promise<RpcResponse | undefined> => {
 		const id = command.id;
 
 		switch (command.type) {
 			// =================================================================
-			// Prompting
+			// 提交提示。
 			// =================================================================
 
 			case "prompt": {
-				// Start prompt handling immediately, but emit the authoritative response only after
-				// prompt preflight succeeds. Queued and immediately handled prompts also count as success.
+				// 立即开始处理提示，但只有预检成功后才发送权威响应。
+				// 已排队和立即处理的提示均视为成功。
 				let preflightSucceeded = false;
 				void session
 					.prompt(command.message, {
@@ -442,7 +442,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// State
+			// 状态。
 			// =================================================================
 
 			case "get_state": {
@@ -464,7 +464,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Model
+			// 模型。
 			// =================================================================
 
 			case "set_model": {
@@ -491,7 +491,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Thinking
+			// 思考级别。
 			// =================================================================
 
 			case "set_thinking_level": {
@@ -513,7 +513,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Queue Modes
+			// 队列模式。
 			// =================================================================
 
 			case "set_steering_mode": {
@@ -527,7 +527,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Compaction
+			// 压缩。
 			// =================================================================
 
 			case "compact": {
@@ -541,7 +541,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Retry
+			// 重试。
 			// =================================================================
 
 			case "set_auto_retry": {
@@ -555,7 +555,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Bash
+			// Bash 命令。
 			// =================================================================
 
 			case "bash": {
@@ -587,7 +587,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Session
+			// 会话。
 			// =================================================================
 
 			case "get_session_stats": {
@@ -666,7 +666,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Messages
+			// 消息。
 			// =================================================================
 
 			case "get_messages": {
@@ -674,7 +674,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			}
 
 			// =================================================================
-			// Commands (available for invocation via prompt)
+			// 命令（可通过提示调用）。
 			// =================================================================
 
 			case "get_commands": {
@@ -718,8 +718,8 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 	};
 
 	/**
-	 * Check if shutdown was requested and perform shutdown if so.
-	 * Called after handling each command when waiting for the next command.
+	 * 检查是否收到关闭请求；若收到，则执行关闭操作。
+	 * 每条命令处理完毕并等待下一条命令时调用。
 	 */
 	let detachInput = () => {};
 
@@ -763,7 +763,7 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 			return;
 		}
 
-		// Handle extension UI responses
+		// 处理扩展 UI 响应。
 		if (
 			typeof parsed === "object" &&
 			parsed !== null &&
@@ -814,6 +814,6 @@ export async function runRpcMode(runtimeHost: AgentSessionRuntime): Promise<neve
 		};
 	})();
 
-	// Keep process alive forever
+	// 持续保持进程运行。
 	return new Promise(() => {});
 }

@@ -2,13 +2,13 @@ import { randomUUID } from "node:crypto";
 import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-/** One server-hosted Session: a directory holding `meta.json` and the worker-owned `session.sqlite`. */
+/** 由服务器托管的一个会话：目录中包含 `meta.json` 和由工作进程管理的 `session.sqlite`。 */
 export interface SessionCatalogMetadata {
 	readonly id: string;
 	readonly createdAt: number;
-	/** The working directory the Session's agent runs in. */
+	/** 会话代理运行时使用的工作目录。 */
 	readonly cwd: string;
-	/** The Session directory. Workers lock it and own the storage inside it. */
+	/** 会话目录。工作进程会锁定该目录并管理其中的存储。 */
 	readonly path: string;
 }
 
@@ -20,12 +20,12 @@ export function isSessionId(id: string): boolean {
 	return SESSION_ID.test(id);
 }
 
-/** The durable storage file of a Session. Only the Session's worker opens it. */
+/** 会话的持久化存储文件，仅由该会话的工作进程打开。 */
 export function sessionStoragePath(metadata: SessionCatalogMetadata): string {
 	return join(metadata.path, STORAGE_FILE);
 }
 
-/** Every Session in the directory. Entries without valid metadata are skipped. */
+/** 目录中的所有会话；缺少有效元数据的条目会被跳过。 */
 export async function listSessions(sessionDir: string): Promise<SessionCatalogMetadata[]> {
 	let names: string[];
 	try {
@@ -38,7 +38,7 @@ export async function listSessions(sessionDir: string): Promise<SessionCatalogMe
 	return sessions.filter((metadata) => metadata !== undefined);
 }
 
-/** One Session by ID, or undefined when it does not exist. */
+/** 根据 ID 获取会话；会话不存在时返回 undefined。 */
 export async function readSession(sessionDir: string, id: string): Promise<SessionCatalogMetadata | undefined> {
 	if (!isSessionId(id)) return undefined;
 	const path = join(sessionDir, id);
@@ -54,7 +54,7 @@ export async function readSession(sessionDir: string, id: string): Promise<Sessi
 	return { id, createdAt, cwd, path };
 }
 
-/** Create an empty Session. Its worker creates the storage on first open. */
+/** 创建空会话；其工作进程首次打开时会创建存储。 */
 export async function createSession(
 	sessionDir: string,
 	options: { readonly id?: string; readonly cwd: string },
@@ -77,7 +77,7 @@ export async function createSession(
 	return metadata;
 }
 
-/** Delete a Session directory. Its worker must be closed first. */
+/** 删除会话目录；必须先关闭对应的工作进程。 */
 export async function deleteSession(metadata: SessionCatalogMetadata): Promise<void> {
 	await rm(metadata.path, { recursive: true, force: true });
 }

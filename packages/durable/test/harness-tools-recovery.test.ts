@@ -82,8 +82,8 @@ async function toolTaskId(harness: Harness): Promise<TaskId> {
 }
 
 /**
- * A tool that writes output, then blocks until its invocation is cancelled the first `blocking` times it runs.
- * `started` resolves once the output is durable.
+ * 工具先写入输出，然后在前 `blocking` 次运行中一直阻塞，直到其调用被取消。
+ * 输出持久化后，`started` 才会兑现。
  */
 function blockingTool(name: string, extra: Partial<ToolRegistration> = {}) {
 	const started = deferred();
@@ -202,7 +202,7 @@ describe("tool recovery", () => {
 				expect(cwds).toEqual(["/one", "/two"]);
 				expect(result!.isError).toBe(false);
 			} else {
-				// A tool that no longer resolves is treated as unsafe: interrupted, not rerun.
+				// 无法再解析的工具被视为不安全：中断调用，不重新运行。
 				expect(cwds).toEqual(["/one"]);
 				expect(text(result)).toContain("was interrupted");
 			}
@@ -227,7 +227,7 @@ describe("tool recovery", () => {
 		addHooks(setup.registry, ToolTask, {
 			beforeTool: async (_call, api, callContext) => {
 				asked++;
-				// A durable first-writer-wins decision survives the rerun.
+				// 持久化的“首次写入者获胜”决策在重新运行后仍会保留。
 				decisions.push(await api.memo("test:decision", `attempt ${asked}`, callContext));
 				if (asked === 1) {
 					reached.resolve();
@@ -310,7 +310,7 @@ describe("tool recovery", () => {
 	it("lets context derivation answer a faulted tool and continues the run", async () => {
 		const path = await sqlitePath();
 		const setup = chatSetup();
-		// A result that is not strict JSON makes the result commit throw, so the scheduler faults the task.
+		// 结果不是严格 JSON 时，提交结果会抛出异常，因此调度器会将任务标记为故障。
 		addTool(
 			setup.registry,
 			tool("bad", async () => ({ output: [], details: { fn: (() => 1) as unknown as JsonValue } })),

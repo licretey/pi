@@ -18,7 +18,7 @@ it("routes GitHub Copilot Grok 4.5 through the Responses API", () => {
 	expect(GITHUB_COPILOT_MODELS["grok-4.5"].api).toBe("openai-responses");
 });
 
-// Regression test for https://github.com/earendil-works/pi/issues/9209
+// https://github.com/earendil-works/pi/issues/9209 的回归测试。
 it("routes all GitHub Copilot GPT models through the Responses API", () => {
 	const gptModels = Object.values(GITHUB_COPILOT_MODELS).filter((model) => model.id.startsWith("gpt-"));
 	expect(gptModels.length).toBeGreaterThan(0);

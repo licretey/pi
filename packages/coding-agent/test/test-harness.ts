@@ -1,11 +1,11 @@
 import { createInMemoryModelRegistry, getModelRuntime } from "./model-runtime-test-utils.ts";
 /**
- * Test harness for AgentSession runtime testing.
+ * 用于测试 AgentSession 运行时的测试框架。
  *
- * Provides:
- * - A faux stream function with declarative response sequencing
- * - A one-call factory for a fully wired AgentSession with real in-memory dependencies
- * - Event capture for assertions
+ * 提供以下功能：
+ * - 可按声明顺序返回响应的 faux 流函数。
+ * - 一次调用即可创建依赖均已连接、使用真实内存实现的 AgentSession。
+ * - 捕获事件以供断言使用。
  */
 
 import { existsSync, mkdirSync, rmSync } from "node:fs";
@@ -41,7 +41,7 @@ import {
 } from "./utilities.ts";
 
 // ============================================================================
-// Faux model
+// 模拟模型。
 // ============================================================================
 
 const FAUX_PROVIDER = "faux";
@@ -62,33 +62,33 @@ export const fauxModel: Model<typeof FAUX_API> = {
 };
 
 // ============================================================================
-// Response description
+// 响应描述
 // ============================================================================
 
 export interface FauxResponse {
-	/** Text content blocks. String shorthand becomes a single text block. */
+	/** 文本内容块。使用字符串简写时，会转换为单个文本块。 */
 	text?: string;
-	/** Tool calls to include in the response. */
+	/** 要包含在响应中的工具调用。 */
 	toolCalls?: Array<{ id?: string; name: string; args: JsonObject }>;
-	/** Thinking content. */
+	/** 思考内容。 */
 	thinking?: string;
-	/** Stop reason. Defaults to "stop", or "toolUse" if toolCalls are present, or "error" if error is set. */
+	/** 停止原因。默认是 "stop"；若存在 toolCalls，则为 "toolUse"；若设置了 error，则为 "error"。 */
 	stopReason?: StopReason;
-	/** Error message. Sets stopReason to "error" if not explicitly set. */
+	/** 错误消息。若未显式设置 stopReason，则会将其设为 "error"。 */
 	error?: string;
-	/** Usage numbers. Merged with defaults (input: 100, output: 50). */
+	/** 用量数值。会与默认值合并（input: 100，output: 50）。 */
 	usage?: Partial<Usage>;
-	/** Delay in ms before the response starts. */
+	/** 响应开始前的延迟时间，单位为毫秒。 */
 	delayMs?: number;
-	/** Model overrides (provider, model id) for responses that should look like they came from a different model. */
+	/** 覆盖模型信息（提供商、模型 ID），使响应看起来像是由其他模型生成。 */
 	model?: { provider?: string; id?: string };
 }
 
-/** Shorthand: a string becomes a simple text response. */
+/** 简写形式：字符串会转换为简单的文本响应。 */
 export type FauxResponseInput = FauxResponse | string;
 
 // ============================================================================
-// Faux stream function
+// 模拟流式函数
 // ============================================================================
 
 function normalizeResponse(input: FauxResponseInput): FauxResponse {
@@ -135,7 +135,7 @@ function buildAssistantMessage(resp: FauxResponse): AssistantMessage {
 		}
 	}
 
-	// If no content was added at all, add empty text
+	// 如果完全没有添加内容，则添加空文本
 	if (content.length === 0 && !resp.error) {
 		content.push({ type: "text", text: "" });
 	}
@@ -165,10 +165,10 @@ function buildAssistantMessage(resp: FauxResponse): AssistantMessage {
 }
 
 // ============================================================================
-// Token-level streaming
+// 按 token 进行流式输出
 // ============================================================================
 
-/** Split a string into chunks of varying size (3-5 chars) for simulating token-by-token streaming. */
+/** 将字符串拆分为大小不一的片段（3 到 5 个字符），以模拟逐 token 流式输出。 */
 function chunkString(text: string): string[] {
 	const chunks: string[] = [];
 	let i = 0;
@@ -181,11 +181,10 @@ function chunkString(text: string): string[] {
 }
 
 /**
- * Stream a complete AssistantMessage through an EventStream with realistic
- * intermediate delta events for each content block.
+ * 通过 EventStream 流式发送完整的 AssistantMessage，并为每个内容块生成逼真的中间增量事件。
  */
 function streamWithDeltas(stream: AssistantMessageEventStream, message: AssistantMessage): void {
-	// Build partial progressively as we stream content blocks
+	// 随着内容块流式输出，逐步构建部分响应
 	const partial: AssistantMessage = { ...message, content: [], stopReason: "pending" };
 	stream.push({ type: "start", partial: { ...partial } });
 
@@ -231,7 +230,7 @@ function streamWithDeltas(stream: AssistantMessageEventStream, message: Assistan
 				stream.push(makeEvent("toolcall_delta", i, chunk, partial));
 			}
 
-			// Final toolcall has the real parsed arguments
+			// 最终工具调用包含实际解析出的参数
 			(partial.content[i] as ToolCall).arguments = block.arguments;
 			stream.push({
 				type: "toolcall_end",
@@ -268,23 +267,22 @@ function makeEvent(
 }
 
 // ============================================================================
-// Stream function factory
+// 流式函数工厂
 // ============================================================================
 
 export interface FauxStreamFnState {
-	/** Number of times the stream function has been called. */
+	/** 流函数已被调用的次数。 */
 	callCount: number;
-	/** The context passed to each call, in order. */
+	/** 按调用顺序记录每次传入的上下文。 */
 	contexts: TranscriptContext[];
 }
 
 /**
- * Create a faux stream function from a sequence of response descriptions.
+ * 根据一系列响应描述创建 faux 流函数。
  *
- * The function cycles through responses in order. If more calls are made than
- * responses provided, it wraps around.
+ * 函数会按顺序循环使用这些响应。如果调用次数超过响应数量，则从头开始循环。
  *
- * Returns the stream function and a state object for inspection.
+ * 返回流函数和一个供检查的状态对象。
  */
 export function createFauxStreamFn(responses: FauxResponseInput[]): {
 	streamFn: (
@@ -326,27 +324,27 @@ export function createFauxStreamFn(responses: FauxResponseInput[]): {
 }
 
 // ============================================================================
-// Session harness
+// 会话测试框架
 // ============================================================================
 
 export interface HarnessOptions {
-	/** Response sequence for the faux provider. Default: single "ok" response. */
+	/** 模拟提供方的响应序列。默认只返回一次 "ok"。 */
 	responses?: FauxResponseInput[];
-	/** Model to use. Default: fauxModel. */
+	/** 要使用的模型。默认值：fauxModel。 */
 	model?: Model<any>;
-	/** Context window override (applied to the model). */
+	/** 上下文窗口覆盖值（应用到模型）。 */
 	contextWindow?: number;
-	/** Settings overrides (retry, compaction, etc.). */
+	/** 设置项覆盖值（重试、压缩等）。 */
 	settings?: Partial<Settings>;
-	/** System prompt. Default: "You are a test assistant." */
+	/** 系统提示词。默认值为 "You are a test assistant." */
 	systemPrompt?: string;
-	/** Custom tools to register on the agent. */
+	/** 要注册到智能体的自定义工具。 */
 	tools?: AgentTool[];
-	/** Base tools override (replaces built-in read/bash/edit/write). */
+	/** 基础工具覆盖项（替换内置的 read/bash/edit/write）。 */
 	baseToolsOverride?: Record<string, AgentTool>;
-	/** Optional resource loader override. */
+	/** 可选的资源加载器覆盖项。 */
 	resourceLoader?: ResourceLoader;
-	/** Inline extensions to load into the session resource loader. */
+	/** 要载入会话资源加载器的内联扩展。 */
 	extensionFactories?: Array<InlineExtension | CreateTestExtensionsResultInput>;
 }
 
@@ -355,15 +353,15 @@ export interface Harness {
 	agent: Agent;
 	sessionManager: SessionManager;
 	settingsManager: SettingsManager;
-	/** Faux stream function state (call count, captured contexts). */
+	/** 模拟流函数状态（调用次数、捕获的上下文）。 */
 	faux: FauxStreamFnState;
-	/** All events emitted by the session, in order. */
+	/** 会话按顺序发出的所有事件。 */
 	events: AgentSessionEvent[];
-	/** Filter captured events by type. */
+	/** 按类型筛选捕获的事件。 */
 	eventsOfType<T extends AgentSessionEvent["type"]>(type: T): Extract<AgentSessionEvent, { type: T }>[];
-	/** Temp directory (cleaned up by cleanup()). */
+	/** 临时目录（由 cleanup() 清理）。 */
 	tempDir: string;
-	/** Dispose session and remove temp directory. */
+	/** 释放会话并删除临时目录。 */
 	cleanup: () => void;
 }
 

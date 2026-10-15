@@ -15,7 +15,7 @@ function pngChunk(type: string, body: Buffer): Buffer {
 	return Buffer.concat([header, body, checksum]);
 }
 
-/** Build an 8-bit grayscale PNG of arbitrary dimensions without pulling in an encoder. */
+/** 无需引入编码器，即可构造任意尺寸的 8 位灰度 PNG。 */
 function createPng(width: number, height: number): Buffer {
 	const ihdr = Buffer.alloc(13);
 	ihdr.writeUInt32BE(width, 0);

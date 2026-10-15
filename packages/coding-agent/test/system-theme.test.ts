@@ -24,7 +24,7 @@ const DRACULA: SystemThemeInput = {
 		.map(rgb),
 };
 
-/** Dark with a palette, light with an unreadable foreground, background only, and mid-gray. */
+/** 覆盖深色主题（带调色板）、浅色主题（前景色不可读）、仅背景色以及中灰色。 */
 const TERMINALS: Record<string, SystemThemeInput> = {
 	dracula: DRACULA,
 	solarizedLight: { background: rgb("#fdf6e3"), foreground: rgb("#657b83") },
@@ -62,7 +62,7 @@ describe("generateSystemThemeColors", () => {
 		for (const [name, input] of Object.entries(TERMINALS)) {
 			const background = lightness(input.background!);
 			const offset = (token: ThemeToken) => lightness(resolved(input, token)) - background;
-			// On mid-gray the levels collapse to the strongest reachable color.
+			// 在中灰背景上，各级文本颜色会收敛到对比度最高的可用颜色。
 			if (name !== "midGray") {
 				expect(Math.abs(offset("text")), name).toBeGreaterThan(Math.abs(offset("muted")));
 				expect(Math.abs(offset("muted")), name).toBeGreaterThan(Math.abs(offset("dim")));
@@ -77,7 +77,7 @@ describe("generateSystemThemeColors", () => {
 
 	it("uses the terminal foreground and palette hues", () => {
 		expect(generateSystemThemeColors(DRACULA).colors.text).toBe("");
-		// Solarized's foreground is below 4.5:1 on its own background, so text is darkened.
+		// Solarized 的前景色在自身背景上的对比度低于 4.5:1，因此文本颜色会加深。
 		expect(generateSystemThemeColors(TERMINALS.solarizedLight).colors.text).not.toBe("");
 		const hue = ({ r, g, b }: RgbColor) => colorToOklch(rgbColor(r, g, b)).h;
 		expect(Math.abs(hue(resolved(DRACULA, "error")) - hue(DRACULA.palette![1]))).toBeLessThan(8);
@@ -95,7 +95,7 @@ describe("generateSystemThemeColors", () => {
 		const chroma = ({ r, g, b }: RgbColor) => colorToOklch(rgbColor(r, g, b)).c;
 		const pink = frappe.palette![5];
 		const accent = resolved(frappe, "accent");
-		// The accent is darker than the pink, but must not gain chroma (it was 2x before the cap).
+		// 强调色比粉色更暗，但色度不能增加（此前在限制前曾达到两倍）。
 		expect(lightness(accent)).toBeLessThan(lightness(pink) - 0.05);
 		expect(chroma(accent)).toBeLessThanOrEqual(chroma(pink) * 1.03);
 		for (const panel of ["userMessageBg", "customMessageBg"] as const) {

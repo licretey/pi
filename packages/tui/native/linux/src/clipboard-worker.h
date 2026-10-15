@@ -12,7 +12,7 @@ static int (*signal_worker)(pthread_cond_t*);
 static int (*wait_for_worker)(pthread_cond_t*, pthread_mutex_t*, const struct timespec*);
 
 static void initialize_worker_condition(void) {
-    // Unversioned ELF imports otherwise bind obsolete condition variables on glibc x64.
+// 否则，未指定版本的 ELF 导入会在 glibc x64 上绑定到已废弃的条件变量。
     int (*initialize)(pthread_cond_t*, const pthread_condattr_t*) = node_symbol("pthread_cond_init");
     signal_worker = node_symbol("pthread_cond_signal");
     wait_for_worker = node_symbol("pthread_cond_timedwait");
@@ -30,7 +30,7 @@ static void* read_on_private_thread(void* unused) {
     pthread_mutex_lock(&worker_mutex);
     worker_finished = true;
     if (!worker_waiting) {
-        free(worker_result.data); // The caller timed out; discard the late result.
+        free(worker_result.data); // 调用方已超时；丢弃迟到的结果。
         worker_busy = false;
     }
     signal_worker(&worker_changed);
@@ -48,11 +48,11 @@ static void clipboard_execute(clipboard_job* job) {
         worker_result = (clipboard_job){.operation = job->operation};
         struct timespec deadline;
         clock_gettime(CLOCK_MONOTONIC, &deadline);
-        deadline.tv_sec += 3; // Allow the two-second transfer deadline to report its own error first.
+            deadline.tv_sec += 3; // 留出 3 秒，让两秒的传输截止时间先报告自身错误。
         pthread_t thread;
         if (pthread_create(&thread, 0, read_on_private_thread, 0) == 0) {
             pthread_detach(thread);
-            // Only this bounded wait occupies libuv. Other callers return unavailable.
+            // 只有这段有时限的等待会占用 libuv。其他调用方会直接收到不可用结果。
             while (!worker_finished && wait_for_worker(&worker_changed, &worker_mutex, &deadline) == 0) {}
             if (worker_finished) {
                 job->data = worker_result.data;

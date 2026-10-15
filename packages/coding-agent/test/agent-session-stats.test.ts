@@ -129,7 +129,7 @@ describe("AgentSession.getSessionStats", () => {
 			syncAgentMessages(session, sessionManager);
 
 			const stats = session.getSessionStats();
-			// Totals cover ALL entries, including history compacted away (180k + 195k).
+			// 总量涵盖所有条目，包括已被压缩移除的历史记录（180k + 195k）。
 			expect(stats.tokens.input).toBe(375_000);
 			expect(stats.contextUsage).toBeDefined();
 			expect(stats.contextUsage?.tokens).toBeNull();
@@ -153,7 +153,7 @@ describe("AgentSession.getSessionStats", () => {
 			syncAgentMessages(session, sessionManager);
 
 			const stats = session.getSessionStats();
-			// Totals cover ALL entries, including history compacted away (180k + 195k + 25k).
+			// 总量涵盖所有条目，包括已被压缩移除的历史记录（180k + 195k + 25k）。
 			expect(stats.tokens.input).toBe(400_000);
 			expect(stats.contextUsage).toBeDefined();
 			expect(stats.contextUsage?.tokens).toBe(25_000);

@@ -1,12 +1,12 @@
 /**
- * GitLab Duo Provider Extension
+ * GitLab Duo 提供方扩展。
  *
- * Provides access to GitLab Duo AI models (Claude and GPT) through GitLab's AI Gateway.
- * Delegates to pi-ai's built-in Anthropic and OpenAI streaming implementations.
+ * 通过 GitLab AI Gateway 访问 GitLab Duo AI 模型（Claude 和 GPT）。
+ * 流式请求委托给 pi-ai 内置的 Anthropic 和 OpenAI 实现。
  *
- * Usage:
+ * 用法：
  *   pi -e ./packages/coding-agent/examples/extensions/custom-provider-gitlab-duo
- *   # Then /login gitlab-duo, or set GITLAB_TOKEN=glpat-...
+ *   # 然后运行 /login gitlab-duo，或设置 GITLAB_TOKEN=glpat-...
  */
 
 import {
@@ -39,7 +39,7 @@ const REDIRECT_URI = "http://127.0.0.1:8080/callback";
 const DIRECT_ACCESS_TTL = 25 * 60 * 1000;
 
 // =============================================================================
-// Models - exported for use by tests
+// 模型定义，导出供测试使用。
 // =============================================================================
 
 type Backend = "anthropic" | "openai";
@@ -119,7 +119,7 @@ export const MODELS: GitLabModel[] = [
 		contextWindow: 200000,
 		maxTokens: 8192,
 	},
-	// OpenAI (all use Responses API)
+	// OpenAI 模型（均使用 Responses API）。
 	{
 		id: "gpt-5.5-2026-04-23",
 		name: "GPT-5.5",
@@ -169,7 +169,7 @@ export const MODELS: GitLabModel[] = [
 const MODEL_MAP = new Map(MODELS.map((m) => [m.id, m]));
 
 // =============================================================================
-// Direct Access Token Cache
+// 直接访问令牌缓存。
 // =============================================================================
 
 interface DirectAccessToken {
@@ -301,7 +301,7 @@ async function refreshGitLabToken(credentials: OAuthCredentials, signal: AbortSi
 }
 
 // =============================================================================
-// Stream Function
+// 流式响应函数。
 // =============================================================================
 
 export function streamGitLabDuo(
@@ -376,7 +376,7 @@ export function streamGitLabDuo(
 }
 
 // =============================================================================
-// Extension Entry Point
+// 扩展入口。
 // =============================================================================
 
 export default function (pi: ExtensionAPI) {

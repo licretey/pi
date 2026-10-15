@@ -1,6 +1,5 @@
 /**
- * The `/mcp` manager view: menus that rebuild while servers connect, a read-only status screen, and
- * the sign-in screen that accepts a pasted redirect URL.
+ * `/mcp` 管理界面：服务器连接期间会重新构建的菜单、只读状态页面，以及接受粘贴重定向 URL 的登录页面。
  */
 
 import {
@@ -25,32 +24,32 @@ import { getSelectListTheme, type Theme } from "../../modes/interactive/theme/th
 
 export interface McpMenu {
 	title: string;
-	/** Shown below the title. */
+	/** 显示在标题下方。 */
 	details?: string;
-	/** Shown below the details in the error color. */
+	/** 显示在详情下方，并使用错误颜色。 */
 	error?: string;
 	items: SelectItem[];
-	/** Shown when there are no items. */
+	/** 没有条目时显示。 */
 	empty?: string;
-	/** Value of the item selected when the menu opens. */
+	/** 菜单打开时默认选中项的值。 */
 	selected?: string;
-	/** What the confirm key does, for the key hint. */
+	/** 确认键的操作说明，用于显示按键提示。 */
 	confirmLabel: string;
-	/** What the cancel key does, for the key hint. */
+	/** 取消键的操作说明，用于显示按键提示。 */
 	cancelLabel: string;
 }
 
 export interface McpUi {
 	/**
-	 * Show a menu and resolve to the chosen item's value, or undefined when cancelled. `subscribe`
-	 * rebuilds the menu on every change, keeping the selected item.
+	 * 显示菜单并返回所选条目的值；取消时返回 undefined。每次发生变化时，`subscribe`
+	 * 都会重建菜单并保留当前选中项。
 	 */
 	menu(build: () => McpMenu, subscribe?: (listener: () => void) => () => void): Promise<string | undefined>;
-	/** Show a message while an operation runs. With `onCancel`, the cancel key calls it. */
+	/** 操作期间显示消息。若提供 `onCancel`，按取消键时会调用它。 */
 	status(title: string, message: string, onCancel?: () => void): void;
 	/**
-	 * Show the authorization URL and wait for a pasted redirect URL. Resolves to undefined when
-	 * cancelled or when `signal` aborts (the browser reached the callback).
+	 * 显示授权 URL，并等待用户粘贴重定向 URL。取消操作或 `signal` 中止时（浏览器已到达回调地址），
+	 * 返回 undefined。
 	 */
 	redirectUrl(title: string, authorizationUrl: string, signal: AbortSignal): Promise<string | undefined>;
 }
@@ -240,7 +239,7 @@ export class McpManagerView implements McpUi, Component, Focusable {
 	}
 }
 
-/** Run `manage` in the manager view until it returns. */
+/** 在管理器视图中运行 `manage`，直到其返回。 */
 export async function showMcpManager(
 	ctx: ExtensionCommandContext,
 	manage: (ui: McpUi) => Promise<void>,

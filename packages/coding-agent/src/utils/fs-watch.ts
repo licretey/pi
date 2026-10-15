@@ -10,7 +10,7 @@ export function closeWatcher(watcher: FSWatcher | null | undefined): void {
 	try {
 		watcher.close();
 	} catch {
-		// Ignore watcher close errors
+		// 忽略关闭监视器时的错误。
 	}
 }
 

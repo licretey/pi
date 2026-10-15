@@ -1,12 +1,10 @@
 /**
- * Import a pi session shared as a gist by the issue-analysis CI workflow
- * (.github/workflows/issue-analysis.yml) and switch to it.
+ * 导入问题分析 CI 工作流（.github/workflows/issue-analysis.yml）以 gist 形式分享的 pi 会话，并切换到该会话。
  *
- * The CI job runs in a high-entropy checkout directory; this command rewrites
- * the recorded cwd to the local checkout, installs the session file into the
- * current session directory, and switches to it.
+ * CI 任务会在随机性较高的检出目录中运行；此命令会将记录的 cwd 改为本地检出目录，
+ * 把会话文件放入当前会话目录，然后切换到该会话。
  *
- * Usage:
+ * 用法：
  *   /ir b4d100022aefb12f25dd2d8485e0a82a
  *   /ir https://gist.github.com/mitsuhiko/b4d100022aefb12f25dd2d8485e0a82a
  *   /ir https://pi.dev/session/#b4d100022aefb12f25dd2d8485e0a82a
@@ -194,7 +192,7 @@ function getPlatformContinuationNotice(sourceCwd: string): string | undefined {
 	return "This session was continued on a Windows machine; paths are now Windows style.";
 }
 
-/** Rewrite occurrences of the recorded CI cwd (JSON-escaped) to the target cwd. */
+/** 将记录的 CI cwd（JSON 转义形式）替换为目标 cwd。 */
 function rewriteSessionCwd(raw: string, sourceCwd: string, targetCwd: string): string {
 	const target = escapeJsonString(targetCwd);
 	let rewritten = raw;

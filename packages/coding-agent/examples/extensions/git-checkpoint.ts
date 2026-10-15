@@ -1,8 +1,8 @@
 /**
- * Git Checkpoint Extension
+ * Git 检查点扩展。
  *
- * Creates git stash checkpoints at each turn so /fork can restore code state.
- * When forking, offers to restore code to that point in history.
+ * 每轮创建 git stash 检查点，以便 /fork 恢复代码状态。
+ * 创建分支时，会询问是否将代码恢复到历史记录对应位置。
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -11,14 +11,14 @@ export default function (pi: ExtensionAPI) {
 	const checkpoints = new Map<string, string>();
 	let currentEntryId: string | undefined;
 
-	// Track the current entry ID when user messages are saved
+	// 保存用户消息时跟踪当前条目 ID。
 	pi.on("tool_result", async (_event, ctx) => {
 		const leaf = ctx.sessionManager.getLeafEntry();
 		if (leaf) currentEntryId = leaf.id;
 	});
 
 	pi.on("turn_start", async () => {
-		// Create a git stash entry before LLM makes changes
+		// 在 LLM 修改代码前创建 git stash 条目。
 		const { stdout } = await pi.exec("git", ["stash", "create"]);
 		const ref = stdout.trim();
 		if (ref && currentEntryId) {
@@ -31,7 +31,7 @@ export default function (pi: ExtensionAPI) {
 		if (!ref) return;
 
 		if (!ctx.hasUI) {
-			// In non-interactive mode, don't restore automatically
+			// 非交互模式下不自动恢复。
 			return;
 		}
 
@@ -47,7 +47,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("agent_settled", async () => {
-		// Clear checkpoints after the full agent run completes
+		// 智能体完整运行结束后清除检查点。
 		checkpoints.clear();
 	});
 }

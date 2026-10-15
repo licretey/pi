@@ -40,20 +40,20 @@ const readSchema = Type.Object({
 export type ReadToolInput = Static<typeof readSchema>;
 
 export type ReadToolDetails = {
-	/** How the shown text was cut; the text itself is the result content. */
+	/** 展示文本是如何被截断的；文本本身就是结果内容。 */
 	truncation?: Omit<TruncationResult, "content">;
 };
 
 const READ_CHUNK = 64 * 1024;
 
-/** `Array.prototype.slice`'s conversion of an index: NaN is 0, other values truncate toward zero. */
+/** `Array.prototype.slice` 对索引的转换：NaN 视为 0，其他值向零取整。 */
 function sliceIndex(value: number): number {
 	return Number.isNaN(value) ? 0 : Math.trunc(value);
 }
 
 /**
- * The decoded start of bytes `[start, end)` of the file, decoded as part of the whole file: all of it, or enough for
- * `truncateHeadOf` (more than `DEFAULT_MAX_BYTES + 1` bytes, or `DEFAULT_MAX_LINES` newlines).
+ * 文件字节区间 `[start, end)` 解码后的开头部分，解码方式与整个文件一致：要么全部，要么满足 `truncateHeadOf`
+ * 所需（超过 `DEFAULT_MAX_BYTES + 1` 字节，或 `DEFAULT_MAX_LINES` 个换行）。
  */
 async function readHead(
 	reader: BinaryReader,
@@ -78,13 +78,13 @@ async function readHead(
 }
 
 export type ReadToolOptions = {
-	/** Resizes and converts images; without one, images within `DEFAULT_IMAGE_LIMITS.maxBytes` pass through as they are. */
+	/** 缩放并转换图像；没有处理器时，在 `DEFAULT_IMAGE_LIMITS.maxBytes` 之内的图像原样放行。 */
 	readonly images?: ImageProcessor;
 };
 
 /**
- * Reads text files and images. Remarks about truncation, continuation, and image processing are diagnostics; the content
- * is only file text, or one image, which programs get as its `ImageContent`.
+ * 读取文本文件与图像。关于截断、续读和图像处理的说明走诊断（diagnostics）；输出内容只是文件文本或一张图像，
+ * 程序以 `ImageContent` 的形式获取。
  */
 export function createReadTool(options: ReadToolOptions = {}): ToolRegistration<typeof readSchema, ReadToolDetails> {
 	const formats = options.images === undefined ? "jpg, png, gif, webp" : "jpg, png, gif, webp, bmp";
@@ -98,8 +98,8 @@ export function createReadTool(options: ReadToolOptions = {}): ToolRegistration<
 			const absolutePath = await resolveReadToolPath(env, path, context);
 			const reader = getOrThrow(await env.openBinaryReader(absolutePath, undefined, context));
 			try {
-				// A concurrent writer can change the file between the scan and the reads. Appending (a growing log) leaves
-				// the scanned text as it was; an image must be whole. Otherwise the file is read again once.
+				// 并发写入者可能在扫描与读取之间改动文件。追加（增长中的日志）会保持扫描文本
+				// 原样；图像则必须完整。其他情况下文件整体重读一次。
 				for (let attempt = 0; ; attempt++) {
 					const before = getOrThrow(await reader.info(context));
 					const mimeType = await detectSupportedImageMimeTypeOf({
@@ -131,9 +131,9 @@ export function createReadTool(options: ReadToolOptions = {}): ToolRegistration<
 }
 
 /**
- * One image block, prepared by `processor` or, without one, as it is when its format is inline and it fits the limits
- * (its size is checked before reading it, its dimensions from its header); otherwise an error result saying why. What happened to the image is an `info` diagnostic, so programs get the
- * bare `ImageContent`. A model without image input sees pi-ai's placeholder instead; a diagnostic says so.
+ * 单个图像块：由 `processor` 准备；没有处理器时，若其格式可内联且符合限制则原样输出
+ * （先检查大小，尺寸从头读取）；否则返回说明原因的错误结果。图像经历了什么处理以 `info` 诊断上报，
+ * 因此程序拿到的是纯粹的 `ImageContent`。不支持图像输入的模型看到的是 pi-ai 的占位内容，并以诊断说明。
  */
 async function readImage(
 	reader: BinaryReader,
@@ -190,12 +190,12 @@ async function readImage(
 	return { output: [{ type: "image", data: image.data, mimeType: image.mimeType }], diagnostics };
 }
 
-/** What the conversation's model takes: whether images, and within which limits. */
+/** 会话模型可接收的图像输入：是否支持图像，以及多大限制。 */
 type ImageModel = { readonly vision: boolean; readonly limits: ImageLimits };
 
 /**
- * The conversation model's image input: `DEFAULT_IMAGE_LIMITS` overridden by its `inputLimits.images.resize`. Without
- * a resolvable model, it counts as one that takes images within the defaults.
+ * 会话模型的图像输入：`DEFAULT_IMAGE_LIMITS` 被其 `inputLimits.images.resize` 覆盖。
+ * 无法解析模型时，视为支持图像并使用默认限制。
  */
 async function imageModel(api: ToolExecutionApi, context: Context): Promise<ImageModel> {
 	const ref = (await api.agent(context)).model;
@@ -216,8 +216,8 @@ function imageError(message: string): ToolExecutionResult<ReadToolDetails> {
 }
 
 /**
- * The read result for the opened file. It equals decoding the whole file with `TextDecoder`, splitting it on `\n`,
- * and bounding the selected lines with `truncateHead`, while reading only one scan's worth of the file plus the head.
+ * 已打开文件的读取结果。它等价于用 `TextDecoder` 解码整个文件、按 `\n` 拆分、用 `truncateHead` 界定所选行，
+ * 但只读取一遍扫描所需的文件量加上头部。
  */
 async function readText(
 	reader: BinaryReader,
@@ -228,11 +228,11 @@ async function readText(
 ) {
 	const startLine = offset ? Math.max(0, offset - 1) : 0;
 	const startLineDisplay = startLine + 1;
-	// Lines are selected like `allLines.slice(startLine, endLine)`, which truncates fractional indices.
+	// 行的选择方式如同 `allLines.slice(startLine, endLine)`，它会对小数索引取整。
 	const sliceStart = sliceIndex(startLine);
-	// One pass finds the line count and the selection; a selection past the last line ends with it, as `slice` does,
-	// and an empty one (a zero or negative limit) is scanned as one line and then ignored.
-	// A start beyond any file is scanned from 0 only to count lines; the offset check below then fails as before.
+	// 一遍扫描同时求出行数与选择范围；越过最后一行的选择以最后一行收尾（与 `slice` 一致），
+	// 而空选择（limit 为零或负数）会按一行扫描然后被忽略。
+	// 起点越过任何文件时，从 0 扫描只为数行数；下方的 offset 检查随后照常失败。
 	const scanStart = Number.isSafeInteger(sliceStart) ? sliceStart : 0;
 	const requestedEnd = limit === undefined ? undefined : Math.max(scanStart + 1, sliceIndex(startLine + limit));
 	const scanEnd = requestedEnd !== undefined && Number.isSafeInteger(requestedEnd) ? requestedEnd : undefined;
@@ -251,14 +251,14 @@ async function readText(
 	if (limit !== undefined) {
 		const endLine = Math.min(startLine + limit, totalFileLines);
 		userLimitedLines = endLine - startLine;
-		// `slice` counts a negative end from the end of the lines, which only the line count tells; scan again for it.
+		// `slice` 对负数终点从行尾倒数，只有行数才能确定它；为此再扫描一次。
 		const relativeEnd = sliceIndex(endLine);
 		const sliceEnd = relativeEnd < 0 ? Math.max(totalFileLines + relativeEnd, 0) : relativeEnd;
 		selectedLineCount = Math.max(0, sliceEnd - sliceStart);
 		if (selectedLineCount > 0 && relativeEnd < 0) scan = await scanOf(sliceEnd);
 	}
 	const empty = selectedLineCount === 0;
-	// Counted like `truncateHead`: a trailing newline adds no line, and empty text has none.
+	// 按 `truncateHead` 的方式计数：末尾换行不增加行数，空文本没有行。
 	const endsWithNewline = !empty && scan.lastLineStart === scan.end && scan.lastLineStart > scan.start;
 	const totals = {
 		lines: empty || scan.selectedBytes === 0 ? 0 : selectedLineCount - (endsWithNewline ? 1 : 0),
@@ -272,8 +272,8 @@ async function readText(
 	let outputText = headText;
 	let details: ReadToolDetails | undefined;
 	if (truncation.firstLineExceedsLimit) {
-		// Show the start of the line, cut at the byte limit on a character boundary. Like `allLines[startLine]`, a
-		// fractional start line names no line.
+		// 展示该行的开头，在字节限度的字符边界处截断。如同 `allLines[startLine]`，
+		// 小数起始行不指任何行。
 		const integral = Number.isInteger(startLine);
 		const lineBytes = new TextEncoder().encode(integral ? (head.split("\n")[0] ?? "") : "");
 		const lineSize = integral ? scan.firstLineBytes : 0;

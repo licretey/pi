@@ -1,16 +1,15 @@
 /**
- * A test suite to ensure all configured Amazon Bedrock models are usable.
+ * 确保所有已配置的 Amazon Bedrock 模型均可用的测试套件。
  *
- * This is here to make sure we got correct model identifiers from models.dev and other sources.
- * Because Amazon Bedrock requires cross-region inference in some models,
- * plain model identifiers are not always usable and it requires tweaking of model identifiers to use cross-region inference.
- * See https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html#inference-profiles-support-system for more details.
+ * 此测试用于确认从 models.dev 等来源获取的模型标识符正确。
+ * Amazon Bedrock 的部分模型要求使用跨区域推理，因此普通模型标识符不一定可用，
+ * 需要调整模型标识符以启用跨区域推理。详情参见
+ * https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html#inference-profiles-support-system。
  *
- * This test suite is not enabled by default unless AWS credentials and `BEDROCK_EXTENSIVE_MODEL_TEST` environment variables are set.
- * This test suite takes ~2 minutes to run. Because not all models are available in all regions,
- * it's recommended to use `us-west-2` region for best coverage for running this test suite.
+ * 默认不启用此测试套件；只有设置 AWS 凭据和 `BEDROCK_EXTENSIVE_MODEL_TEST` 环境变量后才会运行。
+ * 测试约需 2 分钟。由于并非所有区域都提供全部模型，建议使用 `us-west-2` 区域以获得较完整的覆盖。
  *
- * You can run this test suite with:
+ * 可使用以下命令运行此测试套件：
  * ```bash
  * $ AWS_REGION=us-west-2 BEDROCK_EXTENSIVE_MODEL_TEST=1 AWS_PROFILE=... npm test -- ./test/bedrock-models.test.ts
  * ```

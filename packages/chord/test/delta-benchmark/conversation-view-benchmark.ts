@@ -4,8 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// Provisional Pico5 benchmark schemas. Results are architecture experiments,
-// not compatibility commitments for public or persisted ConversationView data.
+// Pico5 基准测试使用的临时结构。结果属于架构实验，不代表对公开或持久化 ConversationView 数据作出兼容性承诺。
 const PROVISIONAL_SCHEMA = "pico5.conversation-view.provisional.v0";
 
 type Mode = "tracker";

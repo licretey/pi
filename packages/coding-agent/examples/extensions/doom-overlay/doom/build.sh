@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build DOOM for pi-doom using doomgeneric and Emscripten
+# 使用 doomgeneric 和 Emscripten 为 pi-doom 构建 DOOM。
 
 set -e
 
@@ -10,7 +10,7 @@ BUILD_DIR="$PROJECT_ROOT/doom/build"
 
 echo "=== pi-doom Build Script ==="
 
-# Check for emcc
+# 检查是否存在 emcc。
 if ! command -v emcc &> /dev/null; then
     echo "Error: Emscripten (emcc) not found!"
     echo ""
@@ -24,29 +24,29 @@ if ! command -v emcc &> /dev/null; then
     exit 1
 fi
 
-# Clone doomgeneric if not present
+# 如果尚未克隆 doomgeneric，则执行克隆。
 if [ ! -d "$DOOM_DIR/doomgeneric" ]; then
     echo "Cloning doomgeneric..."
     cd "$DOOM_DIR"
     git clone https://github.com/ozkl/doomgeneric.git
 fi
 
-# Create build directory
+# 创建构建目录。
 mkdir -p "$BUILD_DIR"
 
-# Copy our platform file
+# 复制平台文件。
 cp "$DOOM_DIR/doomgeneric_pi.c" "$DOOM_DIR/doomgeneric/doomgeneric/"
 
 echo "Compiling DOOM to WebAssembly..."
 cd "$DOOM_DIR/doomgeneric/doomgeneric"
 
-# Resolution - 640x400 is doomgeneric default, good balance of speed/quality
+# 分辨率：640×400 是 doomgeneric 的默认值，兼顾速度和画质。
 RESX=${DOOM_RESX:-640}
 RESY=${DOOM_RESY:-400}
 
 echo "Resolution: ${RESX}x${RESY}"
 
-# Compile with Emscripten (no sound)
+# 使用 Emscripten 编译（不包含声音）。
 emcc -O2 \
     -s WASM=1 \
     -s EXPORTED_FUNCTIONS="['_doomgeneric_Create','_doomgeneric_Tick','_DG_GetFrameBuffer','_DG_GetScreenWidth','_DG_GetScreenHeight','_DG_PushKeyEvent','_malloc','_free']" \

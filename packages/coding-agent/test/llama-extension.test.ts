@@ -91,7 +91,7 @@ describe("llama.cpp extension", () => {
 		]);
 	});
 
-	// Regression test for #9528.
+	// #9528 的回归测试。
 	it("discovers chat-template thinking support for loaded models", async () => {
 		let propsRequests = 0;
 		const { url } = await listen((request, response) => {
@@ -365,7 +365,7 @@ describe("llama.cpp extension", () => {
 		const classifier = controller.provider.getAllModels?.().find((model) => model.type === "classifier");
 		if (classifier?.type !== "classifier") throw new Error("missing classifier model");
 
-		// Provider auth resolves the OpenAI-compatible /v1 URL, which replaces the model's base URL.
+		// 提供方认证会解析出 OpenAI 兼容的 /v1 URL，并以此替换模型的基础 URL。
 		const result = await controller.provider.classify!(
 			{ ...classifier, baseUrl: `${url}/v1` },
 			{
@@ -412,7 +412,7 @@ describe("llama.cpp extension", () => {
 								status: { value: "sleeping" },
 								architecture: { input_modalities: ["text"], output_modalities: ["decisions"] },
 							},
-							// Servers before llama.cpp 0.6.0 may omit architecture.
+							// llama.cpp 0.6.0 之前的服务器可能不会提供架构信息。
 							{ id: "legacy", status: { value: "loaded" } },
 						],
 					});
@@ -457,7 +457,7 @@ describe("llama.cpp extension", () => {
 			signal: new AbortController().signal,
 		});
 
-		// The catalog identifies decision models, so a refresh neither probes them nor reads their chat template.
+		// 目录会标识决策模型，因此刷新时既不会探测它们，也不会读取其聊天模板。
 		expect(systemOneRequests).toEqual([]);
 		expect(propsModels.sort()).toEqual(["legacy", "qwen"]);
 		expect(controller.provider.getModels().map((model) => model.id)).toEqual(["qwen", "legacy"]);
@@ -504,7 +504,7 @@ describe("llama.cpp extension", () => {
 			},
 		]);
 
-		// A cache-only startup restores decision models with their native API.
+		// 仅使用缓存启动时，会通过原生 API 恢复决策模型。
 		const restored = createLlamaProvider();
 		await restored.provider.refreshModels?.({
 			credential,

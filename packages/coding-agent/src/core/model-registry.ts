@@ -42,8 +42,8 @@ export type ResolvedRequestAuth =
 export { clearApiKeyCache } from "./provider-composer.ts";
 
 /**
- * Synchronous compatibility facade exposed to extensions.
- * Coding-agent internals use ModelRuntime directly.
+ * 向扩展公开的同步兼容外观。
+ * coding-agent 内部直接使用 ModelRuntime。
  */
 export class ModelRegistry {
 	private readonly runtime: ModelRuntime;
@@ -52,7 +52,7 @@ export class ModelRegistry {
 		this.runtime = runtime;
 	}
 
-	/** Reload models.json asynchronously. Await before making synchronous registry reads. */
+	/** 异步重新加载 models.json；进行同步注册表读取前应等待此操作完成。 */
 	refresh(options?: ModelsRefreshOptions): Promise<ModelsRefreshResult> {
 		return this.runtime.refresh(options);
 	}
@@ -73,7 +73,7 @@ export class ModelRegistry {
 		return this.runtime.getModel(provider, modelId);
 	}
 
-	/** Find a model of a non-chat type, e.g. `findOfType("classifier", "typesafe", "jev-latest")`. */
+	/** 查找非聊天类型的模型，例如 `findOfType("classifier", "typesafe", "jev-latest")`。 */
 	findOfType<TType extends ModelType>(
 		type: TType,
 		provider: string,
@@ -125,7 +125,7 @@ export class ModelRegistry {
 		return this.runtime.getProvider(provider);
 	}
 
-	/** Stream through the configured provider with request-time authentication. */
+	/** 通过已配置的提供商创建流，并在请求时执行身份验证。 */
 	stream<TApi extends Api>(
 		model: Model<TApi>,
 		context: Context,
@@ -134,7 +134,7 @@ export class ModelRegistry {
 		return this.runtime.stream(model, context, options);
 	}
 
-	/** Stream with provider-neutral options and request-time authentication. */
+	/** 使用与提供商无关的选项创建流，并在请求时执行身份验证。 */
 	streamSimple(model: Model<Api>, context: Context, options?: ModelsSimpleStreamOptions): AssistantMessageEventStream {
 		return this.runtime.streamSimple(model, context, options);
 	}
@@ -147,12 +147,12 @@ export class ModelRegistry {
 		return this.runtime.complete(model, context, options);
 	}
 
-	/** Every known model of a type (chat, image, classifier), optionally for one provider. */
+	/** 获取指定类型（chat、image、classifier）的所有已知模型；也可限定某个提供商。 */
 	getModelsOfType<TType extends ModelType>(type: TType, provider?: string): readonly ModelTypeMap[TType][] {
 		return this.runtime.getModelsOfType(type, provider);
 	}
 
-	/** Models of a type whose provider has working credentials. */
+	/** 获取指定类型中凭据可用的提供商所提供的模型。 */
 	getAvailableOfType<TType extends ModelType>(
 		type: TType,
 		provider?: string,
@@ -169,7 +169,7 @@ export class ModelRegistry {
 		return this.runtime.getModelOfType(type, provider, modelId);
 	}
 
-	/** Classify structured state with request-time authentication. Never rejects. */
+	/** 在请求时执行身份验证，并对结构化状态进行分类；该方法不会以拒绝状态结束。 */
 	classify(
 		model: ClassifierModel<ClassifierApi>,
 		context: ClassifierContext,
@@ -178,7 +178,7 @@ export class ModelRegistry {
 		return this.runtime.classify(model, context, options);
 	}
 
-	/** Generate images with request-time authentication. Never rejects. */
+	/** 在请求时执行身份验证并生成图像；该方法不会以拒绝状态结束。 */
 	generateImages(
 		model: ImageModel<ImageApi>,
 		context: ImagesContext,

@@ -1,6 +1,6 @@
-// Late join: a client attaches while a run is already underway. It gets the current state first, the conversation
-// view or the snapshot event, and then only what changes after that.
-// Run from packages/durable:
+// 中途加入：运行已经开始后客户端才连接。客户端会先获取当前状态，对话
+// 视图或快照事件，然后只接收此后发生的变更。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/21-late-join.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Type } from "@earendil-works/pi-ai";
@@ -20,7 +20,7 @@ import {
 const context = BACKGROUND_CONTEXT;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// A tool that prints a line every 100 ms, then a slowly streamed answer.
+// 工具每 100 毫秒输出一行，随后模型缓慢流式返回回答。
 const registry = createRegistry();
 registry.install(
 	defineExtension({
@@ -52,10 +52,10 @@ const harness = await Harness.open(new MemoryStorage(), { models, registry }, co
 const root = await harness.root(context, { agent: { model: { provider: "faux", modelId: "faux-1" } } });
 
 const submission = await root.submit({ type: "input", content: "Count to ten, then tell me." }, context);
-// Join while the tool is halfway through.
+// 在工具执行到一半时加入。
 await pause(500);
 
-// Structural client: the view holds the committed transcript and documents, including the running tool's output.
+// 结构化客户端：视图保存已提交的对话记录和文档，包括正在运行的工具输出。
 const view = await root.viewState(context);
 const live = view.value.docs["pi.live"] as LiveState;
 console.log(
@@ -68,7 +68,7 @@ view.subscribe((value) => {
 	if (slot?.status === "running") console.log("view output now:", JSON.stringify(slot.output));
 });
 
-// Event client: the snapshot event carries the same state; later events apply on top of it.
+// 事件客户端：快照事件携带相同状态，后续事件会在此状态基础上应用。
 const stream = await watchEvents(harness, root.id, context);
 console.log(
 	"snapshot tools:",

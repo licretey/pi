@@ -9,10 +9,9 @@ import { cloudflareStreams } from "./cloudflare-stream.ts";
 type CloudflareAIGatewayApi = "anthropic-messages" | "openai-completions" | "openai-responses";
 
 export function cloudflareAIGatewayProvider(): Provider<CloudflareAIGatewayApi> {
-	// The api map is pinned to all three APIs: models.dev's gateway catalog drops and
-	// restores `workers-ai/*` (openai-completions) entries over time, and inference from
-	// `models` alone would otherwise reject the openai-completions entry whenever the
-	// generated catalog happens to contain none.
+	// api 映射固定包含全部三种 API：models.dev 的网关目录会随时间增删
+	// `workers-ai/*`（openai-completions）条目；若仅凭 `models` 推断，一旦生成目录
+	// 恰好不含任何 openai-completions 条目，该条目就会被拒绝。
 	return createProvider<CloudflareAIGatewayApi>({
 		id: "cloudflare-ai-gateway",
 		name: "Cloudflare AI Gateway",

@@ -4,14 +4,14 @@ import type { LineScan } from "./index.ts";
 const NEWLINE = 0x0a;
 const encoder = new TextEncoder();
 
-/** UTF-8 byte length of decoded text. */
+/** 解码后文本的 UTF-8 字节长度。 */
 function decodedBytes(text: string): number {
 	return text === "" ? 0 : encoder.encode(text).length;
 }
 
 /**
- * Computes a `LineScan` from a file's bytes fed in order, so an environment can scan any size in bounded memory. Decoded
- * sizes use the same streaming WHATWG decoder as decoding the whole file at once.
+ * 按顺序接收文件的字节流并计算出 `LineScan`，环境因此能在有限内存内扫描任意大小的文件。解码大小的计算
+ * 与一次性解码整个文件使用的是同一个 WHATWG 流式解码器。
  */
 export class LineScanner {
 	readonly #startLine: number;
@@ -27,11 +27,11 @@ export class LineScanner {
 	#firstLineBytes = 0;
 	#selection: InstanceType<typeof TextDecoder> | undefined;
 	#firstLine: InstanceType<typeof TextDecoder> | undefined;
-	/** The first bytes, held until it is known whether they are a byte-order mark. */
+	/** 文件最初的字节，先扣住不放，直到确认它们是否为字节序标记。 */
 	#head: number[] | undefined = [];
 	#bom = false;
 
-	/** `startLine` and `endLine` must be non-negative integers with `endLine > startLine`; `endLine` absent: to the end. */
+	/** `startLine` 与 `endLine` 必须是非负整数且 `endLine > startLine`；缺省 `endLine` 表示直到结尾。 */
 	constructor(startLine: number, endLine = Number.POSITIVE_INFINITY) {
 		if (!Number.isSafeInteger(startLine) || startLine < 0 || !(endLine > startLine)) {
 			throw new RangeError("Invalid line range");
@@ -65,7 +65,7 @@ export class LineScanner {
 		const base = this.#position;
 		let from = 0;
 		for (let index = chunk.indexOf(NEWLINE); index !== -1; index = chunk.indexOf(NEWLINE, index + 1)) {
-			// The newline ends line `this.#newlines`. It belongs to the selection between selected lines only.
+			// 该换行符结束第 `this.#newlines` 行。仅当它位于选中行之间时才计入选择范围。
 			this.#feed(chunk, base, from, index);
 			const line = this.#newlines;
 			const position = base + index;
@@ -103,7 +103,7 @@ export class LineScanner {
 			start: this.#start,
 			end: this.#end ?? size,
 			firstLineEnd: this.#firstLineEnd ?? size,
-			// A selection that reaches past the last line ends with the last line.
+			// 越过最后一行的选择，以最后一行为其终点。
 			lastLineStart: this.#lastLineStart ?? this.#lineStart,
 			selectedBytes: this.#selectedBytes,
 			firstLineBytes: this.#firstLineBytes,
@@ -129,9 +129,9 @@ export class LineScanner {
 		this.#selection = undefined;
 	}
 
-	/** Feed `chunk[from, to)`, which starts at file offset `base`, to the decoders of the ranges still open. */
+	/** 把从文件偏移 `base` 处开始的 `chunk[from, to)` 字节，喂给那些尚未闭合的范围所对应的解码器。 */
 	#feed(chunk: Uint8Array, base: number, from: number, to: number): void {
-		// Decoding the whole file drops a leading byte-order mark.
+		// 解码整个文件会丢掉文件开头的字节序标记。
 		if (this.#bom && base + from < 3) from = Math.min(to, 3 - base);
 		if (to <= from) return;
 		const bytes = chunk.subarray(from, to);

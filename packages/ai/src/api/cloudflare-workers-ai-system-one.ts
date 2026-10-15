@@ -15,12 +15,12 @@ function cloudflareErrorMessage(errors: unknown): string {
 }
 
 /**
- * System One models on the Workers AI REST endpoint:
- * `POST /accounts/{account}/ai/run` with `{ model, input }`. The REST API wraps the model
- * output in Cloudflare's API envelope. Third-party models such as `typesafe/jev` add a run record:
+ * Workers AI REST 端点上的 System One 模型：
+ * 使用 `POST /accounts/{account}/ai/run` 并提交 `{ model, input }`。REST API 会将模型输出包装在 Cloudflare API 信封中。
+ * `typesafe/jev` 等第三方模型还会添加运行记录：
  * `{ success, result: { state: "Completed", result: { answers, usage } } }`.
  * https://developers.cloudflare.com/ai/models/typesafe/jev/
- * Cloudflare-hosted models such as `@cf/cloudflare/clef` return the output directly:
+ * `@cf/cloudflare/clef` 等由 Cloudflare 托管的模型会直接返回输出：
  * `{ success, result: { model, answers, usage } }`.
  * https://developers.cloudflare.com/workers-ai/models/clef/
  */
@@ -43,6 +43,6 @@ const transport: SystemOneTransport = {
 	},
 };
 
-/** Cloudflare Workers AI System One classification with public `bool` values mapped to wire-level `noul`. */
+/** Cloudflare Workers AI System One 分类接口；将公开的 `bool` 值映射为传输层的 `noul`。 */
 export const classify: ClassifierFunction<ClassifierOptions> = (model, context, options) =>
 	classifySystemOne(transport, model, context, options);

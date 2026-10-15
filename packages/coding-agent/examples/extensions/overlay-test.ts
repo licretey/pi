@@ -1,11 +1,11 @@
 /**
- * Overlay Test - validates overlay compositing with inline text inputs
+ * 覆盖层测试：验证覆盖层与行内文本输入的合成效果。
  *
- * Usage: pi --extension ./examples/extensions/overlay-test.ts
+ * 用法：pi --extension ./examples/extensions/overlay-test.ts
  *
- * Run /overlay-test to show a floating overlay with:
- * - Inline text inputs within menu items
- * - Edge case tests (wide chars, styled text, emoji)
+ * 运行 /overlay-test 可显示浮动覆盖层，其中包含：
+ * - 菜单项中的行内文本输入
+ * - 边界情况测试（宽字符、带样式文本、表情符号）
  */
 
 import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
@@ -31,7 +31,7 @@ export default function (pi: ExtensionAPI) {
 class OverlayTestComponent implements Focusable {
 	readonly width = 70;
 
-	/** Focusable interface - set by TUI when focus changes */
+	/** 可聚焦接口：TUI 在焦点变化时设置。 */
 	focused = false;
 
 	private selected = 0;
@@ -101,7 +101,7 @@ class OverlayTestComponent implements Focusable {
 		lines.push(row(` ${th.fg("accent", "🧪 Overlay Test")}`));
 		lines.push(row(""));
 
-		// Edge cases - full width lines to test compositing at boundaries
+		// 边界情况：使用全宽行测试边缘处的合成效果。
 		lines.push(row(` ${th.fg("dim", "─── Edge Cases (borders should align) ───")}`));
 		lines.push(row(` Wide: ${th.fg("warning", "中文日本語한글テスト漢字繁體简体ひらがなカタカナ가나다라마바")}`));
 		lines.push(
@@ -112,7 +112,7 @@ class OverlayTestComponent implements Focusable {
 		lines.push(row(" Emoji: 👨‍👩‍👧‍👦 🇯🇵 🚀 💻 🎉 🔥 😀 🎯 🌟 💡 🎨 🔧 📦 🏆 🌈 🎪 🎭 🎬 🎮 🎲"));
 		lines.push(row(""));
 
-		// Menu with inline inputs
+		// 带内联输入框的菜单。
 		lines.push(row(` ${th.fg("dim", "─── Actions ───")}`));
 
 		for (let i = 0; i < this.items.length; i++) {
@@ -129,7 +129,7 @@ class OverlayTestComponent implements Focusable {
 					const before = inputDisplay.slice(0, item.cursor);
 					const cursorChar = item.cursor < inputDisplay.length ? inputDisplay[item.cursor] : " ";
 					const after = inputDisplay.slice(item.cursor + 1);
-					// Emit hardware cursor marker for IME support when focused
+					// 获得焦点时输出硬件光标标记，以支持输入法。
 					const marker = this.focused ? CURSOR_MARKER : "";
 					inputDisplay = `${before}${marker}${renderFakeCursor(cursorChar)}${after}`;
 				}

@@ -1,5 +1,5 @@
 /**
- * Process @file CLI arguments into text content and image attachments
+ * 将命令行中的 @file 参数处理为文本内容和图像附件。
  */
 
 import { access, readFile, stat } from "node:fs/promises";
@@ -17,21 +17,21 @@ export interface ProcessedFiles {
 }
 
 export interface ProcessFileOptions {
-	/** Whether to auto-resize images. Default: true */
+	/** 是否自动缩放图像。默认值：true。 */
 	autoResizeImages?: boolean;
 }
 
-/** Process @file arguments into text content and image attachments */
+/** 将 @file 参数处理为文本内容和图像附件。 */
 export async function processFileArguments(fileArgs: string[], options?: ProcessFileOptions): Promise<ProcessedFiles> {
 	const autoResizeImages = options?.autoResizeImages ?? true;
 	let text = "";
 	const images: ImageContent[] = [];
 
 	for (const fileArg of fileArgs) {
-		// Expand and resolve path (handles ~ expansion and macOS screenshot Unicode spaces)
+		// 展开并解析路径（处理 ~ 展开和 macOS 截图路径中的 Unicode 空格）。
 		const absolutePath = resolve(resolveReadPath(fileArg, process.cwd()));
 
-		// Check if file exists
+		// 检查文件是否存在。
 		try {
 			await access(absolutePath);
 		} catch {
@@ -39,17 +39,17 @@ export async function processFileArguments(fileArgs: string[], options?: Process
 			process.exit(1);
 		}
 
-		// Check if file is empty
+		// 检查文件是否为空。
 		const stats = await stat(absolutePath);
 		if (stats.size === 0) {
-			// Skip empty files
+			// 跳过空文件。
 			continue;
 		}
 
 		const mimeType = await detectSupportedImageMimeTypeFromFile(absolutePath);
 
 		if (mimeType) {
-			// Handle image file
+			// 处理图像文件。
 			const content = await readFile(absolutePath);
 			const processed = await processImage(content, mimeType, { autoResizeImages });
 
@@ -65,14 +65,14 @@ export async function processFileArguments(fileArgs: string[], options?: Process
 			};
 			images.push(attachment);
 
-			// Add text reference to image with optional processing hints
+			// 添加图像的文本引用，以及可选的处理提示。
 			if (processed.hints.length > 0) {
 				text += `<file name="${absolutePath}">${processed.hints.join("\n")}</file>\n`;
 			} else {
 				text += `<file name="${absolutePath}"></file>\n`;
 			}
 		} else {
-			// Handle text file
+			// 处理文本文件。
 			try {
 				const content = stripBom(await readFile(absolutePath, "utf-8"));
 				text += `<file name="${absolutePath}">\n${content}\n</file>\n`;

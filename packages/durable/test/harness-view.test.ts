@@ -21,7 +21,7 @@ type Frame = { value: ConversationView; ops: readonly Op[] };
 
 const MOUNTED = ["pi.agent", "pi.inbox", "pi.live", "pi.provider", "pi.usage"];
 
-/** Start a watch of `conversation` that records its acquisition revision and every delivered frame. */
+/** 开始监听 `conversation`，记录获取时的版本以及收到的每一帧。 */
 async function record(conversation: Conversation) {
 	const watch = await conversation.watch(context);
 	const initial = watch.value;
@@ -32,7 +32,7 @@ async function record(conversation: Conversation) {
 	return { initial, frames, stop: () => watch.stop() };
 }
 
-/** A freshly built view of `conversation`, for comparing with an advanced one. */
+/** 为 `conversation` 重新构建的视图，用于与已推进的视图比较。 */
 async function fresh(conversation: Conversation): Promise<ConversationView> {
 	const state = await conversation.viewState(context);
 	const value = state.value;
@@ -40,7 +40,7 @@ async function fresh(conversation: Conversation): Promise<ConversationView> {
 	return value;
 }
 
-/** The view as committed state defines it, read without any mount: the active entries and the built-in documents. */
+/** 不经过任何挂载点读取、由已提交状态定义的视图：活跃条目和内置文档。 */
 async function committed(harness: Harness, conversation: Conversation, record: ConversationView["conversation"]) {
 	const docs: Record<string, unknown> = {};
 	for (const token of [AgentDoc, LiveDoc, InboxDoc, ProviderDoc, UsageDoc] as const) {
@@ -50,7 +50,7 @@ async function committed(harness: Harness, conversation: Conversation, record: C
 	return { conversation: record, entries: (await conversation.context(context)).entries, docs };
 }
 
-/** Replay every frame's operations from `initial`, checking each delivered revision on the way. */
+/** 从 `initial` 开始重放每一帧的操作，并逐一检查重放后的版本。 */
 function replay(initial: ConversationView, frames: readonly Frame[]): ConversationView {
 	let value = initial;
 	for (const frame of frames) {
@@ -64,7 +64,7 @@ function answer(text: string): AssistantMessage {
 	return fauxAssistantMessage([fauxText(text)]);
 }
 
-/** Let watch callbacks, which run after the commit, catch up. */
+/** 等待提交后运行的监听回调完成追赶。 */
 async function drained(): Promise<void> {
 	await new Promise((resolve) => setTimeout(resolve, 0));
 }
@@ -120,7 +120,7 @@ describe("conversation view", () => {
 		expect(frames).toHaveLength(touching.count);
 		expect(replay(initial, frames)).toEqual(await committed(harness, root, initial.conversation));
 		expect(frames[0]!.ops).toContainEqual(["p", ["entries"], 0, 0, [expect.objectContaining({ kind: "pi.user" })]]);
-		// Document operations keep their exact shape under the mount path.
+		// 文档操作在挂载路径下保留原有结构。
 		expect(frames.flatMap((frame) => frame.ops)).toContainEqual([
 			"s",
 			["docs", "pi.live", "generation"],
@@ -174,7 +174,7 @@ describe("conversation view", () => {
 		const { frames, stop } = await record(root);
 		await root.commit((tx) => tx.appendEntry(root.id, { kind: "summary", head: old.id }), context);
 		await drained();
-		// Model context now starts at `old` again, but the mount never held it (spec §12); a rebuilt mount shows it.
+		// 模型上下文现在又从 `old` 开始，但挂载点从未持有它（规范 §12）；重新构建挂载点后会显示它。
 		expect(frames[0]!.value.entries.map((entry) => entry.kind)).toEqual(["summary"]);
 		await stop();
 		expect((await fresh(root)).entries.map((entry) => entry.kind)).toEqual(["summary", "old"]);
@@ -260,7 +260,7 @@ describe("conversation view", () => {
 		expect(state.value.entries.map((entry) => entry.kind)).toEqual(["one", "two"]);
 		const last = state.value;
 		state.dispose();
-		// No observer is left, so the mount was dropped: a new observer builds a new revision from committed state.
+		// 已无观察者，因此挂载已被移除；新观察者会根据已提交状态构建新版本。
 		const rebuilt = await fresh(root);
 		expect(rebuilt).toEqual(last);
 		expect(rebuilt).not.toBe(last);
@@ -339,7 +339,7 @@ describe("conversation view", () => {
 			(await tx.doc(LiveDoc, root.id)).tools = [];
 			await tx.appendEntry(root.id, { kind: "b" });
 		}, context);
-		// A document that is not mounted publishes nothing.
+		// 未挂载的文档不会发布任何内容。
 		await root.commit(async (tx) => {
 			(await tx.doc(Other, root.id)).n = 1;
 		}, context);

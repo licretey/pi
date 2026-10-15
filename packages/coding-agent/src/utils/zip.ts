@@ -13,7 +13,7 @@ function dosDateTime(date: Date): { time: number; day: number } {
 	};
 }
 
-/** Create the small, classic ZIP archives used by bug reports. */
+/** 创建错误报告使用的轻量经典 ZIP 压缩包。 */
 function createZipArchive(entries: readonly ZipEntry[]): Buffer {
 	const files: Buffer[] = [];
 	const directory: Buffer[] = [];

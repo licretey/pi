@@ -63,7 +63,7 @@ describe("getBranchSelection", () => {
 		return { selection, lookups };
 	}
 
-	// #10198: the selection must not cost one catalog lookup per assistant message.
+	// #10198：选择模型时不应为每条 assistant 消息各执行一次目录查找。
 	it("looks up only the last model_change", async () => {
 		const { runtime, virtual } = await createRuntime();
 		const small = runtime.getModel("faux", "small")!;
@@ -105,7 +105,7 @@ describe("getBranchSelection", () => {
 		const { selection, lookups } = select((sessionManager) => {
 			sessionManager.appendMessage(assistantFrom(small, "ok"));
 			sessionManager.appendMessage(assistantFrom(large, "ok"));
-			// Failed routing leaves the virtual model on its message.
+			// 路由失败时，消息中记录的仍是虚拟模型。
 			sessionManager.appendMessage({ ...assistantFrom(virtual, ""), stopReason: "error" });
 		}, runtime);
 		expect(selection).toEqual({ provider: "faux", modelId: "large" });
@@ -129,7 +129,7 @@ describe("ModelRuntime virtual models", () => {
 
 		const low = await runtime.resolveModel(virtual, messages, { reason: "user", thinkingLevel: "low" });
 		expect(low.model.id).toBe("small");
-		// The router asked for "high", but the small model does not reason.
+		// 路由器请求了 "high"，但 small 模型不支持推理。
 		expect(low.thinkingLevel).toBe("off");
 		expect(requests[0].previous).toEqual({ model: large, thinkingLevel: "medium" });
 
@@ -155,7 +155,7 @@ describe("ModelRuntime virtual models", () => {
 		];
 
 		await runtime.resolveModel(virtual, messages, { reason: "retry", thinkingLevel: "low", failed });
-		// A routing failure names the virtual model, so there is no failed physical request to report.
+		// 路由失败时记录的是虚拟模型，因此没有可报告的失败物理模型请求。
 		const failedRoute = { ...assistantFrom(virtual, ""), stopReason: "error" as const };
 		await runtime.resolveModel(virtual, messages, { reason: "retry", thinkingLevel: "low", failed: failedRoute });
 
@@ -173,7 +173,7 @@ describe("ModelRuntime virtual models", () => {
 
 		expect(runtime.getModels("faux").map((model) => model.id)).toEqual(["small", "large", "auto", "fast"]);
 		expect(runtime.getModels("router").map((model) => model.id)).toEqual(["auto", "second"]);
-		// Virtual models on a physical provider are available when the provider is.
+		// 物理提供商可用时，其下的虚拟模型也可用。
 		const available = await runtime.getAvailable();
 		expect(available.filter((model) => model.provider === "faux").map((model) => model.id)).toEqual([
 			"small",
@@ -218,7 +218,7 @@ describe("ModelRuntime virtual models", () => {
 			},
 		]);
 
-		// The caller sized the request without knowing the routed model.
+		// 调用方设置请求大小时并不知道最终路由到哪个模型。
 		const message = await runtime.completeSimple(
 			virtual,
 			{ messages: [{ role: "user", content: "hi", timestamp: 1 }] },
@@ -245,7 +245,7 @@ describe("ModelRuntime virtual models", () => {
 		await runtime.completeSimple(virtual, context, options);
 		await runtime.completeSimple(runtime.getModel("faux", "auto")!, context, options);
 
-		// The router provider's credentials stay with it; the faux provider's own virtual model keeps them.
+		// 路由器提供商的凭据仍归其自身所有；faux 提供商下的虚拟模型则保留 faux 的凭据。
 		expect(seen[0].apiKey).not.toBe("caller-key");
 		expect(seen[0].headers?.["x-caller"]).toBeUndefined();
 		expect(seen[1]).toMatchObject({ apiKey: "caller-key", headers: { "x-caller": "1" } });
@@ -272,7 +272,7 @@ describe("createAgentSession with virtual models", () => {
 		rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	/** Resume a transcript where the virtual model was selected and the large model answered. */
+	/** 恢复一段已选择虚拟模型、并由 large 模型作答的对话记录。 */
 	async function resume(runtime: ModelRuntime, model?: Model<string>) {
 		const sessionManager = SessionManager.inMemory(tempDir);
 		sessionManager.appendModelChange("router", "auto");
@@ -296,7 +296,7 @@ describe("createAgentSession with virtual models", () => {
 
 	it("restores a virtual selection registered right before the session opens", async () => {
 		const { runtime, definition } = await createRuntime();
-		// Extensions register while the session is created, without waiting for the availability refresh.
+		// 扩展在创建会话期间注册，无需等待可用性刷新完成。
 		runtime.registerVirtualModel({ ...definition, provider: "late" });
 		const sessionManager = SessionManager.inMemory(tempDir);
 		sessionManager.appendModelChange("late", "auto");
@@ -380,7 +380,7 @@ describe("createAgentSession with virtual models", () => {
 			const firstAnswer = sessionManager.getLeafId()!;
 			await session.setModel(after);
 			await session.prompt("two");
-			// Navigating back to before the switch keeps `after` selected, but its model_change is on the old branch.
+			// 回到切换发生前的位置后，仍会选中 `after`，但其 model_change 记录位于旧分支。
 			await session.navigateTree(firstAnswer);
 			await session.prompt("three");
 			session.dispose();
@@ -434,7 +434,7 @@ describe("createAgentSession with virtual models", () => {
 				.at(-1);
 
 		const { session, sessionManager } = await resume(runtime, runtime.getModel("faux", "small"));
-		// Opening the session does not write to it.
+		// 打开会话不会向其中写入内容。
 		expect(lastModelChange()).toMatchObject({ provider: "router", modelId: "auto" });
 
 		await session.prompt("again");

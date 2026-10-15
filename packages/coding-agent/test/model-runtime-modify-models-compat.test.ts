@@ -91,7 +91,7 @@ describe("extension provider model lifecycle", () => {
 		expect(registry.getProvider("extension-native")).toBeUndefined();
 	});
 
-	// Regression for #9962: initial model selection reads the snapshot before the async refresh finishes.
+	// #9962 回归测试：异步刷新完成前，初始模型选择应读取当前快照。
 	it("marks a native provider with a stored credential as configured when it registers", async () => {
 		const runtime = await ModelRuntime.create({
 			credentials: AuthStorage.inMemory({

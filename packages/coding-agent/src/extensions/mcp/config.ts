@@ -1,15 +1,15 @@
 /**
- * MCP server configuration.
+ * MCP 服务器配置。
  *
- * Servers are read from `mcp.json` in the agent directory and, for trusted projects, from
- * `<project>/.pi/mcp.json`. Both use the `mcpServers` shape shared by other MCP clients, so
- * existing configurations can be copied over. Project entries replace global entries with the
- * same name.
+ * 从智能体目录中的 `mcp.json` 读取服务器配置；对于受信任的项目，也会从
+ * `<project>/.pi/mcp.json` 读取。两种文件都采用其他 MCP 客户端共用的 `mcpServers` 格式，因此
+ * 可以直接复用现有配置。项目配置中的条目会替换同名的全局配置。
  *
- * A project entry without `command`, `url`, or `type` overrides only `enabled`, `exposure`, and
- * `toolExposure` of the global server with the same name, for example to turn it off in one project:
- * `{ "mcpServers": { "internal-tools": { "enabled": false } } }`. The rest of the global entry is kept,
- * including credentials the project could not set itself.
+ *
+ * 项目配置中的条目如果没有 `command`、`url` 或 `type`，则只覆盖全局同名服务器的 `enabled`、`exposure` 和
+ * `toolExposure`，例如在某个项目中禁用该服务器：
+ * `{ "mcpServers": { "internal-tools": { "enabled": false } } }`。全局条目的其他配置会保留，
+ * 包括项目自身无法设置的凭据。
  *
  * ```json
  * {
@@ -21,12 +21,12 @@
  * }
  * ```
  *
- * HTTP servers without an `Authorization` header use OAuth when they answer 401 (sign in with `/mcp`).
- * `"auth": { "provider": "<provider>" }` sends the token of a `/login` provider instead. Project files
- * cannot use it, so a repository cannot pick where the credential goes.
+ * 未配置 `Authorization` 请求头的 HTTP 服务器在返回 401 时会使用 OAuth（通过 `/mcp` 登录）。
+ * `"auth": { "provider": "<provider>" }` 则会改用 `/login` 提供商的令牌。项目配置文件
+ * 不能使用此选项，因此仓库无法指定凭据的发送目标。
  *
- * The top-level `autoEnableCodemode` (default true) activates the codemode tool when a server
- * with `codemode` exposure connects. A project value overrides the global one.
+ * 顶层配置 `autoEnableCodemode`（默认值为 true）会在服务器连接且
+ * 暴露方式为 `codemode` 时激活 codemode 工具。项目中的设置会覆盖全局设置。
  */
 
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -51,29 +51,29 @@ export { getMcpToolExposure } from "../../core/mcp-servers.ts";
 export interface McpServerEntry {
 	name: string;
 	config: McpServerConfig;
-	/** Config file that defined the entry, or the path of the extension that registered it. */
+	/** 定义此条目的配置文件路径，或注册此条目的扩展路径。 */
 	source: string;
 	/**
-	 * The global or the project `mcp.json`, or `extension` for servers registered with
-	 * `pi.registerMcpServer()`. Changes to extension servers are not saved.
+	 * 对于全局或项目的 `mcp.json`，值为对应配置范围；通过
+	 * `pi.registerMcpServer()` 注册的服务器，值为 `extension`。扩展服务器的变更不会保存。
 	 */
 	scope?: "global" | "project" | "extension";
-	/** Project `mcp.json` with an override of this global server's `enabled`, `exposure`, or `toolExposure`. */
+	/** 覆盖此全局服务器 `enabled`、`exposure` 或 `toolExposure` 设置的项目 `mcp.json` 路径。 */
 	override?: string;
 }
 
 export interface LoadedMcpConfig {
 	servers: McpServerEntry[];
-	/** Activate the codemode tool when `codemode` servers connect. Default: true. */
+	/** `codemode` 服务器连接时是否激活 codemode 工具。默认值：true。 */
 	autoEnableCodemode?: boolean;
 	errors: string[];
-	/** The project `mcp.json` when the project is trusted, where `/mcp` saves project overrides. */
+	/** 项目受信任时使用的项目 `mcp.json` 路径，`/mcp` 会将项目覆盖项保存到此文件。 */
 	projectConfig?: string;
 }
 
 const OVERRIDE_KEYS = ["enabled", "exposure", "toolExposure"];
 
-/** Whether an entry overrides a server defined elsewhere instead of defining one. */
+/** 判断此条目是否用于覆盖其他位置定义的服务器，而非定义新服务器。 */
 function isOverride(value: Record<string, unknown>): boolean {
 	return value.command === undefined && value.url === undefined && value.type === undefined;
 }
@@ -124,7 +124,7 @@ function readConfigFile(path: string, scope: "global" | "project", state: McpCon
 			errors.push(`${path}: ${config}`);
 			continue;
 		}
-		// Names that differ only in `-` and `_` would share a namespace.
+		// 仅 `-` 和 `_` 不同的名称会映射到相同命名空间。
 		const clash = [...servers.keys()].find((other) => other !== name && mcpNamespace(other) === mcpNamespace(name));
 		if (clash) {
 			errors.push(`${path}: server "${name}" conflicts with "${clash}"`);
@@ -139,8 +139,8 @@ function readConfigFile(path: string, scope: "global" | "project", state: McpCon
 }
 
 /**
- * Load global and (when trusted) project MCP configuration. Disabled servers are included with
- * `enabled: false`, so they can be enabled again.
+ * 加载全局 MCP 配置，以及受信任时的项目 MCP 配置。已禁用的服务器也会包含在结果中，并标记
+ * 为 `enabled: false`，以便之后重新启用。
  */
 export function loadMcpConfig(options: { agentDir: string; cwd: string; projectTrusted: boolean }): LoadedMcpConfig {
 	const state: McpConfigState = { servers: new Map(), errors: [] };
@@ -155,16 +155,16 @@ export function loadMcpConfig(options: { agentDir: string; cwd: string; projectT
 	};
 }
 
-/** Settings `/mcp` changes. `enabled: true` and `exposure: "codemode"` are the defaults and remove the key. */
+/** `/mcp` 命令修改的设置。`enabled: true` 和 `exposure: "codemode"` 是默认值，写入时会删除对应键。 */
 export interface McpServerConfigPatch {
 	enabled?: boolean;
 	exposure?: McpExposure;
 }
 
 /**
- * Change one server's settings in the `mcp.json` that defines or overrides it. With `override`, a
- * missing entry is added as an override. Overrides keep default values, since they replace the global
- * server's. Other content is kept; the file is rewritten with its indentation.
+ * 在定义或覆盖该服务器的 `mcp.json` 中修改其设置。启用 `override` 时，若条目不存在，
+ * 会新增一个覆盖项。覆盖项需要保留默认值，因为它会替换全局
+ * 服务器配置。文件中的其他内容会保留，重写时也会沿用原有缩进。
  */
 export function updateMcpServerConfig(
 	path: string,
@@ -193,8 +193,8 @@ export function updateMcpServerConfig(
 }
 
 /**
- * Add a server to an `mcp.json`, creating the file when missing. An existing entry with the same
- * name is replaced. Returns true when an entry was replaced.
+ * 向 `mcp.json` 添加服务器；文件不存在时会创建。如果已有同名条目，
+ * 则替换该条目。替换了现有条目时返回 true。
  */
 export function addMcpServerConfig(path: string, name: string, config: McpServerConfig): boolean {
 	let replaced = false;
@@ -208,7 +208,7 @@ export function addMcpServerConfig(path: string, name: string, config: McpServer
 	return replaced;
 }
 
-/** Remove a server from an `mcp.json`. Returns false when the file does not define it. */
+/** 从 `mcp.json` 中移除服务器。如果文件中没有该服务器，则返回 false。 */
 export function removeMcpServerConfig(path: string, name: string): boolean {
 	if (!existsSync(path)) return false;
 	let removed = false;
@@ -222,8 +222,8 @@ export function removeMcpServerConfig(path: string, name: string): boolean {
 }
 
 /**
- * Read an `mcp.json` (an empty config when missing), let `edit` change its `mcpServers`, and write
- * it back with its indentation when `edit` returns true. Other content is kept.
+ * 读取 `mcp.json`（文件不存在时使用空配置），让 `edit` 修改其中的 `mcpServers`；当
+ * `edit` 返回 true 时，按原缩进写回文件。其他内容会保留。
  */
 function editMcpServers(
 	path: string,

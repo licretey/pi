@@ -16,9 +16,9 @@ describe("detectColorFgBgTheme", () => {
 	it("classifies the last field by palette index like Vim", () => {
 		expect(detectColorFgBgTheme({ COLORFGBG: "15;0" })).toBe("dark");
 		expect(detectColorFgBgTheme({ COLORFGBG: "0;7;15" })).toBe("light");
-		// Solarized Dark's background is bright black.
+		// Solarized Dark 的背景色是亮黑色。
 		expect(detectColorFgBgTheme({ COLORFGBG: "12;8" })).toBe("dark");
-		// rxvt writes "default" when the background is not a palette color.
+		// 背景色不属于调色板颜色时，rxvt 会写入 "default"。
 		expect(detectColorFgBgTheme({ COLORFGBG: "15;default" })).toBeUndefined();
 		expect(detectColorFgBgTheme({})).toBeUndefined();
 	});
@@ -37,7 +37,7 @@ describe("detectTerminalTheme", () => {
 		const background = { r: 118, g: 118, b: 118 };
 		expect(detectTerminalTheme({ background })).toBe("light");
 		expect(detectTerminalTheme({ background, foreground: { r: 255, g: 255, b: 255 } })).toBe("dark");
-		// White text cannot reach 4.5:1 on mid-gray.
+		// 在中灰背景上，白色文本无法达到 4.5:1 的对比度。
 		const midGray = { r: 128, g: 128, b: 128 };
 		expect(detectTerminalTheme({ background: midGray, foreground: { r: 255, g: 255, b: 255 } })).toBe("light");
 	});

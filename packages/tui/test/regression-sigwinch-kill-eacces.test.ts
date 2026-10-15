@@ -49,7 +49,7 @@ describe("refreshTerminalDimensions", () => {
 			};
 		})();
 
-		// EPERM is also ignored - the refresh is best-effort
+		// EPERM 也会被忽略，因为刷新操作尽力而为。
 		assert.doesNotThrow(() => {
 			refreshTerminalDimensions();
 		});

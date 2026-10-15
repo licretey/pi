@@ -1,6 +1,6 @@
 import { createModelRegistry, getModelRuntime } from "./model-runtime-test-utils.ts";
 /**
- * Shared test utilities for coding-agent tests.
+ * coding-agent 测试共用的辅助工具。
  */
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -26,13 +26,13 @@ import { SettingsManager } from "../src/core/settings-manager.ts";
 import { createCodingTools } from "../src/index.ts";
 
 /**
- * API key for authenticated tests. Tests using this should be wrapped in
- * describe.skipIf(!API_KEY)
+ * 需要身份认证的测试使用此 API 密钥。使用该密钥的测试应包在
+ * describe.skipIf(!API_KEY) 中。
  */
 export const API_KEY = process.env.ANTHROPIC_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY;
 
 // ============================================================================
-// OAuth API key resolution from ~/.pi/agent/auth.json
+// 从 ~/.pi/agent/auth.json 解析 OAuth API 密钥。
 // ============================================================================
 
 const AUTH_PATH = join(homedir(), ".pi", "agent", "auth.json");
@@ -72,10 +72,10 @@ function saveAuthStorage(storage: AuthStorageData): void {
 }
 
 /**
- * Resolve API key for a provider from ~/.pi/agent/auth.json
+ * 从 ~/.pi/agent/auth.json 中解析指定提供商的 API 密钥。
  *
- * For API key credentials, returns the key directly.
- * For OAuth credentials, returns the access token (refreshing if expired and saving back).
+ * 若凭据类型为 API 密钥，则直接返回密钥。
+ * 若凭据类型为 OAuth，则返回访问令牌；令牌过期时会刷新并写回文件。
  *
  */
 export async function resolveApiKey(provider: string): Promise<string | undefined> {
@@ -104,33 +104,33 @@ export async function resolveApiKey(provider: string): Promise<string | undefine
 }
 
 /**
- * Check if a provider has credentials in ~/.pi/agent/auth.json
+ * 检查 ~/.pi/agent/auth.json 中是否包含指定提供商的凭据。
  */
 export function hasAuthForProvider(provider: string): boolean {
 	const storage = loadAuthStorage();
 	return provider in storage;
 }
 
-/** Path to the real pi agent config directory */
+/** pi 智能体真实配置目录的路径。 */
 export const PI_AGENT_DIR = join(homedir(), ".pi", "agent");
 
 /**
- * Get an AuthStorage instance backed by ~/.pi/agent/auth.json
- * Use this for tests that need real OAuth credentials.
+ * 获取一个以 ~/.pi/agent/auth.json 为后端的 AuthStorage 实例。
+ * 需要使用真实 OAuth 凭据的测试应使用此方法。
  */
 export function getRealAuthStorage(): AuthStorage {
 	return AuthStorage.create(AUTH_PATH);
 }
 
 /**
- * Create a minimal user message for testing.
+ * 创建用于测试的最简用户消息。
  */
 export function userMsg(text: string) {
 	return { role: "user" as const, content: text, timestamp: Date.now() };
 }
 
 /**
- * Create a minimal assistant message for testing.
+ * 创建用于测试的最简助手消息。
  */
 export function assistantMsg(text: string) {
 	return {
@@ -153,8 +153,8 @@ export function assistantMsg(text: string) {
 }
 
 /**
- * Read a session JSONL file and return one label per record: the message role for
- * message entries, otherwise the entry type (e.g. "session", "model_change").
+ * 读取会话 JSONL 文件，并为每条记录返回一个标签：消息记录返回消息角色，
+ * 其他记录返回其类型（例如 "session"、"model_change"）。
  */
 export function readSessionFileRoles(file: string): string[] {
 	return readFileSync(file, "utf-8")
@@ -167,19 +167,19 @@ export function readSessionFileRoles(file: string): string[] {
 }
 
 /**
- * Options for creating a test session.
+ * 创建测试会话的选项。
  */
 export interface TestSessionOptions {
-	/** Use in-memory session (no file persistence) */
+	/** 使用内存会话（不写入文件）。 */
 	inMemory?: boolean;
-	/** Custom system prompt */
+	/** 自定义系统提示词。 */
 	systemPrompt?: string;
-	/** Custom settings overrides */
+	/** 自定义设置覆盖项。 */
 	settingsOverrides?: Record<string, unknown>;
 }
 
 /**
- * Resources returned by createTestSession that need cleanup.
+ * createTestSession 返回且需要清理的资源。
  */
 export interface TestSessionContext {
 	session: AgentSession;
@@ -247,8 +247,8 @@ export function createTestResourceLoader(options: CreateTestResourceLoaderOption
 }
 
 /**
- * Create an AgentSession for testing with proper setup and cleanup.
- * Use this for e2e tests that need real LLM calls.
+ * 创建用于测试的 AgentSession，并完成必要的初始化和清理。
+ * 需要真实调用大语言模型的端到端测试应使用此方法。
  */
 export async function createTestSession(options: TestSessionOptions = {}): Promise<TestSessionContext> {
 	const tempDir = join(tmpdir(), `pi-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -284,7 +284,7 @@ export async function createTestSession(options: TestSessionOptions = {}): Promi
 		resourceLoader: createTestResourceLoader(),
 	});
 
-	// Must subscribe to enable session persistence
+	// 必须先订阅，才能启用会话持久化。
 	session.subscribe(() => {});
 
 	const cleanup = () => {
@@ -298,13 +298,13 @@ export async function createTestSession(options: TestSessionOptions = {}): Promi
 }
 
 /**
- * Build a session tree for testing using SessionManager.
- * Returns the IDs of all created entries.
+ * 使用 SessionManager 构建测试用的会话树。
+ * 返回所有已创建条目的 ID。
  *
- * Example tree structure:
+ * 会话树结构示例：
  * ```
  * u1 -> a1 -> u2 -> a2
- *          -> u3 -> a3  (branch from a1)
+ *          -> u3 -> a3  （从 a1 分支）
  * u4 -> a4              (another root)
  * ```
  */

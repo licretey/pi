@@ -3,12 +3,12 @@ import { uuidv7 } from "@earendil-works/pi-ai/utils/uuid";
 import { defineDoc } from "../documents.ts";
 import type { TaskRuntime } from "../types.ts";
 
-/** Stable provider-facing identity of one conversation. */
+/** 单个对话面向提供方的稳定身份。 */
 export type ProviderState = {
 	sessionId: string;
 };
 
-/** Built-in provider state; every fork starts with a fresh identity instead of copying its parent. */
+/** 内建的提供方状态；每个分叉都以全新身份开始，而不是复制其父。 */
 export const ProviderDoc = defineDoc<ProviderState>({
 	kind: "pi.provider",
 	version: 1,
@@ -20,8 +20,8 @@ export const ProviderDoc = defineDoc<ProviderState>({
 });
 
 /**
- * Return the persisted identity without writing in the normal path. A legacy conversation without `pi.provider` gets
- * one migration commit whose `tx.doc()` runs `initial()` before the provider request starts.
+ * 在正常路径下直接返回持久化的身份，而不写入。没有 `pi.provider` 的旧版对话会得到一次迁移提交，
+ * 其 `tx.doc()` 会在提供方请求开始之前执行 `initial()`。
  */
 export async function ensureProviderSessionId<I, S, R, H extends object>(
 	runtime: TaskRuntime<I, S, R, H>,

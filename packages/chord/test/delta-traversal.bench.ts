@@ -1,4 +1,4 @@
-/** Cold/full traversal complements the hot-access and replication benchmarks. */
+/** 冷启动/全量遍历测试用于补充热访问和复制操作基准测试。 */
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
@@ -14,8 +14,7 @@ type Mode = "raw" | "proxy" | "delta";
 const MiB = 1024 * 1024;
 async function gc(): Promise<void> {
 	if (!global.gc) throw new Error("run with --expose-gc");
-	// WeakRef targets survive their current job. Allow both target collection
-	// and finalizer cleanup in subsequent jobs before sampling retained memory.
+	// WeakRef 目标在当前任务期间仍会存活。采样保留内存前，需在后续任务中等待目标被回收并完成终结器清理。
 	for (let i = 0; i < 4; i++) {
 		await setImmediate();
 		global.gc();
@@ -66,7 +65,7 @@ function setup(mode: Mode, input: Drawing): { state: Drawing; finish(): void } {
 	}
 	return { state: mode === "proxy" ? membrane(input) : input, finish() {} };
 }
-// Keep temporary raw inputs out of the measuring frame.
+// 不要将临时原始输入计入测量范围。
 function prepare(mode: Mode, strokes: number, points: number) {
 	return setup(mode, fixture(strokes, points));
 }

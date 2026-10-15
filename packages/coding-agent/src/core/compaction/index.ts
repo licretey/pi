@@ -1,5 +1,5 @@
 /**
- * Compaction and summarization utilities.
+ * 压缩和摘要工具函数。
  */
 
 export * from "./branch-summarization.ts";

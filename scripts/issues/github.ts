@@ -1,4 +1,4 @@
-// Local copy of the repository's issues (the corpus), synced incrementally with the gh CLI, plus keyword search.
+// 本地保存的代码库 issue 集合，通过 gh CLI 增量同步，并支持关键词搜索。
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 
@@ -47,7 +47,7 @@ export class Corpus {
 		return Object.values(this.data.issues);
 	}
 
-	/** Fetch issues updated since the last sync. Returns the number of new or changed issues. */
+	/** 获取自上次同步后更新的 issue，并返回新增或变更的数量。 */
 	async sync(): Promise<number> {
 		const startedAt = new Date(Date.now() - 60_000).toISOString();
 		const jq =
@@ -85,7 +85,7 @@ export class Corpus {
 		return count;
 	}
 
-	/** Keyword search over titles and bodies, ranked by inverse document frequency; title hits weigh more. */
+	/** 在标题和正文中进行关键词搜索，并按逆文档频率排序；标题命中的权重更高。 */
 	search(query: string, exclude: number, limit = 10): Issue[] {
 		const terms = tokenize(query);
 		if (terms.length === 0) return [];
@@ -112,14 +112,14 @@ export class Corpus {
 			.map((hit) => hit.issue);
 	}
 
-	/** How many issues the author filed before, and how many of those maintainers acted on. */
+	/** 统计作者此前提交的 issue 数量，以及其中有多少得到维护者处理。 */
 	authorStats(issue: Issue): { prior: number; actedOn: number } {
 		const prior = this.all().filter((other) => other.author === issue.author && other.number < issue.number);
 		return { prior: prior.length, actedOn: prior.filter(isActedOn).length };
 	}
 }
 
-/** Open, fixed, or prioritized: a maintainer considered it worth working on. */
+/** issue 处于打开、已修复或已设置优先级状态，表示维护者认为值得处理。 */
 export function isActedOn(issue: Issue): boolean {
 	return (
 		issue.state === "open" ||

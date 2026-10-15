@@ -1,22 +1,21 @@
 /**
- * Jev router - a virtual model that plans on a strong model and implements on a cheap one.
+ * Jev 路由器：使用高性能模型制定计划，再由低成本模型执行。
  *
- * Registers `jev/auto`, which routes between three OpenAI Codex models:
+ * 注册 `jev/auto`，在三个 OpenAI Codex 模型之间进行路由：
  *
- * - Planning: GPT-5.6 Sol for complex work, GPT-5.6 Terra otherwise. The Jev classifier rates the
- *   first user message; planning stays on the chosen model.
- * - Implementation: GPT-5.6 Luna.
+ * - 规划：复杂任务使用 GPT-5.6 Sol，其他任务使用 GPT-5.6 Terra。Jev 分类器会评估
+ *   用户的第一条消息；整个规划阶段都使用选定的模型。
+ * - 执行：使用 GPT-5.6 Luna。
  *
- * The planning model explores, plans, and makes the first edit. After the first successful `edit`
- * or `write` tool call, the next request of the same turn goes to Luna, and the session stays
- * there. A session therefore switches models once and accepts a single prompt-cache miss.
+ * 规划模型负责探索、制定计划并完成首次编辑。首次成功调用 `edit` 或 `write` 工具后，
+ * 同一轮中的下一次请求会交给 Luna，之后该会话继续使用 Luna。因此，每个会话只切换一次模型，
+ * 只会遇到一次提示缓存未命中。
  *
- * The phase is router state: Pi stores it on the session branch, so it follows the session tree
- * and survives compaction. The selected thinking level passes through as the reasoning effort of
- * the chosen model. Requests outside the agent loop, such as compaction summaries, go to Luna.
+ * 阶段属于路由状态：Pi 会将其存储在会话分支中，因此它会随会话树保留，并能跨越压缩。
+ * 选定的思考级别会作为所选模型的推理强度传递。智能体循环之外的请求（例如压缩摘要）会交给 Luna。
  *
- * Requires TypeSafe credentials (TYPESAFE_API_KEY) and an OpenAI Codex login.
- * Usage: pi -e ./jev-router.ts --model jev/auto
+ * 需要 TypeSafe 凭据（TYPESAFE_API_KEY）和 OpenAI Codex 登录状态。
+ * 用法：pi -e ./jev-router.ts --model jev/auto
  */
 
 import type { Message } from "@earendil-works/pi-ai";
@@ -27,12 +26,12 @@ const SOL = "gpt-5.6-sol";
 const TERRA = "gpt-5.6-terra";
 const LUNA = "gpt-5.6-luna";
 
-/** Tools whose successful result means implementation has started. */
+/** 成功执行后表示实现阶段已开始的工具。 */
 const EDIT_TOOLS = new Set(["edit", "write"]);
 
 interface JevState {
 	phase: "planning" | "implementation";
-	/** OpenAI Codex model for this phase. */
+	/** 此阶段使用的 OpenAI Codex 模型。 */
 	model: string;
 }
 
@@ -50,7 +49,7 @@ function lastUserText(messages: readonly Message[]): string {
 	return content.flatMap((block) => (block.type === "text" ? [block.text] : [])).join("\n");
 }
 
-/** Whether a tool call since the last user message edited a file successfully. */
+/** 自最近一条用户消息以来，是否有工具调用成功编辑了文件。 */
 function editedThisTurn(messages: readonly Message[]): boolean {
 	const lastUser = messages.findLastIndex((message) => message.role === "user");
 	return messages
@@ -58,9 +57,9 @@ function editedThisTurn(messages: readonly Message[]): boolean {
 		.some((message) => message.role === "toolResult" && EDIT_TOOLS.has(message.toolName) && !message.isError);
 }
 
-/** Planning model for a new session: Sol for complex work, Terra otherwise or when Jev is unavailable. */
+/** 新会话使用的规划模型：复杂任务用 Sol，否则或 Jev 不可用时用 Terra。 */
 async function choosePlanningModel(request: JevRequest, ctx: ExtensionContext): Promise<string> {
-	// Keep a planning model the session already uses, so switching to jev/auto costs no cache miss.
+	// 如果会话已在使用规划模型，则继续使用它，避免切换到 jev/auto 时发生缓存未命中。
 	const previous = request.previous?.model;
 	if (previous?.provider === PROVIDER && (previous.id === SOL || previous.id === TERRA)) return previous.id;
 
@@ -93,7 +92,7 @@ export default function (pi: ExtensionAPI) {
 		id: "auto",
 		name: "Auto (Jev)",
 		thinkingLevels: ["low", "medium", "high", "xhigh"],
-		// Shared by all three models; shown before the first response.
+		// 三个模型共用；在首次响应前显示。
 		contextWindow: 272_000,
 		maxTokens: 128_000,
 		async route(request, ctx) {
@@ -103,7 +102,7 @@ export default function (pi: ExtensionAPI) {
 				const model = await choosePlanningModel(request, ctx);
 				return routeTo(request, ctx, model, { phase: "planning", model });
 			}
-			// The planning model made the first edit: hand the rest of the work to Luna.
+			// 规划模型已完成首次编辑：将后续工作交给 Luna。
 			if (state.phase === "planning" && editedThisTurn(request.messages)) {
 				return routeTo(request, ctx, LUNA, { phase: "implementation", model: LUNA });
 			}

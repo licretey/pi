@@ -11,7 +11,7 @@ function wrap(runtime: ModelRuntime): ModelRegistry {
 	return registry;
 }
 
-/** Load optional models.json configuration without introducing file-backed catalog locks into unit tests. */
+/** 加载可选的 models.json 配置，避免单元测试依赖文件型模型目录锁。 */
 export async function createModelRegistry(credentials: CredentialStore, modelsPath?: string): Promise<ModelRegistry> {
 	return wrap(
 		await ModelRuntime.create({

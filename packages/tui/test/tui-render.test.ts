@@ -128,7 +128,7 @@ describe("TUI render scheduling", () => {
 		tui.renderNow();
 		const renderCountBeforeInput = component.renderCount;
 
-		// Queue a normal throttled render first. Keyboard input should preempt it.
+		// 先排入一次普通的节流渲染；键盘输入应优先于它执行。
 		component.lines = ["pending"];
 		tui.requestRender();
 		terminal.sendInput("first");
@@ -209,7 +209,7 @@ describe("TUI bounded render output", () => {
 	});
 });
 
-/** Set each environment variable to `value`, returning a function that restores the previous state. */
+/** 将每个环境变量设为 `value`，并返回一个用于恢复原值的函数。 */
 function overrideEnv(names: readonly string[], value: string): () => void {
 	const previousValues = names.map((name) => [name, process.env[name]] as const);
 	for (const name of names) {
@@ -225,10 +225,9 @@ function overrideEnv(names: readonly string[], value: string): () => void {
 
 describe("TUI crash dump without configured log directory", () => {
 	it("writes the crash dump to the OS temp directory instead of a home-directory default", async () => {
-		// The TUI falls back to os.tmpdir() when no log directory is configured, so
-		// isolate the test by pointing the temp directory at a fresh directory rather
-		// than sharing the real one with concurrent test runs. os.tmpdir() reads
-		// TMPDIR on POSIX and TEMP/TMP on Windows, so override all three.
+		// 未配置日志目录时，TUI 会回退到 os.tmpdir()；因此将临时目录设为新建目录，
+		// 以隔离此测试，避免并发测试共享真实临时目录。os.tmpdir() 在 POSIX 上读取 TMPDIR，
+		// 在 Windows 上读取 TEMP/TMP，因此需要同时覆盖这三个变量。
 		const crashDir = mkdtempSync(join(tmpdir(), "pi-tui-crash-"));
 		const crashLogPath = join(crashDir, "pi-tui-crash.log");
 		const restoreTmpdirEnv = overrideEnv(["TMPDIR", "TEMP", "TMP"], crashDir);
@@ -241,7 +240,7 @@ describe("TUI crash dump without configured log directory", () => {
 			tui.start();
 			await terminal.waitForRender();
 
-			// Width overflow is detected in the differential render path
+			// 差异渲染流程会检测宽度溢出。
 			component.lines = ["ok", "x".repeat(60)];
 			assert.throws(
 				() => tui.renderNow(),
@@ -523,11 +522,11 @@ describe("TUI resize handling", () => {
 
 			const initialRedraws = tui.fullRedraws;
 
-			// Resize height
+			// 调整高度。
 			terminal.resize(40, 15);
 			await terminal.waitForRender();
 
-			// Should have triggered a full redraw
+			// 应已触发完整重绘。
 			assert.ok(tui.fullRedraws > initialRedraws, "Height change should trigger full redraw");
 
 			const viewport = terminal.getViewport();
@@ -578,11 +577,11 @@ describe("TUI resize handling", () => {
 
 		const initialRedraws = tui.fullRedraws;
 
-		// Resize width
+		// 调整宽度。
 		terminal.resize(60, 10);
 		await terminal.waitForRender();
 
-		// Should have triggered a full redraw
+		// 应已触发完整重绘。
 		assert.ok(tui.fullRedraws > initialRedraws, "Width change should trigger full redraw");
 
 		tui.stop();
@@ -593,29 +592,29 @@ describe("TUI content shrinkage", () => {
 	it("clears empty rows when content shrinks significantly", async () => {
 		const terminal = new VirtualTerminal(40, 10);
 		const tui: TUI = new TuiMainScreen(terminal);
-		tui.setClearOnShrink(true); // Explicitly enable (may be disabled via env var)
+		tui.setClearOnShrink(true); // 显式启用（该功能可能被环境变量禁用）。
 		const component = new TestComponent();
 		tui.addChild(component);
 
-		// Start with many lines
+		// 初始内容包含多行。
 		component.lines = ["Line 0", "Line 1", "Line 2", "Line 3", "Line 4", "Line 5"];
 		tui.start();
 		await terminal.waitForRender();
 
 		const initialRedraws = tui.fullRedraws;
 
-		// Shrink to fewer lines
+		// 将内容缩减为较少的行数。
 		component.lines = ["Line 0", "Line 1"];
 		tui.requestRender();
 		await terminal.waitForRender();
 
-		// Should have triggered a full redraw to clear empty rows
+		// 应已触发完整重绘，以清除空白行。
 		assert.ok(tui.fullRedraws > initialRedraws, "Content shrinkage should trigger full redraw");
 
 		const viewport = terminal.getViewport();
 		assert.ok(viewport[0]?.includes("Line 0"), "First line preserved");
 		assert.ok(viewport[1]?.includes("Line 1"), "Second line preserved");
-		// Lines below should be empty (cleared)
+		// 下方各行应为空（已清除）。
 		assert.strictEqual(viewport[2]?.trim(), "", "Line 2 should be cleared");
 		assert.strictEqual(viewport[3]?.trim(), "", "Line 3 should be cleared");
 
@@ -625,7 +624,7 @@ describe("TUI content shrinkage", () => {
 	it("handles shrink to single line", async () => {
 		const terminal = new VirtualTerminal(40, 10);
 		const tui: TUI = new TuiMainScreen(terminal);
-		tui.setClearOnShrink(true); // Explicitly enable (may be disabled via env var)
+		tui.setClearOnShrink(true); // 显式启用（该功能可能被环境变量禁用）。
 		const component = new TestComponent();
 		tui.addChild(component);
 
@@ -633,7 +632,7 @@ describe("TUI content shrinkage", () => {
 		tui.start();
 		await terminal.waitForRender();
 
-		// Shrink to single line
+		// 将内容缩减为单行。
 		component.lines = ["Only line"];
 		tui.requestRender();
 		await terminal.waitForRender();
@@ -648,7 +647,7 @@ describe("TUI content shrinkage", () => {
 	it("handles shrink to empty", async () => {
 		const terminal = new VirtualTerminal(40, 10);
 		const tui: TUI = new TuiMainScreen(terminal);
-		tui.setClearOnShrink(true); // Explicitly enable (may be disabled via env var)
+		tui.setClearOnShrink(true); // 显式启用（该功能可能被环境变量禁用）。
 		const component = new TestComponent();
 		tui.addChild(component);
 
@@ -656,13 +655,13 @@ describe("TUI content shrinkage", () => {
 		tui.start();
 		await terminal.waitForRender();
 
-		// Shrink to empty
+		// 将内容清空。
 		component.lines = [];
 		tui.requestRender();
 		await terminal.waitForRender();
 
 		const viewport = terminal.getViewport();
-		// All lines should be empty
+		// 所有行都应为空。
 		assert.strictEqual(viewport[0]?.trim(), "", "Line 0 should be cleared");
 		assert.strictEqual(viewport[1]?.trim(), "", "Line 1 should be cleared");
 
@@ -677,24 +676,24 @@ describe("TUI differential rendering", () => {
 		const component = new TestComponent();
 		tui.addChild(component);
 
-		// Initial render: 5 identical lines
+		// 首次渲染：5 行内容相同的文本。
 		component.lines = ["Line 0", "Line 1", "Line 2", "Line 3", "Line 4"];
 		tui.start();
 		await terminal.waitForRender();
 
-		// Shrink to 3 lines, all identical to before (no content changes in remaining lines)
+		// 缩减到 3 行，且剩余行与之前完全相同（内容没有变化）。
 		component.lines = ["Line 0", "Line 1", "Line 2"];
 		tui.requestRender();
 		await terminal.waitForRender();
 
-		// cursorRow should be 2 (last line of new content)
-		// Verify by doing another render with a change on line 1
+		// cursorRow 应为 2（新内容的最后一行）。
+		// 再次渲染并修改第 1 行，以验证光标位置跟踪正确。
 		component.lines = ["Line 0", "CHANGED", "Line 2"];
 		tui.requestRender();
 		await terminal.waitForRender();
 
 		const viewport = terminal.getViewport();
-		// Line 1 should show "CHANGED", proving cursor tracking was correct
+		// 第 1 行应显示 "CHANGED"，以证明光标位置跟踪正确。
 		assert.ok(viewport[1]?.includes("CHANGED"), `Expected "CHANGED" on line 1, got: ${viewport[1]}`);
 
 		tui.stop();
@@ -706,12 +705,12 @@ describe("TUI differential rendering", () => {
 		const component = new TestComponent();
 		tui.addChild(component);
 
-		// Initial render
+		// 首次渲染。
 		component.lines = ["Header", "Working...", "Footer"];
 		tui.start();
 		await terminal.waitForRender();
 
-		// Simulate spinner animation - only middle line changes
+		// 模拟加载动画：只有中间一行发生变化。
 		const spinnerFrames = ["|", "/", "-", "\\"];
 		for (const frame of spinnerFrames) {
 			component.lines = ["Header", `Working ${frame}`, "Footer"];
@@ -751,7 +750,7 @@ describe("TUI differential rendering", () => {
 		tui.start();
 		await terminal.waitForRender();
 
-		// Change only first line
+		// 仅修改第一行。
 		component.lines = ["CHANGED", "Line 1", "Line 2", "Line 3"];
 		tui.requestRender();
 		await terminal.waitForRender();
@@ -775,7 +774,7 @@ describe("TUI differential rendering", () => {
 		tui.start();
 		await terminal.waitForRender();
 
-		// Change only last line
+		// 仅修改最后一行。
 		component.lines = ["Line 0", "Line 1", "Line 2", "CHANGED"];
 		tui.requestRender();
 		await terminal.waitForRender();
@@ -799,7 +798,7 @@ describe("TUI differential rendering", () => {
 		tui.start();
 		await terminal.waitForRender();
 
-		// Change lines 1 and 3, keep 0, 2, 4 the same
+		// 修改第 1 行和第 3 行，保留第 0、2、4 行不变。
 		component.lines = ["Line 0", "CHANGED 1", "Line 2", "CHANGED 3", "Line 4"];
 		tui.requestRender();
 		await terminal.waitForRender();
@@ -820,7 +819,7 @@ describe("TUI differential rendering", () => {
 		const component = new TestComponent();
 		tui.addChild(component);
 
-		// Start with content
+		// 设置初始内容。
 		component.lines = ["Line 0", "Line 1", "Line 2"];
 		tui.start();
 		await terminal.waitForRender();
@@ -828,12 +827,12 @@ describe("TUI differential rendering", () => {
 		let viewport = terminal.getViewport();
 		assert.ok(viewport[0]?.includes("Line 0"), "Initial content rendered");
 
-		// Clear to empty
+		// 清空内容。
 		component.lines = [];
 		tui.requestRender();
 		await terminal.waitForRender();
 
-		// Add content back - this should work correctly even after empty state
+		// 恢复内容；即使经历过空内容状态，此操作也应正常工作。
 		component.lines = ["New Line 0", "New Line 1"];
 		tui.requestRender();
 		await terminal.waitForRender();
@@ -1016,7 +1015,7 @@ describe("TUI fake cursor", () => {
 			const writes = terminal.getWrites();
 			assert.ok(writes.includes("XXX"));
 			assert.strictEqual(writes.includes("\x1b[7md"), !showHardwareCursor);
-			// The hardware cursor is positioned at column 4 in both modes
+			// 两种模式下，硬件光标都应位于第 4 列。
 			assert.ok(writes.endsWith("\x1b[4G"));
 			tui.stop();
 		}

@@ -1,7 +1,6 @@
-// One sandbox per conversation: the app records each conversation's sandbox in its own document, and the Harness
-// environment function looks it up for every tool call. Here a sandbox is a directory; a hosted product would return
-// an ExecutionEnv that runs inside the conversation's container.
-// Run from packages/durable:
+// 每个对话使用独立沙箱：应用将沙箱信息记录在对话自己的文档中，Harness 的环境函数会在每次工具调用时查询该文档。
+// 此处使用目录作为沙箱；托管产品则可以返回在对话容器中运行的 ExecutionEnv。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/29-sandbox-per-conversation.ts
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -15,7 +14,7 @@ import { CodingTools } from "../../src/tools/index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-// Which sandbox a conversation runs in. `fork: "initial"`: a fork gets no sandbox until the app assigns one.
+// 指定对话使用的沙箱。`fork: "initial"` 表示分支在应用为其分配沙箱前不使用任何沙箱。
 const Sandbox = defineDoc<{ path?: string }>({
 	kind: "app.sandbox",
 	version: 1,
@@ -44,7 +43,7 @@ const harness = await Harness.open(
 	{
 		models,
 		registry,
-		// Committed reads only; a conversation without a sandbox gets no environment, so its tools fail cleanly.
+		// 只读取已提交的数据；未分配沙箱的对话不会获得执行环境，因此其工具会以可控方式失败。
 		env: async ({ conversationId, read }, envContext) => {
 			const sandbox = await read.snapshot(Sandbox, conversationId, envContext);
 			return sandbox?.path === undefined ? undefined : new NodeExecutionEnv({ cwd: sandbox.path });
@@ -53,7 +52,7 @@ const harness = await Harness.open(
 	context,
 );
 
-// Each user's conversation gets a fresh sandbox in the creating commit.
+// 为每位用户创建的对话都会在创建事务中分配一个全新的沙箱。
 const model = { provider: "faux", modelId: "faux-1" };
 async function conversationFor(user: string) {
 	const path = await mkdtemp(join(tmpdir(), `pi-durable-sandbox-${user}-`));

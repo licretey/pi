@@ -109,7 +109,7 @@ describe("getSupportedThinkingLevels", () => {
 		},
 	);
 
-	// OpenAI and Codex reject reasoning.effort "none" for GPT-6.1 Sol.
+	// 对于 GPT-6.1 Sol，OpenAI 和 Codex 都不接受 reasoning.effort 为 "none"。
 	it("does not support off for GPT-6.1 Sol", () => {
 		const expected = {
 			openai: ["low", "medium", "high", "xhigh", "max"],

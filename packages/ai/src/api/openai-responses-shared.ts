@@ -47,7 +47,7 @@ import {
 import { transformMessages } from "./transform-messages.ts";
 
 // =============================================================================
-// Utilities
+// 工具函数。
 // =============================================================================
 
 function encodeTextSignatureV1(id: string, phase?: TextSignatureV1["phase"]): string {
@@ -70,7 +70,7 @@ function parseTextSignature(
 				return { id: parsed.id };
 			}
 		} catch {
-			// Fall through to legacy plain-string handling.
+			// 继续执行旧版纯字符串处理逻辑。
 		}
 	}
 	return { id: signature };
@@ -124,7 +124,7 @@ export interface OpenAIResponsesStreamOptions {
 export interface ConvertResponsesMessagesOptions {
 	includeSystemPrompt?: boolean;
 	grammarToolInputProperties?: ReadonlyMap<string, string>;
-	/** Whether later system messages are sent in place; otherwise they are folded into the leading prompt. */
+	/** 后续 system 消息是否原样发送；否则会合并到开头的提示中。 */
 	supportsMidConvoSystemMessages?: boolean;
 	supportsAdditionalTools?: boolean;
 	supportsToolSearch?: boolean;
@@ -139,7 +139,7 @@ export interface ConvertResponsesToolsOptions {
 }
 
 // =============================================================================
-// Message conversion
+// 转换消息
 // =============================================================================
 
 export function convertResponsesMessages<TApi extends Api>(
@@ -169,7 +169,7 @@ export function convertResponsesMessages<TApi extends Api>(
 		const normalizedCallId = normalizeIdPart(callId);
 		const isForeignToolCall = source.provider !== model.provider || source.api !== model.api;
 		let normalizedItemId = isForeignToolCall ? buildForeignResponsesItemId(itemId) : normalizeIdPart(itemId);
-		// OpenAI Responses API requires item id to start with "fc"
+		// OpenAI Responses API 要求条目 ID 以 "fc" 开头。
 		if (!normalizedItemId.startsWith("fc_")) {
 			normalizedItemId = normalizeIdPart(`fc_${normalizedItemId}`);
 		}
@@ -272,7 +272,7 @@ export function convertResponsesMessages<TApi extends Api>(
 					const fallbackMessageId =
 						textBlockIndex === 0 ? `msg_pi_${msgIndex}` : `msg_pi_${msgIndex}_${textBlockIndex}`;
 					textBlockIndex++;
-					// OpenAI requires id to be max 64 characters
+					// OpenAI 要求 ID 最多 64 个字符。
 					let msgId = parsedSignature?.id;
 					if (!msgId) {
 						msgId = fallbackMessageId;
@@ -293,12 +293,12 @@ export function convertResponsesMessages<TApi extends Api>(
 					const customInputProperty = options?.grammarToolInputProperties?.get(toolCall.name);
 					let itemId: string | undefined = itemIdRaw;
 
-					// For different-model messages, set id to undefined to avoid pairing validation.
-					// OpenAI tracks which item IDs were paired with rs_xxx reasoning items.
-					// By omitting the id, we avoid triggering that validation (like cross-provider does).
-					// Also drop ids that do not match the replayed item type: function_call ids must be fc_*
-					// and custom_tool_call ids must be ctc_*. Foreign tool call ids are normalized to fc_*, and
-					// a call can switch between the two types when grammar tool support differs.
+					// 对于来自不同模型的消息，将 id 设为 undefined，以避免触发配对校验。
+					// OpenAI 会跟踪哪些条目 ID 与 rs_xxx 推理条目配对。
+					// 省略 id 可避免触发该校验（与跨提供商处理方式相同）。
+					// 同时移除与重放条目类型不匹配的 ID：function_call 的 ID 必须以 fc_ 开头，
+					// custom_tool_call 的 ID 必须以 ctc_ 开头。外部工具调用 ID 会规范化为 fc_，
+					// 并且当语法工具支持不同时，同一调用可能在这两种类型之间切换。
 					const itemIdPrefix = customInputProperty === undefined ? "fc_" : "ctc_";
 					if (isDifferentModel || !itemId?.startsWith(itemIdPrefix)) {
 						itemId = undefined;
@@ -354,7 +354,7 @@ export function convertResponsesMessages<TApi extends Api>(
 }
 
 // =============================================================================
-// Tool conversion
+// 工具转换。
 // =============================================================================
 
 export function convertResponsesTools(tools: readonly Tool[], options?: ConvertResponsesToolsOptions): OpenAITool[] {
@@ -397,7 +397,7 @@ export function convertResponsesTools(tools: readonly Tool[], options?: ConvertR
 }
 
 // =============================================================================
-// Stream processing
+// 处理数据流
 // =============================================================================
 
 type StreamingToolCall = ToolCall & {
@@ -531,10 +531,9 @@ export async function processResponsesStream<TApi extends Api>(
 	const getOrCreateSlot = (outputIndex: number, item: ResponseOutputItem): ResponsesOutputSlot | undefined => {
 		return outputSlots.get(outputIndex) ?? createSlot(outputIndex, item);
 	};
-	// Azure OpenAI can omit reasoning.encrypted_content from response.output_item.done
-	// and provide it only in response.completed.response.output. Backfill the
-	// persisted reasoning signature from the terminal response to keep store:false
-	// multi-turn replay stateless. See https://github.com/earendil-works/pi/issues/6409.
+	// Azure OpenAI 可能会在 response.output_item.done 中省略 reasoning.encrypted_content，
+	// 而只在 response.completed.response.output 中提供。此处从最终响应补回持久化的推理签名，
+	// 使 store:false 的多轮重放保持无状态。参见 https://github.com/earendil-works/pi/issues/6409。
 	const backfillReasoningSignatures = (responseOutput: ResponseOutputItem[]): void => {
 		for (const item of responseOutput) {
 			if (item.type !== "reasoning" || !item.encrypted_content) continue;
@@ -564,7 +563,7 @@ export async function processResponsesStream<TApi extends Api>(
 			const cachedTokens = inputDetails?.cached_tokens || 0;
 			const cacheWriteTokens = inputDetails?.cache_write_tokens || 0;
 			output.usage = {
-				// OpenAI includes cached and cache-write tokens in input_tokens, so subtract both.
+				// OpenAI 会将缓存读取和缓存写入 token 都计入 input_tokens，因此需要同时减去两者。
 				input: Math.max(0, (response.usage.input_tokens || 0) - cachedTokens - cacheWriteTokens),
 				output: response.usage.output_tokens || 0,
 				cacheRead: cachedTokens,
@@ -581,8 +580,7 @@ export async function processResponsesStream<TApi extends Api>(
 				: (response?.service_tier ?? options.serviceTier);
 			options.applyServiceTierPricing(output.usage, serviceTier);
 		}
-		// Map status to stop reason. For incomplete responses, retain the provider's
-		// specific reason so max-output truncation and content filtering stay distinct.
+		// 将状态映射为停止原因。对于未完成的响应，保留提供商返回的具体原因，以区分最大输出截断和内容过滤。
 		const status = response?.status;
 		const incompleteDetails = response?.incomplete_details as { reason?: unknown } | null | undefined;
 		const incompleteReason = typeof incompleteDetails?.reason === "string" ? incompleteDetails.reason : undefined;
@@ -715,8 +713,7 @@ export async function processResponsesStream<TApi extends Api>(
 			) {
 				slot.block.arguments = parseStreamingJson(item.arguments || slot.block.partialJson || "{}");
 				if (item.namespace !== undefined) slot.block.namespace = item.namespace;
-				// Finalize in-place and strip the scratch buffer so replay only
-				// carries parsed arguments.
+				// 原地完成解析并清除临时缓冲区，使重放数据只包含已解析的参数。
 				delete slot.block.partialJson;
 				stream.push({
 					type: "toolcall_end",
@@ -760,9 +757,8 @@ export async function processResponsesStream<TApi extends Api>(
 	if (!sawTerminalResponseEvent) {
 		throw new Error("OpenAI Responses stream ended before a terminal response event");
 	}
-	// The agent runs every tool call in the final message. Refuse to hand over calls whose
-	// output_item.done never arrived: their arguments may be cut off or mixed up, e.g. when a
-	// non-compliant server omits output_index. Finished calls have their scratch buffers removed.
+	// 智能体会执行最终消息中的所有工具调用。若未收到 output_item.done，则拒绝提交该调用，
+	// 因为参数可能被截断或混淆，例如不符合规范的服务器省略了 output_index。已完成调用的临时缓冲区会被清除。
 	if (output.stopReason === "toolUse") {
 		for (const block of output.content) {
 			if (block.type !== "toolCall") continue;
@@ -797,7 +793,7 @@ function mapStopReason(
 		case "failed":
 		case "cancelled":
 			return { stopReason: "error" };
-		// These two are wonky ...
+		// 这两种情况比较特殊……
 		case "in_progress":
 		case "queued":
 			return { stopReason: "stop" };

@@ -29,7 +29,7 @@ export function tool(name: string, description = `${name} tool`): ToolRegistrati
 	return defineTool({ name, description, parameters: Type.Object({}), execute: async () => ({ output: [] }) });
 }
 
-/** Open a Harness with a fresh registry holding the named tools. */
+/** 使用包含指定工具的新注册表打开 Harness。 */
 export async function openHarness(
 	storage: Storage,
 	toolNames: readonly string[] = [],
@@ -94,7 +94,7 @@ export function system(sections: Record<string, string | null>): SystemMessage {
 	return { role: "system", content: "", sections, timestamp: 4 };
 }
 
-/** Compact message rendering for assertions. */
+/** 用于断言的精简消息表示。 */
 export function describeMessage(message: Message): string {
 	switch (message.role) {
 		case "user":
@@ -112,7 +112,7 @@ export function describeMessage(message: Message): string {
 	}
 }
 
-/** Uninstalls what one of the helpers below installed. */
+/** 卸载以下辅助函数安装的内容。 */
 export type Installed = { dispose(): void };
 
 function installOne<Tool extends ToolRegistration>(registry: Registry<Tool>, extension: Extension<Tool>): Installed {
@@ -120,7 +120,7 @@ function installOne<Tool extends ToolRegistration>(registry: Registry<Tool>, ext
 	return { dispose: () => registry.uninstall(extension) };
 }
 
-/** Install a one-tool extension named after the tool. */
+/** 安装一个以工具名称命名、仅包含该工具的扩展。 */
 export function addTool<Tool extends ToolRegistration>(
 	registry: Registry<Tool>,
 	tool: Tool,
@@ -129,14 +129,14 @@ export function addTool<Tool extends ToolRegistration>(
 	return installOne(registry, defineExtension<Tool>({ name, tools: [tool] }));
 }
 
-/** Install a one-task extension named after the task. */
+/** 安装一个以任务名称命名、仅包含该任务的扩展。 */
 export function addTask(registry: Registry, task: AnyTask, name = `task:${task.definition.name}`): Installed {
 	return installOne(registry, defineExtension({ name, tasks: [task] }));
 }
 
 let hookExtensions = 0;
 
-/** Install an extension with one hook registration for `task`. */
+/** 安装一个为 `task` 注册单个钩子的扩展。 */
 export function addHooks<K extends AnyTask>(
 	registry: Registry,
 	task: K,
@@ -146,7 +146,7 @@ export function addHooks<K extends AnyTask>(
 	return installOne(registry, defineExtension({ name, hooks: [hook(task, handlers)] }));
 }
 
-/** Install a one-section extension named after the section. */
+/** 安装一个以区段名称命名、仅包含该区段的扩展。 */
 export function addSection<Tool extends ToolRegistration = ToolRegistration>(
 	registry: Registry<Tool>,
 	key: string,

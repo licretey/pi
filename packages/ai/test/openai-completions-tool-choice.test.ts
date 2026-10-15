@@ -220,7 +220,7 @@ describe("openai-completions tool_choice", () => {
 	});
 
 	it("defaults unknown OpenAI-compatible endpoints to non-strict tools", async () => {
-		// Regression test for #9816.
+		// #9816 的回归测试。
 		const model = {
 			...localOpenAICompletionsModel,
 			id: "local-model",
@@ -1223,8 +1223,8 @@ describe("openai-completions tool_choice", () => {
 	});
 
 	it("stores OpenRouter Kimi K2.6 reasoning replay compat in built-in metadata", () => {
-		// `:free` variant delisted from the OpenRouter API; the generator override
-		// matches any `moonshotai/kimi-k2.6*` variant that is listed.
+		// `:free` 变体已从 OpenRouter API 下架；生成器覆盖规则会匹配所有仍在列表中的
+		// `moonshotai/kimi-k2.6*` 变体。
 		const model = getModel("openrouter", "moonshotai/kimi-k2.6")!;
 		expect(model.compat?.supportsDeveloperRole).toBe(false);
 		expect(model.compat?.requiresReasoningContentOnAssistantMessages).toBe(true);
@@ -1707,7 +1707,7 @@ describe("openai-completions tool_choice", () => {
 			{ apiKey: "test" },
 		).result();
 
-		// cached_tokens is documented as cache reads; cache_write_tokens is separate.
+		// 文档将 cached_tokens 定义为缓存读取量；cache_write_tokens 单独统计。
 		expect(response.usage.input).toBe(20);
 		expect(response.usage.cacheRead).toBe(50);
 		expect(response.usage.cacheWrite).toBe(30);
@@ -1753,7 +1753,7 @@ describe("openai-completions tool_choice", () => {
 			{ apiKey: "test" },
 		).result();
 
-		// cached_tokens is documented as cache reads; cache_write_tokens is separate.
+		// 文档将 cached_tokens 定义为缓存读取量；cache_write_tokens 单独统计。
 		expect(response.usage.input).toBe(20);
 		expect(response.usage.cacheRead).toBe(50);
 		expect(response.usage.cacheWrite).toBe(30);

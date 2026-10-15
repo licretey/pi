@@ -1,10 +1,9 @@
 import type { ApiKeyAuth, OAuthAuth } from "./types.ts";
 
 /**
- * Standard api-key auth: a stored credential key wins, otherwise the first
- * set env var resolves. Includes a `login` that prompts for the key.
- * Providers with non-standard resolution (provider env, ambient files, IAM)
- * write their own `ApiKeyAuth`.
+ * 标准 API 密钥认证：优先使用已存储的凭据密钥，否则使用第一个已设置的环境变量解析认证信息。
+ * 此实现还提供用于提示输入密钥的 `login` 方法。
+ * 使用非标准解析方式（提供商环境配置、外部文件、IAM）的提供商应自行实现 `ApiKeyAuth`。
  */
 export function envApiKeyAuth(name: string, envVars: readonly string[]): ApiKeyAuth {
 	return {
@@ -31,11 +30,9 @@ export function envApiKeyAuth(name: string, envVars: readonly string[]): ApiKeyA
 }
 
 /**
- * Wraps a dynamically imported `OAuthAuth` so provider definitions can
- * advertise OAuth without importing the implementation. The flow loads on
- * first `login`/`refresh`/`toAuth` call; callers keep Node-only flow code out
- * of bundles by loading through a bundler-opaque dynamic import (variable
- * specifier, see the bedrock lazy wrapper).
+ * 包装动态导入的 `OAuthAuth`，使提供商定义可以声明支持 OAuth，而无需导入其实现。
+ * 首次调用 `login`、`refresh` 或 `toAuth` 时才加载授权流程；调用方通过打包器无法静态解析的动态导入
+ *（变量形式的标识符，参见 bedrock 延迟加载包装器）避免将 Node 专用流程代码打入 bundle。
  */
 export function lazyOAuth(input: {
 	name: string;

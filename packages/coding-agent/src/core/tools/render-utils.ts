@@ -71,9 +71,9 @@ export type ToolRenderResultLike<TDetails> = {
 const COLLAPSED_ARGS_CHARS = 100;
 
 /**
- * Generic tool call header: the title followed by the arguments. Collapsed, they are `key=value`
- * pairs on the title line, cut to {@link COLLAPSED_ARGS_CHARS}. Expanded, each is a `key: value`
- * line below the title, with strings shown raw and continuation lines indented.
+ * 通用工具调用标题：标题后接参数。折叠时，参数以 `key=value` 形式显示在标题行，并截断至
+ * {@link COLLAPSED_ARGS_CHARS} 个字符；展开时，每个参数单独占一行，格式为 `key: value`，
+ * 字符串按原文显示，续行缩进。
  */
 export function formatToolCallWithArgs(title: string, args: unknown, theme: Theme, expanded: boolean): string {
 	const header = theme.fg("toolTitle", theme.bold(title));

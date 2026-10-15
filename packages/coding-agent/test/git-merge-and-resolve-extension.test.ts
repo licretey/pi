@@ -10,7 +10,7 @@ type AgentEndHandler = (event: { type: "agent_end" }, ctx: ExtensionContext) => 
 const ok: ExecResult = { stdout: "", stderr: "", code: 0, killed: false };
 const fail: ExecResult = { stdout: "", stderr: "error", code: 1, killed: false };
 
-/** Standard exec results for a clean repo tracking origin/main, not in a merge. */
+/** 用于干净仓库（跟踪 origin/main，且不在合并过程中）的标准 exec 结果。 */
 function withUpstream(results: Map<string, ExecResult>): Map<string, ExecResult> {
 	results.set("git rev-parse --git-dir", ok);
 	results.set("git rev-parse MERGE_HEAD", fail);
@@ -97,7 +97,7 @@ describe("git-merge-and-resolve example", () => {
 		const { trigger, exec, sendUserMessage } = setup(cwd, results);
 		await trigger();
 
-		// Should not attempt a new fetch/merge
+		// 不应尝试再次获取或合并。
 		expect(exec).not.toHaveBeenCalledWith("git", ["fetch", "origin"]);
 		expect(sendUserMessage).toHaveBeenCalledTimes(1);
 		const message = sendUserMessage.mock.calls[0][0] as string;

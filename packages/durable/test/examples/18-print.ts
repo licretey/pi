@@ -1,6 +1,6 @@
-// Print mode: submit one prompt and print its answer, like `pi -p`. The host awaits its own Submission, not global
-// idle. Uses OpenAI when OPENAI_API_KEY is set, and a scripted faux model otherwise.
-// Run from packages/durable:
+// 打印模式：提交一条提示并打印回答，类似 `pi -p`。宿主等待自己提交的 Submission，而不是等待全局
+// 空闲状态。设置 OPENAI_API_KEY 时使用 OpenAI，否则使用脚本化的 faux 模型。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/18-print.ts "What is in this directory?"
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AssistantMessage } from "@earendil-works/pi-ai";

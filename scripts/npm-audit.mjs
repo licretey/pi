@@ -1,8 +1,6 @@
-// Runs `npm audit --omit=dev` and fails on advisories at or above the audit
-// level, except for advisories that were reviewed and accepted below. Every
-// accepted advisory must name the affected package and explain why it does not
-// apply. Remove an entry once a fixed version is installed; the script warns
-// about entries that no longer match.
+// 运行 `npm audit --omit=dev`。除下方已审查并接受的公告外，达到或超过审计等级的安全公告都会导致失败。
+// 每条已接受的公告都必须注明受影响的包，并解释它为何不适用于当前项目。
+// 安装修复版本后应删除对应条目；如果条目已不再匹配，脚本会发出警告。
 
 import { spawnSync } from "node:child_process";
 
@@ -46,7 +44,7 @@ const failures = new Map();
 
 for (const vulnerability of Object.values(report.vulnerabilities ?? {})) {
 	for (const via of vulnerability.via) {
-		// String entries point at another vulnerable package, which is reported on its own.
+		// 字符串条目指向另一个存在漏洞的包；该包会单独报告。
 		if (typeof via === "string") {
 			continue;
 		}

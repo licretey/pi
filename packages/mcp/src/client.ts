@@ -88,7 +88,7 @@ function invalid(message: string): McpError {
 	return new McpError(JSON_RPC_ERROR_CODES.invalidRequest, message);
 }
 
-/** One page of a paginated list: the items under `key`, each checked by `isItem`. */
+/** 分页列表中的一页：取出 `key` 对应的条目，并逐项使用 `isItem` 校验。 */
 function validateListPage(
 	method: string,
 	key: string,
@@ -100,14 +100,14 @@ function validateListPage(
 	for (const item of items) {
 		if (!isObject(item) || !isItem(item)) throw invalid(`Invalid entry in MCP ${method} result`);
 	}
-	// Some servers end pagination with `null` or `""` instead of omitting the cursor.
+	// 有些服务器会用 `null` 或 `""` 表示分页结束，而不是省略游标。
 	const nextCursor = value.nextCursor === null || value.nextCursor === "" ? undefined : value.nextCursor;
 	if (nextCursor !== undefined && typeof nextCursor !== "string") throw invalid(`Invalid MCP ${method} cursor`);
 	return { items, ...(nextCursor === undefined ? {} : { nextCursor }) };
 }
 
 const isTool = (tool: Record<string, unknown>) => typeof tool.name === "string" && isObject(tool.inputSchema);
-// `name` is required by the spec, but some servers omit it; the URI stands in.
+// 规范要求提供 `name`，但有些服务器会省略；此时使用 URI 作为名称。
 const isResource = (resource: Record<string, unknown>) =>
 	typeof resource.uri === "string" && (resource.name === undefined || typeof resource.name === "string");
 const isResourceTemplate = (template: Record<string, unknown>) =>
@@ -139,7 +139,7 @@ function validateReadResourceResult(value: unknown): ReadResourceResult {
 	return value as unknown as ReadResourceResult;
 }
 
-/** `content` is required by the spec, but servers that only return `structuredContent` omit it (the SDK defaults it too). */
+/** 规范要求提供 `content`，但仅返回 `structuredContent` 的服务器会省略它（SDK 也会默认省略）。 */
 function validateCallToolResult(value: unknown): CallToolResult {
 	if (!isObject(value) || (value.content !== undefined && !Array.isArray(value.content))) {
 		throw new McpError(JSON_RPC_ERROR_CODES.invalidRequest, "Invalid MCP tools/call result");
@@ -205,7 +205,7 @@ export class McpClient {
 		this.transport = transport;
 		this.disposers = [
 			transport.onMessage((message) => this.handleMessage(message)),
-			// Transport errors are reported only. Pending requests fail when the transport closes.
+			// 这里只报告传输错误；传输关闭时，待处理请求会失败。
 			transport.onError((error) => this.emitError(error)),
 			transport.onClose(() => this.handleTransportClose()),
 		];
@@ -281,7 +281,7 @@ export class McpClient {
 		return () => this.errorListeners.delete(listener);
 	}
 
-	/** Called once when the connection closes, whether the transport dropped or `close()` was called. */
+	/** 连接关闭时调用一次，无论是传输中断还是主动调用了 `close()`。 */
 	onClose(listener: CloseListener): () => void {
 		this.closeListeners.add(listener);
 		return () => this.closeListeners.delete(listener);
@@ -295,18 +295,18 @@ export class McpClient {
 		return (await this.listAll("tools/list", "tools", isTool, options)) as unknown as Tool[];
 	}
 
-	/** Every resource, following `nextCursor` through all pages. */
+	/** 遍历所有分页并沿 `nextCursor` 获取的全部资源。 */
 	async listResources(options: McpRequestOptions = {}): Promise<Resource[]> {
 		return (await this.listAll("resources/list", "resources", isResource, options)).map(toResource);
 	}
 
-	/** One page of resources, starting at `cursor`. */
+	/** 从 `cursor` 开始获取的一页资源。 */
 	async listResourcesPage(cursor?: string, options: McpRequestOptions = {}): Promise<ListResourcesResult> {
 		const page = await this.listPage("resources/list", "resources", isResource, cursor, options);
 		return { resources: page.items.map(toResource), ...pageCursor(page) };
 	}
 
-	/** Every resource template, following `nextCursor` through all pages. */
+	/** 遍历所有分页并沿 `nextCursor` 获取的全部资源模板。 */
 	async listResourceTemplates(options: McpRequestOptions = {}): Promise<ResourceTemplate[]> {
 		const templates = await this.listAll(
 			"resources/templates/list",
@@ -317,7 +317,7 @@ export class McpClient {
 		return templates.map(toResourceTemplate);
 	}
 
-	/** One page of resource templates, starting at `cursor`. */
+	/** 从 `cursor` 开始获取的一页资源模板。 */
 	async listResourceTemplatesPage(
 		cursor?: string,
 		options: McpRequestOptions = {},
@@ -351,7 +351,7 @@ export class McpClient {
 		);
 	}
 
-	/** Every item of a paginated list method. */
+	/** 分页列表方法返回的全部条目。 */
 	private async listAll(
 		method: string,
 		key: string,
@@ -418,7 +418,7 @@ export class McpClient {
 				timeoutMs: options.timeoutMs ?? this.options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS,
 				timer: undefined,
 				signal: options.signal,
-				// The spec forbids cancelling `initialize`.
+				// 规范禁止取消 `initialize` 请求。
 				onAbort: () =>
 					this.cancelPending(
 						id,
@@ -587,7 +587,7 @@ export class McpClient {
 		this.markClosed(new McpConnectionClosedError());
 	}
 
-	/** Idempotent: rejects in-flight requests, aborts server requests we are serving, and flips the state. */
+	/** 可重复调用：拒绝尚未完成的请求，中止当前代为处理的服务器请求，并更新状态。 */
 	private markClosed(error: Error): void {
 		const wasClosed = this.state === "closed";
 		this.state = "closed";

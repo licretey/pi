@@ -70,7 +70,7 @@ describe("extensions discovery", () => {
 	});
 
 	it("does not infer package ownership from ancestor manifests", async () => {
-		// Regression for #9863.
+		// #9863 回归测试。
 		const dependencyDir = path.join(tempDir, "node_modules", "@earendil-works", "pi-coding-agent");
 		fs.mkdirSync(dependencyDir, { recursive: true });
 		fs.writeFileSync(
@@ -260,7 +260,7 @@ describe("extensions discovery", () => {
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0].path).toContain("custom.ts");
-		// Verify the right tool was registered
+		// 验证已注册正确的工具。
 		expect(result.extensions[0].tools.has("from-custom")).toBe(true);
 		expect(result.extensions[0].tools.has("from-index")).toBe(false);
 	});
@@ -302,7 +302,7 @@ describe("extensions discovery", () => {
 		fs.mkdirSync(subdir);
 		fs.mkdirSync(nested);
 		fs.writeFileSync(path.join(nested, "index.ts"), extensionCode);
-		// No index.ts or package.json in container/
+		// container/ 中没有 index.ts 或 package.json。
 
 		const result = await discoverAndLoadExtensions([], tempDir, tempDir);
 
@@ -311,15 +311,15 @@ describe("extensions discovery", () => {
 	});
 
 	it("handles mixed direct files and subdirectories", async () => {
-		// Direct file
+		// 直接指定文件。
 		fs.writeFileSync(path.join(extensionsDir, "direct.ts"), extensionCode);
 
-		// Subdirectory with index
+		// 包含 index 文件的子目录。
 		const subdir1 = path.join(extensionsDir, "with-index");
 		fs.mkdirSync(subdir1);
 		fs.writeFileSync(path.join(subdir1, "index.ts"), extensionCode);
 
-		// Subdirectory with package.json
+		// 包含 package.json 的子目录。
 		const subdir2 = path.join(extensionsDir, "with-manifest");
 		fs.mkdirSync(subdir2);
 		fs.writeFileSync(path.join(subdir2, "entry.ts"), extensionCode);
@@ -394,7 +394,7 @@ describe("extensions discovery", () => {
 	});
 
 	it("resolves dependencies from extension's own node_modules", async () => {
-		// Load extension that has its own package.json and node_modules with 'ms' package
+		// 加载带有独立 package.json 和 node_modules（含 'ms' 包）的扩展。
 		const extPath = path.resolve(__dirname, "../examples/extensions/with-deps");
 
 		const result = await discoverAndLoadExtensions([extPath], tempDir, tempDir);
@@ -402,7 +402,7 @@ describe("extensions discovery", () => {
 		expect(result.errors).toHaveLength(0);
 		expect(result.extensions).toHaveLength(1);
 		expect(result.extensions[0].path).toContain("with-deps");
-		// The extension registers a 'parse_duration' tool
+		// 该扩展会注册 'parse_duration' 工具。
 		expect(result.extensions[0].tools.has("parse_duration")).toBe(true);
 	});
 
@@ -413,7 +413,7 @@ describe("extensions discovery", () => {
 					return markdown;
 				});
 				pi.registerMessageRenderer("my-custom-type", (message, options, theme) => {
-					return null; // Use default rendering
+					return null; // 使用默认渲染方式。
 				});
 				pi.registerEntryRenderer("my-entry-type", (entry, options, theme) => {
 					return null;
@@ -536,14 +536,14 @@ describe("extensions discovery", () => {
 	});
 
 	it("loadExtensions only loads explicit paths without discovery", async () => {
-		// Create discoverable extensions (would be found by discoverAndLoadExtensions)
+		// 创建可被发现的扩展（discoverAndLoadExtensions 应能找到它们）。
 		fs.writeFileSync(path.join(extensionsDir, "discovered.ts"), extensionCodeWithTool("discovered"));
 
-		// Create explicit extension outside discovery path
+		// 在发现路径之外创建显式指定的扩展。
 		const explicitPath = path.join(tempDir, "explicit.ts");
 		fs.writeFileSync(explicitPath, extensionCodeWithTool("explicit"));
 
-		// Use loadExtensions directly to skip discovery
+		// 直接调用 loadExtensions，跳过发现流程。
 		const { loadExtensions } = await import("../src/core/extensions/loader.ts");
 		const result = await loadExtensions([explicitPath], tempDir);
 
@@ -554,10 +554,10 @@ describe("extensions discovery", () => {
 	});
 
 	it("loadExtensions with no paths loads nothing", async () => {
-		// Create discoverable extensions (would be found by discoverAndLoadExtensions)
+		// 创建可被发现的扩展（discoverAndLoadExtensions 会找到它们）。
 		fs.writeFileSync(path.join(extensionsDir, "discovered.ts"), extensionCode);
 
-		// Use loadExtensions directly with empty paths
+		// 使用空路径直接调用 loadExtensions。
 		const { loadExtensions } = await import("../src/core/extensions/loader.ts");
 		const result = await loadExtensions([], tempDir);
 

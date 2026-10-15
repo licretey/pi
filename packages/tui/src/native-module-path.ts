@@ -19,7 +19,7 @@ export function getNativeModuleCandidates(nativePath: string, options: NativeMod
 		const packageEntry = (options.resolvePackage ?? moduleRequire.resolve)(TUI_PACKAGE_NAME);
 		candidates.push(join(dirname(packageEntry), "..", nativePath));
 	} catch {
-		// Standalone binaries do not have an installed TUI package.
+		// 独立可执行文件中没有已安装的 TUI 包。
 	}
 
 	candidates.push(

@@ -1,9 +1,9 @@
 /**
- * The `tool_search` tool as an extension. The CLI loads it as a built-in extension; SDK users add
- * `createToolSearchExtension()` to their extension factories.
+ * 作为扩展提供的 `tool_search` 工具。CLI 会将其作为内置扩展加载；SDK 使用方可将
+ * 将 `createToolSearchExtension()` 加入其扩展工厂。
  *
- * `tool_search` is registered inactive. Activate it with `--tools`, the `defaultTools` setting, or
- * `setActiveTools()`.
+ * `tool_search` 注册后默认处于未激活状态。可通过 `--tools`、`defaultTools` 设置，或
+ * `setActiveTools()` 启用。
  */
 
 import type { ExtensionFactory } from "../../core/extensions/types.ts";

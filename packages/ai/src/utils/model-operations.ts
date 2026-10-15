@@ -14,12 +14,12 @@ import type {
 } from "../types.ts";
 import { ModelsError } from "./models-error.ts";
 
-/** The type of a model. Models without `type` are chat models. */
+/** 模型的类型。没有 `type` 的模型视为 chat 模型。 */
 export function getModelType(model: AnyModel): ModelType {
 	return model.type ?? "chat";
 }
 
-/** Runtime-checked model type narrowing, including legacy chat models without `type`. */
+/** 运行时校验的模型类型收窄，包括没有 `type` 的旧版 chat 模型。 */
 export function isModelType<TType extends ModelType>(model: AnyModel, type: TType): model is ModelTypeMap[TType] {
 	return getModelType(model) === type;
 }
@@ -42,7 +42,7 @@ export function assertClassifierModel(model: AnyModel): asserts model is Classif
 	}
 }
 
-/** Rejects classifier images for models whose catalog entry does not accept image input. */
+/** 当目录条目不接受图像输入时，拒绝分类器的图像。 */
 export function assertClassifierInputSupported(
 	model: ClassifierModel<ClassifierApi>,
 	context: ClassifierContext,

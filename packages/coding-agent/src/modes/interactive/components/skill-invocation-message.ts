@@ -4,9 +4,9 @@ import { getMarkdownTheme, theme } from "../theme/theme.ts";
 import { keyText } from "./keybinding-hints.ts";
 
 /**
- * Component that renders a skill invocation message with collapsed/expanded state.
- * Uses same background color as custom messages for visual consistency.
- * Only renders the skill block itself - user message is rendered separately.
+ * 用于呈现可折叠或展开的技能调用消息。
+ * 背景色与自定义消息相同，以保持视觉一致。
+ * 这里只呈现技能内容块；用户消息由其他组件单独呈现。
  */
 export class SkillInvocationMessageComponent extends Box {
 	private expanded = false;
@@ -39,7 +39,7 @@ export class SkillInvocationMessageComponent extends Box {
 		const content = new Container();
 
 		if (this.expanded) {
-			// Expanded: label + skill name header + full content
+			// 展开状态：标签、技能名称标题和完整内容。
 			const label = theme.fg("customMessageLabel", `\x1b[1m[skill]\x1b[22m`);
 			content.addChild(new Text(label, 0, 0));
 			const header = `**${this.skillBlock.name}**\n\n`;
@@ -49,7 +49,7 @@ export class SkillInvocationMessageComponent extends Box {
 				}),
 			);
 		} else {
-			// Collapsed: single line - [skill] name (hint to expand)
+			// 折叠状态：单行显示 [skill] 名称（提示可展开）。
 			const line =
 				theme.fg("customMessageLabel", `\x1b[1m[skill]\x1b[22m `) +
 				theme.fg("customMessageText", this.skillBlock.name) +

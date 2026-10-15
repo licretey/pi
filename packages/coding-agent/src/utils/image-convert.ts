@@ -15,7 +15,7 @@ function encodePng(photon: Photon, bytes: Uint8Array): Uint8Array | null {
 			image.free();
 		}
 	} catch {
-		// Conversion failed
+		// 转换失败。
 		return null;
 	}
 }
@@ -23,21 +23,21 @@ function encodePng(photon: Photon, bytes: Uint8Array): Uint8Array | null {
 export async function convertImageBytesToPng(bytes: Uint8Array): Promise<Uint8Array | null> {
 	const photon = await loadPhoton();
 	if (!photon) {
-		// Photon not available, can't convert
+		// Photon 不可用，无法转换。
 		return null;
 	}
 	return encodePng(photon, bytes);
 }
 
 /**
- * Convert image to PNG format for terminal display.
- * Kitty graphics protocol requires PNG format (f=100).
+ * 将图像转换为 PNG 格式，以便在终端中显示。
+ * Kitty 图形协议要求使用 PNG 格式（f=100）。
  */
 export async function convertToPng(
 	base64Data: string,
 	mimeType: string,
 ): Promise<{ data: string; mimeType: string } | null> {
-	// Already PNG, no conversion needed
+	// 已经是 PNG，无需转换。
 	if (mimeType === "image/png") {
 		return { data: base64Data, mimeType };
 	}
@@ -55,8 +55,8 @@ export async function convertToPng(
 }
 
 /**
- * Load photon and return a synchronous PNG transcoder for pi-tui's Kitty image rendering.
- * Returns undefined if photon cannot be loaded.
+ * 加载 photon，并为 pi-tui 的 Kitty 图像渲染返回一个同步 PNG 转码器。
+ * 如果无法加载 photon，则返回 undefined。
  */
 export async function loadPngTranscoder(): Promise<ImageTranscoder | undefined> {
 	const photon = await loadPhoton();
@@ -71,9 +71,9 @@ let pngTranscoderLoad: Promise<boolean> | undefined;
 let pngTranscoderRegistered = false;
 
 /**
- * On Kitty-protocol terminals, register photon as pi-tui's image transcoder so non-PNG images render.
- * Loads photon once. `onRegistered` runs after registration so callers can re-render images that
- * showed text fallbacks; it is not called if the transcoder was already registered or cannot load.
+ * 在支持 Kitty 协议的终端中，将 photon 注册为 pi-tui 的图像转码器，以便渲染非 PNG 图像。
+ * photon 只会加载一次。注册完成后调用 `onRegistered`，让调用方重新渲染此前显示为文本回退的图像；
+ * 若转码器已注册或 photon 无法加载，则不会调用该回调。
  */
 export function ensurePngTranscoder(onRegistered: () => void): void {
 	if (pngTranscoderRegistered || getCapabilities().images !== "kitty") return;

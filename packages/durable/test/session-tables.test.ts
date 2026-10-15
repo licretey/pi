@@ -95,7 +95,7 @@ describe("Session transaction tables", () => {
 			await expect(tx.entry(idFromNumber<EntryId>(1))).rejects.toBeInstanceOf(ReadAfterWrite);
 			await expect(tx.scanConversations({}, 10)).rejects.toBeInstanceOf(ReadAfterWrite);
 			await expect(tx.scanEntries({ conversationId }, 10)).rejects.toBeInstanceOf(ReadAfterWrite);
-			// Document access remains available after table writes.
+			// 写入表格后仍可访问文档。
 			(await tx.doc(NotesDoc, conversationId)).text = "after write";
 		}, context);
 		expect(await session.snapshot(NotesDoc, conversationId, context)).toEqual({ text: "after write" });
@@ -360,7 +360,7 @@ describe("Session transaction tables", () => {
 				{ path: "a" },
 				{ ownership: { kind: "conversation" }, conversationId },
 			);
-			// Validation uses the candidate task record, not a caller table read.
+			// 校验使用候选任务记录，而不是调用方读取的表格数据。
 			(await tx.doc(ProgressDoc, createdTaskId)).lines.push("created");
 			(await tx.doc(StepDoc, createdTaskId, "one", null)).lines.push("step");
 			return createdTaskId;
@@ -373,7 +373,7 @@ describe("Session transaction tables", () => {
 			expect.objectContaining({ type: "task", value: expect.objectContaining({ id: taskId }) }),
 		);
 		expect(documents).toHaveLength(2);
-		// Task documents derive their conversation from the task record.
+		// 任务文档根据任务记录确定所属对话。
 		for (const document of documents) expect(document.conversationId).toBe(conversationId);
 
 		await session.commit(async (tx) => {

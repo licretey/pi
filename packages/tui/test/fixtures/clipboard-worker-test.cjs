@@ -22,7 +22,7 @@ async function waitFor(predicate) {
 	}
 	const [addon, mode] = process.argv.slice(2);
 	if (mode === "worker-exit") {
-		// The originating environment unloads while its private callback still waits.
+		// 发起任务的环境会在其私有回调仍处于等待状态时卸载。
 		const worker = new Worker(__filename, { workerData: addon });
 		await once(worker, "message");
 		await worker.terminate();
@@ -41,11 +41,11 @@ async function waitFor(predicate) {
 	if (mode === "process-exit") {
 		assert.equal(await pending, undefined);
 		console.log("passed");
-		return; // The private callback never finishes; Node must still exit naturally.
+		return; // 私有回调不会结束；Node 仍必须能够自然退出。
 	}
 	const concurrentStarted = performance.now();
 	const concurrent = Array.from({ length: 20 }, (_, index) => helper[index % 2 ? "getText" : "getImage"]());
-	// With UV_THREADPOOL_SIZE=2, a second blocked native task would delay this read.
+	// UV_THREADPOOL_SIZE=2 时，第二个被阻塞的原生任务会延迟此处的读取操作。
 	await readFile(__filename);
 	assert.deepEqual(await Promise.all(concurrent), Array(20).fill(undefined));
 	assert.ok(performance.now() - concurrentStarted < 1500, "Concurrent reads and filesystem I/O must remain available");

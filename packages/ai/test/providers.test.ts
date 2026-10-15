@@ -137,7 +137,7 @@ describe("builtin providers", () => {
 	});
 
 	it("uses models.dev effort levels for Google thinking models", () => {
-		// Regression test for https://github.com/earendil-works/pi/issues/9455
+		// https://github.com/earendil-works/pi/issues/9455 的回归测试。
 		for (const provider of ["google", "google-vertex"] as const) {
 			expect(getSupportedThinkingLevels(getBuiltinModel(provider, "gemini-3.6-flash"))).toContain("minimal");
 			expect(getSupportedThinkingLevels(getBuiltinModel(provider, "gemini-3.8-flash"))).toEqual([
@@ -224,7 +224,7 @@ describe("builtin providers", () => {
 			["opencode", "gpt-5.6-terra"],
 			["github-copilot", "gpt-5.6-terra"],
 		] as const) {
-			// Proxies pass `additional_tools` through to OpenAI but are not verified for tool search.
+			// 代理会将 `additional_tools` 传递给 OpenAI，但尚未验证其工具搜索行为。
 			expect(models.getModel(provider, modelId)?.compat, `${provider}/${modelId}`).toMatchObject({
 				supportsAdditionalTools: true,
 			});
@@ -232,7 +232,7 @@ describe("builtin providers", () => {
 				"supportsToolSearch",
 			);
 		}
-		// Proxied Anthropic endpoints reject `tool_addition`/`tool_removal` blocks.
+		// 代理的 Anthropic 端点会拒绝 `tool_addition`/`tool_removal` 块。
 		for (const provider of ["opencode", "github-copilot"] as const) {
 			expect(models.getModel(provider, "claude-opus-5")?.compat, provider).not.toHaveProperty(
 				"supportsMidConvoToolChanges",
@@ -241,7 +241,7 @@ describe("builtin providers", () => {
 		expect(models.getModel("anthropic", "claude-opus-5")?.compat).toMatchObject({
 			supportsMidConvoToolChanges: true,
 		});
-		// Kimi-style tool-bearing system messages survive Moonshot and OpenCode but not Copilot.
+		// Kimi 风格的含工具系统消息可通过 Moonshot 和 OpenCode 保留，但 Copilot 不会保留。
 		for (const provider of ["moonshotai", "moonshotai-cn", "opencode", "opencode-go"] as const) {
 			expect(models.getModel(provider, "kimi-k3")?.compat, provider).toMatchObject({
 				supportsMidConvoToolAdditions: true,
@@ -461,12 +461,12 @@ describe("builtin providers", () => {
 		expect(result?.auth).toEqual({});
 		expect(result?.source).toContain("application default");
 
-		// ADC without project/location is not configured
+		// 未设置项目或区域的 ADC 不算已配置
 		const partial = createModels({ authContext: fakeAuthContext({ GOOGLE_CLOUD_PROJECT: "proj" }, [adc]) });
 		partial.setProvider(googleVertexProvider());
 		expect(await partial.getAuth(model.provider)).toBeUndefined();
 
-		// explicit key wins over ADC
+		// 显式密钥优先于 ADC
 		const keyed = createModels({ authContext: fakeAuthContext({ GOOGLE_CLOUD_API_KEY: "vertex-key" }) });
 		keyed.setProvider(googleVertexProvider());
 		expect((await keyed.getAuth(model.provider))?.auth.apiKey).toBe("vertex-key");

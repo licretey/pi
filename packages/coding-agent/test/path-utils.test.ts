@@ -22,7 +22,7 @@ describe("path-utils", () => {
 		});
 
 		it("should normalize Unicode spaces", () => {
-			// Non-breaking space (U+00A0) should become regular space
+			// 不换行空格（U+00A0）应转换为普通空格。
 			const withNBSP = "file\u00A0name.txt";
 			const result = expandPath(withNBSP);
 			expect(result).toBe("file name.txt");
@@ -56,7 +56,7 @@ describe("path-utils", () => {
 		});
 
 		afterEach(() => {
-			// Clean up temp files and directory
+			// 清理临时文件和目录。
 			try {
 				const files = readdirSync(tempDir);
 				for (const file of files) {
@@ -64,7 +64,7 @@ describe("path-utils", () => {
 				}
 				rmdirSync(tempDir);
 			} catch {
-				// Ignore cleanup errors
+				// 忽略清理错误。
 			}
 		});
 
@@ -77,97 +77,97 @@ describe("path-utils", () => {
 		});
 
 		it("should handle NFC vs NFD Unicode normalization (macOS filenames with accents)", () => {
-			// macOS stores filenames in NFD (decomposed) form:
-			//   é = e + combining acute accent (U+0301)
-			// Users typically type in NFC (composed) form:
-			//   é = single character (U+00E9)
+			// macOS 会以 NFD（分解形式）保存文件名：
+			//   é = e + 组合用尖音符（U+0301）
+			// 用户通常输入 NFC（合成形式）：
+			//   é = 单个字符（U+00E9）
 			//
-			// Note: macOS APFS normalizes Unicode automatically, so both paths work.
-			// This test verifies the NFD variant fallback works on systems that don't.
+			// 注意：macOS APFS 会自动规范化 Unicode，因此两种路径都能正常工作。
+			// 此测试验证在不会自动规范化的系统上，NFD 形式的回退查找也能生效。
 
-			// NFD: e (U+0065) + combining acute accent (U+0301)
+			// NFD：e（U+0065）+ 组合用尖音符（U+0301）。
 			const nfdFileName = "file\u0065\u0301.txt";
-			// NFC: é as single character (U+00E9)
+			// NFC：é 为单个字符（U+00E9）。
 			const nfcFileName = "file\u00e9.txt";
 
-			// Verify they have different byte sequences
+			// 验证两种形式的字节序列不同。
 			expect(nfdFileName).not.toBe(nfcFileName);
 			expect(Buffer.from(nfdFileName)).not.toEqual(Buffer.from(nfcFileName));
 
-			// Create file with NFD name
+			// 创建 NFD 形式的文件名。
 			writeFileSync(join(tempDir, nfdFileName), "content");
 
-			// User provides NFC path - should find the file (via filesystem normalization or our fallback)
+			// 用户提供 NFC 路径时，应能找到文件（通过文件系统规范化或本代码的回退逻辑）。
 			const result = resolveReadPath(nfcFileName, tempDir);
-			// Result should contain the accented character (either NFC or NFD form)
+			// 结果应包含带重音的字符（NFC 或 NFD 形式均可）。
 			expect(result).toContain(tempDir);
 			expect(result).toMatch(/file.+\.txt$/);
 		});
 
 		it("should handle curly quotes vs straight quotes (macOS filenames)", () => {
-			// macOS uses curly apostrophe (U+2019) in screenshot filenames:
-			//   Capture d'écran (U+2019)
-			// Users typically type straight apostrophe (U+0027):
-			//   Capture d'ecran (U+0027)
+			// macOS 截图文件名中会使用弯引号（U+2019）：
+			//   Capture d'écran（U+2019）
+			// 用户通常输入直引号（U+0027）：
+			//   Capture d'ecran（U+0027）
 
 			const curlyQuoteName = "Capture d\u2019cran.txt"; // U+2019 right single quotation mark
 			const straightQuoteName = "Capture d'cran.txt"; // U+0027 apostrophe
 
-			// Verify they are different
+			// 验证两种文件名不同。
 			expect(curlyQuoteName).not.toBe(straightQuoteName);
 
-			// Create file with curly quote name (simulating macOS behavior)
+			// 创建包含弯引号的文件名（模拟 macOS 行为）。
 			writeFileSync(join(tempDir, curlyQuoteName), "content");
 
-			// User provides straight quote path - should find the curly quote file
+			// 用户提供直引号路径时，应能找到弯引号文件。
 			const result = resolveReadPath(straightQuoteName, tempDir);
 			expect(result).toBe(join(tempDir, curlyQuoteName));
 		});
 
 		it("should handle combined NFC + curly quote (French macOS screenshots)", () => {
-			// Full macOS screenshot filename: "Capture d'écran" with NFD é and curly quote
-			// Note: macOS APFS normalizes NFD to NFC, so the actual file on disk uses NFC
+			// 完整的 macOS 截图文件名："Capture d'écran"，其中 é 为 NFD 形式且包含弯引号。
+			// 注意：macOS APFS 会将 NFD 规范化为 NFC，因此磁盘上的实际文件使用 NFC。
 			const nfcCurlyName = "Capture d\u2019\u00e9cran.txt"; // NFC + curly quote (how APFS stores it)
 			const nfcStraightName = "Capture d'\u00e9cran.txt"; // NFC + straight quote (user input)
 
-			// Verify they are different
+			// 验证两种文件名不同。
 			expect(nfcCurlyName).not.toBe(nfcStraightName);
 
-			// Create file with macOS-style name (curly quote)
+			// 创建 macOS 风格的文件名（使用弯引号）。
 			writeFileSync(join(tempDir, nfcCurlyName), "content");
 
-			// User provides straight quote path - should find the curly quote file
+			// 用户提供直引号路径时，应能找到弯引号文件。
 			const result = resolveReadPath(nfcStraightName, tempDir);
 			expect(result).toBe(join(tempDir, nfcCurlyName));
 		});
 
 		it("should handle macOS screenshot AM/PM variant with narrow no-break space", () => {
-			// macOS uses narrow no-break space (U+202F) before AM/PM in screenshot names
+			// macOS 截图名称中的 AM/PM 前会使用窄不换行空格（U+202F）。
 			const macosName = "Screenshot 2024-01-01 at 10.00.00\u202FAM.png"; // U+202F
 			const userName = "Screenshot 2024-01-01 at 10.00.00 AM.png"; // regular space
 
-			// Create file with macOS-style name
+			// 创建 macOS 风格的文件名。
 			writeFileSync(join(tempDir, macosName), "content");
 
-			// User provides regular space path
+			// 用户提供包含普通空格的路径。
 			const result = resolveReadPath(userName, tempDir);
 
-			// This works because tryMacOSScreenshotPath() handles this case
+			// tryMacOSScreenshotPath() 会处理此情况。
 			expect(result).toBe(join(tempDir, macosName));
 		});
 
 		it("should handle macOS screenshot lowercase am/pm variant (en_AU locale)", () => {
-			// Some locales like en_AU use lowercase am/pm in screenshot names
+			// en_AU 等区域设置会在截图名称中使用小写 am/pm。
 			const macosName = "Screenshot 2024-01-01 at 10.00.00\u202Fam.png"; // U+202F + lowercase
 			const userName = "Screenshot 2024-01-01 at 10.00.00 am.png"; // regular space + lowercase
 
-			// Create file with macOS-style name
+			// 创建 macOS 风格的文件名。
 			writeFileSync(join(tempDir, macosName), "content");
 
-			// User provides regular space path
+			// 用户提供包含普通空格的路径。
 			const result = resolveReadPath(userName, tempDir);
 
-			// This works because tryMacOSScreenshotPath() uses case-insensitive matching
+			// tryMacOSScreenshotPath() 会忽略大小写进行匹配，因此此路径可以找到文件。
 			expect(result).toBe(join(tempDir, macosName));
 		});
 	});

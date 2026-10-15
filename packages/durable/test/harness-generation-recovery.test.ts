@@ -104,7 +104,7 @@ describe("generation recovery", () => {
 			thinkingLevel: "off",
 			streamOptions: { timeoutMs: 1234 },
 		});
-		// The resend uses the pinned request, not options changed after preparation.
+		// 重发时使用已固定的请求，而不是准备完成后发生变化的选项。
 		setup.settings.stream = { timeoutMs: 999 };
 		expect(await opened.harness.snapshot(LiveDoc, opened.root.id, context)).toMatchObject({
 			generation: { attempt: 1 },
@@ -147,7 +147,7 @@ describe("generation recovery", () => {
 		opened = await open(path, setup);
 		const stored = await opened.harness.snapshot(LiveDoc, opened.root.id, context);
 		const partial = textOf(stored?.generation?.message as Message)!;
-		// Everything observers saw before the crash is durable.
+		// 崩溃前观察者看到的所有内容都已持久化。
 		expect(partial.startsWith(watched!)).toBe(true);
 		opened.harness.resume();
 		expect((await (await opened.harness.submission(id, context))!.wait(context)).status).toBe("done");
@@ -238,7 +238,7 @@ describe("generation recovery", () => {
 		await busy.reached;
 		await opened.harness.close(context);
 
-		// Reopened without the faux provider: the request's pinned model is unknown.
+		// 不加载模拟提供商重新打开后，无法识别请求中固定的模型。
 		const empty: ChatSetup = { ...setup, models: createModels() };
 		opened = await open(path, empty);
 		opened.harness.resume();

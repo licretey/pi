@@ -1,11 +1,10 @@
 export type { Static, TSchema } from "typebox";
 export { Type } from "typebox";
 
-// Core only, side-effect free: no generated catalogs, no provider factories,
-// no api-registry, no OAuth implementations, no compat. Provider factories
-// live under "@earendil-works/pi-ai/providers/*", API implementations under
-// "@earendil-works/pi-ai/api/*", the old global API under
-// "@earendil-works/pi-ai/compat".
+// 仅核心，无副作用：不含生成的目录、provider 工厂、api 注册表、OAuth
+// 实现和 compat。provider 工厂位于 "@earendil-works/pi-ai/providers/*"，
+// API 实现位于 "@earendil-works/pi-ai/api/*"，旧的全局 API 位于
+// "@earendil-works/pi-ai/compat"。
 export type { AnthropicEffort, AnthropicOptions, AnthropicThinkingDisplay } from "./api/anthropic-messages.ts";
 export type { AzureOpenAIResponsesOptions } from "./api/azure-openai-responses.ts";
 export type { BedrockOptions, BedrockThinkingDisplay } from "./api/bedrock-converse-stream.ts";

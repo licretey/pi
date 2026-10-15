@@ -13,7 +13,7 @@ function random(seed: number): () => number {
 	};
 }
 
-// Newlines, ASCII, a byte-order mark, valid multi-byte sequences, and bytes that form invalid or truncated sequences.
+// 包含换行符、ASCII、字节顺序标记、有效多字节序列，以及构成无效或截断序列的字节。
 const PIECES = [
 	[0x0a],
 	[0x0a],
@@ -40,7 +40,7 @@ function randomFile(next: () => number): Uint8Array {
 const utf8 = (text: string): number => new TextEncoder().encode(text).length;
 
 describe("StreamDecoder", () => {
-	// Node's streaming TextDecoder with BOM handling dropped this U+FEFF, which follows an invalid sequence.
+	// Node 的流式 TextDecoder 在处理 BOM 时会丢弃紧跟在无效序列后的 U+FEFF。
 	it("keeps a U+FEFF that does not start the stream", () => {
 		const bytes = Uint8Array.from([0xe2, 0x82, 0xef, 0xbb, 0xbf, 0x61]);
 		const decoder = new StreamDecoder();

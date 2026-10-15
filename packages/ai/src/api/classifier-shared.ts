@@ -3,7 +3,7 @@ import type { ClassifierApi, ClassifierModel, ClassifierOptions, ProviderHeaders
 import { headersToRecord, providerHeadersToRecord } from "../utils/headers.ts";
 import { retryProviderRequest } from "../utils/provider-retry.ts";
 
-/** An HTTP failure in the shape `retryProviderRequest` and `normalizeProviderError` understand. */
+/** `retryProviderRequest` 和 `normalizeProviderError` 可识别结构的 HTTP 错误。 */
 export interface ClassifierHttpError extends Error {
 	status: number | undefined;
 	headers: Headers | undefined;
@@ -53,9 +53,9 @@ function requestHeaders(
 }
 
 /**
- * Posts one JSON classifier request with bearer auth, `onPayload`/`onResponse` hooks, a fresh
- * timeout per attempt, and provider retries. Returns the parsed response body; throws on failure.
- * `noRetryStatuses` lists HTTP statuses that fail at once although they are normally retried.
+ * 发送一条使用 bearer 认证的 JSON 分类请求，支持 `onPayload`/`onResponse` 钩子、每次尝试单独计时以及提供商重试。
+ * 成功时返回解析后的响应正文；失败时抛出异常。
+ * `noRetryStatuses` 列出的 HTTP 状态码会立即判定失败，即使这些状态码通常会触发重试。
  */
 export async function postClassifierRequest(
 	label: string,
@@ -108,8 +108,8 @@ function tokenCount(value: unknown): number {
 }
 
 /**
- * Usage from a `{ input_tokens, output_tokens }` object, priced from the model catalog like chat
- * usage. A missing or malformed usage object leaves the result without usage instead of failing it.
+ * 从 `{ input_tokens, output_tokens }` 对象中读取用量，并像聊天用量一样根据模型目录计算价格。
+ * 如果用量对象缺失或格式错误，则不设置用量信息，但不会因此让请求失败。
  */
 export function parseClassifierUsage(value: unknown, model: ClassifierModel<ClassifierApi>): Usage | undefined {
 	if (!isRecord(value) || (value.input_tokens === undefined && value.output_tokens === undefined)) return undefined;

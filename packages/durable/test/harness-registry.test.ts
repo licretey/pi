@@ -45,7 +45,7 @@ function names(items: readonly { readonly name: string }[]): string[] {
 	return items.map((item) => item.name);
 }
 
-/** Resolve `state` against `snapshot` and `settings`, collecting reports. */
+/** 根据 `snapshot` 和 `settings` 解析 `state`，并收集报告。 */
 function resolve(
 	state: AgentState | undefined,
 	snapshot: RegistrySnapshot<AppTool>,
@@ -78,7 +78,7 @@ describe("registry", () => {
 		registry.install(a);
 		registry.install(b);
 		const before = registry.snapshot();
-		// A new object with an installed name replaces it at its position.
+		// 使用已安装名称的新对象会在原位置替换旧对象。
 		const a2 = defineExtension<AppTool>({ name: "a", tools: [tool("grep")] });
 		registry.install(a2);
 		expect(names(registry.snapshot().installed())).toEqual(["a", "b"]);
@@ -89,10 +89,10 @@ describe("registry", () => {
 				.tools()
 				.map(({ extension, tool }) => `${tool.name}@${extension.name}`),
 		).toEqual(["grep@a", "read@b", "bash@b"]);
-		// Old snapshots stay as they were.
+		// 旧快照保持不变。
 		expect(before.extension("a")).toBe(a);
 		expect(before.tools()[0]!.tool.snippet).toBe("Read files");
-		// Uninstall matches the name, whichever object; a later install appends.
+		// 卸载按名称匹配，不论对象为何；之后重新安装时会追加到末尾。
 		registry.uninstall(a);
 		registry.uninstall(a);
 		expect(names(registry.snapshot().installed())).toEqual(["b"]);
@@ -119,7 +119,7 @@ describe("registry", () => {
 		for (const [extension, message] of invalid) expect(() => registry.install(extension)).toThrow(message);
 		expect(registry.snapshot()).toBe(before);
 		expect(published).toEqual([]);
-		// Replacing the extension that holds a task name is valid: the check runs on the state after replacement.
+		// 可以替换声明任务名称的扩展：检查会针对替换后的状态执行。
 		registry.install(defineExtension({ name: "tasks", tasks: [task("app.index", 2)] }));
 		expect(registry.snapshot().task("app.index")?.definition.version).toBe(2);
 	});
@@ -169,10 +169,10 @@ describe("agent resolution", () => {
 			"reviewer",
 			"coding",
 		]);
-		// Add appends, remove drops, duplicates keep their first position, uninstalled names are skipped.
+		// add 会追加，remove 会删除；重复项保留首次出现的位置，未安装的名称会被跳过。
 		const edited = { extensions: { add: ["reviewer", "coding", "gone"], remove: ["skills"] } };
 		expect(names(resolve(edited, snapshot, settings).extensions)).toEqual(["coding", "reviewer"]);
-		// An old object stands for its name: the installed extension is selected.
+		// 旧对象代表其名称：此处会选中已安装的扩展。
 		const stale = { extensions: [defineExtension({ name: "skills" }), Skills] };
 		expect(resolve({}, snapshot, stale).extensions).toEqual([Skills]);
 	});
@@ -196,7 +196,7 @@ describe("agent resolution", () => {
 			wraps: [
 				wrapTool(bash, (inner) => ({ ...inner, description: `${inner.description} (timed)` })),
 				wrapTool(bash, (inner) => ({ ...inner, description: `${inner.description} [2]` })),
-				// No `grep` is selected: the wrapper does nothing and reports nothing.
+				// 未选择 `grep`：包装器不执行任何操作，也不报告任何内容。
 				wrapTool(tool("grep"), () => {
 					calls.push("grep");
 					return tool("grep");
@@ -214,7 +214,7 @@ describe("agent resolution", () => {
 		expect(reports).toEqual([]);
 		expect(calls).toEqual([]);
 
-		// An array keeps exactly these names in its order, a repeated name at its first position.
+		// 数组按原顺序保留这些名称；重复名称只保留首次出现的位置。
 		const filtered = resolve({ tools: ["edit", "missing", "read", "edit"] }, local.snapshot());
 		expect(names(filtered.tools)).toEqual(["edit", "read"]);
 		expect(names(resolve({ tools: { remove: ["bash"] } }, local.snapshot()).tools)).toEqual(["read", "edit"]);
@@ -257,7 +257,7 @@ describe("agent resolution", () => {
 					...inner,
 					render: async (input, ctx) => `${await inner.render(input, ctx)}!`,
 				})),
-				// Instructions are not wrapped.
+				// instructions 不会被包装。
 				wrapSection("instructions", () => {
 					throw new Error("never");
 				}),

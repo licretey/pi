@@ -42,7 +42,7 @@ class ModelCatalogRefreshCoordinator {
 
 const modelCatalogRefreshCoordinator = new ModelCatalogRefreshCoordinator();
 
-/** Share concurrent interactive all-catalog refreshes while keeping each caller's cancellation independent. */
+/** 共享并发的交互式全目录刷新，同时保持各调用方的取消操作彼此独立。 */
 export function refreshModelCatalogs(
 	modelRuntime: ModelCatalogRuntime,
 	signal: AbortSignal,

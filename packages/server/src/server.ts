@@ -45,7 +45,7 @@ const MAX_TIMER_DELAY_MS = 2_147_483_647;
 
 export class Server<TMetadata extends SessionMetadata = SessionMetadata> {
 	readonly serverId: string;
-	/** Resolves after shutdown, or rejects when listener or routed-Session cleanup fails. */
+	/** 关闭完成后兑现；监听器或已路由 Session 的清理失败时拒绝。 */
 	readonly closed: Promise<void>;
 
 	private readonly host: ServerHost<TMetadata>;
@@ -532,7 +532,7 @@ export class Server<TMetadata extends SessionMetadata = SessionMetadata> {
 		try {
 			this.onError?.(error instanceof Error ? error : new Error(String(error)));
 		} catch {
-			// Error observers cannot affect server state.
+			// 错误观察器不能影响服务器状态。
 		}
 	}
 

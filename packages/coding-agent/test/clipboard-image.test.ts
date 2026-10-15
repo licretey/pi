@@ -45,7 +45,7 @@ describe("readClipboardImage", () => {
 	}
 
 	test("X11 does not probe image types when TARGETS fails", async () => {
-		// Regression test for #9786.
+		// #9786 的回归测试。
 		mocks.getImage.mockResolvedValue(null);
 		mocks.command.mockImplementation(async (_command, args) =>
 			args.includes("TARGETS") ? undefined : Buffer.from("hello"),

@@ -1,11 +1,11 @@
 /**
- * File Trigger Extension
+ * 文件触发器扩展。
  *
- * Watches a trigger file and injects its contents into the conversation.
- * Useful for external systems to send messages to the agent.
+ * 监视触发文件，并将文件内容注入对话。
+ * 可供外部系统向智能体发送消息。
  *
- * Usage:
- *   echo "Run the tests" > /tmp/agent-trigger.txt
+ * 用法：
+ *   echo "运行测试" > /tmp/agent-trigger.txt
  */
 
 import * as fs from "node:fs";
@@ -25,12 +25,12 @@ export default function (pi: ExtensionAPI) {
 							content: `External trigger: ${content}`,
 							display: true,
 						},
-						{ triggerTurn: true }, // triggerTurn - get LLM to respond
+						{ triggerTurn: true }, // triggerTurn：触发模型回复。
 					);
-					fs.writeFileSync(triggerFile, ""); // Clear after reading
+					fs.writeFileSync(triggerFile, ""); // 读取后清空文件。
 				}
 			} catch {
-				// File might not exist yet
+				// 文件可能尚未创建。
 			}
 		});
 

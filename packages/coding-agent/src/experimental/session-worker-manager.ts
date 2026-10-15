@@ -91,7 +91,7 @@ interface PendingLaunch {
 	reject(error: Error): void;
 }
 
-/** Session and process bookkeeping owned by one replaceable server process. */
+/** 由一个可替换的服务器进程管理的会话和进程记录。 */
 export class SessionWorkerManager {
 	readonly workerPids = new Map<string, number>();
 	readonly #coordinator: Pick<
@@ -314,7 +314,7 @@ export class SessionWorkerManager {
 		return applied;
 	}
 
-	/** Worker operations have no wall-clock timeout: completion, disconnect, replacement, or shutdown settles them. */
+	/** 工作进程操作没有墙钟超时；操作会在完成、断开连接、进程替换或关闭时结束。 */
 	#invoke(
 		worker: WorkerRecord,
 		scope: WorkerOperationScope,
@@ -432,7 +432,7 @@ export class SessionWorkerManager {
 		this.#detachState();
 	}
 
-	/** Forget workers without stopping them when this server is replaced. */
+	/** 服务器被替换时清除工作进程记录，但不停止这些工作进程。 */
 	detach(): void {
 		if (this.#detached) return;
 		this.#detached = true;

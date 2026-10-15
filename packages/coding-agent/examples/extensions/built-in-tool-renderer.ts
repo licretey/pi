@@ -1,27 +1,20 @@
 /**
- * Built-in Tool Renderer Example - Custom rendering for built-in tools
+ * 内置工具渲染器示例：自定义内置工具的显示方式。
  *
- * Demonstrates how to override the rendering of built-in tools (read, bash,
- * edit, write) without changing their behavior. Each tool is re-registered
- * with the same name, delegating execution to the original implementation
- * while providing compact custom renderCall/renderResult functions.
+ * 演示如何自定义内置工具（read、bash、edit、write）的渲染方式，同时不改变其行为。
+ * 重新注册每个同名工具，将执行过程委托给原实现，并提供精简的 renderCall/renderResult 函数。
  *
- * This is useful for users who prefer more concise tool output, or who want
- * to highlight specific information (e.g., showing only the diff stats for
- * edit, or just the exit code for bash).
+ * 适用于偏好更精简工具输出，或希望突出特定信息的用户（例如 edit 只显示差异统计，或 bash 只显示退出码）。
  *
- * How it works:
- * - registerTool() with the same name as a built-in replaces it entirely
- * - We create the original definitions via createReadToolDefinition(), etc.
- *   and override only their renderers
- * - renderCall() controls what's shown when the tool is invoked
- * - renderResult() controls what's shown after execution completes
- * - renderShell: "self" lets a tool render its own outer shell instead of
- *   using the default boxed shell from ToolExecutionComponent
- * - The `expanded` flag in renderResult indicates whether the user has
- *   toggled the tool output open (via ctrl+e or clicking)
+ * 实现方式：
+ * - 使用与内置工具相同的名称调用 registerTool()，即可完全替换该工具。
+ * - 通过 createReadToolDefinition() 等函数获取原始定义，只覆盖其渲染器。
+ * - renderCall() 控制调用工具时显示的内容。
+ * - renderResult() 控制工具执行完成后显示的内容。
+ * - 设置 renderShell: "self" 后，工具可以自行渲染外层框，而不使用 ToolExecutionComponent 的默认边框。
+ * - renderResult 中的 `expanded` 标志表示用户是否已展开工具输出（通过 ctrl+e 或点击）。
  *
- * Usage:
+ * 用法：
  *   pi -e ./built-in-tool-renderer.ts
  */
 
@@ -37,7 +30,7 @@ import { Text } from "@earendil-works/pi-tui";
 export default function (pi: ExtensionAPI) {
 	const cwd = process.cwd();
 
-	// --- Read tool: show path and line count ---
+	// --- Read 工具：显示路径和行数 ---
 	const originalRead = createReadToolDefinition(cwd);
 	pi.registerTool({
 		...originalRead,
@@ -89,7 +82,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- Bash tool: show command and exit code ---
+	// --- Bash 工具：显示命令和退出码 ---
 	const originalBash = createBashToolDefinition(cwd);
 	pi.registerTool({
 		...originalBash,
@@ -141,7 +134,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- Edit tool: show path and diff stats ---
+	// --- Edit 工具：显示路径和差异统计 ---
 	const originalEdit = createEditToolDefinition(cwd);
 	pi.registerTool({
 		...originalEdit,
@@ -166,7 +159,7 @@ export default function (pi: ExtensionAPI) {
 				return new Text(theme.fg("success", "Applied"), 0, 0);
 			}
 
-			// Count additions and removals from the diff
+			// 统计差异中的新增行和删除行。
 			const diffLines = details.diff.split("\n");
 			let additions = 0;
 			let removals = 0;
@@ -198,7 +191,7 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// --- Write tool: show path and size ---
+	// --- Write 工具：显示路径和大小 ---
 	const originalWrite = createWriteToolDefinition(cwd);
 	pi.registerTool({
 		...originalWrite,

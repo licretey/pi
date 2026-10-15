@@ -8,9 +8,9 @@ describe("Google thinking detection (thoughtSignature)", () => {
 	});
 
 	it("does not treat thoughtSignature alone as thinking", () => {
-		// Per Google docs, thoughtSignature is for context replay and can appear on any part type.
-		// Only thought === true indicates thinking content.
-		// See: https://ai.google.dev/gemini-api/docs/thought-signatures
+		// 根据 Google 文档，thoughtSignature 用于上下文重放，可出现在任意 part 类型中。
+		// 只有 thought === true 才表示该内容属于思考内容。
+		// 参考文档：https://ai.google.dev/gemini-api/docs/thought-signatures
 		expect(isThinkingPart({ thought: undefined, thoughtSignature: "opaque-signature" })).toBe(false);
 		expect(isThinkingPart({ thought: false, thoughtSignature: "opaque-signature" })).toBe(false);
 	});

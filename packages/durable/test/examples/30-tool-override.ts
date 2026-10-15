@@ -1,6 +1,6 @@
-// Replace a tool for some conversations, and decorate whichever tool wins: a bash that runs inside a Python
-// virtualenv, and a wrapper that times every bash call.
-// Run from packages/durable:
+// 为部分会话替换工具，并装饰最终生效的工具：让 bash 在 Python 虚拟环境中运行，
+// 再通过包装器统计每次 bash 调用的耗时。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/30-tool-override.ts
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -23,15 +23,15 @@ import { CodingTools, createBashTool } from "../../src/tools/index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-// ─── Product code ───────────────────────────────────────────────────────────
+// ─── 产品代码 ───────────────────────────────────────────────────────────────
 
-// A bash with the same name: where selected after CodingTools, it replaces CodingTools' bash in place.
+// 注册同名的 bash：若在 CodingTools 之后选中此工具，它会就地替换 CodingTools 中的 bash。
 const Venv = defineExtension({
 	name: "venv",
 	tools: [createBashTool({ commandPrefix: "source .venv/bin/activate" })],
 });
 
-// Wraps the bash that won, whichever it is. Wrappers never capture a base tool, so reloading either bash keeps it.
+// 包装最终生效的 bash，无论它来自哪里。包装器不会捕获基础工具，因此任一 bash 重新加载后包装仍然有效。
 const timings: number[] = [];
 const Timing = defineExtension({
 	name: "timing",
@@ -50,7 +50,7 @@ const Timing = defineExtension({
 	],
 });
 
-// ─── Host setup ─────────────────────────────────────────────────────────────
+// ─── 宿主环境设置 ───────────────────────────────────────────────────────────
 
 const project = await mkdtemp(join(tmpdir(), "pi-durable-venv-"));
 await mkdir(join(project, ".venv/bin"), { recursive: true });
@@ -74,7 +74,7 @@ const harness = await Harness.open(
 	{
 		models,
 		registry,
-		// Venv is installed but not selected by default.
+		// 已安装 Venv，但默认不选择它。
 		settings: { extensions: [CodingTools, Timing] },
 		env: () => new NodeExecutionEnv({ cwd: project }),
 	},

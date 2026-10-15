@@ -247,8 +247,8 @@ describe("AgentSession auto-compaction queue resume", () => {
 	it("should trigger threshold compaction for error messages using last successful usage", async () => {
 		const model = session.model!;
 
-		// A successful assistant message with token usage just over the compaction threshold.
-		// Compute this from the selected model so generated catalog context-window changes do not break the test.
+		// 一条成功的 assistant 消息，其 token 用量略高于上下文压缩阈值。
+		// 根据所选模型计算该用量，避免生成的模型目录调整上下文窗口后导致测试失效。
 		const compactionSettings = settingsManager.getCompactionSettings();
 		const thresholdTokens = (model.contextWindow ?? 200_000) - compactionSettings.reserveTokens + 1;
 		const successfulAssistant: AssistantMessage = {
@@ -269,7 +269,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			timestamp: Date.now(),
 		};
 
-		// An error message (e.g. 529 overloaded) with no useful usage data
+		// 没有有效用量数据的错误消息（例如 529 overloaded）。
 		const errorAssistant: AssistantMessage = {
 			role: "assistant",
 			content: [{ type: "text", text: "" }],
@@ -289,7 +289,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			timestamp: Date.now() + 1000,
 		};
 
-		// Put both messages into agent state so estimateContextTokens can find the successful one
+		// 将两条消息放入 agent 状态，以便 estimateContextTokens 找到成功的那条消息。
 		session.agent.state.messages = [
 			{ role: "user", content: [{ type: "text", text: "hello" }], timestamp: Date.now() - 1000 },
 			successfulAssistant,
@@ -320,7 +320,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 	it("should not trigger threshold compaction for error messages when no prior usage exists", async () => {
 		const model = session.model!;
 
-		// An error message with no prior successful assistant in context
+		// 上下文中没有先前成功的 assistant 消息时出现的错误消息
 		const errorAssistant: AssistantMessage = {
 			role: "assistant",
 			content: [{ type: "text", text: "" }],
@@ -369,7 +369,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		const model = session.model!;
 		const preCompactionTimestamp = Date.now() - 10_000;
 
-		// A "kept" assistant message from before compaction with high usage
+		// 压缩前保留下来的高用量 assistant 消息。
 		const keptAssistant: AssistantMessage = {
 			role: "assistant",
 			content: [{ type: "text", text: "kept response from before compaction" }],
@@ -388,7 +388,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			timestamp: preCompactionTimestamp,
 		};
 
-		// Record the kept assistant in the session and create a compaction after it
+		// 将保留的 assistant 消息记录到会话中，并在其后添加上下文压缩记录
 		sessionManager.appendMessage({
 			role: "user",
 			content: [{ type: "text", text: "before compaction" }],
@@ -398,7 +398,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 		const firstKeptEntryId = sessionManager.getEntries()[0]!.id;
 		sessionManager.appendCompaction("summary", firstKeptEntryId, keptAssistant.usage.totalTokens, undefined, false);
 
-		// Post-compaction error message
+		// 上下文压缩后的错误消息
 		const errorAssistant: AssistantMessage = {
 			role: "assistant",
 			content: [{ type: "text", text: "" }],
@@ -418,7 +418,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 			timestamp: Date.now(),
 		};
 
-		// Agent state has the kept assistant (pre-compaction) and the error (post-compaction)
+		// agent 状态包含压缩前保留的 assistant 消息和压缩后的错误消息
 		session.agent.state.messages = [
 			{ role: "user", content: [{ type: "text", text: "kept user msg" }], timestamp: preCompactionTimestamp - 1000 },
 			keptAssistant,
@@ -443,7 +443,7 @@ describe("AgentSession auto-compaction queue resume", () => {
 
 		await checkCompaction(errorAssistant);
 
-		// Should NOT compact because the only usage data is from a kept pre-compaction message
+		// 不应再次压缩，因为唯一的用量数据来自压缩前保留的消息
 		expect(runAutoCompactionSpy).not.toHaveBeenCalled();
 	});
 });

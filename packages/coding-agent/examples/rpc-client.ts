@@ -1,7 +1,7 @@
 /**
- * Run one prompt through a Pi RPC child process.
+ * 通过 Pi RPC 子进程发送一条提示词。
  *
- * Build the coding-agent package first, then run:
+ * 先构建 coding-agent 包，再运行：
  * node examples/rpc-client.ts "Explain this repository"
  */
 

@@ -3,11 +3,10 @@ import { convertMessages } from "../src/api/google-shared.ts";
 import type { AssistantMessage, Context, Model } from "../src/types.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
-// Gemini can attach `thoughtSignature` to a response part whose visible text is empty (e.g. a
-// thought burst preceding a function call) and requires the signature echoed back on the next
-// request. Dropping such blocks while rebuilding history silently breaks the reasoning chain:
-// the model then intermittently ends a mid-task turn with a thought-only STOP and no tool call.
-// These tests pin the rule: an empty text/thinking block is skipped only when it is UNSIGNED.
+// Gemini 可能会将 `thoughtSignature` 附加到可见文本为空的响应部分（例如函数调用前的思考片段），
+// 并要求在下一次请求中回传该签名。重建历史时丢弃此类内容块会悄然破坏推理链，
+// 导致模型有时在任务进行中仅以思考内容和 STOP 结束，而不调用工具。
+// 这些测试固定了处理规则：只有不带签名的空文本/思考块才会被跳过。
 
 function makeModel(id = "gemini-3-pro-preview"): Model<"google-generative-ai"> {
 	return {

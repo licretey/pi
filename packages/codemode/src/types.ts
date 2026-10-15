@@ -2,47 +2,46 @@ import type { CodemodeWasmModule } from "./wasm.ts";
 
 export interface CodemodeToolContext {
 	/**
-	 * Aborted when the script finishes (including unawaited calls), the
-	 * execution times out, the caller aborts, or the sandbox is closed.
+	 * 在脚本结束（包括未 await 的调用）、执行超时、调用方中止或
+	 * sandbox 关闭时中止。
 	 */
 	signal: AbortSignal;
 }
 
-/** A JSON Schema document. Only used to render declarations; values are not validated against it. */
+/** 一个 JSON Schema 文档。仅用于渲染声明；值不会对照它做校验。 */
 export type CodemodeJsonSchema = { [key: string]: unknown } | boolean;
 
 export interface CodemodeTool {
 	/**
-	 * The script calls tools as `tools.<id>(args)`, where `<id>` is the name with characters that
-	 * are not valid in identifiers replaced by `_` (see `toCodemodeIdentifier`), and also as
-	 * `tools["<name>"](args)`. Globals are called as `<name>(args)` and must be identifiers, or
-	 * `<namespace>.<member>`, which groups them into a frozen namespace object.
+	 * 脚本以 `tools.<id>(args)` 形式调用工具，其中 `<id>` 是名称中标识符不合法的字符被替换成 `_`
+	 * 后的结果（见 `toCodemodeIdentifier`），也可以 `tools["<name>"](args)` 形式调用。全局项以
+	 * `<name>(args)` 形式调用且必须是标识符，或者 `<namespace>.<member>` 形式——后者会被分组进一个冻结的
+	 * 命名空间对象。
 	 */
 	name: string;
-	/** Shown as a doc comment in {@link renderDeclarations}, and listed in `ALL_TOOLS` for tools. */
+	/** 在 {@link renderDeclarations} 中显示为 doc comment，并列入工具的 `ALL_TOOLS`。 */
 	description?: string;
-	/** Schema of the single argument. Rendered as the parameter type; `unknown` when omitted. */
+	/** 单个参数的 schema。渲染为参数类型；省略时为 `unknown`。 */
 	inputSchema?: CodemodeJsonSchema;
-	/** Schema of the resolved value. Rendered as the promise type; `unknown` when omitted. */
+	/** 已结算值的 schema。渲染为 promise 类型；省略时为 `unknown`。 */
 	outputSchema?: CodemodeJsonSchema;
-	/** Globals only: `execute` receives all call arguments as an array instead of the first one. */
+	/** 仅用于全局项（globals）：`execute` 收到全部调用参数组成的数组，而不是第一个参数。 */
 	spread?: boolean;
 	/**
-	 * Globals only: TypeScript parameter list and return type for {@link renderDeclarations}, for
-	 * example `(type: string, id?: string): Promise<Model[]>`. Replaces the rendering from the schemas.
+	 * 仅用于全局项：供 {@link renderDeclarations} 使用的 TypeScript 参数列表与返回类型，例如
+	 * `(type: string, id?: string): Promise<Model[]>`。用于替代由 schema 生成的渲染。
 	 */
 	signature?: string;
 	/**
-	 * `args` is whatever the script passed, after a JSON round trip. The return
-	 * value must be JSON-serializable; a thrown error surfaces in the script as
-	 * an `Error` with the same message.
+	 * `args` 是脚本传入的内容，经过一次 JSON 往返。返回值必须可 JSON 序列化；抛出的错误会以
+	 * 一个相同 message 的 `Error` 形式出现在脚本一侧。
 	 */
 	execute(args: unknown, context: CodemodeToolContext): Promise<unknown> | unknown;
 }
 
 /**
- * One item of the script's output, in the order the script produced it: `text()` and `console.*`
- * produce text items, with `console: true` for `console.*`, and `image()` image items. `data` is base64.
+ * 脚本输出的一项，按脚本产生的顺序排列：`text()` 与 `console.*` 产生文本项（`console.*` 带
+ * `console: true`），`image()` 产生图片项。`data` 为 base64。
  */
 export type CodemodeOutputItem =
 	| { type: "text"; text: string; console?: true }
@@ -57,13 +56,13 @@ export interface CodemodeCall {
 }
 
 export type CodemodeErrorKind =
-	/** The script threw or failed to parse. `name` and `stack` come from the script's error. */
+	/** 脚本抛错或解析失败。`name` 与 `stack` 来自脚本的错误。 */
 	| "script"
-	/** The overall deadline expired. The worker was terminated. */
+	/** 总体 deadline 已过。worker 已被终止。 */
 	| "timeout"
-	/** The caller's signal fired or the sandbox was closed. The worker was terminated. */
+	/** 调用方的 signal 触发或 sandbox 已关闭。worker 已被终止。 */
 	| "aborted"
-	/** The worker or VM failed outside the script's control (for example a wasm trap or a missing worker file). */
+	/** worker 或 VM 在脚本可控范围之外失败（例如 wasm trap 或缺少 worker 文件）。 */
 	| "sandbox";
 
 export interface CodemodeError {
@@ -73,14 +72,14 @@ export interface CodemodeError {
 	stack?: string;
 }
 
-/** Keys the script changed with `store()`. Only successful executions report writes. */
+/** 脚本通过 `store()` 改变的键。只有成功执行会报告写入。 */
 export interface CodemodeStoreWrites {
 	set: Record<string, unknown>;
-	/** Keys stored as `undefined`. */
+	/** 存为 `undefined` 的键。 */
 	delete: string[];
 }
 
-/** `output` is kept for failed executions too, up to the failure. `exit()` completes with `value: undefined`. */
+/** 失败的执行也保留 `output`，直到发生失败为止。`exit()` 会以 `value: undefined` 完成。 */
 export type CodemodeResult =
 	| {
 			ok: true;
@@ -94,45 +93,42 @@ export type CodemodeResult =
 export interface CodemodeSandboxOptions {
 	tools?: CodemodeTool[];
 	/**
-	 * Functions exposed as top-level identifiers instead of on `tools`, for host helpers such as
-	 * attaching an image to the result. They behave like tools (JSON round trip, promise result)
-	 * but are not recorded in `result.calls`. Names must be identifiers and may not shadow the
-	 * built-in globals (`tools`, `ALL_TOOLS`, `console`, `text`, `image`, `exit`, `store`, `load`).
+	 * 以顶级标识符（而非挂在 `tools` 上）暴露的函数，用于宿主辅助操作，例如把图片附加到结果。
+	 * 它们的行为类似工具（JSON 往返、返回 promise），但不会记录进 `result.calls`。名称必须是标识符，
+	 * 且不得遮蔽内置全局项（`tools`、`ALL_TOOLS`、`console`、`text`、`image`、`exit`、`store`、`load`）。
 	 */
 	globals?: CodemodeTool[];
 	/**
-	 * Overall deadline per execution, including time spent in tools. `Infinity` disables the
-	 * deadline; the execution then only ends when the script settles or is aborted.
-	 * Default: 300000.
+	 * 每次执行的总体 deadline，包括在工具中花费的时间。`Infinity` 代表禁用 deadline；此时执行只会在脚本
+	 * 落定或被中止时结束。默认：300000。
 	 */
 	timeoutMs?: number;
 	/**
-	 * Maximum memory the QuickJS VM may allocate. Allocations beyond it fail inside the script as
-	 * `InternalError: out of memory`. Default: no limit beyond wasm32's 4 GiB address space.
+	 * QuickJS VM 允许分配的最大内存。超过限制的分配会在脚本内以
+	 * `InternalError: out of memory` 失败。默认：除 wasm32 的 4 GiB 地址空间外无限制。
 	 */
 	memoryLimitBytes?: number;
 	/**
-	 * Compiled `quickjs-wasi/quickjs.wasm`, usually from {@link loadQuickJSWasm}. Default:
-	 * `loadQuickJSWasm()`, the file in the installed `quickjs-wasi` package. Pass it when that file
-	 * is not on disk, for example in a Bun compiled executable.
+	 * 编译好的 `quickjs-wasi/quickjs.wasm`，常来自 {@link loadQuickJSWasm}。默认：
+	 * `loadQuickJSWasm()`，即已安装的 `quickjs-wasi` 包中的文件。当该文件不在磁盘上时传入，
+	 * 例如在 Bun 编译的可执行文件中。
 	 */
 	wasm?: CodemodeWasmModule | Promise<CodemodeWasmModule>;
 	/**
-	 * Worker entry that imports `@earendil-works/pi-codemode/worker`. Default: this package's own
-	 * worker file. Pass it when this package is bundled, since the default is resolved relative to
-	 * the module that creates the sandbox. Bun compiled executables require the relative string
-	 * specifier of an embedded build entrypoint; other hosts usually use a URL.
+	 * 引入 `@earendil-works/pi-codemode/worker` 的 worker 入口。默认：本包自带的
+	 * worker 文件。本包被打包（bundle）时请传入，因为默认值是相对于创建 sandbox 的模块解析的。
+	 * Bun 编译的可执行文件需要内嵌构建入口的相对字符串 specifier；其他宿主通常使用 URL。
 	 */
 	workerUrl?: string | URL;
 }
 
 export interface CodemodeExecuteOptions {
 	signal?: AbortSignal;
-	/** Overrides the sandbox default for this execution. */
+	/** 覆盖本次执行的 sandbox 默认值。 */
 	timeoutMs?: number;
 	/**
-	 * Values the script reads with `load(key)`. Must be JSON-serializable. The script's own
-	 * `store()` calls come back as `result.storeWrites`; persisting them is up to the caller.
+	 * 脚本通过 `load(key)` 读取的值。必须可 JSON 序列化。脚本自己的
+	 * `store()` 调用会以 `result.storeWrites` 返回；是否持久化由调用方决定。
 	 */
 	store?: Readonly<Record<string, unknown>>;
 }

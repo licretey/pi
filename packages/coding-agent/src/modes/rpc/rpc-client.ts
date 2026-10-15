@@ -1,7 +1,7 @@
 /**
- * RPC Client for programmatic access to the coding agent.
+ * 用于以编程方式访问 coding agent 的 RPC 客户端。
  *
- * Spawns the agent in RPC mode and provides a typed API for all operations.
+ * 以 RPC 模式启动 agent，并为所有操作提供类型化 API。
  */
 
 import { type ChildProcess, spawn } from "node:child_process";
@@ -16,27 +16,27 @@ import { attachJsonlLineReader, serializeJsonLine } from "./jsonl.ts";
 import type { RpcCommand, RpcResponse, RpcSessionState, RpcSlashCommand } from "./rpc-types.ts";
 
 // ============================================================================
-// Types
+// 类型
 // ============================================================================
 
-/** Distributive Omit that works with union types */
+/** 支持联合类型的分配式 Omit */
 type DistributiveOmit<T, K extends keyof T> = T extends unknown ? Omit<T, K> : never;
 
-/** RpcCommand without the id field (for internal send) */
+/** 去掉 id 字段的 RpcCommand（用于内部发送） */
 type RpcCommandBody = DistributiveOmit<RpcCommand, "id">;
 
 export interface RpcClientOptions {
-	/** Path to the CLI entry point (default: searches for dist/cli.js) */
+	/** CLI 入口文件路径（默认：搜索 dist/cli.js） */
 	cliPath?: string;
-	/** Working directory for the agent */
+	/** agent 的工作目录 */
 	cwd?: string;
-	/** Environment variables */
+	/** 环境变量 */
 	env?: Record<string, string>;
-	/** Provider to use */
+	/** 要使用的 provider */
 	provider?: string;
-	/** Model ID to use */
+	/** 要使用的模型 ID */
 	model?: string;
-	/** Additional CLI arguments */
+	/** 额外的 CLI 参数 */
 	args?: string[];
 }
 
@@ -50,7 +50,7 @@ export interface ModelInfo {
 export type RpcEventListener = (event: JsonAgentSessionEvent) => void;
 
 // ============================================================================
-// RPC Client
+// RPC 客户端
 // ============================================================================
 
 export class RpcClient {
@@ -69,7 +69,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Start the RPC agent process.
+	 * 启动 RPC agent 进程。
 	 */
 	async start(): Promise<void> {
 		if (this.process) {
@@ -98,7 +98,7 @@ export class RpcClient {
 		});
 		this.process = childProcess;
 
-		// Collect stderr for debugging
+		// 收集 stderr 以便调试
 		childProcess.stderr?.on("data", (data) => {
 			this.stderr += data.toString();
 			process.stderr.write(data);
@@ -124,12 +124,12 @@ export class RpcClient {
 			this.rejectPendingRequests(stdinError);
 		});
 
-		// Set up strict JSONL reader for stdout.
+		// 为 stdout 设置严格的 JSONL 读取器。
 		this.stopReadingStdout = attachJsonlLineReader(childProcess.stdout!, (line) => {
 			this.handleLine(line);
 		});
 
-		// Wait a moment for process to initialize
+		// 稍等片刻，让进程完成初始化
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
 		if (this.process.exitCode !== null) {
@@ -140,7 +140,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Stop the RPC agent process.
+	 * 停止 RPC agent 进程。
 	 */
 	async stop(): Promise<void> {
 		if (!this.process) return;
@@ -149,7 +149,7 @@ export class RpcClient {
 		this.stopReadingStdout = null;
 		this.process.kill("SIGTERM");
 
-		// Wait for process to exit
+		// 等待进程退出
 		await new Promise<void>((resolve) => {
 			const timeout = setTimeout(() => {
 				this.process?.kill("SIGKILL");
@@ -167,7 +167,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Subscribe to agent events.
+	 * 订阅 agent 事件。
 	 */
 	onEvent(listener: RpcEventListener): () => void {
 		this.eventListeners.push(listener);
@@ -180,20 +180,20 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get collected stderr output (useful for debugging).
+	 * 获取已收集的 stderr 输出（便于调试）。
 	 */
 	getStderr(): string {
 		return this.stderr;
 	}
 
 	// =========================================================================
-	// Command Methods
+	// 命令方法
 	// =========================================================================
 
 	/**
-	 * Send a prompt to the agent.
-	 * Returns the prompt's disposition after acceptance; use onEvent() to receive streaming events.
-	 * If the disposition is "handled", no run started for this prompt, so don't wait for agent_settled.
+	 * 向 agent 发送提示。
+	 * 返回该提示被接受后的处置结果；用 onEvent() 接收流式事件。
+	 * 若处置结果为 "handled"，则本次提示不会启动任何运行，因此不要等待 agent_settled。
 	 */
 	async prompt(
 		message: string,
@@ -205,7 +205,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Queue a steering message to interrupt the agent mid-run.
+	 * 将一条 steering 消息加入队列，在 agent 运行过程中进行打断。
 	 */
 	async steer(message: string, images?: ImageContent[]): Promise<QueuedInputDisposition> {
 		const response = await this.send({ type: "steer", message, images });
@@ -213,7 +213,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Queue a follow-up message to be processed after the agent finishes.
+	 * 将一条 follow-up 消息加入队列，待 agent 结束后再处理。
 	 */
 	async followUp(message: string, images?: ImageContent[]): Promise<QueuedInputDisposition> {
 		const response = await this.send({ type: "follow_up", message, images });
@@ -221,14 +221,14 @@ export class RpcClient {
 	}
 
 	/**
-	 * Abort current operation.
+	 * 中止当前操作。
 	 */
 	async abort(): Promise<void> {
 		await this.send({ type: "abort" });
 	}
 
 	/**
-	 * Clear queued steering and follow-up messages, returning their text.
+	 * 清空排队中的 steering 和 follow-up 消息，并返回其文本。
 	 */
 	async clearQueue(): Promise<{ steering: string[]; followUp: string[] }> {
 		const response = await this.send({ type: "clear_queue" });
@@ -236,9 +236,9 @@ export class RpcClient {
 	}
 
 	/**
-	 * Start a new session, optionally with parent tracking.
-	 * @param parentSession - Optional parent session path for lineage tracking
-	 * @returns Object with `cancelled: true` if an extension cancelled the new session
+	 * 开启一个新会话，可选是否记录父会话。
+	 * @param parentSession - 可选的父会话路径，用于追踪会话谱系
+	 * @returns 若新会话被某个 extension 取消，则返回 `cancelled: true`
 	 */
 	async newSession(parentSession?: string): Promise<{ cancelled: boolean }> {
 		const response = await this.send({ type: "new_session", parentSession });
@@ -246,7 +246,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get current session state.
+	 * 获取当前会话状态。
 	 */
 	async getState(): Promise<RpcSessionState> {
 		const response = await this.send({ type: "get_state" });
@@ -254,7 +254,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Set model by provider and ID.
+	 * 按 provider 和 ID 设置模型。
 	 */
 	async setModel(provider: string, modelId: string): Promise<{ provider: string; id: string }> {
 		const response = await this.send({ type: "set_model", provider, modelId });
@@ -262,7 +262,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Cycle to next model.
+	 * 轮换到下一个模型。
 	 */
 	async cycleModel(): Promise<{
 		model: { provider: string; id: string };
@@ -274,7 +274,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get list of available models.
+	 * 获取可用模型列表。
 	 */
 	async getAvailableModels(): Promise<ModelInfo[]> {
 		const response = await this.send({ type: "get_available_models" });
@@ -282,14 +282,14 @@ export class RpcClient {
 	}
 
 	/**
-	 * Set thinking level.
+	 * 设置 thinking level。
 	 */
 	async setThinkingLevel(level: ThinkingLevel): Promise<void> {
 		await this.send({ type: "set_thinking_level", level });
 	}
 
 	/**
-	 * Cycle thinking level.
+	 * 轮换 thinking level。
 	 */
 	async cycleThinkingLevel(): Promise<{ level: ThinkingLevel } | null> {
 		const response = await this.send({ type: "cycle_thinking_level" });
@@ -297,7 +297,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get list of available thinking levels for the current model.
+	 * 获取当前模型可用的 thinking level 列表。
 	 */
 	async getAvailableThinkingLevels(): Promise<ThinkingLevel[]> {
 		const response = await this.send({ type: "get_available_thinking_levels" });
@@ -305,21 +305,21 @@ export class RpcClient {
 	}
 
 	/**
-	 * Set steering mode.
+	 * 设置 steering 模式。
 	 */
 	async setSteeringMode(mode: "all" | "one-at-a-time"): Promise<void> {
 		await this.send({ type: "set_steering_mode", mode });
 	}
 
 	/**
-	 * Set follow-up mode.
+	 * 设置 follow-up 模式。
 	 */
 	async setFollowUpMode(mode: "all" | "one-at-a-time"): Promise<void> {
 		await this.send({ type: "set_follow_up_mode", mode });
 	}
 
 	/**
-	 * Compact session context.
+	 * 压缩（compaction）会话上下文。
 	 */
 	async compact(customInstructions?: string): Promise<CompactionResult> {
 		const response = await this.send({ type: "compact", customInstructions });
@@ -327,28 +327,28 @@ export class RpcClient {
 	}
 
 	/**
-	 * Set auto-compaction enabled/disabled.
+	 * 启用/禁用自动 compaction。
 	 */
 	async setAutoCompaction(enabled: boolean): Promise<void> {
 		await this.send({ type: "set_auto_compaction", enabled });
 	}
 
 	/**
-	 * Set auto-retry enabled/disabled.
+	 * 启用/禁用自动重试。
 	 */
 	async setAutoRetry(enabled: boolean): Promise<void> {
 		await this.send({ type: "set_auto_retry", enabled });
 	}
 
 	/**
-	 * Abort in-progress retry.
+	 * 中止进行中的重试。
 	 */
 	async abortRetry(): Promise<void> {
 		await this.send({ type: "abort_retry" });
 	}
 
 	/**
-	 * Execute a bash command.
+	 * 执行一条 bash 命令。
 	 */
 	async bash(command: string): Promise<BashResult> {
 		const response = await this.send({ type: "bash", command });
@@ -356,14 +356,14 @@ export class RpcClient {
 	}
 
 	/**
-	 * Abort running bash command.
+	 * 中止正在运行的 bash 命令。
 	 */
 	async abortBash(): Promise<void> {
 		await this.send({ type: "abort_bash" });
 	}
 
 	/**
-	 * Get session statistics.
+	 * 获取会话统计信息。
 	 */
 	async getSessionStats(): Promise<SessionStats> {
 		const response = await this.send({ type: "get_session_stats" });
@@ -371,7 +371,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Export session to HTML.
+	 * 将会话导出为 HTML。
 	 */
 	async exportHtml(outputPath?: string): Promise<{ path: string }> {
 		const response = await this.send({ type: "export_html", outputPath });
@@ -379,8 +379,8 @@ export class RpcClient {
 	}
 
 	/**
-	 * Switch to a different session file.
-	 * @returns Object with `cancelled: true` if an extension cancelled the switch
+	 * 切换到另一个会话文件。
+	 * @returns 若切换被某个 extension 取消，则返回 `cancelled: true`
 	 */
 	async switchSession(sessionPath: string): Promise<{ cancelled: boolean }> {
 		const response = await this.send({ type: "switch_session", sessionPath });
@@ -388,8 +388,8 @@ export class RpcClient {
 	}
 
 	/**
-	 * Fork from a specific message.
-	 * @returns Object with `text` (the message text) and `cancelled` (if extension cancelled)
+	 * 从指定消息处分叉（fork）。
+	 * @returns 返回包含 `text`（消息文本）和 `cancelled`（是否被 extension 取消）的对象
 	 */
 	async fork(entryId: string): Promise<{ text: string; cancelled: boolean }> {
 		const response = await this.send({ type: "fork", entryId });
@@ -397,8 +397,8 @@ export class RpcClient {
 	}
 
 	/**
-	 * Clone the current active branch into a new session.
-	 * @returns Object with `cancelled: true` if an extension cancelled the clone
+	 * 将当前活动分支克隆为新会话。
+	 * @returns 若克隆被某个 extension 取消，则返回 `cancelled: true`
 	 */
 	async clone(): Promise<{ cancelled: boolean }> {
 		const response = await this.send({ type: "clone" });
@@ -406,7 +406,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get messages available for forking.
+	 * 获取可供 fork 的消息列表。
 	 */
 	async getForkMessages(): Promise<Array<{ entryId: string; text: string }>> {
 		const response = await this.send({ type: "get_fork_messages" });
@@ -414,7 +414,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get session entries in append order, optionally only those after the `since` entry id.
+	 * 按追加顺序获取会话条目，可选只获取 `since` 条目 ID 之后的部分。
 	 */
 	async getEntries(since?: string): Promise<{ entries: SessionEntry[]; leafId: string | null }> {
 		const response = await this.send({ type: "get_entries", since });
@@ -422,7 +422,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get the session entry tree.
+	 * 获取会话条目树。
 	 */
 	async getTree(): Promise<{ tree: SessionTreeNode[]; leafId: string | null }> {
 		const response = await this.send({ type: "get_tree" });
@@ -430,7 +430,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get text of last assistant message.
+	 * 获取最后一条 assistant 消息的文本。
 	 */
 	async getLastAssistantText(): Promise<string | null> {
 		const response = await this.send({ type: "get_last_assistant_text" });
@@ -438,14 +438,14 @@ export class RpcClient {
 	}
 
 	/**
-	 * Set the session display name.
+	 * 设置会话显示名称。
 	 */
 	async setSessionName(name: string): Promise<void> {
 		await this.send({ type: "set_session_name", name });
 	}
 
 	/**
-	 * Get all messages in the session.
+	 * 获取会话中的所有消息。
 	 */
 	async getMessages(): Promise<AgentMessage[]> {
 		const response = await this.send({ type: "get_messages" });
@@ -453,7 +453,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Get available commands (extension commands, prompt templates, skills).
+	 * 获取可用命令（extension 命令、prompt 模板、skills）。
 	 */
 	async getCommands(): Promise<RpcSlashCommand[]> {
 		const response = await this.send({ type: "get_commands" });
@@ -461,12 +461,12 @@ export class RpcClient {
 	}
 
 	// =========================================================================
-	// Helpers
+	// 辅助方法
 	// =========================================================================
 
 	/**
-	 * Wait for agent to become idle (no streaming).
-	 * Resolves when agent_settled event is received.
+	 * 等待 agent 进入空闲状态（没有流式输出在进行）。
+	 * 收到 agent_settled 事件时 resolve。
 	 */
 	waitForIdle(timeout = 60000): Promise<void> {
 		return new Promise((resolve, reject) => {
@@ -486,7 +486,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Collect events until agent becomes idle.
+	 * 持续收集事件，直到 agent 进入空闲状态。
 	 */
 	collectEvents(timeout = 60000): Promise<JsonAgentSessionEvent[]> {
 		return new Promise((resolve, reject) => {
@@ -508,7 +508,7 @@ export class RpcClient {
 	}
 
 	/**
-	 * Send prompt and wait for completion, returning all events.
+	 * 发送提示并等待完成，返回全部事件。
 	 */
 	async promptAndWait(message: string, images?: ImageContent[], timeout = 60000): Promise<JsonAgentSessionEvent[]> {
 		const eventsPromise = this.collectEvents(timeout);
@@ -517,14 +517,14 @@ export class RpcClient {
 	}
 
 	// =========================================================================
-	// Internal
+	// 内部实现
 	// =========================================================================
 
 	private handleLine(line: string): void {
 		try {
 			const data = JSON.parse(line);
 
-			// Check if it's a response to a pending request
+			// 检查是否是某个待处理请求的响应
 			if (data.type === "response" && data.id && this.pendingRequests.has(data.id)) {
 				const pending = this.pendingRequests.get(data.id)!;
 				this.pendingRequests.delete(data.id);
@@ -532,13 +532,13 @@ export class RpcClient {
 				return;
 			}
 
-			// Otherwise it's an event. Iterate a snapshot so listeners that unsubscribe during dispatch
-			// do not cause later listeners to miss this event.
+			// 否则这是一条事件。遍历快照，避免在分发过程中取消订阅的监听器
+			// 导致后续监听器错过该事件。
 			for (const listener of [...this.eventListeners]) {
 				listener(data as JsonAgentSessionEvent);
 			}
 		} catch {
-			// Ignore non-JSON lines
+			// 忽略非 JSON 行
 		}
 	}
 
@@ -609,8 +609,8 @@ export class RpcClient {
 			const errorResponse = response as Extract<RpcResponse, { success: false }>;
 			throw new Error(errorResponse.error);
 		}
-		// Type assertion: we trust response.data matches T based on the command sent.
-		// This is safe because each public method specifies the correct T for its command.
+		// 类型断言：基于所发送的命令，我们信任 response.data 与 T 匹配。
+		// 这是安全的，因为每个公开方法都为其命令指定了正确的 T。
 		const successResponse = response as Extract<RpcResponse, { success: true; data: unknown }>;
 		return successResponse.data as T;
 	}

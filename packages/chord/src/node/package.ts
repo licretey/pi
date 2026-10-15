@@ -3,10 +3,10 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { type BundleFacetsResult, bundleFacets } from "./bundle.ts";
 
 export interface BundleFacetPackageOptions {
-	/** Plugin package directory or its package.json path. */
+	/** 插件包目录或其 package.json 文件路径。 */
 	readonly packagePath: string;
 	readonly outdir: string;
-	/** Application conventions applied when the corresponding source file exists. */
+	/** 对应源文件存在时应用的应用程序约定。 */
 	readonly defaultFacets?: Readonly<Record<string, string>>;
 }
 
@@ -26,7 +26,7 @@ interface FacetPackageMetadata {
 	readonly sourceMap: boolean;
 }
 
-/** Build a plugin package using package.json metadata and application-provided facet conventions. */
+/** 使用 package.json 元数据和应用程序提供的 facet 约定构建插件包。 */
 export async function bundleFacetPackage(options: BundleFacetPackageOptions): Promise<BundleFacetPackageResult> {
 	const metadata = await readFacetPackageMetadata(options.packagePath);
 	const entries = await resolveFacetEntries(metadata, options.defaultFacets ?? {});

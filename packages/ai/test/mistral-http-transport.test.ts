@@ -322,8 +322,8 @@ describe("Mistral HTTP transport", () => {
 		expect(message.usage).toMatchObject({ input: 7, output: 4, cacheRead: 3, cacheWrite: 0, totalTokens: 14 });
 	});
 
-	// #9674: GLM models on Mistral send empty content deltas at the start, around tool calls,
-	// and sometimes mid-thinking. They must not open blocks or split thinking.
+	// #9674：Mistral 上的 GLM 模型会在开始时以及工具调用前后发送空内容增量，
+	// 这些标记有时会出现在思考内容中间；不能因此开启新块或拆分思考内容。
 	it("ignores empty content deltas", async () => {
 		const model = getModel("mistral", "zai-glm-5-3");
 		const context = normalizeContext({
@@ -489,7 +489,7 @@ describe("Mistral HTTP transport", () => {
 		expect(message.errorMessage).toBe("Mistral response headers timed out after 5ms");
 	});
 
-	// Regression test for #10609: an active stream must not be cut off after timeoutMs.
+	// 回归测试 #10609：活动流不能在 timeoutMs 到期后被提前截断。
 	it("does not abort an active stream that lasts longer than the request timeout", async () => {
 		const model = getModel("mistral", "mistral-large-latest");
 		const context = normalizeContext({

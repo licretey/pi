@@ -20,7 +20,7 @@ import { SettingsManager } from "../src/core/settings-manager.ts";
 import { createSessionManager } from "../src/main.ts";
 
 const cliPath = resolve(__dirname, "../src/cli.ts");
-// --import takes a module specifier, not a filesystem path.
+// --import 接受模块说明符，而不是文件系统路径。
 const sourceResolverUrl = pathToFileURL(resolve(__dirname, "../src/experimental/source-resolver.ts")).href;
 const tempDirs: string[] = [];
 
@@ -32,9 +32,8 @@ afterEach(() => {
 });
 
 function createTempDir(): string {
-	// realpath: on macOS tmpdir() is a symlink (/var -> /private/var), but the
-	// spawned CLI sees the physical path via process.cwd(). Session cwd
-	// filtering compares paths textually, so the fixture must use physical paths.
+	// realpath：macOS 上 tmpdir() 返回符号链接（/var -> /private/var），而启动的 CLI
+	// 会通过 process.cwd() 获取实际路径。会话工作目录筛选按文本比较路径，因此夹具必须使用实际路径。
 	const dir = realpathSync(mkdtempSync(join(tmpdir(), "pi-session-id-readonly-")));
 	tempDirs.push(dir);
 	return dir;
@@ -52,7 +51,7 @@ function hasSessionWithId(root: string, sessionId: string): boolean {
 			const header = JSON.parse(firstLine) as { type?: string; id?: string };
 			if (header.type === "session" && header.id === sessionId) return true;
 		} catch {
-			// Ignore malformed session files.
+			// 忽略格式错误的会话文件。
 		}
 	}
 	return false;
@@ -158,7 +157,7 @@ describe("--session-id", () => {
 		expect(consoleError).not.toHaveBeenCalled();
 	});
 
-	// Regression test for #9440.
+	// #9440 的回归测试。
 	it("looks up exact IDs without building full session listings", async () => {
 		const tempRoot = createTempDir();
 		const projectDir = join(tempRoot, "project");

@@ -1,24 +1,20 @@
-// Regression test for issues/provider-error-body-passthrough
+// issues/provider-error-body-passthrough 的回归测试
 //
-// When an endpoint behind a proxy / gateway returns a non-2xx response with a
-// body the SDK cannot fold into its message, the provider catch block drops the
-// body. The openai SDK's APIError keeps the parsed body on `error.error` and
-// produces `"<status> status code (no body)"` as the message, so a body-blind
-// catch (`error.message` only) surfaces the opaque message and hides the real
-// reason the gateway returned.
+// 代理或网关后的端点返回非 2xx 响应，且 SDK 无法将响应体合并到错误消息时，
+// 提供方的 catch 块会丢弃响应体。openai SDK 的 APIError 会将解析后的响应体保存在 `error.error` 中，
+// 并生成 `"<status> status code (no body)"` 作为错误消息，因此只读取 `error.message` 的 catch
+// 会显示不透明的错误消息，并隐藏网关返回的真实原因。
 //
-// This test routes a 403-with-body APIError through the OpenRouter image
-// provider (one of the body-blind providers) and asserts the resulting
-// errorMessage contains both the status and the body reason. It is EXPECTED TO
-// FAIL until the provider catch blocks read the SDK error body.
+// 此测试通过 OpenRouter 图片提供方（忽略响应体的提供方之一）传递带响应体的 403 APIError，
+// 并断言最终 errorMessage 同时包含状态码和响应体中的原因。在提供方的 catch 块读取 SDK 错误响应体之前，
+// 此测试预期会失败。
 
 import { describe, expect, it, vi } from "vitest";
 import { generateImages } from "../src/images.ts";
 import type { ImageModel, ImagesContext } from "../src/types.ts";
 
-// Reproduce the openai SDK APIError shape: makeMessage(status, error, message)
-// returns `"403 status code (no body)"` when status is set but the parsed body
-// (`error`) is empty/unparsed, while the parsed body itself is kept on `.error`.
+// 模拟 openai SDK 的 APIError 结构：当设置了状态码，但解析后的响应体（`error`）为空或尚未解析时，
+// makeMessage(status, error, message) 会返回 `"403 status code (no body)"`；解析后的响应体本身保存在 `.error` 中。
 class FakeAPIError extends Error {
 	status: number;
 	error: unknown;
@@ -39,7 +35,7 @@ vi.mock("openai", () => {
 						withResponse: () => Promise<never>;
 					};
 					promise.withResponse = async () => {
-						// 403 from a gateway/proxy carrying the real reason in the body.
+						// 网关或代理返回 403 时，响应体中包含实际错误原因。
 						throw new FakeAPIError(403, { error: "blocked by gateway WAF" });
 					};
 					return promise;
@@ -70,9 +66,9 @@ describe("provider error body passthrough", () => {
 		const output = await generateImages(model, context, { apiKey: "test" });
 
 		expect(output.stopReason).toBe("error");
-		// The status should be surfaced.
+		// 状态码应显示出来。
 		expect(output.errorMessage).toContain("403");
-		// The body reason must not be swallowed by the opaque SDK message.
+		// 不应让不透明的 SDK 错误消息掩盖响应体中的错误原因。
 		expect(output.errorMessage).toContain("blocked by gateway WAF");
 		expect(output.errorMessage).not.toBe("403 status code (no body)");
 	});

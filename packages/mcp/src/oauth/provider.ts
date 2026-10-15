@@ -11,7 +11,7 @@ export interface McpOAuthState {
 	serverUrl: string;
 	clientInformation?: OAuthClientInformationMixed;
 	tokens?: OAuthTokens;
-	/** When the access token expires, in milliseconds since the epoch, from `expires_in` at the time it was saved. */
+	/** 访问令牌的过期时间，以 Unix 纪元起算的毫秒数表示；由保存时的 `expires_in` 计算得出。 */
 	tokensExpireAt?: number;
 	codeVerifier?: string;
 	oauthState?: string;
@@ -27,7 +27,7 @@ export interface McpOAuthProviderOptions {
 	serverUrl: string | URL;
 	redirectUrl: string | URL;
 	clientMetadata: Omit<OAuthClientMetadata, "redirect_uris"> & { redirect_uris?: string[] };
-	/** See `OAuthClientProvider.clientMetadataDocument`. */
+	/** 参见 `OAuthClientProvider.clientMetadataDocument`。 */
 	clientMetadataDocument?: (
 		metadata: AuthorizationServerMetadata | undefined,
 	) => OAuthClientMetadataDocument | undefined;
@@ -49,7 +49,7 @@ export class MemoryOAuthStateStore implements McpOAuthStateStore {
 	}
 }
 
-/** Default stateful provider for one exact MCP server URL. Applications inject durable storage if needed. */
+/** 为单个确定的 MCP 服务器 URL 提供默认的有状态提供程序。应用可按需注入持久化存储。 */
 export class McpOAuthProvider implements OAuthClientProvider {
 	readonly redirectUrl: string;
 	readonly clientMetadata: OAuthClientMetadata;
@@ -161,7 +161,7 @@ export class McpOAuthProvider implements OAuthClientProvider {
 		await this.writes;
 	}
 
-	/** Stored state for another server URL is ignored so credentials never leak across servers. */
+	/** 忽略其他服务器 URL 对应的已存状态，避免凭据泄露到不同服务器。 */
 	private own(state: McpOAuthState | undefined): McpOAuthState {
 		return state?.serverUrl === this.serverUrl ? state : { serverUrl: this.serverUrl };
 	}

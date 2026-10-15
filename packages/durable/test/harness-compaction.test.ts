@@ -51,7 +51,7 @@ async function sqlitePath(): Promise<string> {
 	return join(directory, "session.sqlite");
 }
 
-/** Text of about `tokens` estimated tokens, starting with `label`. */
+/** 生成约占 `tokens` 个估算 token 的文本，并以 `label` 开头。 */
 function text(label: string, tokens: number): string {
 	return `${label} ${"x".repeat(Math.max(0, tokens * 4 - label.length - 1))}`;
 }
@@ -63,7 +63,7 @@ type Request = {
 };
 type Step = AssistantMessage | ((request: Request) => AssistantMessage | Promise<AssistantMessage>);
 
-/** Scripted faux model that answers agent requests and summarization requests from separate queues. */
+/** 使用独立队列按预设脚本响应智能体请求和摘要请求的 faux 模型。 */
 type Script = {
 	readonly agent: Step[];
 	readonly summaries: Step[];
@@ -104,7 +104,7 @@ function script(setup: ChatSetup): Script {
 	return result;
 }
 
-/** A step that waits for `gate`, or rejects when the request is cancelled. */
+/** 等待 `gate` 的步骤；请求取消时会被拒绝。 */
 function gated(gate: Deferred, message: AssistantMessage, reached?: Deferred): Step {
 	return async ({ options }) => {
 		reached?.resolve();
@@ -118,7 +118,7 @@ const failure = (errorMessage: string) => fauxAssistantMessage("", { stopReason:
 
 const OVERFLOW = "prompt is too long: 250000 tokens > 200000 maximum";
 
-/** Small thresholds: no automatic compaction unless a test enables it. */
+/** 使用较小阈值；除非测试显式启用，否则不会自动压缩上下文。 */
 const MANUAL: CompactionPolicy = { enabled: false, reserveTokens: 1000, keepRecentTokens: 150, backgroundTokens: 0 };
 
 type Chat = {
@@ -139,7 +139,7 @@ async function open(
 ): Promise<Chat> {
 	addSection(setup.registry, "preamble", () => "You are helpful.", { tag: false });
 	const { harness, root } = await openChat(options.storage ?? new MemoryStorage(), setup);
-	// These tests exercise compaction accounting and thresholds, not the faux provider's cache simulation.
+	// 这些测试验证上下文压缩的用量统计和阈值，不测试模拟提供方的缓存模拟功能。
 	setup.settings.stream = { cacheRetention: "none" };
 	setup.settings.compaction = options.policy ?? MANUAL;
 	setup.settings.retry = { enabled: true, maxRetries: 2, baseDelayMs: 1 };
@@ -147,14 +147,14 @@ async function open(
 	return { harness, root, setup, faux };
 }
 
-/** Run one turn: `user` answered by `reply`. */
+/** 运行一个轮次：由 `reply` 回答 `user`。 */
 async function turn(chat: Chat, user: string, reply: string): Promise<void> {
 	chat.faux.agent.push(answer(reply));
 	const submission = await chat.root.submit({ type: "input", content: user }, context);
 	expect((await submission.wait(context)).status).toBe("done");
 }
 
-/** Three turns of about 100-token messages. */
+/** 由三轮约 100 个 token 的消息组成。 */
 async function history(chat: Chat): Promise<void> {
 	await turn(chat, text("u1", 100), text("a1", 100));
 	await turn(chat, text("u2", 100), text("a2", 100));
@@ -180,7 +180,7 @@ function userText(message: Message | undefined): string {
 	return textOf(message) ?? "";
 }
 
-/** Text of the first user message; a leading baseline system message comes before it. */
+/** 第一条用户消息的文本；其前面可能有一条基线系统消息。 */
 function firstUserText(messages: readonly Message[]): string {
 	return userText(messages.find((message) => message.role === "user"));
 }
@@ -215,7 +215,7 @@ const toolResult = (callId: string, content: string): Message => ({
 	timestamp: 0,
 });
 
-/** A view over `entries` whose contributions are their models, with excluded assistants removed. */
+/** 基于 `entries` 构建的视图，以各条目的模型作为贡献，并移除被排除的助手消息。 */
 function view(entries: EntryRecord[], head?: EntryRecord): ContextView {
 	const all = head === undefined ? entries : [head, ...entries];
 	const contributions = all.map((record) =>
@@ -256,7 +256,7 @@ describe("range selection", () => {
 			entries.push(entry("pi.tool-result", [toolResult(`c${index}`, text(`r${index}`, 100))]));
 		}
 		const cut = selectCut(view(entries), 150)!;
-		// The budget is reached at the fourth result; the cut is the last call, whose result it keeps.
+		// 第四个结果使预算达到上限；截断点位于最后一次调用，并保留该调用的结果。
 		expect(entries[cut]!.kind).toBe("pi.assistant");
 		expect(cut).toBe(9);
 	});
@@ -279,7 +279,7 @@ describe("range selection", () => {
 			entry("pi.assistant", [assistant(text("stopped", 100), [], "aborted")]),
 			entry("pi.assistant", [assistant(text("a2", 100))]),
 		];
-		// The walk reaches 150 at the system entry; the excluded answers after it contribute nothing.
+		// 遍历到 system 条目时用量达到 150；之后被排除的回答不计入用量。
 		expect(selectCut(view(entries), 150)).toBe(5);
 	});
 
@@ -305,7 +305,7 @@ describe("range selection", () => {
 			entry("pi.tool-result", [toolResult("c", text("r", 100))]),
 			entry("pi.assistant", [assistant(text("a2", 100))]),
 		];
-		// The budget is reached at the steer; its result follows it, so the cut moves to the next assistant.
+		// steer 使预算达到上限，但其结果位于 steer 之后，因此截断点移至下一条 assistant 消息。
 		expect(selectCut(view(entries), 250)).toBe(4);
 	});
 
@@ -313,7 +313,7 @@ describe("range selection", () => {
 		const small = [entry("pi.user", [user("hi")]), entry("pi.assistant", [assistant("hello")])];
 		expect(selectCut(view(small), 150)).toBeUndefined();
 		const marker = entry("pi.compaction", [user("summary")], 0);
-		// The budget is reached at the only entry after the marker, so the marker alone would be summarized.
+		// 标记之后唯一的条目使预算达到上限，因此若按此截断，只会对标记本身生成摘要。
 		expect(selectCut(view([entry("pi.user", [user(text("u", 200))])], marker), 150)).toBeUndefined();
 	});
 
@@ -369,7 +369,7 @@ describe("manual compaction", () => {
 		const placed = await (await chat.harness.submission(submissionId!, context))!.wait(context);
 		expect(placed.status).toBe("done");
 
-		// Raw history is unchanged; one summary entry heads the first kept entry, u3.
+		// 原始历史记录保持不变；一条摘要位于首个保留条目 u3 之前。
 		const after = await allEntries(chat.root);
 		expect(after.slice(0, before.length)).toEqual(before);
 		const marker = after.at(-1)!;
@@ -380,11 +380,11 @@ describe("manual compaction", () => {
 			"The conversation history before this point was compacted into the following summary:\n\n<summary>\nSUMMARY\n</summary>",
 		);
 
-		// The model context is the summary followed by the kept entries.
+		// 模型上下文由摘要和其后保留的条目组成。
 		const view = await chat.root.context(context);
 		expect(view.messages.map(userText)).toEqual([userText(marker.model?.[0]), text("u3", 100), text("a3", 100)]);
 
-		// The summarizer saw the serialized prefix, the prompt, and the instructions, without tools or caching.
+		// 摘要生成器收到序列化的前缀、提示词和指令，不包含工具或缓存。
 		const request = chat.faux.summaryRequests[0]!;
 		expect(request.messages).toHaveLength(2);
 		const prompt = userText(request.messages[1]);
@@ -400,18 +400,18 @@ describe("manual compaction", () => {
 		});
 		expect(request.options?.deferred).toBeUndefined();
 
-		// The summarizer's spend is in the ledger, and nothing counts it again later.
+		// 摘要生成的用量已记入账本，后续不会再次统计。
 		const usage = (await chat.harness.snapshot(UsageDoc, chat.root.id, context))!.models["faux/faux-1"]!;
 		expect(usage.input).toBeGreaterThan(usageBefore.input);
 		await turn(chat, "next", "done");
 		const agent = chat.faux.agentRequests.at(-1)!.messages;
-		// The next request: the summary, the kept turn, the new input, then one complete system baseline.
+		// 下一次请求依次包含摘要、保留的轮次、新输入，以及一份完整的系统基线。
 		expect(agent.map((message) => message.role)).toEqual(["user", "user", "assistant", "user", "system"]);
 		expect(agent[4]).toMatchObject({ sections: { preamble: "You are helpful." } });
 		await chat.harness.close(context);
 	});
 
-	// Regression coverage for #10424.
+	// #10424 的回归测试。
 	it("creates provider state before a legacy conversation's summarization request", async () => {
 		const chat = await open();
 		await history(chat);
@@ -441,7 +441,7 @@ describe("manual compaction", () => {
 		expect((await input.wait(context)).status).toBe("done");
 		const placed = await (await chat.harness.submission(submissionId!, context))!.wait(context);
 		expect(placed.status).toBe("done");
-		// The summary follows the answer; the kept range still includes the busy turn.
+		// 摘要位于回答之后；保留范围仍包含正在执行的轮次。
 		expect((await kinds(chat.root)).slice(-3)).toEqual(["pi.user", "pi.assistant", "pi.compaction"]);
 		await chat.harness.close(context);
 	});
@@ -471,7 +471,7 @@ describe("manual compaction", () => {
 		await result(chat, await chat.root.compact(undefined, context));
 		gate.resolve();
 		expect((await input.wait(context)).status).toBe("done");
-		// The continuation request starts with the summary.
+		// 续跑请求以摘要作为开头。
 		const continuation = chat.faux.agentRequests.at(-1)!.messages;
 		expect(userText(continuation[0])).toContain("<summary>\nSUMMARY\n</summary>");
 		expect((await kinds(chat.root)).slice(-4)).toEqual([
@@ -538,11 +538,11 @@ describe("manual compaction", () => {
 		const answerReached = deferred();
 		chat.faux.agent.push(gated(answerGate, answer("a4"), answerReached));
 		const input = await chat.root.submit({ type: "input", content: "u4" }, context);
-		// Placed and answered immediately with the uncompacted context, not queued behind the compaction.
+		// 使用未压缩的上下文立即放置并回答，不排在压缩操作之后。
 		expect((await input.status(context)).status).toBe("placed");
 		await answerReached.promise;
 		expect(firstUserText(chat.faux.agentRequests.at(-1)!.messages)).toBe(text("u1", 100));
-		// The summary is ready while the run is busy, so it queues and lands after the answer.
+		// 运行仍在忙碌时摘要已生成，因此它会进入队列并在回答之后提交。
 		summaryGate.resolve();
 		const outcome = await result(chat, id);
 		const submission = (await chat.harness.submission(
@@ -596,7 +596,7 @@ describe("manual compaction", () => {
 		first.resolve();
 		const outcome = await result(chat, early);
 		const submissionId = outcome.status === "completed" ? outcome.result.submissionId! : undefined;
-		// The early compaction cut at u3, before the later cut at u4.
+		// 较早的一次压缩在 u3 处截断，位置早于后来在 u4 处的截断。
 		expect(await (await chat.harness.submission(submissionId!, context))!.status(context)).toMatchObject({
 			status: "unanswered",
 			reason: "stale",
@@ -608,13 +608,13 @@ describe("manual compaction", () => {
 	it("places an older-selected summary that cuts later than the newer one", async () => {
 		const chat = await open();
 		await history(chat);
-		// A: small budget, late cut; selected first, finishes last.
+		// A：预算较小、截断较晚；先选中，最后完成。
 		const gate = deferred();
 		const reached = deferred();
 		chat.faux.summaries.push(gated(gate, summary("A"), reached));
 		const a = await chat.root.compact(undefined, context);
 		await reached.promise;
-		// B: larger budget, earlier cut; placed first.
+		// B：预算较大、截断较早；先放置。
 		chat.setup.settings.compaction = { ...MANUAL, keepRecentTokens: 350 };
 		chat.faux.summaries.push(summary("B"));
 		await result(chat, await chat.root.compact(undefined, context));
@@ -672,7 +672,7 @@ describe("manual compaction", () => {
 		expect((await live(chat)).compactions).toBeUndefined();
 		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
 
-		// Queued while busy, then Esc: the queued write stays and lands with the next run's boundary.
+		// 忙碌时写入进入队列，随后按下 Esc：排队的写入仍会保留，并在下一次运行的边界处提交。
 		const gate = deferred();
 		const busy = deferred();
 		chat.faux.agent.push(gated(gate, answer("never"), busy));
@@ -717,7 +717,7 @@ describe("manual compaction", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		setup.settings.compaction = { ...MANUAL, keepRecentTokens: 10 };
 		const id = await root.compact(undefined, context);
-		// getTask() only reads, so progress here comes from compact() itself.
+		// getTask() 只读取数据，因此这里的进度来自 compact() 本身。
 		await waitFor(async () => (await harness.getTask(id, context))?.state.status === "terminal");
 		expect((await harness.getTask(id, context))?.state).toMatchObject({
 			outcome: { status: "completed", result: {} },
@@ -799,7 +799,7 @@ describe("compaction outcomes", () => {
 		await chat.harness.close(context);
 	});
 
-	/** Input tokens a compaction added to the ledger. */
+	/** 压缩操作记入账本的输入 token 数。 */
 	async function compactionInput(chat: Chat, run: () => Promise<unknown>): Promise<number> {
 		const input = async () =>
 			(await chat.harness.snapshot(UsageDoc, chat.root.id, context))!.models["faux/faux-1"]!.input;
@@ -824,7 +824,7 @@ describe("compaction outcomes", () => {
 		await chat.root.configure({ thinkingLevel: "high" }, context);
 		chat.setup.settings.stream = { timeoutMs: 1234, deferred: true };
 		chat.faux.summaries.push(async () => {
-			// Changed during the attempt: the retry still uses the pinned request.
+			// 设置在尝试期间发生变化，但重试仍使用已固定的请求参数。
 			await chat.root.configure({ thinkingLevel: "low" }, context);
 			chat.setup.settings.stream = { timeoutMs: 1 };
 			return failure("overloaded");
@@ -877,7 +877,7 @@ describe("compaction outcomes", () => {
 		chat.faux.summaries.push(summary());
 		await result(chat, await chat.root.compact(undefined, context));
 		const request = chat.faux.summaryRequests[0]!;
-		// 0.8 * 2000 = 1600, above the model's 900.
+		// 0.8 * 2000 = 1600，高于模型的 900 上限。
 		expect(request.options?.maxTokens).toBe(900);
 		expect(request.messages).toHaveLength(2);
 		expect(request.messages.some((message) => message.role === "system" && message.toolsAdded !== undefined)).toBe(
@@ -907,7 +907,7 @@ describe("compaction outcomes", () => {
 			for (let index = 0; index < 3; index++) chat.faux.summaries.push(response);
 			const outcome = await result(chat, await chat.root.compact(undefined, context));
 			expect(outcome).toMatchObject({ status: "failed", error: { message, detail: { reason: "model_error" } } });
-			// The retry policy allows two retries after the first attempt.
+			// 重试策略允许首次尝试后再重试两次。
 			expect(chat.faux.summaryRequests).toHaveLength(name === "retries run out" ? 3 : 1);
 			expect((await live(chat)).compactions).toBeUndefined();
 			expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
@@ -918,14 +918,14 @@ describe("compaction outcomes", () => {
 
 // ─── Automatic compaction ─────────────────────────────────────────────────
 
-/** Background threshold at 500 and blocking threshold at 1500 tokens of a 2000-token window. */
+/** 在 2000 token 的窗口中，后台压缩阈值为 500，阻塞压缩阈值为 1500。 */
 const BACKGROUND: CompactionPolicy = {
 	enabled: true,
 	reserveTokens: 500,
 	keepRecentTokens: 150,
 	backgroundTokens: 1000,
 };
-/** Blocking threshold at 700 tokens of a 1000-token window, no background compaction. */
+/** 在 1000 token 的窗口中，阻塞压缩阈值为 700，且不执行后台压缩。 */
 const BLOCKING: CompactionPolicy = { enabled: true, reserveTokens: 300, keepRecentTokens: 150, backgroundTokens: 0 };
 
 async function compactionTasks(chat: Chat) {
@@ -949,7 +949,7 @@ describe("background threshold compaction", () => {
 		expect((await live(chat)).compactions).toEqual([
 			{ taskId: task!.id, reason: "threshold", blocking: false, attempt: 1 },
 		]);
-		// Background work: neither conversation idle nor Esc waits for or stops it.
+		// 后台工作：对话空闲和按下 Esc 都不会等待或停止它。
 		await chat.root.waitForIdle(context);
 		await chat.root.abort(context);
 		expect((await chat.harness.getTask(task!.id, context))?.state.status).toBe("running");
@@ -1015,7 +1015,7 @@ describe("blocking threshold compaction", () => {
 		const chat = await open({ contextWindow: 1000 });
 		await history(chat);
 		chat.setup.settings.compaction = BLOCKING;
-		// A new section: preparation has a system entry to append, but must not append it before the wait.
+		// 新增了一个区段：准备流程需要追加系统条目，但必须等等待结束后才能追加。
 		addSection(chat.setup.registry, "extra", () => "EXTRA");
 		const gate = deferred();
 		const reached = deferred();
@@ -1034,7 +1034,7 @@ describe("blocking threshold compaction", () => {
 		expect((await live(chat)).compactions).toEqual([
 			{ taskId: child!.id, reason: "threshold", blocking: true, attempt: 1 },
 		]);
-		// Nothing was appended before the wait.
+		// 等待结束前没有追加任何内容。
 		expect((await kinds(chat.root)).at(-1)).toBe("pi.user");
 		gate.resolve();
 		expect((await input.wait(context)).status).toBe("done");
@@ -1223,7 +1223,7 @@ describe("overflow compaction", () => {
 			0,
 		],
 		["fails", (chat: Chat) => chat.faux.summaries.push(failure("bad request")), 1],
-		// Classification finds no cut, so no compaction starts and the ordinary failure carries the text.
+		// 分类过程未找到截断点，因此不会启动压缩，常规失败结果会保留错误文本。
 		[
 			"cannot cut",
 			(chat: Chat) => {
@@ -1275,9 +1275,9 @@ describe("compaction estimates and interactions", () => {
 			await turn(chat, text("u1", 220), text("a1", 220));
 			await turn(chat, text("u2", 220), text("a2", 220));
 			await turn(chat, text("u3", 220), text("a3", 220));
-			// Background at 900, blocking at 1500: the tool call's usage plus its result would cross 1500.
+			// 后台阈值为 900，阻塞阈值为 1500：工具调用的用量加上结果会超过 1500。
 			chat.setup.settings.compaction = { ...BACKGROUND, backgroundTokens: 600 };
-			// The request starts a background compaction; its tool call's usage measures the whole context.
+			// 此请求启动后台压缩；其工具调用的用量按整个上下文计算。
 			chat.faux.agent.push(fauxAssistantMessage([fauxToolCall("slow", {})], { stopReason: "toolUse" }));
 			chat.faux.agent.push(answer("done"));
 			const summaryGate = deferred();
@@ -1287,13 +1287,13 @@ describe("compaction estimates and interactions", () => {
 			await Promise.all([toolReached.promise, summaryReached.promise]);
 			const [background] = await compactionTasks(chat);
 			summaryGate.resolve();
-			// Queued: the run is busy in its tool round.
+			// 当前请求已排队：运行正处于工具调用轮次。
 			const queued = await result(chat, background!.id as TaskId<CompactionResult>);
 			const submissionId = queued.status === "completed" ? queued.result.submissionId! : undefined;
 			expect((await (await chat.harness.submission(submissionId!, context))!.status(context)).status).toBe("queued");
 			toolGate.resolve();
 			expect((await input.wait(context)).status).toBe("done");
-			// The summary landed at postTools; the successor saw a small context and did not compact again.
+			// 摘要在 postTools 阶段提交；后续请求看到的上下文较小，因此没有再次压缩。
 			expect(chat.faux.summaryRequests).toHaveLength(1);
 			expect(await compactionTasks(chat)).toEqual([]);
 			expect(firstUserText(chat.faux.agentRequests.at(-1)!.messages)).toContain("SUMMARY");
@@ -1312,7 +1312,7 @@ describe("compaction estimates and interactions", () => {
 		chat.setup.settings.compaction = { ...MANUAL, keepRecentTokens: 250 };
 		chat.faux.summaries.push(summary());
 		await result(chat, await chat.root.compact(undefined, context));
-		// The kept range holds the delta for the terse mood; the next request has one complete baseline.
+		// 保留范围包含简洁模式的增量；下一次请求会获得一份完整基线。
 		expect((await chat.root.context(context)).entries.some((record) => record.kind === "pi.system")).toBe(true);
 		await turn(chat, "next", "ok");
 		const systems = chat.faux.agentRequests.at(-1)!.messages.filter((message) => message.role === "system");
@@ -1368,9 +1368,9 @@ describe("compaction estimates and interactions", () => {
 		const view = await fork.context(context);
 		expect(view.head).toMatchObject({ kind: "pi.compaction", head: u3.id, conversationId: fork.id });
 		expect(view.messages.slice(1).map(userText)).toEqual([text("u3", 100), text("a3", 100)]);
-		// The parent is untouched.
+		// 父会话不受影响。
 		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
-		// The fork's view keeps the parent entries the summary kept.
+		// 分支视图保留摘要所保留的父会话条目。
 		const state = await fork.viewState(context);
 		expect(state.value.entries).toEqual(view.entries);
 		state.dispose();
@@ -1411,7 +1411,7 @@ describe("compaction estimates and interactions", () => {
 		const older = await result(chat, await chat.root.compact(undefined, context));
 		gate.resolve();
 		await failed.wait(context);
-		// Idle now, with the older summary still queued; the current one queues behind it and a final boundary runs.
+		// 当前已空闲，但较早的摘要仍在队列中；当前摘要排在其后，随后执行最终边界处理。
 		chat.faux.summaries.push(summary("CURRENT"));
 		const current = await result(chat, await chat.root.compact(undefined, context));
 		const statuses = [];
@@ -1444,7 +1444,7 @@ describe("compaction estimates and interactions", () => {
 		await history(chat);
 		const id = await chat.root.compact(undefined, context);
 		await waitFor(async () => (await chat.harness.getTask(id, context))?.state.status === "completing");
-		// The summary and the status removal landed at the hold.
+		// 摘要和状态移除操作都在等待点提交。
 		expect((await kinds(chat.root)).at(-1)).toBe("pi.compaction");
 		expect((await live(chat)).compactions).toBeUndefined();
 		childGate.resolve();
@@ -1675,7 +1675,7 @@ describe("compaction recovery", () => {
 		const setup = chat.setup;
 		const reached = deferred();
 		chat.faux.summaries.push(gated(deferred(), summary(), reached));
-		// The faux model window is 128k; this blocking threshold needs a small context window.
+		// 模拟模型的上下文窗口为 128k；此处阻塞阈值需要较小的上下文窗口。
 		chat.setup.settings.compaction = { ...BLOCKING, reserveTokens: 128_000 - 700 };
 		const input = await chat.root.submit({ type: "input", content: text("u4", 200) }, context);
 		await reached.promise;
@@ -1794,7 +1794,7 @@ describe("compaction and the inbox", () => {
 		await chat.root.submit({ type: "write", entry: { kind: "app.redact", edits: [edit] } }, context);
 		gate.resolve();
 		await result(chat, id);
-		// The summary was made from the unredacted entry, and the edit's target left the range.
+		// 摘要基于未脱敏的条目生成，编辑目标随后已离开保留范围。
 		expect(userText(chat.faux.summaryRequests[0]!.messages[1])).toContain("[User]: u1 ");
 		expect((await chat.root.context(context)).messages.map(userText)).not.toContain("REDACTED");
 		await chat.harness.close(context);
@@ -1827,7 +1827,7 @@ describe("compaction edge cases", () => {
 		});
 		chat.faux.agent.push(failure("overloaded"));
 		await turn(chat, text("u4", 200), "a4");
-		// One blocking compaction, declined; the retried preparation, still above the threshold, started no other.
+		// 一次阻塞式压缩被拒绝；重新准备后仍超过阈值，但没有再次启动其他压缩。
 		expect(asked).toBe(1);
 		expect(chat.faux.agentRequests).toHaveLength(5);
 		await chat.harness.close(context);
@@ -1858,7 +1858,7 @@ describe("compaction edge cases", () => {
 		release.resolve();
 		expect((await input.wait(context)).status).toBe("done");
 		expect((await compactionTasks(chat)).map((task) => task.id)).toEqual([manual]);
-		// A background compaction would have sent its own summarization request.
+		// 后台压缩原本会单独发起摘要请求。
 		expect(chat.faux.summaryRequests).toHaveLength(1);
 		await chat.harness.abortTask(manual, context);
 		await chat.harness.close(context);
@@ -1867,7 +1867,7 @@ describe("compaction edge cases", () => {
 	it("starts no background compaction after a blocking one in the same generation", async () => {
 		const chat = await open({ contextWindow: 2000 });
 		await history(chat);
-		// Blocking at 1500, background at 200: the kept part stays above the background threshold.
+		// 阻塞阈值为 1500，后台阈值为 200：保留部分仍高于后台阈值。
 		chat.setup.settings.compaction = { ...BACKGROUND, backgroundTokens: 1300, keepRecentTokens: 400 };
 		chat.faux.summaries.push(summary());
 		await turn(chat, text("u4", 1000), "a4");
@@ -1954,7 +1954,7 @@ describe("compaction edge cases", () => {
 		stream.start(async (batch) => {
 			events.push([...batch]);
 		});
-		// A new section makes the preparation commit append a system entry next to the compaction's status.
+		// 新区段会使准备提交在压缩状态条目旁追加一条系统条目。
 		addSection(chat.setup.registry, "extra", () => "extra");
 		chat.faux.summaries.push(gated(deferred(), summary()));
 		await turn(chat, text("u4", 100), "a4");
@@ -1983,7 +1983,7 @@ describe("compaction edge cases", () => {
 		chat.faux.agent.push(answer("a4"));
 		const input = await chat.root.submit({ type: "input", content: text("u4", 100) }, context);
 		await Promise.all([failed.promise, summaryReached.promise]);
-		// During the backoff: the background summary queues, and the thresholds drop so the retry blocks.
+		// 退避期间，后台摘要进入队列，阈值降低后重试会变为阻塞式。
 		await waitFor(async () => (await live(chat)).generation?.retry !== undefined);
 		const [background] = await compactionTasks(chat);
 		summaryGate.resolve();
@@ -2030,7 +2030,7 @@ describe("compaction edge cases", () => {
 		const id = await chat.root.compact(undefined, context);
 		expect(await chat.harness.closed).toEqual({ reason: "failed", error: failure });
 		await chat.harness.close(context);
-		// Nothing of the failed commit landed: the task is still live, without usage, entry, or submission.
+		// 失败的提交没有生效：任务仍处于活动状态，且没有用量、条目或提交记录。
 		storage.reopen();
 		expect(await storage.submissionByRequest(chat.root.id, `compaction:${id}`, context)).toBeUndefined();
 		expect((await storage.task(id, context))?.state.status).not.toBe("terminal");
@@ -2044,7 +2044,7 @@ describe("compaction edge cases", () => {
 });
 
 describe("blocking and manual compaction together", () => {
-	/** A run whose generation waits on a blocking compaction whose summary is held; returns the input and gate. */
+	/** 构造一次运行：其 generation 等待摘要提交被暂停的阻塞式压缩；返回输入和门闩。 */
 	async function blockingRun(chat: Chat) {
 		await history(chat);
 		chat.setup.settings.compaction = BLOCKING;
@@ -2060,7 +2060,7 @@ describe("blocking and manual compaction together", () => {
 	it("places a manual summary selected before the blocking one landed; its equal cut replaces it", async () => {
 		const chat = await open({ contextWindow: 1000 });
 		const run = await blockingRun(chat);
-		// Selected from the same context as the blocking compaction, so it cuts at the same entry.
+		// 它基于与阻塞式压缩相同的上下文选择截断点，因此会截在同一条目处。
 		chat.faux.summaries.push(summary("MANUAL"));
 		const manual = await result(chat, await chat.root.compact(undefined, context));
 		const submission = (await chat.harness.submission(
@@ -2071,7 +2071,7 @@ describe("blocking and manual compaction together", () => {
 		chat.faux.agent.push(answer("a4"));
 		run.gate.resolve();
 		expect((await run.input.wait(context)).status).toBe("done");
-		// The request after the blocking compaction used its summary; the manual one landed at the final boundary.
+		// 阻塞式压缩后的请求使用了其摘要；手动压缩则在最终边界处提交。
 		expect(firstUserText(chat.faux.agentRequests.at(-1)!.messages)).toContain("BLOCKING");
 		expect((await submission.wait(context)).status).toBe("done");
 		const markers = (await allEntries(chat.root)).filter((record) => record.kind === "pi.compaction");
@@ -2159,7 +2159,7 @@ describe("compaction pinning, silent overflow, and late policy changes", () => {
 		await history(chat);
 		let attempt: number | undefined;
 		chat.faux.summaries.push(async () => {
-			// Switched during the attempt: the retry still uses the pinned model.
+			// 模型在尝试期间切换，但重试仍使用已固定的模型。
 			await chat.root.configure({ model: { provider: "faux", modelId: "faux-2" } }, context);
 			return failure("overloaded");
 		});
@@ -2196,7 +2196,7 @@ describe("compaction pinning, silent overflow, and late policy changes", () => {
 		it(`treats silent overflow as an ordinary answer: ${name}`, async () => {
 			const chat = await open({ contextWindow: 300 });
 			await history(chat);
-			// Thresholds out of reach, so only overflow classification could compact.
+			// 阈值无法达到，因此只有溢出分类流程可能触发压缩。
 			chat.setup.settings.compaction = {
 				enabled: true,
 				reserveTokens: -100_000,
@@ -2220,7 +2220,7 @@ describe("compaction pinning, silent overflow, and late policy changes", () => {
 		chat.setup.settings.compaction = BLOCKING;
 		let changed = false;
 		addSection(chat.setup.registry, "policy", async () => {
-			// Rendering runs after preparation read the policy; the compaction reads this one.
+			// 渲染在准备流程读取策略之后执行；本次压缩读取的是这里的策略。
 			if (!changed) {
 				changed = true;
 				chat.setup.settings.compaction = { ...BLOCKING, keepRecentTokens: 100_000 };
@@ -2243,7 +2243,7 @@ describe("blocked compaction", () => {
 		const path = await sqlitePath();
 		const setup = chatSetup();
 		let { harness, root } = await openChat(await openNodeSqliteStorage(path), setup);
-		// A compaction stored by a newer version than this process registers, for example after a downgrade.
+		// 例如降级后，存储中的压缩记录可能由比当前进程更新的版本创建。
 		const newer = { definition: { ...CompactionTask.definition, version: 2 } } as typeof CompactionTask;
 		const id = await root.commit(async (tx) => {
 			const taskId = await tx.createTask(newer, { reason: "manual" }, { ownership: { kind: "conversation" } });
@@ -2283,7 +2283,7 @@ describe("context contributions", () => {
 		const ids = await chat.root.commit(async (tx) => {
 			const a = await tx.appendEntry(chat.root.id, { kind: "app.note", model: [user("a")] });
 			const b = await tx.appendEntry(chat.root.id, { kind: "app.note", model: [user("b")] });
-			// An older marker that omits b, then a newer one whose range still contains the older marker.
+			// 先有一个未包含 b 的旧标记，随后出现一个范围仍包含旧标记的新标记。
 			await tx.appendEntry(chat.root.id, {
 				kind: "app.head",
 				head: a.id,
@@ -2297,7 +2297,7 @@ describe("context contributions", () => {
 		expect(view.entries.map((record) => record.id).slice(1)).toEqual([ids.a, ids.b, ids.c]);
 		expect(view.contributions.map((messages) => messages.map(userText))).toEqual([["H"], ["a"], [], ["c"]]);
 		expect(view.messages.map(userText)).toEqual(["H", "a", "c"]);
-		// The summarizer sees the same contributions: the omitted entry stays out.
+		// 摘要生成器看到的贡献保持不变：被省略的条目仍不会纳入。
 		chat.setup.settings.compaction = { ...MANUAL, keepRecentTokens: 1 };
 		chat.faux.summaries.push(summary());
 		await result(chat, await chat.root.compact(undefined, context));

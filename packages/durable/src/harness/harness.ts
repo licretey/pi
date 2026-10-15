@@ -66,10 +66,10 @@ type CreateTarget =
 			readonly ownership: ConversationOwnership;
 	  };
 
-/** What the conveniences apply in the creating commit, after the creation hook. */
+/** 便捷方法在创建提交及创建钩子执行后应用的设置。 */
 type CreateOptions = { readonly agent?: AgentChange; readonly init?: ConversationInit };
 
-/** Harness-private services used by Conversation handles. */
+/** Conversation 句柄使用的 Harness 私有服务。 */
 type ConversationHost<Tool extends ToolRegistration> = {
 	readonly harness: HarnessImpl<Tool>;
 	readonly storage: Storage;
@@ -162,7 +162,7 @@ class ConversationImpl<Tool extends ToolRegistration> implements Conversation {
 	}
 }
 
-/** Session kernel extended with conversation handles and a registry. */
+/** 扩展了对话句柄和注册表的 Session 内核。 */
 class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements HarnessType {
 	readonly #options: HarnessOptions<Tool>;
 	readonly #report: (error: unknown) => void;
@@ -175,7 +175,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		const report = safeReport(options.onReport);
 		const now = safeNow(options.now, report);
 		super(rawStorage, now);
-		// Every component reads and writes through the Session's failure guard: `rawStorage` serves only `super()`.
+		// 所有组件都通过 Session 的故障保护层读写；`rawStorage` 仅传给 `super()` 使用。
 		const storage = this.storage;
 		this.#options = options;
 		this.#report = report;
@@ -211,7 +211,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		};
 	}
 
-	/** Resolve a conversation's committed `pi.agent` against `snapshot`, or the current one, and the current settings. */
+	/** 根据 `snapshot`（或当前注册表快照）解析对话已提交的 `pi.agent`，并应用当前设置。 */
 	async resolveAgent(
 		id: ConversationId,
 		snapshot: RegistrySnapshot<Tool> | undefined,
@@ -222,7 +222,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		return resolveAgent(state, registry, resolveSettings(this.#options.settings), this.#report);
 	}
 
-	/** Build a conversation's environment from its current `cwd`; `undefined` without an `env` option. */
+	/** 根据对话当前的 `cwd` 构建运行环境；未配置 `env` 选项时返回 `undefined`。 */
 	async buildEnv(id: ConversationId, context: Context): Promise<ExecutionEnv | undefined> {
 		const build = this.#options.env;
 		if (build === undefined) return undefined;
@@ -230,7 +230,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		return build({ conversationId: id, ...(cwd === undefined ? {} : { cwd }), read: this }, context);
 	}
 
-	/** Reconcile surviving `running` tasks to `pending`; part of open. */
+	/** 将仍处于 `running` 状态的任务恢复为 `pending`；这是打开 Harness 流程的一部分。 */
 	openTasks(context: Context): Promise<void> {
 		return this.#tasks.open(context);
 	}
@@ -282,7 +282,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		return this.#tasks.waitForIdle(undefined, context);
 	}
 
-	/** Sum every conversation's committed `pi.usage`. Each document is read at its own point; totals only grow. */
+	/** 汇总所有对话已提交的 `pi.usage`。每个文档在各自的读取时点读取，因此总量只会增加。 */
 	async usage(context: Context): Promise<UsageState> {
 		const conversations = await this.readOnLine(() =>
 			scanAll((cursor) => this.storage.scanConversations({}, SCAN_PAGE_SIZE, cursor, context)),
@@ -324,7 +324,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		this.#report(error);
 	}
 
-	/** Signal and join task invocations after the close listeners and before Storage closes; writes no task outcome. */
+	/** 关闭监听器执行后、Storage 关闭前，通知并等待所有任务调用结束；不写入任务结果。 */
 	protected override beforeClose(): Promise<void> {
 		return this.#tasks.join();
 	}
@@ -349,9 +349,9 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 	}
 
 	/**
-	 * The built-in creation hook, in every commit that creates or forks a conversation: empty `pi.live`, `pi.inbox`, and
-	 * `pi.usage`, a fresh `pi.provider`, the conversation's `pi.agent` (see `createAgent()`), then
-	 * `HarnessOptions.conversationCreated`.
+	 * 每次创建或派生对话的提交都会执行此内置创建钩子：初始化空的 `pi.live`、`pi.inbox` 和
+	 * `pi.usage`，创建新的 `pi.provider`，创建该对话的 `pi.agent`（参见 `createAgent()`），
+	 * 然后调用 `HarnessOptions.conversationCreated`。
 	 */
 	protected override async conversationCreated(tx: Transaction, record: ConversationRecord): Promise<void> {
 		await tx.doc(LiveDoc, record.id);
@@ -363,7 +363,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 	}
 }
 
-/** `onReport` that cannot fail: it is the last place an error goes, so its own throw or rejection is dropped. */
+/** 确保 `onReport` 不会失败：它是错误处理的最后出口，因此其中抛出或拒绝的异常都会被丢弃。 */
 function safeReport(onReport: ((error: unknown) => void) | undefined): (error: unknown) => void {
 	return (error) =>
 		contained(
@@ -373,8 +373,8 @@ function safeReport(onReport: ((error: unknown) => void) | undefined): (error: u
 }
 
 /**
- * The host clock, falling back to `Date.now` when it throws: a broken clock must not stop commits. The first throw is
- * reported; the clock is read in every task change, so later ones are not.
+ * 宿主时钟抛出异常时回退到 `Date.now`，避免时钟故障阻止提交。首次异常会被报告；
+ * 由于每次任务变更都会读取时钟，因此后续异常不再重复报告。
  */
 export function safeNow(now: (() => number) | undefined, report: (error: unknown) => void): () => number {
 	if (now === undefined) return Date.now;
@@ -383,7 +383,7 @@ export function safeNow(now: (() => number) | undefined, report: (error: unknown
 		try {
 			return now();
 		} catch (error) {
-			// Set first: a report handler that reads the clock again must not report again.
+			// 先设置标记，避免报告处理器再次读取时钟时重复报告。
 			if (!reported) {
 				reported = true;
 				report(error);
@@ -394,8 +394,8 @@ export function safeNow(now: (() => number) | undefined, report: (error: unknown
 }
 
 /**
- * Invocation-bound handle for tasks and tools. Every operation, and every operation of a submission it returns, first
- * checks the invocation and runs under its signal, so it rejects once the invocation ends; admitted work stays durable.
+ * 绑定到调用的任务和工具句柄。每个操作（包括返回的提交对象上的操作）都会先检查调用状态，
+ * 并在其信号作用域内执行；调用结束后操作会被拒绝，已接纳的工作则会继续持久执行。
  */
 function boundConversation(
 	id: ConversationId,
@@ -430,11 +430,11 @@ function boundConversation(
 	};
 }
 
-/** Durable agent harness over one Session. */
+/** 基于单个 Session 运行的持久化智能体执行框架。 */
 export type Harness = HarnessType;
 
 export const Harness = {
-	/** Open a Harness over storage. The registry may keep changing while the Harness runs. */
+	/** 在给定存储上打开 Harness。Harness 运行期间注册表仍可继续变化。 */
 	async open<Tool extends ToolRegistration>(
 		storage: Storage,
 		options: HarnessOptions<Tool>,
@@ -451,8 +451,8 @@ export const Harness = {
 		try {
 			await harness.openTasks(context);
 		} catch (error) {
-			// The caller's context may be what failed open: close without it, and rethrow the open error.
-			// A failing Storage close fails the Session, which reports it.
+			// 可能是调用方的上下文导致打开失败：关闭时不再使用该上下文，并重新抛出打开错误。
+			// Storage 关闭失败会使 Session 进入失败状态并报告错误。
 			await harness.close(withoutAbortSignal(context)).catch(() => {});
 			throw error;
 		}

@@ -47,9 +47,9 @@ function serializeStore(store: Readonly<Record<string, unknown>> | undefined): R
 }
 
 /**
- * The prelude that serializes values for the host runs in the same VM as the script, so a script
- * that patches built-ins (for example `Array.prototype.toJSON`) can make it send malformed data.
- * Payloads that do not decode throw this error, and the execution fails as a sandbox error.
+ * 为宿主序列化值的 prelude 与脚本运行在同一个虚拟机中，因此脚本修改内置对象
+ *（例如 `Array.prototype.toJSON`）可能导致其发送格式错误的数据。
+ * 无法解码的负载会抛出此错误，并导致执行以沙箱错误结束。
  */
 class BridgeError extends Error {}
 
@@ -95,7 +95,7 @@ function parseScriptError(json: string): CodemodeError {
 }
 
 function defaultWorkerUrl(): URL {
-	// `.ts` when running from source (tests, tsx), `.js` from the published dist.
+	// 从源码运行（测试、tsx）时使用 `.ts`；从已发布的 dist 运行时使用 `.js`。
 	return new URL(import.meta.url.endsWith(".ts") ? "./worker.ts" : "./worker.js", import.meta.url);
 }
 
@@ -118,9 +118,9 @@ interface ExecutionOptions {
 }
 
 /**
- * One script run in its own worker and QuickJS VM. A fresh worker per run keeps
- * termination simple: a runaway script, including one that only spins the
- * microtask queue, is killed with `terminate()` and cannot poison a later run.
+ * 每个脚本都在独立的工作线程和 QuickJS 虚拟机中运行。每次运行都创建新的工作线程，
+ * 让终止操作保持简单：失控脚本（包括只循环处理微任务队列的脚本）会通过 `terminate()` 被杀死，
+ * 不会影响之后的运行。
  */
 class Execution {
 	readonly promise: Promise<CodemodeResult>;
@@ -198,7 +198,7 @@ class Execution {
 		}
 		this.worker = worker;
 		worker.on("message", (message: unknown) => {
-			// An exception here would be uncaught in the host process and leave the execution unsettled.
+			// 此处若抛出异常，会成为宿主进程中的未捕获异常，并导致执行一直无法结束。
 			try {
 				this.handleMessage(message);
 			} catch (error) {
@@ -253,7 +253,7 @@ class Execution {
 	}
 
 	private handleDone(message: Extract<WorkerToHostMessage, { type: "done" }>): void {
-		// Decode everything before finish(), which must not throw once it starts.
+		// 在调用 finish() 前解码所有内容；finish() 一旦开始就不能再抛出异常。
 		if (!message.ok) {
 			this.finish(parseScriptError(message.error));
 			return;
@@ -284,8 +284,7 @@ class Execution {
 			status = "error";
 		}
 
-		// Already cancelled by finish(): the record keeps "cancelled" and the
-		// worker is gone or going.
+		// 已由 finish() 取消：记录会保留 "cancelled" 状态，工作线程已经退出或正在退出。
 		if (!this.pending.delete(id)) return;
 		if (record) {
 			record.status = status;
@@ -329,13 +328,13 @@ class Execution {
 }
 
 /**
- * Runs JavaScript in a QuickJS VM (a separate wasm instance) inside a worker
- * thread. The script sees `tools.<name>(args)` for every registered tool, `ALL_TOOLS`,
- * the output helpers `text`, `image`, `exit`, and `console.*`, `store`/`load`, and the
- * configured globals; nothing else (no timers, `fetch`, `process`, `require`, modules).
+ * 在工作线程内的 QuickJS 虚拟机（独立的 wasm 实例）中运行 JavaScript。
+ * 脚本可以使用每个已注册工具对应的 `tools.<name>(args)`、`ALL_TOOLS`、
+ * 输出辅助函数 `text`、`image`、`exit` 和 `console.*`、`store`/`load`，以及已配置的全局变量；
+ * 不提供其他能力（例如定时器、`fetch`、`process`、`require` 和模块）。
  *
- * Each `execute()` gets its own worker and VM; the sandbox only holds the tool
- * table and defaults. `close()` aborts in-flight executions.
+ * 每次 `execute()` 都会使用独立的工作线程和虚拟机；沙箱仅保存工具表和默认配置。
+ * `close()` 会中止正在执行的任务。
  */
 export class CodemodeSandbox {
 	private readonly toolsByName = new Map<string, CodemodeTool>();
@@ -368,7 +367,7 @@ export class CodemodeSandbox {
 		}
 	}
 
-	/** Throws if a tool with the same name is already registered. */
+	/** 如果已注册同名工具，则抛出异常。 */
 	registerTool(tool: CodemodeTool): void {
 		if (this.toolsByName.has(tool.name)) throw new Error(`Tool "${tool.name}" is already registered`);
 		this.toolsByName.set(tool.name, tool);
@@ -387,9 +386,9 @@ export class CodemodeSandbox {
 	}
 
 	/**
-	 * `code` is an async function body: `return` and top-level `await` work.
-	 * Never rejects for script failures; those come back as `{ ok: false }`.
-	 * The script can use `store(key, value)` and `load(key)` on `options.store`.
+	 * `code` 是异步函数体，因此可以使用 `return` 和顶层 `await`。
+	 * 脚本失败不会导致此方法拒绝，而是通过 `{ ok: false }` 返回。
+	 * 脚本可以通过 `options.store` 使用 `store(key, value)` 和 `load(key)`。
 	 */
 	execute(code: string, options: CodemodeExecuteOptions = {}): Promise<CodemodeResult> {
 		if (this.closed) return Promise.reject(new Error("Sandbox is closed"));
@@ -408,7 +407,7 @@ export class CodemodeSandbox {
 		return execution.promise.finally(() => this.running.delete(execution));
 	}
 
-	/** Aborts in-flight executions (they resolve with `kind: "aborted"`) and rejects new ones. */
+	/** 中止正在执行的任务（以 `kind: "aborted"` 结束），并拒绝新任务。 */
 	async close(): Promise<void> {
 		this.closed = true;
 		await Promise.all([...this.running].map((execution) => execution.abort("Sandbox closed")));

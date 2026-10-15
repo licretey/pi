@@ -1,7 +1,7 @@
 /**
- * Prompt Templates
+ * 提示词模板
  *
- * File-based templates that inject content when invoked with /templatename.
+ * 基于文件的模板，通过 /模板名称 调用并注入内容。
  */
 
 import {
@@ -13,7 +13,7 @@ import {
 	SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
-// Define custom templates
+// 定义自定义模板
 const deployTemplate: PromptTemplate = {
 	name: "deploy",
 	description: "Deploy the application",
@@ -36,7 +36,7 @@ const loader = new DefaultResourceLoader({
 });
 await loader.reload();
 
-// Discover templates from cwd/.pi/prompts/ and ~/.pi/agent/prompts/
+// 从 cwd/.pi/prompts/ 和 ~/.pi/agent/prompts/ 中发现模板
 const discovered = loader.getPrompts().prompts;
 console.log("Discovered prompt templates:");
 for (const template of discovered) {

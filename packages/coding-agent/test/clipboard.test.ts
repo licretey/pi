@@ -78,7 +78,7 @@ describe("readClipboardText", () => {
 		["DISPLAY", "xsel", ["--clipboard", "--output"], ["xclip", "xsel"]],
 	] as const) {
 		test.each(["clipboard text", ""])(`${command} result %j stops fallback`, async (text) => {
-			// Regression test for #7248: empty Wayland content must not fall through to stale X11.
+			// #7248 回归测试：Wayland 内容为空时不得回退到过期的 X11 内容。
 			mocks.platform.mockReturnValue("linux");
 			vi.stubEnv("DISPLAY", ":0");
 			vi.stubEnv(env, "1");
@@ -100,7 +100,7 @@ describe("readClipboardText", () => {
 		expect(mocks.command.mock.calls.map(([name]) => name)).toEqual(["wl-paste", "xclip", "xsel"]);
 	});
 	test.each(["clipboard text", ""])("Termux reads termux-clipboard-get result %j on Android", async (text) => {
-		// Regression test for #10391: Termux reports platform "android".
+		// #10391 回归测试：Termux 报告的平台为 "android"。
 		mocks.platform.mockReturnValue("android");
 		vi.stubEnv("TERMUX_VERSION", "0.119");
 		mocks.command.mockResolvedValue(Buffer.from(text));
@@ -174,7 +174,7 @@ describe("copyToClipboard", () => {
 		expect(osc52Writes).toHaveLength(0);
 	});
 	test("local Linux failure does not report an unverified OSC 52 write as success", async () => {
-		// Regression test for #9618.
+		// #9618 的回归测试。
 		mocks.platform.mockReturnValue("linux");
 		vi.stubEnv("DISPLAY", ":0");
 		mocks.command.mockResolvedValue(undefined);
@@ -185,14 +185,14 @@ describe("copyToClipboard", () => {
 		expect(osc52Writes).toHaveLength(0);
 	});
 	test("display-less Linux falls back to OSC 52", async () => {
-		// Regression test for #9688: containers without X11/Wayland access.
+		// #9688 回归测试：没有 X11/Wayland 访问权限的容器。
 		mocks.platform.mockReturnValue("linux");
 		await copyToClipboard("hello");
 		expect(mocks.command).not.toHaveBeenCalled();
 		expect(osc52Writes).toHaveLength(1);
 	});
 	test("WSL without a display writes the Windows clipboard through PowerShell", async () => {
-		// Regression test for #9688: WSL with WSLg disabled.
+		// #9688 回归测试：禁用了 WSLg 的 WSL 环境。
 		mocks.platform.mockReturnValue("linux");
 		vi.stubEnv("WSL_DISTRO_NAME", "Ubuntu");
 		let written: string | undefined;
@@ -277,7 +277,7 @@ describe("copyToClipboard", () => {
 		expect(osc52Writes).toHaveLength(0);
 	});
 	test("reports the Termux:API requirement on Android", async () => {
-		// Regression test for #10391: Termux reports platform "android".
+		// #10391 回归测试：Termux 报告的平台为 "android"。
 		mocks.platform.mockReturnValue("android");
 		vi.stubEnv("TERMUX_VERSION", "0.119");
 		mocks.getNativeClipboard.mockReturnValue(undefined);

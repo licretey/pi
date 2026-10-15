@@ -84,7 +84,7 @@ function usage(input: number, cost: number): Usage {
 
 const codemodeResult = (harness: Harness) => getToolResult(harness, "codemode");
 
-/** The output after the script header, which is checked on the way. */
+/** 脚本头部之后的输出；提取时会检查并移除该头部。 */
 function resultText(message: ToolResultMessage): string {
 	const [header, ...items] = message.content;
 	expect(header).toEqual({
@@ -97,8 +97,8 @@ function resultText(message: ToolResultMessage): string {
 const TINY_PNG_LABEL = /^\[Image saved to (\S+\.png) \(image\/png, \d+B\)\]$/;
 
 /**
- * Replace the `[Image saved to ...]` labels in `text` with `<saved>` after checking that each file
- * holds the tiny PNG, and remove the files.
+ * 检查每个文件是否包含指定的小型 PNG，然后将 `text` 中的 `[Image saved to ...]` 标签
+ * 替换为 `<saved>`，并删除这些文件。
  */
 function checkSavedImages(text: string): string {
 	return text
@@ -124,7 +124,7 @@ describe("AgentSession codemode tool", () => {
 	});
 
 	async function setup(extensionFactories?: HarnessOptions["extensionFactories"]) {
-		// Registered by an extension so they run with the session's tool context, next to the built-in codemode.
+		// 由扩展注册，因此它们会与内置 codemode 一起，在会话的工具上下文中运行。
 		const registerTools = (pi: ExtensionAPI) => {
 			for (const tool of [echoTool as AgentTool, statsTool, screenshotTool]) {
 				pi.registerTool(createToolDefinitionFromAgentTool(tool));
@@ -150,7 +150,7 @@ describe("AgentSession codemode tool", () => {
 			return fauxAssistantMessage("ok");
 		};
 
-		// on: declared tools say how scripts call them and are not listed again in codemode.
+		// on：工具声明会说明脚本如何调用这些工具，因此 codemode 中不再重复列出。
 		harness.session.setActiveToolsByName(["read", "echo", "codemode"]);
 		expect(description("echo")).toContain("Codemode: `tools.echo(args)` resolves to");
 		expect(description("echo")).not.toContain("codemode tool declaration:");
@@ -160,7 +160,7 @@ describe("AgentSession codemode tool", () => {
 		expect(requestTools[0]).toEqual(expect.arrayContaining(["read", "echo", "codemode"]));
 		expect(requestPrompts[0]).toContain("\n- read: ");
 
-		// only: codemode lists echo, which stays active but is left out of requests.
+		// only：codemode 会列出 echo；echo 仍处于启用状态，但不会放入请求。
 		harness.settingsManager.applyOverrides({ codemode: { mode: "only" } });
 		harness.session.setActiveToolsByName(["read", "echo", "codemode"]);
 		expect(description("echo")).not.toContain("Codemode: `tools.echo");
@@ -171,15 +171,15 @@ describe("AgentSession codemode tool", () => {
 		expect(requestTools[1]).toContain("codemode");
 		expect(requestTools[1]).not.toContain("echo");
 		expect(requestTools[1]).not.toContain("read");
-		// The prompt's tool list matches the declarations: hidden tools are not listed (#10192).
+		// 提示词中的工具列表与声明一致：隐藏工具不会列出（#10192）。
 		expect(requestPrompts[1]).not.toContain("\n- read: ");
 		expect(requestPrompts[1]).toContain("\n- codemode: ");
 		expect(harness.session.systemPrompt).not.toContain("\n- read: ");
-		// Hidden tools' guidelines move from the rules to their codemode sections (#10343).
+		// 隐藏工具的使用指南会从规则区移至各自的 codemode 区域（#10343）。
 		expect(requestPrompts[1]).not.toContain("Use read to examine files");
 		expect(description("codemode")).toContain("- Use read to examine files instead of cat or sed.");
 
-		// Without codemode, tools keep their plain descriptions.
+		// 未启用 codemode 时，工具保留普通描述。
 		harness.session.setActiveToolsByName(["echo"]);
 		expect(description("echo")).toBe("Echo text back.\n\nSecond paragraph.");
 	});
@@ -240,7 +240,7 @@ describe("AgentSession codemode tool", () => {
 			["stats", "ok"],
 		]);
 		expect(details.calls.every((call) => call.id.startsWith(`${result.toolCallId}/`))).toBe(true);
-		// Nested calls never become transcript tool results; their events carry the parent id.
+		// 嵌套调用不会成为对话记录中的工具结果；其事件会携带父调用 ID。
 		const toolResults = harness.session.messages.filter((message) => message.role === "toolResult");
 		expect(toolResults).toHaveLength(1);
 	});
@@ -286,7 +286,7 @@ describe("AgentSession codemode tool", () => {
 		await harness.session.prompt("go");
 
 		const result = codemodeResult(harness);
-		// Replacing content without replacing structured content drops the structured result.
+		// 替换 content 却不替换 structured content 会丢失结构化结果。
 		expect(JSON.parse(resultText(result))).toEqual({
 			blocked: "echo of forbidden text is blocked",
 			stats: "redacted",
@@ -320,7 +320,7 @@ describe("AgentSession codemode tool", () => {
 
 		const result = codemodeResult(harness);
 		expect(result.usage).toMatchObject({ input: 200, totalTokens: 200, cost: { total: 0.5 } });
-		// The usage is persisted with the result, so session totals count it.
+		// 用量会随结果一同持久化，因此会计入会话总量。
 		const persisted = harness.sessionManager
 			.getEntries()
 			.find((entry) => entry.type === "message" && entry.message.role === "toolResult");
@@ -338,7 +338,7 @@ describe("AgentSession codemode tool", () => {
 						? { content: [{ type: "text", text: "0 files" }], structuredContent: { files: 0, names: [] } }
 						: undefined,
 				);
-				// A later handler that only touches details keeps what the first one set.
+				// 后续处理器若只修改 details，会保留首个处理器设置的内容。
 				pi.on("tool_result", (event) => (event.toolName === "stats" ? { details: { audited: true } } : undefined));
 			},
 		]);
@@ -360,7 +360,7 @@ describe("AgentSession codemode tool", () => {
 				[
 					fauxToolCall("codemode", {
 						code: `
-							// Tools without an outputSchema resolve to their text; images are not passed on.
+							// 未声明 outputSchema 的工具会解析为文本结果；图片不会传递给后续调用。
 							const shot = await tools.screenshot({});
 							text(shot);
 							image("data:image/png;base64,${TINY_PNG_BASE64}");
@@ -377,7 +377,7 @@ describe("AgentSession codemode tool", () => {
 		await harness.session.prompt("go");
 
 		const result = codemodeResult(harness);
-		// The same image shown twice is saved once, so both labels name one file.
+		// 同一图像即使显示两次也只保存一次，因此两个标签指向同一个文件。
 		const lines = resultText(result).split("\n");
 		expect(lines).toEqual([
 			"==> text 1/2 <==",
@@ -409,7 +409,7 @@ describe("AgentSession codemode tool", () => {
 
 		await harness.session.prompt("go");
 
-		// Providers join adjacent text blocks with nothing or a newline, so the output is one block.
+		// 提供方会直接拼接相邻文本块，或在中间插入换行，因此最终输出是一个文本块。
 		const result = codemodeResult(harness);
 		expect(result.content).toHaveLength(2);
 		expect(resultText(result)).toBe(
@@ -451,7 +451,7 @@ describe("codemode options and store", () => {
 		while (harnesses.length > 0) harnesses.pop()?.cleanup();
 	});
 
-	// No tools override: the session builds its own codemode tool, including the store writer.
+	// 未覆盖工具：会话会自行构建 codemode 工具，其中包括存储写入器。
 	async function setup() {
 		const harness = await createHarness({
 			initialActiveToolNames: ["codemode"],
@@ -506,7 +506,7 @@ describe("codemode options and store", () => {
 		expect(result.isError).toBe(false);
 		const { n, error } = JSON.parse(resultText(result)) as { n: number; error: string };
 		expect(error).toContain("out of memory");
-		// Each entry holds at least 1 MiB, so the limit stops the script well before wasm32's 4 GiB.
+		// 每个条目至少占用 1 MiB，因此达到限制时脚本远未触及 wasm32 的 4 GiB 上限。
 		expect(n).toBeLessThan(512);
 	});
 
@@ -527,7 +527,7 @@ describe("codemode options and store", () => {
 			expect(text).toContain("row 99\n");
 			expect(text).not.toContain("row 50\n");
 			expect(text).toContain(`[Full output: ${path} (read with offset/limit)]`);
-			// Images follow the truncated text, each after the path it was saved to.
+			// 图像位于截断文本之后，每张图像都紧跟其保存路径。
 			expect(result.content.at(-1)).toEqual({ type: "image", data: TINY_PNG_BASE64, mimeType: "image/png" });
 			expect(checkSavedImages(text.split("\n").at(-2) ?? "")).toBe("<saved>");
 			expect(readFileSync(path, "utf8")).toBe(
@@ -614,7 +614,7 @@ describe("codemode options and store", () => {
 		if (!firstPrompt) throw new Error("No first prompt entry");
 		expect(resultText(await run(harness, increment))).toBe("2");
 
-		// Branch from the first prompt: the store entries written after it are on another path.
+		// 从第一条提示词处创建分支：之后写入的存储条目位于另一条路径上。
 		harness.sessionManager.branch(firstPrompt.id);
 		expect(resultText(await run(harness, increment))).toBe("1");
 	});
@@ -768,7 +768,7 @@ describe("codemode models", () => {
 	it("declares models only for the session's own codemode tool", async () => {
 		const { harness } = await setup();
 		const codemode = harness.session.agent.state.tools.find((tool) => tool.name === "codemode");
-		// The description names the models globals and points to the docs for the API.
+		// 描述会列出 models 全局对象，并指向 API 文档。
 		expect(codemode?.description).toContain("`models`: classifiers and image generation");
 		expect(codemode?.description).toContain(CODEMODE_DOCS_PATH);
 
@@ -815,13 +815,13 @@ describe("codemode models", () => {
 		expect(
 			observed.every((entry) => entry.baseUrl === "https://classifier.test/v1" && entry.apiKey === "secret-key"),
 		).toBe(true);
-		// Six classifications with at most four in flight.
+		// 共进行六次分类，同时最多有四次分类在执行。
 		expect(maxActive()).toBe(4);
 		const details = result.details as unknown as CodemodeToolDetails;
 		expect(details.calls.map((call) => [call.name, call.args, call.status, call.cost])).toEqual(
 			Array.from({ length: 6 }, () => ["models.classify", "scorer/judge", "ok", 0.001]),
 		);
-		// The classifications' usage becomes the codemode result's usage.
+		// 分类结果的用量会成为 codemode 结果的用量。
 		expect(result.usage?.input).toBe(1800);
 		expect(result.usage?.cost.total).toBeCloseTo(0.006, 10);
 		expect(harness.session.getSessionStats().cost).toBeCloseTo(0.006, 10);

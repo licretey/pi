@@ -1,11 +1,11 @@
 /**
- * Tests for prompt template argument parsing and substitution.
+ * 测试提示模板参数的解析与替换。
  *
- * Tests verify:
- * - Argument parsing with quotes and special characters
+ * 测试验证以下内容：
+ * - 解析包含引号和特殊字符的参数
  * - Placeholder substitution ($1, $2, $@, $ARGUMENTS)
- * - No recursive substitution of patterns in argument values
- * - Edge cases and integration between parsing and substitution
+ * - 不递归替换参数值中的模式
+ * - 边界情况以及解析和替换逻辑之间的集成
  */
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "fs";
@@ -38,7 +38,7 @@ describe("substituteArgs", () => {
 		expect(substituteArgs("Test: $@", args)).toBe(substituteArgs("Test: $ARGUMENTS", args));
 	});
 
-	// CRITICAL: argument values containing patterns should remain literal
+	// 重要：参数值即使包含特殊模式，也必须按字面内容处理。
 	test("should NOT recursively substitute patterns in argument values", () => {
 		expect(substituteArgs("$ARGUMENTS", ["$1", "$ARGUMENTS"])).toBe("$1 $ARGUMENTS");
 		expect(substituteArgs("$@", ["$100", "$1"])).toBe("$100 $1");
@@ -78,12 +78,12 @@ describe("substituteArgs", () => {
 	});
 
 	test("should handle special characters in arguments", () => {
-		// Note: $100 in argument doesn't get partially matched - full strings are substituted
+		// 注意：参数中的 $100 不会被部分匹配；占位符会按完整字符串替换。
 		expect(substituteArgs("$1 $2: $ARGUMENTS", ["arg100", "@user"])).toBe("arg100 @user: arg100 @user");
 	});
 
 	test("should handle out-of-range numbered placeholders", () => {
-		// Note: Out-of-range placeholders become empty strings (preserving spaces from template)
+		// 注意：超出参数范围的占位符会替换为空字符串（模板中的空格会保留）。
 		expect(substituteArgs("$1 $2 $3 $4 $5", ["a", "b"])).toBe("a b   ");
 	});
 
@@ -171,7 +171,7 @@ describe("substituteArgs", () => {
 	});
 
 	test("should handle escaped dollar signs (literal backslash preserved)", () => {
-		// Note: No escape mechanism exists - backslash is treated literally
+		// 注意：此处没有转义机制，反斜杠会按字面字符处理。
 		expect(substituteArgs("Price: \\$100", [])).toBe("Price: \\");
 	});
 
@@ -191,7 +191,7 @@ describe("substituteArgs", () => {
 });
 
 // ============================================================================
-// substituteArgs - Positional Defaults
+// substituteArgs：位置参数默认值。
 // ============================================================================
 
 describe("substituteArgs - positional defaults", () => {
@@ -246,7 +246,7 @@ describe("substituteArgs - positional defaults", () => {
 });
 
 // ============================================================================
-// substituteArgs - Array Slicing (Bash-Style)
+// substituteArgs：数组切片（Bash 风格）
 // ============================================================================
 
 describe("substituteArgs - array slicing", () => {
@@ -350,7 +350,7 @@ describe("substituteArgs - array slicing", () => {
 });
 
 // ============================================================================
-// parseCommandArgs
+// parseCommandArgs。
 // ============================================================================
 
 describe("parseCommandArgs", () => {
@@ -383,7 +383,7 @@ describe("parseCommandArgs", () => {
 	});
 
 	test("should handle quoted empty string", () => {
-		// Note: Empty quotes are skipped by current implementation
+		// 注意：当前实现会跳过空引号。
 		expect(parseCommandArgs('"" " "')).toEqual([" "]);
 	});
 
@@ -415,7 +415,7 @@ describe("parseCommandArgs", () => {
 	});
 
 	test("should handle escaped quotes inside quoted strings", () => {
-		// Note: This implementation doesn't handle escaped quotes - backslash is literal
+		// 注意：此实现不处理转义引号，反斜杠会按字面字符处理。
 		expect(parseCommandArgs('"quoted \\"text\\""')).toEqual(["quoted \\text\\"]);
 	});
 
@@ -429,7 +429,7 @@ describe("parseCommandArgs", () => {
 });
 
 // ============================================================================
-// Integration
+// 集成测试。
 // ============================================================================
 
 describe("expandPromptTemplate", () => {
@@ -463,7 +463,7 @@ describe("expandPromptTemplate", () => {
 });
 
 // ============================================================================
-// Integration
+// 集成测试。
 // ============================================================================
 
 describe("parseCommandArgs + substituteArgs integration", () => {
@@ -494,7 +494,7 @@ describe("parseCommandArgs + substituteArgs integration", () => {
 });
 
 // ============================================================================
-// loadPromptTemplates - argument-hint frontmatter
+// loadPromptTemplates：argument-hint frontmatter。
 // ============================================================================
 
 describe("loadPromptTemplates - argument-hint", () => {
@@ -624,7 +624,7 @@ Analyze GitHub issue(s): $ARGUMENTS`,
 });
 
 describe("loadPromptTemplates - diagnostics", () => {
-	// Regression test for #9354.
+	// #9354 的回归测试。
 	test("reports invalid YAML frontmatter and keeps valid siblings", () => {
 		const testDir = mkdtempSync(join(tmpdir(), "pi-test-prompts-invalid-"));
 		const invalidPromptPath = join(testDir, "invalid.md");

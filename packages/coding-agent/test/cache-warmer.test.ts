@@ -185,8 +185,8 @@ describe("cache warming", () => {
 		const { warmer, calls } = fakeRuntime();
 		warmer.start(request(), current);
 
-		// A five-minute cache is scheduled for 4m30s and retains 15 seconds of
-		// the 30-second expiry margin. Simulate a timer delayed by sleep.
+		// 五分钟缓存会在 4 分 30 秒时安排刷新，并保留 30 秒过期余量中的 15 秒。
+		// 模拟定时器因休眠而延迟的情况。
 		vi.setSystemTime(285_001);
 		vi.clearAllTimers();
 		const internal = warmer as unknown as { run: object | undefined; refresh: (run: object) => Promise<void> };

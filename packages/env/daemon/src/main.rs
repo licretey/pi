@@ -1,5 +1,5 @@
-//! pi-env: a small daemon that gives a Pi Durable host an execution environment on this machine over stdin/stdout
-//! (docs/protocol.md). Started as `pi-env serve --token <hex>`, usually through `ssh`.
+//! pi-env：轻量守护进程，通过标准输入/输出为 Pi Durable 宿主提供本机执行环境
+//!（见 docs/protocol.md）。通常通过 `ssh` 启动 `pi-env serve --token <hex>`。
 
 mod decode;
 mod errors;
@@ -28,24 +28,24 @@ use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 const PROTOCOL: u64 = 1;
-/// The npm package version this daemon ships with (build.rs).
+/// 此守护进程随附的 npm 包版本（由 build.rs 提供）。
 const VERSION: &str = env!("PI_ENV_VERSION");
 const PING_INTERVAL: Duration = Duration::from_secs(5);
 const SILENCE_LIMIT_MS: u64 = 30_000;
 const SCAN_CHUNK: usize = 64 * 1024;
-/// Threads for file operations; commands run on their own threads.
+/// 文件操作使用的线程数；每条命令都在独立线程中运行。
 const WORKERS: usize = 16;
-/// Open handles per connection, beyond which opening fails with `EMFILE`.
+/// 每个连接允许打开的句柄数；超出后打开操作会返回 `EMFILE`。
 const MAX_HANDLES: usize = 4096;
-/// Replies with larger payloads queue behind command output instead of going first.
+/// 负载较大的响应会排在命令输出之后，而不会优先发送。
 const CONTROL_PAYLOAD: usize = 64 * 1024;
 
 struct FileHandle {
     file: File,
     path: String,
-    /// A failed chunk write poisons a write handle, so later chunks cannot leave a gap.
+    /// 分块写入失败会使写入句柄失效，避免后续数据块之间出现缺口。
     failed: AtomicBool,
-    /// Chunk writes run one at a time in arrival order, though the client sends several at once.
+    /// 即使客户端同时发送多个数据块，服务端仍按到达顺序逐个写入。
     serial: Mutex<Serial>,
 }
 
@@ -187,7 +187,7 @@ impl Server {
             "open" => {
                 let path = field(json, "path")?;
                 if json["mode"].as_str() == Some("read") {
-                    // Node's `open(path, "r")`: any kind of file, blocking; reads report what the file is.
+                    // Node 的 `open(path, "r")`：允许打开任意类型的文件，操作会阻塞；读取时可判断文件类型。
                     let file = sys::open(path, sys::OpenMode::Read)
                         .map_err(|error| Failure::io(&error, "open", path))?;
                     let stat = match file.metadata() {
@@ -259,7 +259,7 @@ impl Server {
 
     fn read_dir(&self, json: &Value) -> Result<Value, Failure> {
         let max = number(json, "max")?.max(1) as usize;
-        // Lock only this directory, so other requests are not held up by a slow listing.
+        // 只锁定当前目录，避免缓慢的目录枚举阻塞其他请求。
         let dir = match self.handles.lock().unwrap().get(&number(json, "handle")?) {
             Some(Handle::Dir(dir)) => dir.clone(),
             _ => return Err(Failure::new("EBADF", "not a directory handle")),
@@ -310,7 +310,7 @@ fn kill_all(groups: &exec::Groups) {
     }
 }
 
-/// Stdin that records when bytes last arrived, so a large frame arriving slowly counts as a live client.
+/// 记录最近一次收到字节时间的标准输入流，以便缓慢到达的大帧也被视为活跃客户端。
 struct Seen<R> {
     inner: R,
     last_seen: Arc<AtomicU64>,
@@ -351,7 +351,7 @@ fn respond(server: &Server, id: u32, request: Frame, control: Arc<Control>) {
         Err(failure) => Frame::new(ERROR, id, failure.to_json()),
     };
     server.controls.lock().unwrap().remove(&id);
-    // A command's result follows its output; large payloads do not hold up pings and small replies.
+    // 命令结果排在其输出之后；大负载不会阻塞 ping 和较小的响应。
     if is_exec || reply.payload.len() > CONTROL_PAYLOAD {
         server.output.bulk(reply, None);
     } else {
@@ -359,7 +359,7 @@ fn respond(server: &Server, id: u32, request: Frame, control: Arc<Control>) {
     }
 }
 
-/// Queue `job` behind the handle's earlier chunk writes; one pool job drains the queue.
+/// 将 `job` 排在该句柄先前的数据块写入之后；由一个线程池任务依次处理队列。
 fn run_in_order(jobs: &Sender<Job>, handle: Arc<FileHandle>, job: Job) {
     let mut serial = handle.serial.lock().unwrap();
     serial.jobs.push_back(job);
@@ -392,10 +392,10 @@ fn serve_frames(server: &Arc<Server>, input: &mut impl Read) -> io::Result<()> {
         match request.kind {
             REQUEST => {
                 let id = request.id;
-                // Registered before the request runs, so a cancel right behind it is not lost.
+                // 在请求运行前完成注册，避免紧随其后的取消请求丢失。
                 let control = Arc::new(Control::default());
                 server.controls.lock().unwrap().insert(id, control.clone());
-                // Commands and watchers last; they get their own threads (watchers recurse through trees).
+                // 命令和监视器可能长期运行，因此各自使用独立线程（监视器会递归遍历目录树）。
                 if matches!(request.json["op"].as_str(), Some("exec" | "watch")) {
                     let worker = server.clone();
                     let spawned = thread::Builder::new()
@@ -465,7 +465,7 @@ fn serve(token: &str) -> io::Result<()> {
             loop {
                 thread::sleep(PING_INTERVAL);
                 output.control(Frame::new(PING, 0, json!({})));
-                // A client that went silent (a phone that lost its network) leaves nothing running.
+                // 客户端失去响应（例如手机断网）后，不应留下仍在运行的任务。
                 if now_ms().saturating_sub(last_seen.load(Ordering::Relaxed)) > SILENCE_LIMIT_MS {
                     kill_all(&groups);
                     std::process::exit(0);
@@ -481,7 +481,7 @@ fn serve(token: &str) -> io::Result<()> {
         },
     );
     let result = serve_frames(&server, &mut input);
-    // However input ended, the client is gone: stop everything it started.
+    // 无论输入因何结束，客户端都已断开：停止它启动的所有任务。
     kill_all(&server.groups);
     output.close();
     let _ = writer.join();
@@ -504,7 +504,7 @@ fn main() {
                 eprintln!("pi-env: {error}");
                 std::process::exit(1);
             }
-            // Request threads may still be blocked (a FIFO open); nothing is left to answer them.
+            // 请求线程可能仍在阻塞（例如等待打开 FIFO），但已没有客户端接收其响应。
             std::process::exit(0);
         }
         Some("--version") => println!("pi-env {VERSION}"),

@@ -75,7 +75,7 @@ describe("ProgramStatusReporter", () => {
 		send({ type: "agent_start" }, assistantEnd("aborted"), { type: "agent_settled", aborted: true });
 		expect(last()).toEqual({ state: "idle" });
 
-		// Aborted after a successful response, for example in an agent_before_settle hook or a retry delay.
+		// 成功响应后发生中止，例如在 agent_before_settle 钩子或重试等待期间。
 		send({ type: "agent_start" }, assistantEnd("stop"), { type: "agent_settled", aborted: true });
 		expect(last()).toEqual({ state: "idle" });
 	});
@@ -124,12 +124,12 @@ describe("ProgramStatusReporter", () => {
 		reporter.setBlocked("login", { kind: "auth", message: "Log in to Anthropic" });
 		expect(last()).toEqual({ state: "blocked", kind: "auth", message: "Log in to Anthropic" });
 
-		// The run settles while the selector is still open.
+		// 选择器仍打开时，该次运行已经结束。
 		reporter.setBlocked("login", undefined);
 		send(assistantEnd("stop"), settled);
 		expect(last()).toEqual({ state: "blocked", kind: "permission", message: "Allow bash?" });
 
-		// Reopening a source replaces its dialog instead of stacking a second one.
+		// 重新打开来源时会替换原对话框，而不是再叠加一个。
 		reporter.setBlocked("extension-selector", { kind: "question", message: "Pick one" });
 		expect(last()).toEqual({ state: "blocked", kind: "question", message: "Pick one" });
 		reporter.setBlocked("extension-selector", undefined);

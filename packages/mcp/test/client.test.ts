@@ -109,7 +109,7 @@ describe("McpClient", () => {
 								annotations: { readOnlyHint: true },
 							},
 						],
-						// Some servers end pagination with an empty cursor instead of omitting it.
+						// 有些服务器会用空游标表示分页结束，而不是省略游标。
 						nextCursor: "",
 					};
 		});
@@ -138,13 +138,13 @@ describe("McpClient", () => {
 		server.setHandler("resources/read", (request) => ({
 			contents: [{ uri: (request.params as { uri: string }).uri, text: "hello" }],
 		}));
-		// A missing name falls back to the URI.
+		// 缺少名称时回退使用 URI。
 		expect(await client.listResources()).toEqual([
 			{ uri: "file:///a", name: "a", mimeType: "text/plain" },
 			{ uri: "file:///b", name: "file:///b" },
 		]);
 		expect(await client.listResourceTemplates()).toEqual([{ uriTemplate: "repo://{owner}/{repo}", name: "repo" }]);
-		// Single pages pass the cursor through.
+		// 只有一页时会原样传递游标。
 		expect(await client.listResourcesPage()).toEqual({
 			resources: [{ uri: "file:///a", name: "a", mimeType: "text/plain" }],
 			nextCursor: "2",

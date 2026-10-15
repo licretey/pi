@@ -7,7 +7,7 @@ export const INTERNAL_PROCESS_ENV = "__PI_INTERNAL_SPAWN";
 
 export type InternalProcessRole = "coordinator" | "server" | "session-worker";
 
-/** Detect a directly executed source or unbundled internal-process module. */
+/** 检测直接执行的源码模块或未打包的内部进程模块。 */
 export function isDirectInternalProcessEntry(moduleUrl: string): boolean {
 	return (
 		!isBunBinary &&
@@ -17,7 +17,7 @@ export function isDirectInternalProcessEntry(moduleUrl: string): boolean {
 	);
 }
 
-/** Read and validate an internal process role without consuming it. */
+/** 读取并校验内部进程角色，但不将其移除。 */
 export function getInternalProcessRole(): InternalProcessRole | undefined {
 	const role = process.env[INTERNAL_PROCESS_ENV];
 	if (role === undefined) return undefined;
@@ -25,7 +25,7 @@ export function getInternalProcessRole(): InternalProcessRole | undefined {
 	throw new Error(`Unsupported internal process role: ${role}`);
 }
 
-/** Read, validate, and remove the role so descendants do not inherit it. */
+/** 读取并校验角色后将其移除，避免后代进程继承该角色。 */
 export function consumeInternalProcessRole(): InternalProcessRole | undefined {
 	const role = getInternalProcessRole();
 	delete process.env[INTERNAL_PROCESS_ENV];
@@ -37,7 +37,7 @@ export interface InternalProcessSpawnOptions {
 	readonly env?: NodeJS.ProcessEnv;
 }
 
-/** Spawn a detached Pi-owned process consistently across Node and compiled Bun. */
+/** 在 Node 和已编译的 Bun 环境中以一致方式启动由 Pi 管理的分离进程。 */
 export function spawnInternalProcess(
 	role: InternalProcessRole,
 	args: readonly string[],
@@ -47,7 +47,7 @@ export function spawnInternalProcess(
 		throw new Error("A compiled Bun executable cannot launch an external internal-process entrypoint");
 	}
 	const entryUrl = defaultEntryUrl(role, options.entryUrl);
-	// --import takes a module specifier; a raw path breaks on Windows drives and on `#`, `?`, or `%` in the path.
+	// --import 接收模块说明符；直接传入路径时，Windows 盘符以及路径中的 `#`、`?` 或 `%` 都会导致解析失败。
 	const sourceRuntimeArgs = import.meta.url.endsWith(".ts")
 		? ["--import", new URL("source-resolver.ts", import.meta.url).href]
 		: [];
@@ -70,7 +70,7 @@ export function spawnInternalProcess(
 	return child;
 }
 
-/** Force a spawned internal process to exit and wait until it can no longer take ownership. */
+/** 强制已启动的内部进程退出，并等待其不再拥有资源。 */
 export async function terminateInternalProcess(child: ChildProcess): Promise<void> {
 	if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
 	const terminated = new Promise<void>((resolve) => {

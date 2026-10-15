@@ -19,14 +19,14 @@ import { closedError, Waiters } from "./util.ts";
 
 type AbortResult = "aborted" | "already_placed" | "settled";
 
-/** Admission, waits, and withdrawal of the durable submissions of one Harness. */
+/** 管理一个 Harness 的持久化提交接纳、等待和撤回。 */
 export class Submissions {
 	readonly #session: SessionImpl;
 	readonly #storage: Storage;
 	readonly #now: () => number;
-	/** Read at each admission, on the Session line. */
+	/** 每次接纳提交时都在 Session 顺序线上读取。 */
 	readonly #queueModes: () => QueueModes;
-	/** Enable task scheduling; submitting or waiting asks for progress. */
+	/** 启用任务调度；提交或等待操作会请求调度器推进任务。 */
 	readonly #resume: () => void;
 	readonly #waiters = new Waiters<SubmissionId, SettledSubmissionRecord>();
 	#closed = false;
@@ -50,7 +50,7 @@ export class Submissions {
 		});
 	}
 
-	/** Admit a submission in one commit; see `admitSubmission()`. */
+	/** 在一次提交中接纳请求；参见 `admitSubmission()`。 */
 	async submit(conversationId: ConversationId, draft: SubmissionDraft, context: Context): Promise<Submission> {
 		this.#resume();
 		const id = await this.#session.commitWith(
@@ -60,7 +60,7 @@ export class Submissions {
 		return new SubmissionHandle(id, this);
 	}
 
-	/** Handle for an existing submission, or `undefined`. */
+	/** 返回现有提交的句柄；提交不存在时返回 `undefined`。 */
 	async get(id: SubmissionId, context: Context): Promise<Submission | undefined> {
 		const record = await this.#session.readOnLine(() => this.#storage.submission(id, context));
 		return record === undefined ? undefined : new SubmissionHandle(record.id, this);
@@ -74,19 +74,19 @@ export class Submissions {
 
 	async wait(id: SubmissionId, context: Context): Promise<SettledSubmissionRecord> {
 		this.#resume();
-		// Check and register on the line so no settling publication falls between them.
+		// 在同一顺序线上检查并注册，避免检查与注册之间错过结算发布。
 		const found = await this.#session.readOnLine(async () => {
 			const record = await this.#storage.submission(id, context);
 			if (record === undefined) throw new Error(`Submission ${id} does not exist`);
 			if (isSettled(record)) return { promise: Promise.resolve(record) };
-			// Close rejects registered waiters synchronously and may begin during the read.
+			// 关闭时会同步拒绝已注册的等待者，而且读取过程中也可能开始关闭。
 			if (this.#closed) throw closedError(this.#session);
 			return { promise: this.#waiters.add(id, context) };
 		});
 		return found.promise;
 	}
 
-	/** Withdraw a queued submission and remove its inbox item; placed inputs and settled submissions are reported. */
+	/** 撤回排队中的提交并移除收件箱条目；已放置的输入和已结算的提交会返回对应状态。 */
 	abort(id: SubmissionId, context: Context, conversationId?: ConversationId): Promise<AbortResult | "not_found"> {
 		return this.#session.commitWith(async (tx) => {
 			const record = await tx.submission(id);
@@ -139,11 +139,10 @@ function isSettled(record: SubmissionRecord): record is SettledSubmissionRecord 
 }
 
 /**
- * Admit a submission inside a commit (spec §6); `Conversation.submit()` and conversation-owned compactions share it. A
- * known request ID returns its existing submission without writing. A busy conversation queues it in `pi.inbox`, or
- * rejects `whenBusy: "reject"` input with `ConversationBusy`. An idle conversation with queued items queues it behind
- * them and runs a final boundary. Otherwise idle input places a user entry and starts a run, and an idle write appends
- * its entry and settles `done`, or `stale` when its head reaches before the active range.
+ * 在一次提交中接纳请求（规范 §6）；`Conversation.submit()` 和由对话拥有的压缩任务共用此逻辑。已知的 request ID 会直接返回现有提交，
+ * 不再写入。繁忙的对话会将请求排入 `pi.inbox`；若输入指定 `whenBusy: "reject"`，则抛出 `ConversationBusy`。
+ * 空闲对话已有排队条目时，会将新请求排在其后并执行最终边界处理。否则，空闲输入会放置 user 记录并启动运行；
+ * 空闲写入会追加记录并结算为 `done`，若其 head 早于活动范围则结算为 `stale`。
  */
 export async function admitSubmission(
 	tx: Tx,
@@ -165,7 +164,7 @@ export async function admitSubmission(
 	const busy = live.run !== undefined;
 	if (busy && draft.type === "input" && draft.whenBusy === "reject") throw new ConversationBusy(conversationId);
 	const requestId = draft.requestId === undefined ? {} : { requestId: draft.requestId };
-	// A boundary reads the table, so it is prepared before the first table write; a busy one needs none.
+	// 边界处理需要读取提交表，因此必须在首次写表之前准备；繁忙的对话无需准备边界。
 	const boundary = busy ? undefined : await prepareBoundary(tx, conversationId, queueModes);
 	if (boundary === undefined || boundary.inbox.items.length > 0) {
 		const { id } = await tx.createSubmission({
@@ -174,7 +173,7 @@ export async function admitSubmission(
 			type: draft.type,
 			status: "queued",
 		});
-		// Hosts may leave optional fields `undefined`; drafts take strict JSON.
+		// 宿主可能将可选字段保留为 `undefined`；草稿必须符合严格 JSON。
 		const value = copyJson(draft.type === "write" ? draft.entry : draft.content, {
 			omitUndefinedProperties: true,
 		});

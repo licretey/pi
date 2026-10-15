@@ -9,7 +9,7 @@ export interface FauxConversation {
 	close(): Promise<void>;
 }
 
-/** An in-memory durable Harness whose root conversation answers with the faux provider. */
+/** 使用 faux 提供方回复的内存持久化 Harness，根对话由此框架管理。 */
 export async function openFauxConversation(responses: FauxResponseStep[] = []): Promise<FauxConversation> {
 	const faux = fauxProvider();
 	faux.setResponses(responses);
@@ -23,7 +23,7 @@ export async function openFauxConversation(responses: FauxResponseStep[] = []): 
 	return { faux, harness, conversation, close: () => harness.close(BACKGROUND_CONTEXT) };
 }
 
-/** A faux response that never arrives; it ends only when its generation is aborted. */
+/** 永远不会返回的模拟响应；只有对应 generation 被中止后才会结束。 */
 export function pendingResponse(): { readonly step: FauxResponseStep; readonly reached: Promise<void> } {
 	let reach!: () => void;
 	const reached = new Promise<void>((resolve) => {

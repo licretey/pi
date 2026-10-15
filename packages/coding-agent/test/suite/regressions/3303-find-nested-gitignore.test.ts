@@ -5,14 +5,13 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFindToolDefinition } from "../../../src/core/tools/find.ts";
 
 /**
- * Regression test for https://github.com/earendil-works/pi/issues/3303
+ * https://github.com/earendil-works/pi/issues/3303 的回归测试。
  *
- * The `find` tool previously collected every `.gitignore` under the search
- * path and passed them to `fd` via `--ignore-file`. fd treats `--ignore-file`
- * entries as a single global ignore source, so rules from `a/.gitignore`
- * also filtered files under sibling `b/`. The fix switches to fd's
- * hierarchical `.gitignore` handling via `--no-require-git` and drops the
- * manual collection.
+ * `find` 工具此前会收集搜索目录下的所有 `.gitignore` 文件，
+ * 路径并通过 `--ignore-file` 传给 `fd`。fd 会将 `--ignore-file`
+ * 中的条目视为单一全局忽略来源，因此 `a/.gitignore` 中的规则
+ * 也会过滤同级目录 `b/` 中的文件。修复方案改用 fd 通过 `--no-require-git` 实现的
+ * 分层 `.gitignore` 处理，并移除手动收集逻辑。
  */
 describe("issue #3303 nested .gitignore rules leak into sibling directories", () => {
 	let tempRoot: string;
@@ -74,9 +73,9 @@ describe("issue #3303 nested .gitignore rules leak into sibling directories", ()
 
 		it("scopes each .gitignore to its own subtree", async () => {
 			const files = await runFind("**/*.txt");
-			// a/.gitignore ignores 'ignored.txt' within a/ and a/deep/.
+			// a/.gitignore 会忽略 a/ 和 a/deep/ 中的 'ignored.txt'。
 			// a/deep/.gitignore additionally ignores 'secret.txt' within a/deep/.
-			// b/ is untouched by either.
+			// b/ 不受这两份规则影响。
 			expect(files).toEqual(["a/deep/kept.txt", "a/kept.txt", "b/ignored.txt", "b/kept.txt", "root.txt"]);
 		});
 	});

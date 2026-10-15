@@ -44,7 +44,7 @@ async function createIn<S extends { phase: string }, R>(
 	return root.commit((tx) => tx.createTask(task, null, { ownership: { kind: "conversation" } }), context);
 }
 
-/** Fake external service whose operations are idempotent by request key. */
+/** 操作按请求键实现幂等性的模拟外部服务。 */
 class TransferService {
 	readonly applied = new Map<string, number>();
 	calls = 0;
@@ -59,8 +59,8 @@ class TransferService {
 type TransferState = { phase: "prepare" } | { phase: "apply"; key: string };
 
 /**
- * Intent/effect/outcome task: `prepare` commits the intent, `apply` performs the effect and commits the outcome.
- * While `interrupt.first` is set, the first `apply` blocks after the effect until the invocation is signalled.
+ * 意图/效果/结果任务：`prepare` 提交意图，`apply` 执行效果并提交结果。
+ * 设置 `interrupt.first` 时，第一次 `apply` 会在效果执行后阻塞，直到调用收到中止信号。
  */
 function transferTask(service: TransferService, interrupt: { first: boolean }) {
 	return defineTask<{ amount: number }, TransferState, { receipt: number }>({
@@ -92,7 +92,7 @@ function transferTask(service: TransferService, interrupt: { first: boolean }) {
 
 type Step = { phase: "run" };
 
-/** A versioned one-phase task that completes with `result`, optionally migrating older records. */
+/** 带版本号的单阶段任务，以 `result` 完成，并可选择迁移旧记录。 */
 function versioned(
 	version: number,
 	result: string,
@@ -125,7 +125,7 @@ describe("task recovery", () => {
 		await first.harness.close(context);
 
 		const second = await openTasks(await openNodeSqliteStorage(path), [Transfer]);
-		// Open reconciled `running` to `pending` and kept the checkpoint and memos; nothing ran yet.
+		// 打开存储时已将 `running` 状态协调为 `pending`，并保留检查点和 memo；任务尚未运行。
 		expect(await second.harness.getTask(id, context)).toMatchObject({
 			abortRequested: false,
 			memos: { requested: 7 },
@@ -186,7 +186,7 @@ describe("task recovery", () => {
 			phases: {
 				run: async () => {
 					log.push("run");
-					// Ignores the abort signal until released, so the mark is durable while the run is active.
+					// 释放前忽略中止信号，因此运行期间中止标记已持久化。
 					await runRelease.promise;
 				},
 			},
@@ -200,7 +200,7 @@ describe("task recovery", () => {
 			},
 		});
 
-		// Stage 1: the mark is committed while the run invocation is still active.
+		// 阶段 1：运行调用仍在执行时，中止标记已提交。
 		let opened = await openTasks(await openNodeSqliteStorage(path), [Abortable]);
 		const id = await createIn(opened.harness, Abortable);
 		opened.harness.resume();
@@ -213,7 +213,7 @@ describe("task recovery", () => {
 		expect(await aborting).toBe("marked");
 		expect(log).toEqual(["run"]);
 
-		// Stage 2: reopen dispatches the abort invocation, never the run; close while it is active.
+		// 阶段 2：重新打开后会分派中止调用，而不会再次运行任务；在中止调用仍执行时关闭。
 		opened = await openTasks(await openNodeSqliteStorage(path), [Abortable]);
 		expect(await opened.harness.getTask(id, context)).toMatchObject({
 			abortRequested: true,
@@ -224,7 +224,7 @@ describe("task recovery", () => {
 		await opened.harness.close(context);
 		expect(log).toEqual(["run", "abort"]);
 
-		// Stage 3: a fresh abort invocation settles the task.
+		// 阶段 3：新的中止调用将任务置为终态。
 		abortGate.block = false;
 		opened = await openTasks(await openNodeSqliteStorage(path), [Abortable]);
 		opened.harness.resume();
@@ -235,7 +235,7 @@ describe("task recovery", () => {
 		await opened.harness.close(context);
 		expect(log).toEqual(["run", "abort", "abort"]);
 
-		// Stage 4: the terminal receipt survives reopen and nothing runs again.
+		// 阶段 4：重新打开后终态回执仍然存在，任务不会再次运行。
 		opened = await openTasks(await openNodeSqliteStorage(path), [Abortable]);
 		opened.harness.resume();
 		await flush();
@@ -246,13 +246,13 @@ describe("task recovery", () => {
 });
 
 /**
- * Crash simulation: the crashed Harness is abandoned without close, its held storage commit never lands, and its
- * blocked handlers never return. A new Harness then opens the same storage.
+ * 崩溃模拟：Harness 崩溃后不调用 close，暂存的存储提交不会落盘，阻塞中的处理器也不会返回；
+ * 随后由新的 Harness 打开同一份存储。
  */
 describe("task crash recovery", () => {
 	type Log = string[];
 
-	/** A task whose run ignores its signal and whose abort handler blocks while `blockAbort` is set. */
+	/** 运行过程忽略信号、且 `blockAbort` 为真时中止处理器会阻塞的任务。 */
 	function crashTask(log: Log, options: { blockAbort: boolean }) {
 		return defineTask<null, Step, null>({
 			name: "test.crash",
@@ -307,7 +307,7 @@ describe("task crash recovery", () => {
 	it("crash after the mark before the run joins: only the abort handler runs", async () => {
 		const log: Log = [];
 		const { storage, harness, id } = await crashedRun(log);
-		// The run ignores its signal, so abortTask never finishes joining it.
+		// 运行过程忽略信号，因此 abortTask 始终无法等待它结束。
 		let joined = false;
 		void harness.abortTask(id, context).then(() => {
 			joined = true;
@@ -452,7 +452,7 @@ describe("blocked tasks", () => {
 		harness.resume();
 		await flush();
 		expect((await harness.getTask(id, context))?.state.status).toBe("pending");
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(registry, versioned(2, "new"));
 		expect((await harness.waitForTask(id, context)).state.outcome).toEqual({ status: "completed", result: "new" });
 		await harness.close(context);
@@ -476,7 +476,7 @@ describe("blocked tasks", () => {
 		opened = await openTasks(await openNodeSqliteStorage(path), [], { registry });
 		opened.harness.resume();
 		await eventually(() => opened.reports.length === 1);
-		// An unrelated registry change wakes the scheduler without retrying the same failed definition.
+		// 无关的注册表变更会唤醒调度器，但不会重试同一个失败的定义。
 		addTool(
 			registry,
 			defineTool({
@@ -496,7 +496,7 @@ describe("blocked tasks", () => {
 		});
 
 		const migrations: number[] = [];
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(
 			registry,
 			versioned(2, "v2", (_input, checkpoint, fromVersion) => {
@@ -537,7 +537,7 @@ describe("blocked tasks", () => {
 			(await tx.doc(Scratch, created)).n = 1;
 			return created;
 		}, context);
-		// Before resume: the marking commit settles the blocked task directly.
+		// 恢复调度前：写入标记的提交会直接将被阻塞的任务置为终态。
 		expect(await harness.abortTask(id, context)).toBe("marked");
 		expect((await harness.getTask(id, context))?.state).toEqual({
 			status: "terminal",
@@ -570,7 +570,7 @@ describe("blocked tasks", () => {
 		harness.resume();
 		await reached.promise;
 		registration.dispose();
-		// An active run means the mark does not orphan directly; the scheduler orphans once the run has ended.
+		// 运行仍在执行时，标记不会立即使任务变为孤立状态；运行结束后由调度器将其置为孤立状态。
 		expect(await harness.abortTask(id, context)).toBe("marked");
 		expect((await harness.waitForTask(id, context)).state.outcome).toEqual({
 			status: "orphaned",
@@ -618,7 +618,7 @@ describe("definition handover", () => {
 				log.push(`${label}:${phase} start`);
 				await options.gates?.[phase];
 				await runtime.commit(() => ({ status: "running", checkpoint: next }), ctx);
-				// Leave room for a wrongly dispatched successor before this invocation ends.
+				// 在本次调用结束前留出时间，以便错误分派的后继阶段有机会启动。
 				await flush();
 				options.gates?.onEnd?.();
 				log.push(`${label}:${phase} end`);
@@ -657,7 +657,7 @@ describe("definition handover", () => {
 		const log: string[] = [];
 		const gate = deferred();
 		const { harness, registry, id } = await startHandover(log, { a: gate.promise });
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(registry, handoverTask("new", 1, log));
 		gate.resolve();
 		await harness.waitForTask(id, context);
@@ -683,7 +683,7 @@ describe("definition handover", () => {
 						await runtime.commit(() => ({ status: "running", checkpoint: { phase: "b" } }), ctx);
 					},
 					b: async (_task, runtime, ctx) => {
-						// The candidate loses to the memo the old definition stored.
+						// 候选值优先级低于旧定义已存储的 memo。
 						const picked = await runtime.memo("picked", label, ctx);
 						log.push(`${label}:b ${picked}`);
 						await runtime.commit(() => completed(picked), ctx);
@@ -709,7 +709,7 @@ describe("definition handover", () => {
 		const log: string[] = [];
 		const gate = deferred();
 		const { harness, registry, id } = await startHandover(log, { a: gate.promise });
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(registry, handoverTask("v2", 2, log, { migrate: () => ({ input: null, checkpoint: { phase: "c" } }) }));
 		gate.resolve();
 		const receipt = await harness.waitForTask(id, context);
@@ -722,7 +722,7 @@ describe("definition handover", () => {
 		const log: string[] = [];
 		const gate = deferred();
 		const { harness, registry, id, reports } = await startHandover(log, { a: gate.promise });
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(
 			registry,
 			handoverTask("broken", 2, log, {
@@ -750,7 +750,7 @@ describe("definition handover", () => {
 		old.dispose();
 		gateA.resolve();
 		await eventually(() => log.includes("old:b start"));
-		// A newer definition without a migration cannot take the task either.
+		// 没有迁移函数的新版本定义也无法接管该任务。
 		addTask(registry, handoverTask("incompatible", 2, log));
 		gateB.resolve();
 		await harness.waitForTask(id, context);
@@ -776,7 +776,7 @@ describe("definition handover", () => {
 					oldRuntime = runtime;
 					await gate.promise;
 					await runtime.commit(() => ({ status: "running", checkpoint: { phase: "b" } }), ctx);
-					// Hold the line with an unrelated commit so the handover commit queues behind it.
+					// 用无关提交占住串行队列，使交接提交排在其后。
 					held = storage.holdCommits();
 					void harnessRef!.commit(async (tx) => {
 						await tx.appendEntry(task.conversationId, { kind: "blocker" });
@@ -793,13 +793,13 @@ describe("definition handover", () => {
 		const id = await createIn(harness, Old);
 		harness.resume();
 		await eventually(() => oldRuntime !== undefined);
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(registry, handoverTask("new", 1, log));
 		gate.resolve();
 		await eventually(() => held !== undefined);
 		await held!.entered;
 		await flush();
-		// Queued behind the handover commit while the invocation has not ended yet.
+		// 在调用尚未结束时排入队列，但执行顺序位于交接提交之后。
 		const late = oldRuntime!.commit(() => completed(null), context);
 		held!.release();
 		await expect(late).rejects.toThrow("invocation has ended");
@@ -813,7 +813,7 @@ describe("definition handover", () => {
 		const gate = deferred();
 		const storage = new ControlledStorage();
 		let held: ReturnType<ControlledStorage["holdCommits"]> | undefined;
-		// The progress commit landed; hold the next commit, the handover, and queue the abort mark behind it.
+		// 进展提交已落盘；暂停后续提交（即交接提交），并将中止标记排在它后面。
 		const gates: Gates = {
 			a: gate.promise,
 			onEnd: () => {
@@ -821,7 +821,7 @@ describe("definition handover", () => {
 			},
 		};
 		const { harness, registry, id } = await startHandover(log, gates, storage);
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧定义。
 		addTask(registry, handoverTask("new", 1, log));
 		gate.resolve();
 		await eventually(() => held !== undefined);
@@ -837,7 +837,7 @@ describe("definition handover", () => {
 					: [],
 			),
 		);
-		// created, reserved, progress, handover, mark, abort reservation, aborted
+		// 创建、预留、进展、交接、标记、中止预留、中止完成。
 		expect(states).toEqual([
 			"pending",
 			"running",
@@ -868,7 +868,7 @@ describe("Harness open", () => {
 			},
 			abort: async () => {},
 		});
-		// Leave a running task behind so open has a reconciliation commit to fail.
+		// 留下一个运行中的任务，以便 open 执行协调提交并触发失败。
 		const first = await openTasks(storage, [Stuck]);
 		await createIn(first.harness, Stuck);
 		first.harness.resume();

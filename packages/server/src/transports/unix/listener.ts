@@ -137,7 +137,7 @@ class UnixListener implements ServerListener {
 		try {
 			await closeNetServer(server, (error) => this.reportError(error));
 		} finally {
-			// Remove an unpublished startup bind path before the public route.
+			// 对外提供连接路径前，先移除启动期间尚未发布的绑定路径。
 			if (this.ownedBindPath) await removePath(this.ownedBindPath);
 			this.ownedBindPath = undefined;
 			await this.cleanupOwnedSocket();
@@ -182,12 +182,12 @@ class UnixListener implements ServerListener {
 		try {
 			this.options.onError?.(error instanceof Error ? error : new Error(String(error)));
 		} catch {
-			// Error observers cannot affect listener state.
+			// 错误观察器不能影响监听器状态。
 		}
 	}
 }
 
-/** @internal Exported only for transport-level verification. */
+/** @internal 仅为传输层验证而导出。 */
 export class UnixByteConnection implements ByteConnection {
 	private readonly socket: Socket;
 	private readonly gracefulCloseTimeoutMs: number;

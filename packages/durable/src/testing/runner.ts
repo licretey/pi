@@ -9,7 +9,7 @@ export interface StorageConformanceRunner {
 	readonly it: (name: string, test: () => Promise<void>, timeoutMs?: number) => unknown;
 }
 
-/** Registers the runner-independent cases with a Vitest/Jest-compatible test runner. */
+/** 用 Vitest/Jest 兼容的测试运行器注册这些与运行器无关的用例。 */
 export function registerStorageConformance(
 	runner: StorageConformanceRunner,
 	name: string,
@@ -24,7 +24,7 @@ export function registerStorageConformance(
 	});
 }
 
-/** Registers the runner-independent `ExecutionEnv` cases with a Vitest/Jest-compatible test runner. */
+/** 用 Vitest/Jest 兼容的测试运行器注册这些与运行器无关的 `ExecutionEnv` 用例。 */
 export function registerEnvConformance(
 	runner: StorageConformanceRunner,
 	name: string,

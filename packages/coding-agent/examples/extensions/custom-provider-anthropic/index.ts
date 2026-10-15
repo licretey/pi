@@ -1,24 +1,24 @@
 /**
- * Custom Provider Example
+ * 自定义提供方示例。
  *
- * Demonstrates registering a custom provider with:
- * - Custom API identifier ("custom-anthropic-api")
- * - Custom streamSimple implementation
- * - OAuth support for /login
- * - API key support via environment variable
- * - Two model definitions
+ * 演示如何注册自定义提供方，包括：
+ * - 自定义 API 标识符（"custom-anthropic-api"）
+ * - 自定义 streamSimple 实现
+ * - 支持通过 /login 进行 OAuth 登录
+ * - 支持通过环境变量提供 API 密钥
+ * - 定义两个模型
  *
- * Usage:
- *   # First install dependencies
+ * 用法：
+ *   # 先安装依赖
  *   cd packages/coding-agent/examples/extensions/custom-provider && npm install
  *
- *   # With OAuth (run /login custom-anthropic first)
+ *   # 使用 OAuth（先运行 /login custom-anthropic）
  *   pi -e ./packages/coding-agent/examples/extensions/custom-provider
  *
- *   # With API key
+ *   # 使用 API 密钥
  *   CUSTOM_ANTHROPIC_API_KEY=sk-ant-... pi -e ./packages/coding-agent/examples/extensions/custom-provider
  *
- * Then use /model to select custom-anthropic/claude-sonnet-4-5
+ * 然后使用 /model 选择 custom-anthropic/claude-sonnet-4-5
  */
 
 import Anthropic from "@anthropic-ai/sdk";
@@ -49,7 +49,7 @@ import {
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 // =============================================================================
-// OAuth implementation adapted for the legacy extension compatibility interface.
+// 适配旧版扩展兼容接口的 OAuth 实现。
 // =============================================================================
 
 const decode = (s: string) => atob(s);
@@ -157,10 +157,10 @@ async function refreshAnthropicToken(credentials: OAuthCredentials, signal: Abor
 }
 
 // =============================================================================
-// Streaming Implementation (simplified from packages/ai/src/api/anthropic-messages.ts)
+// 流式实现（基于 packages/ai/src/api/anthropic-messages.ts 简化而来）。
 // =============================================================================
 
-// Claude Code tool names for OAuth stealth mode
+// OAuth 隐身模式使用的 Claude Code 工具名称。
 const claudeCodeTools = [
 	"Read",
 	"Write",
@@ -294,7 +294,7 @@ function convertMessages(messages: Message[], isOAuth: boolean, _tools?: Tool[])
 		}
 	}
 
-	// Add cache control to last user message
+	// 为最后一条用户消息添加缓存控制。
 	if (params.length > 0) {
 		const last = params[params.length - 1];
 		if (last.role === "user" && Array.isArray(last.content)) {
@@ -341,8 +341,8 @@ function streamCustomAnthropic(
 	options?: SimpleStreamOptions,
 ): AssistantMessageEventStream {
 	const stream = createAssistantMessageEventStream();
-	// The transcript carries the prompt and tools in its system messages. This provider sends
-	// one top-level system prompt, so fold later system messages into the leading one first.
+	// 对话记录通过系统消息携带提示词和工具。此提供方会发送
+	// 该接口只接受一个顶层系统提示词，因此先将后续系统消息合并到首条系统消息中。
 	const transcript = collapseSystemMessages(context);
 	const systemPrompt = getCurrentSystemPrompt(transcript.messages);
 	const tools = getCurrentTools(transcript.messages);
@@ -370,7 +370,7 @@ function streamCustomAnthropic(
 			const apiKey = options?.apiKey ?? "";
 			const isOAuth = isOAuthToken(apiKey);
 
-			// Configure client based on auth type
+			// 根据认证类型配置客户端。
 			const betaFeatures = ["fine-grained-tool-streaming-2025-05-14", "interleaved-thinking-2025-05-14"];
 			const clientOptions: any = {
 				baseURL: model.baseUrl,
@@ -398,7 +398,7 @@ function streamCustomAnthropic(
 
 			const client = new Anthropic(clientOptions);
 
-			// Build request params
+			// 构造请求参数。
 			const params: MessageCreateParamsStreaming = {
 				model: model.id,
 				messages: convertMessages(transcript.messages, isOAuth, tools),
@@ -406,7 +406,7 @@ function streamCustomAnthropic(
 				stream: true,
 			};
 
-			// System prompt with Claude Code identity for OAuth
+			// OAuth 模式下使用带有 Claude Code 身份信息的系统提示词。
 			if (isOAuth) {
 				params.system = [
 					{
@@ -436,7 +436,7 @@ function streamCustomAnthropic(
 				params.tools = convertTools(tools, isOAuth);
 			}
 
-			// Handle thinking/reasoning
+			// 处理思考和推理内容。
 			if (options?.reasoning && model.reasoning) {
 				const defaultBudgets: Record<string, number> = {
 					minimal: 1024,
@@ -575,7 +575,7 @@ function streamCustomAnthropic(
 }
 
 // =============================================================================
-// Extension Entry Point
+// 扩展入口。
 // =============================================================================
 
 export default function (pi: ExtensionAPI) {

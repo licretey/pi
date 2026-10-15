@@ -5,7 +5,7 @@ import { SystemEntry } from "../entries.ts";
 import type { ContextEdit, TypedEntryDraft } from "../types.ts";
 import type { ContextView, PromptInput, PromptSection, ToolRegistration } from "./types.ts";
 
-/** Sections in effect after replaying system messages in order: set in place, `null` deletes, re-adding appends. */
+/** 按顺序重放 system 消息后生效的各 section：就地设置，`null` 表示删除，重新添加即追加。 */
 export function replaySections(messages: readonly Message[]): Map<string, string> {
 	const shown = new Map<string, string>();
 	for (const message of messages) {
@@ -19,8 +19,8 @@ export function replaySections(messages: readonly Message[]): Map<string, string
 }
 
 /**
- * Render the agent's sections in order. `undefined` omits a section; tagged text is wrapped as `<key>\n...\n</key>`. A
- * section that throws keeps its shown text, if any, and is reported; errors after `context` is aborted propagate.
+ * 按顺序渲染 agent 的各个 section。返回 `undefined` 表示省略该 section；带标记的文本会包裹为 `<key>\n...\n</key>`。
+ * 抛异常的 section 会保留其已展示的文本（如果有的话）并被上报；`context` 中止之后的错误会向外传播。
  */
 export async function renderSections<Tool extends ToolRegistration>(
 	sections: readonly PromptSection<Tool>[],
@@ -52,16 +52,15 @@ type SystemDraft = TypedEntryDraft<never>;
 type ToolChanges = { readonly toolsRemoved: ToolReference[]; readonly toolsAdded: Tool[] };
 
 /**
- * Plan the `pi.system` entries that make the replayed sections and tools of `view` equal `desired` and `tools` in values
- * and order.
+ * 规划出若干 `pi.system` 条目，使 `view` 重放后的各 section 与工具在值和顺序上都等于 `desired` 与 `tools`。
  *
- * - A head marker with no later `pi.system` entry in context: one complete baseline that omits every retained earlier
- *   `pi.system` entry, written even when it restates the replayed values.
- * - Otherwise, when a minimal section patch would leave a different order: remove every shown section, then re-add
- *   every desired section in order.
- * - Otherwise the minimal patch of changed values and `null` removals, or nothing.
+ * - context 中的 head 标记之后没有更晚的 `pi.system` 条目：写入一条完整基线，省略之前所有已被保留的
+ *   `pi.system` 条目，即使它只是重述重放后的值，也照写不误。
+ * - 否则，当最小的 section 补丁会留下不同顺序时：先移除全部已展示的 section，再按顺序重新添加
+ *   每个 desired section。
+ * - 否则只做修改值与 `null` 删除的最小补丁，或者什么都不写。
  *
- * Tool changes ride on the last planned entry, or on one entry of their own.
+ * 工具变更搭在最后一条规划条目上，或单独占用一条条目。
  */
 export function planSystemEntries(
 	view: ContextView,
@@ -93,9 +92,9 @@ export function planSystemEntries(
 }
 
 /**
- * Tool changes from `offered` to `desired`. A changed declaration is removed and re-added. Replay keeps retained tools
- * in place and appends additions; when that would not yield the desired order, every offered tool is removed and
- * every desired tool re-added in order.
+ * 从 `offered` 到 `desired` 的工具变更。声明有变化者会先移除再重新添加。重放会让保留的工具原位不动、
+ * 新增者追加在尾部；当这样做无法得到期望顺序时，移除全部 offered 工具，再按顺序重新添加
+ * 每个 desired 工具。
  */
 function planTools(offered: readonly Tool[], desired: readonly Tool[]): ToolChanges {
 	const wanted = new Map(desired.map((tool) => [tool.name, tool]));
@@ -118,7 +117,7 @@ function planTools(offered: readonly Tool[], desired: readonly Tool[]): ToolChan
 	};
 }
 
-/** Section patches: none, the minimal patch, or a remove-all/re-add-all pair when the order would differ. */
+/** section 补丁：无、最小补丁，或当顺序会不同时的“先全删/再全加”一对补丁。 */
 function planSections(
 	shown: ReadonlyMap<string, string>,
 	desired: ReadonlyMap<string, string>,

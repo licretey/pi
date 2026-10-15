@@ -6,23 +6,23 @@ export interface OAuthCallback {
 	iss?: string;
 }
 
-/** Outcome shown on the browser page after the redirect. */
+/** 重定向后在浏览器页面上显示的结果。 */
 export type OAuthCallbackPage = { ok: true } | { ok: false; message: string; details?: string };
 
 export interface OAuthCallbackServerOptions {
-	/** Address to listen on. Default: `127.0.0.1`. */
+	/** 监听地址。默认值：`127.0.0.1`。 */
 	host?: string;
 	/**
-	 * Host name in `redirectUrl`, for example `localhost` for a client registered with it while
-	 * listening on `127.0.0.1`. Default: `host`.
+	 * `redirectUrl` 中的主机名。例如，客户端注册使用 `localhost`，实际监听地址为 `127.0.0.1` 时应填写 `localhost`。
+	 * 默认值：`host`。
 	 */
 	redirectHost?: string;
 	port?: number;
 	path?: string;
-	/** More paths that receive the callback, for example a server-specific path of a redirect URI. */
+	/** 其他可接收回调的路径，例如重定向 URI 中服务器专属的路径。 */
 	extraPaths?: string[];
 	timeoutMs?: number;
-	/** Render the browser page as HTML. Default: a plain-text message. */
+	/** 将浏览器页面渲染为 HTML。默认显示纯文本消息。 */
 	renderPage?: (page: OAuthCallbackPage) => string;
 }
 
@@ -87,8 +87,8 @@ export class OAuthCallbackServer {
 	}
 
 	/**
-	 * Wait for the authorization response with `state`. With `path`, a response on another path fails, so
-	 * a server-specific redirect URI can tell authorization servers apart (RFC 9700 section 4.4.2.2).
+	 * 等待带有 `state` 的授权响应。指定 `path` 后，其他路径上的响应会被拒绝；
+	 * 因此可以使用服务器专属的重定向 URI 区分不同授权服务器（RFC 9700 第 4.4.2.2 节）。
 	 */
 	waitForCallback(state: string, path?: string): Promise<OAuthCallback> {
 		if (this.pending.has(state)) throw new Error("OAuth state is already pending");

@@ -1,7 +1,7 @@
 /*
- * Adapted from modelcontextprotocol/typescript-sdk v1.29.0 src/client/auth.ts.
- * Copyright (c) 2024 Anthropic, PBC. Licensed under MIT; see LICENSES/.
- * Modified to remove SDK/Zod dependencies and use WebCrypto for PKCE.
+ * 改编自 modelcontextprotocol/typescript-sdk v1.29.0 src/client/auth.ts。
+ * 版权所有 (c) 2024 Anthropic, PBC。依据 MIT 许可证授权；详见 LICENSES/。
+ * 修改内容：移除 SDK/Zod 依赖，并改用 WebCrypto 实现 PKCE。
  */
 
 import type { AuthProvider, McpFetch, UnauthorizedContext } from "../auth-provider.ts";
@@ -38,7 +38,7 @@ export type AddClientAuthentication = (
 	metadata?: AuthorizationServerMetadata,
 ) => void | Promise<void>;
 
-/** A Client ID Metadata Document: an https URL used as `client_id`, and a redirect URI it lists. */
+/** 一个 Client ID Metadata Document：用作 `client_id` 的 https URL，以及它列出的一个 redirect URI。 */
 export interface OAuthClientMetadataDocument {
 	url: string;
 	redirectUrl: string;
@@ -48,9 +48,9 @@ export interface OAuthClientProvider {
 	readonly redirectUrl: string | URL;
 	readonly clientMetadata: OAuthClientMetadata;
 	/**
-	 * Client ID Metadata Document to identify as instead of registering dynamically, or `undefined` to
-	 * register. Called when no client information is stored; the document is not stored. `metadata` is
-	 * `undefined` when the authorization server has none; check `client_id_metadata_document_supported`.
+	 * 用于自标识的 Client ID Metadata Document，从而不做动态注册；`undefined` 表示
+	 * 注册。在没有存储任何客户端信息时调用；该文档不会被存储。当授权服务器没有提供元数据时
+	 * `metadata` 为 `undefined`；请检查 `client_id_metadata_document_supported`。
 	 */
 	clientMetadataDocument?(metadata: AuthorizationServerMetadata | undefined): OAuthClientMetadataDocument | undefined;
 	state?(): string | Promise<string>;
@@ -70,22 +70,22 @@ export interface OAuthClientProvider {
 export interface OAuthFlowOptions {
 	serverUrl: string | URL;
 	authorizationCode?: string;
-	/** `iss` parameter of the authorization response that delivered `authorizationCode` (RFC 9207). */
+	/** 交付 `authorizationCode` 的授权响应的 `iss` 参数（RFC 9207）。 */
 	iss?: string;
 	scope?: string;
 	resourceMetadataUrl?: URL;
 	/**
-	 * Authorization server metadata document to use instead of discovery, for servers that advertise a
-	 * wrong authorization server or none. It is trusted as configured. Must use https, except on loopback.
+	 * 用来替代服务发现的授权服务器元数据文档，适用于公告了错误授权服务器或完全不公告的
+	 * server。该文档按"已配置"对待而直接信任。必须使用 https，回环地址除外。
 	 */
 	authorizationServerMetadataUrl?: URL;
 	fetch?: McpFetch;
-	/** Aborts every request of the flow. Requests have no time limit of their own; combine with a timeout as needed. */
+	/** 中止流程的每个请求。请求自身没有时间限制；可按需与超时组合使用。 */
 	signal?: AbortSignal;
 	skipIssuerValidation?: boolean;
 	/**
-	 * Go straight to the authorization redirect instead of refreshing stored tokens, for example when the
-	 * server asks for scopes the current grant lacks (a refresh keeps the old scope).
+	 * 直接进入授权重定向，而不是刷新已存储的 token，例如 server 要求当前授权许可（grant）所缺的
+	 * scopes 时（刷新会保留旧 scope）。
 	 */
 	skipRefresh?: boolean;
 }
@@ -107,8 +107,8 @@ function loopback(hostname: string): boolean {
 }
 
 /**
- * The OpenID Connect `application_type` for `redirect_uris` (MCP SEP-837). Without one, OpenID Connect servers
- * assume `web`, which rejects http loopback redirect URIs. Loopback hosts and custom schemes are native (RFC 8252).
+ * `redirect_uris` 的 OpenID Connect `application_type`（MCP SEP-837）。不给时，OpenID Connect server
+ * 会假定 `web`，而后者拒绝 http loopback redirect URI。Loopback 主机与自定义 scheme 天然是 `native`（RFC 8252）。
  */
 function applicationType(redirectUris: readonly string[]): "native" | "web" {
 	const native = redirectUris.some((uri) => {
@@ -231,7 +231,7 @@ async function tokenRequest(
 	try {
 		value = JSON.parse(text);
 	} catch {}
-	// Servers may report OAuth errors with any status, so check the body before the status.
+	// server 可能用任意状态码报告 OAuth 错误，因此先查 body 再查状态码。
 	if (isObject(value) && typeof value.error === "string") {
 		throw new OAuthError(
 			value.error,
@@ -307,9 +307,9 @@ function withScope(tokens: OAuthTokens, scope: string | undefined): OAuthTokens 
 }
 
 /**
- * Scopes for a step-up authorization: the challenged scopes plus the ones granted so far, since a
- * challenge may list only the missing scopes and a token with just those would lose access the old
- * one had (SEP-2350). Without challenged scopes, `undefined` lets the flow pick its default.
+ * 一次 step-up 授权所需的 scopes：被质询（challenge）的 scopes 加上到目前为止已授予的 scopes，因为
+ * challenge 可能只列出缺失的 scopes，而仅含这些的 token 会丢掉旧版
+ * 已有的访问权（SEP-2350）。没有 challenged scopes 时，`undefined` 让流程自行选择默认值。
  */
 export function stepUpScope(granted: string | undefined, challenged: string | undefined): string | undefined {
 	if (!challenged) return undefined;
@@ -319,7 +319,7 @@ export function stepUpScope(granted: string | undefined, challenged: string | un
 
 async function runFlow(provider: OAuthClientProvider, options: OAuthFlowOptions): Promise<OAuthFlowResult> {
 	const metadataUrl = options.authorizationServerMetadataUrl && secureEndpoint(options.authorizationServerMetadataUrl);
-	// With a configured metadata URL, discovery is not cached, so changing the URL applies at once.
+	// 配置了 metadata URL 时不缓存发现结果，因此更换 URL 立即生效。
 	const cached = metadataUrl ? undefined : await provider.discoveryState?.();
 	const discovered = cached?.authorizationServerUrl
 		? {
@@ -348,7 +348,7 @@ async function runFlow(provider: OAuthClientProvider, options: OAuthFlowOptions)
 	}
 	const metadata = discovered.authorizationServerMetadata;
 	const resource = selectResource(options.serverUrl, discovered.resourceMetadata);
-	// `||`, not `??`: an empty scope (for example from `scopes_supported: []`) falls through to the next source.
+	// 用 `||` 而非 `??`：空的 scope（例如来自 `scopes_supported: []`）要落到下一个来源。
 	const scope =
 		options.scope || discovered.resourceMetadata?.scopes_supported?.join(" ") || provider.clientMetadata.scope;
 	const stored = await provider.clientInformation();
@@ -370,7 +370,7 @@ async function runFlow(provider: OAuthClientProvider, options: OAuthFlowOptions)
 		});
 		await provider.saveClientInformation(client);
 	}
-	// The document's redirect URI may differ from the provider's, for example by a server-specific path.
+	// 文档中的 redirect URI 可能与 provider 的不同，例如带有 server 专属路径。
 	const redirectUrl = clientDocument?.redirectUrl ?? provider.redirectUrl;
 	const tokenOptions: TokenRequestOptions = {
 		metadata,
@@ -381,7 +381,7 @@ async function runFlow(provider: OAuthClientProvider, options: OAuthFlowOptions)
 		signal: options.signal,
 	};
 	if (options.authorizationCode) {
-		// RFC 9207: never send a code from another authorization server to this one.
+		// RFC 9207：绝不把别的授权服务器发来的 code 发给这个服务器。
 		const iss = options.iss;
 		if (metadata && (iss !== undefined || metadata.authorization_response_iss_parameter_supported)) {
 			if (iss !== metadata.issuer) throw new OAuthIssuerMismatchError(metadata.issuer, iss);
@@ -392,8 +392,8 @@ async function runFlow(provider: OAuthClientProvider, options: OAuthFlowOptions)
 			codeVerifier: await provider.codeVerifier(),
 			redirectUrl,
 		});
-		// A response without `scope` grants the requested scope (RFC 6749 §5.1). Recorded so a step-up can
-		// keep it. Callers pass the options of the authorization request, so `scope` is what was requested.
+		// 没有 `scope` 的响应意味着授予了所请求的 scope（RFC 6749 §5.1）。记录下来，让 step-up 可以
+		// 保留它。调用方传入的是授权请求的 options，因此 `scope` 就是所请求的内容。
 		await provider.saveTokens(withScope(tokens, scope));
 		return "AUTHORIZED";
 	}
@@ -404,7 +404,7 @@ async function runFlow(provider: OAuthClientProvider, options: OAuthFlowOptions)
 				...tokenOptions,
 				refreshToken: existing.refresh_token,
 			});
-			// A refresh without `scope` keeps the scope of the grant (RFC 6749 §6).
+			// 不带 `scope` 的刷新会保留该授权许可（grant）的 scope（RFC 6749 §6）。
 			await provider.saveTokens(withScope(tokens, existing.scope));
 			return "AUTHORIZED";
 		} catch (error) {
@@ -443,10 +443,10 @@ export async function authorizeMcp(provider: OAuthClientProvider, options: OAuth
 }
 
 /**
- * Auth provider for `StreamableHttpTransport`. After a 401 it refreshes the tokens, or throws
- * `McpOAuthAuthorizationRequiredError` when the user has to authorize (again). Concurrent 401s share
- * one refresh, and a request whose token was already replaced is just retried: with rotating refresh
- * tokens, a second refresh with the old refresh token would fail and discard the new grant.
+ * `StreamableHttpTransport` 的 auth provider。收到 401 后刷新 token，或在用户需要（重新）授权时抛
+ * `McpOAuthAuthorizationRequiredError`。并发的 401 共享
+ * 同一次刷新；token 已被替换的请求只是重试即可：在旋转式（rotating）refresh token
+ * 下，用旧 refresh token 做第二次刷新会失败并丢弃新的授权许可。
  */
 export function adaptOAuthProvider(provider: OAuthClientProvider): AuthProvider {
 	let inFlight: Promise<void> | undefined;

@@ -15,13 +15,12 @@ import { Models, type Models as ModelsService, type ModelsState } from "./models
 export interface ModelsServiceRuntime {
 	readonly service: ModelsService;
 	activate(context: Context): Promise<void>;
-	/** Publish the agent document's model and thinking level when they changed. */
+	/** 代理文档中的模型或思考级别发生变化时发布更新。 */
 	syncConfiguration(context: Context): void;
 }
 
 /**
- * The Models service over one conversation. `agent` is the conversation's replicated `pi.agent` document: its
- * configuration follows every change, also those made by other clients.
+ * 面向单个会话的 Models 服务。`agent` 是会话复制的 `pi.agent` 文档，其配置会同步所有变更，包括其他客户端所做的修改。
  */
 export function createModelsService(
 	conversation: Conversation,
@@ -135,7 +134,7 @@ export function createModelsService(
 	};
 }
 
-/** Acquire the conversation's agent document, then build the facet that owns it. */
+/** 获取会话的代理文档，然后构建负责管理该文档的功能面。 */
 export async function createModelsServiceFacet(options: {
 	readonly harness: Harness;
 	readonly conversation: Conversation;

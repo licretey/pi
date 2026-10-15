@@ -1,7 +1,7 @@
 /**
- * Context Files (AGENTS.md)
+ * 上下文文件（AGENTS.md）
  *
- * Context files provide project-specific instructions loaded into the system prompt.
+ * 上下文文件提供项目专属指令，这些指令会加载到系统提示词中。
  */
 
 import {
@@ -11,7 +11,7 @@ import {
 	SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
-// Disable context files entirely by returning an empty list in agentsFilesOverride.
+// 在 agentsFilesOverride 中返回空列表，即可完全禁用上下文文件。
 const loader = new DefaultResourceLoader({
 	cwd: process.cwd(),
 	agentDir: getAgentDir(),
@@ -32,7 +32,7 @@ const loader = new DefaultResourceLoader({
 });
 await loader.reload();
 
-// Discover AGENTS.md files walking up from cwd
+// 从 cwd 开始向上查找 AGENTS.md 文件
 const discovered = loader.getAgentsFiles().agentsFiles;
 console.log("Discovered context files:");
 for (const file of discovered) {

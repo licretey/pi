@@ -7,7 +7,7 @@ export function setupCli(): void {
 	process.env.AI_AGENT = "pi";
 	process.emitWarning = (() => {}) as typeof process.emitWarning;
 
-	// Configure undici before provider SDKs issue requests. Settings are applied
-	// once SettingsManager has loaded global/project configuration.
+	// 在提供方 SDK 发起请求前配置 undici。SettingsManager 加载全局/项目配置后，
+	// 这些设置会应用于后续请求。
 	configureHttpDispatcher();
 }

@@ -57,12 +57,12 @@ import { prepareForkDocumentCopies } from "./forks.ts";
 
 type AnyTaskRecord = TaskRecord<JsonValue, JsonValue, JsonValue>;
 
-/** A staged submission change: a settlement, or the placement of a queued submission at its entry. */
+/** 暂存的提交变更：一次结算（settlement），或将排队提交放置到其条目上。 */
 type SubmissionChange = SubmissionSettlement | { readonly status: "placed"; readonly entry: EntryId };
 
 /**
- * Complete record after applying one change. Placement turns a queued input `placed` and a queued write `done`; only a
- * placed input can be answered. A settled record stays.
+ * 应用一次变更后的完整记录。放置操作使排队的输入变为 `placed`、排队的写入变为 `done`；只有已放置的输入才能被
+ * 回答。已结算的记录保持不变。
  */
 function applySubmissionChange(current: SubmissionRecord, change: SubmissionChange): SubmissionRecord {
 	if (current.status === "done" || current.status === "unanswered") return current;
@@ -74,7 +74,7 @@ function applySubmissionChange(current: SubmissionRecord, change: SubmissionChan
 	if (change.status === "done" && current.status !== "placed") {
 		throw new Error(`Submission ${current.id} is not a placed input`);
 	}
-	// Queued and placed records carry no answer, reason, or detail; an unanswered input keeps its entry.
+	// 排队和已放置的记录不携带 answer、reason 或 detail；未回答的输入保留其条目。
 	return { ...current, ...change } as SubmissionRecord;
 }
 
@@ -82,56 +82,56 @@ const INTERNAL_SCAN_PAGE_SIZE = 256;
 const EMPTY_OPERATIONS: readonly Op[] = [];
 const TABLE_JSON_COPY_OPTIONS = { omitUndefinedProperties: true } as const;
 
-/** One committed document incarnation owned by the Session tracker cache. */
+/** Session 跟踪器缓存拥有的一个已提交文档化身（incarnation）。 */
 export type LoadedDocument = {
 	readonly addressId: string;
 	readonly record: DocumentRecord;
-	/** Persisted definition version; older while the tracked value is migrated only in memory. */
+	/** 已持久化的定义版本；当被跟踪的值仅在内存中迁移时，该值保持较旧。 */
 	storedVersion: number;
-	/** Definition version whose shape the tracked value has; access with another version reloads from Storage. */
+	/** 被跟踪的值当前所处形态对应的定义版本；以其他版本访问会从存储重新加载。 */
 	readonly valueVersion: number;
-	/** Stored deltas after the newest base; advanced by adoption so the next predicate call needs no read. */
+	/** 最新基线（base）之后已存储的增量数；由 adoption 推进，使下一次谓词调用无需读取。 */
 	deltasSinceBase: number;
 	readonly tracker: Tracker<JsonObject>;
 };
 
-/** Session services used by a transaction while it holds the mutation line. */
+/** 事务在持有变更线（mutation line）期间使用的 Session 服务。 */
 export interface TransactionHost {
 	readonly storage: Storage;
-	/** Wall clock for task lifecycle times. */
+	/** 用于任务生命周期时间的墙钟。 */
 	now(): number;
-	/** Return the cached current incarnation without loading. */
+	/** 返回缓存中的当前化身，不做加载。 */
 	cached(addressId: string): LoadedDocument | undefined;
-	/** Return the cached current incarnation, cold-loading and migrating it when necessary. */
+	/** 返回缓存中的当前化身，必要时进行冷加载并迁移。 */
 	load(
 		definition: AnyDocDefinition,
 		addressId: string,
 		address: DocumentAddress,
 		context: Context,
 	): Promise<LoadedDocument | undefined>;
-	/** Install a newly committed incarnation. */
+	/** 安装一个新提交的化身。 */
 	install(document: LoadedDocument): void;
-	/** Remove a retired incarnation if it is still the cached occupant of its address. */
+	/** 若某地址在缓存中仍由该化身占据，则移除这个已退役（retired）的化身。 */
 	evict(addressId: string, recordId: DocumentId): void;
-	/** Stage writes that belong to every newly created or forked conversation, in its creating transaction. */
+	/** 在创建事务中，为每个新建或分叉的会话暂存其专属的写入。 */
 	conversationCreated(tx: Transaction, record: ConversationRecord): Promise<void>;
 }
 
-/** Committed and candidate state for one task touched by this transaction. */
+/** 本事务触及的每个任务的已提交状态与候选状态。 */
 type TransactionTask = {
 	committedRead?: Promise<AnyTaskRecord | undefined>;
 	write?: { readonly kind: "create" | "replace"; readonly record: AnyTaskRecord };
 	publicationConversationId?: ConversationId;
 };
 
-/** Defaults a commit binds to: `tx.createTask()` conversation and the task attributed to appended entries. */
+/** 提交绑定的默认值：`tx.createTask()` 的会话，以及追加条目归属的任务。 */
 export type TransactionScope = {
 	readonly conversationId?: ConversationId;
-	/** Task whose runtime commit this is; stamped as `byTaskId` on appended entries. */
+	/** 本次提交所属任务运行时的 ID；会以 `byTaskId` 戳记在追加的条目上。 */
 	readonly taskId?: TaskId;
 };
 
-/** Storage/cache provenance of one staged document incarnation. */
+/** 一个暂存文档化身的来源（存储或缓存）。 */
 type DocumentTarget =
 	| { readonly kind: "loaded"; readonly document: LoadedDocument }
 	| {
@@ -147,15 +147,15 @@ type DocumentTarget =
 	  }
 	| { readonly kind: "retire-only"; readonly record: DocumentRecord };
 
-/** One document incarnation acquired, created, or retired by this transaction. */
+/** 本事务获取、创建或退役的一个文档化身。 */
 type DocumentEntry = {
 	readonly addressId: string;
 	readonly address: DocumentAddress;
-	/** Absent for definition-free fork copies and retirement entries discovered by a terminal-task scan. */
+	/** 无定义的分叉副本与终端任务扫描发现的退役条目没有此字段。 */
 	definition?: AnyDocDefinition;
-	/** Memoized public acquisition; absent for metadata-only retirement. */
+	/** 已记忆化的公开获取（acquisition）；仅元数据的退役没有此字段。 */
 	draftPromise?: Promise<Draft<JsonObject>>;
-	/** Set after acquisition or retirement lookup finds the affected incarnation. */
+	/** 获取或退役查找找到受影响的化身之后设置。 */
 	target?: DocumentTarget;
 	change?: Change<JsonObject>;
 	prepared?: Prepared<JsonObject>;
@@ -163,33 +163,33 @@ type DocumentEntry = {
 };
 
 /**
- * What one staged incarnation writes and publishes, decided once before Storage admission so adoption only applies it.
- * `record` is a `DocumentRecord` for an incarnation that is already committed and a `DocumentCreate` for a new one.
+ * 一个暂存化身要写入与发布的内容，在写入存储之前一次性确定，adoption 只负责落实。
+ * `record` 对已提交的化身是 `DocumentRecord`，对新化身是 `DocumentCreate`。
  */
 type DocumentPlan = {
 	readonly addressId: string;
 	readonly record: DocumentCreate | DocumentRecord;
 	retire: boolean;
-	/** Creation, copy, or change content; absent when only retirement is written. */
+	/** 创建、复制或变更的内容；仅写退役时没有此字段。 */
 	content?: Extract<StorageWrite, { readonly type: "document.create" | "document.copy" | "document.change" }>;
-	/** Prepared change of a tracked incarnation; absent for fork copies and retirement-only entries. */
+	/** 被跟踪化身的已准备（prepared）变更；分叉副本与仅退役条目没有此字段。 */
 	readonly change?: {
 		readonly tracker: Tracker<JsonObject>;
 		readonly prepared: Prepared<JsonObject>;
 		readonly version: number;
-		/** The cached incarnation this change updates; absent when it creates one. */
+		/** 此变更所更新的缓存化身；创建新化身时没有此字段。 */
 		readonly loaded?: LoadedDocument;
 		readonly definition?: AnyDocDefinition;
 	};
-	/** Resolved before Storage admission so adoption performs no reads. */
+	/** 在写入存储之前解析，使 adoption 不执行任何读取。 */
 	conversationId?: ConversationId;
 };
 
 /**
- * Transaction for one Session commit callback.
+ * 一个 Session 提交回调对应的事务。
  *
- * Every asynchronous operation is tracked so callback settlement can reject and drain unfinished work. Session calls
- * one settlement method, then either discards prepared changes or adopts them once after Storage succeeds.
+ * 每个异步操作都会被跟踪，以便回调落定时能拒绝并清空未完成的工作。Session 调用一个落定方法，随后要么丢弃
+ * 已准备的变更，要么在存储成功后一次性采纳它们。
  */
 export class Transaction implements Tx {
 	readonly #host: TransactionHost;
@@ -199,23 +199,23 @@ export class Transaction implements Tx {
 	#sealed = false;
 	#hasTableWrite = false;
 
-	/** Atomic batch; conversation and entry writes stage eagerly, while task and document writes assemble later. */
+	/** 原子批次；会话与条目写入即刻暂存，任务与文档写入在组装阶段才生成。 */
 	readonly #writes: StorageWrite[] = [];
 	readonly #createdConversationIds = new Set<ConversationId>();
 	readonly #forkSourceConversationIds = new Set<ConversationId>();
 	readonly #forkSourceDocumentIds = new Set<DocumentId>();
-	/** One entry per task touched by a public read, candidate write, or document-owner lookup. */
+	/** 每个被公开读取、候选写入或文档所有者查找触及的任务对应一个条目。 */
 	readonly #tasksById = new Map<TaskId, TransactionTask>();
-	/** Submissions created by this transaction, by ID. */
+	/** 本事务创建的提交，按 ID 索引。 */
 	readonly #submissions = new Map<SubmissionId, SubmissionRecord>();
-	/** Submission settlements and placements in staging order; resolved against the latest candidate record during assembly. */
+	/** 按暂存顺序记录的提交结算与放置；组装期间针对最新候选记录解析。 */
 	readonly #submissionChanges: { readonly id: SubmissionId; readonly change: SubmissionChange }[] = [];
 
-	/** Write and publication plans of every staged incarnation, built during assembly. */
+	/** 每个暂存化身的写入与发布计划，在组装期间构建。 */
 	readonly #plans: DocumentPlan[] = [];
-	/** Every document acquisition or retirement marker in staging order. */
+	/** 按暂存顺序记录的每一次文档获取或退役标记。 */
 	readonly #documents: DocumentEntry[] = [];
-	/** Latest transaction-local incarnation or retirement marker at each logical address. */
+	/** 每个逻辑地址上最新的本事务局部化身或退役标记。 */
 	readonly #latestDocumentByAddress = new Map<string, DocumentEntry>();
 
 	constructor(host: TransactionHost, context: Context, scope: TransactionScope = {}) {
@@ -224,7 +224,7 @@ export class Transaction implements Tx {
 		this.#scope = scope;
 	}
 
-	// ─── Table reads ────────────────────────────────────────────────────────
+	// ─── 表读取 ────────────────────────────────────────────────────────
 
 	conversation(id: ConversationId): Promise<ConversationRecord | undefined> {
 		return this.#read("conversation", () => this.#host.storage.conversation(id, this.#context));
@@ -265,25 +265,25 @@ export class Transaction implements Tx {
 		return this.#read("scanTasks", () => this.#host.storage.scanTasks(query, limit, cursor, this.#context));
 	}
 
-	/** Internal: committed submission record. */
+	/** 内部：已提交的 submission 记录。 */
 	submission(id: SubmissionId): Promise<SubmissionRecord | undefined> {
 		return this.#read("submission", () => this.#host.storage.submission(id, this.#context));
 	}
 
-	/** Committed submission with a conversation-scoped request ID. */
+	/** 已提交的 submission，带有会话作用域的请求 ID。 */
 	submissionByRequest(conversationId: ConversationId, requestId: string): Promise<SubmissionRecord | undefined> {
 		return this.#read("submissionByRequest", () =>
 			this.#host.storage.submissionByRequest(conversationId, requestId, this.#context),
 		);
 	}
 
-	// ─── Table writes ───────────────────────────────────────────────────────
+	// ─── 表写入 ───────────────────────────────────────────────────────
 
 	createConversation(options: { readonly ownership: ConversationOwnership }): Promise<ConversationRecord> {
 		return this.#write(() => this.#stageConversation(undefined, options.ownership));
 	}
 
-	/** Internal final-form bootstrap path for the reserved root identity. */
+	/** 内部：保留的根身份使用的最终形态引导路径。 */
 	createRootConversation(): Promise<ConversationRecord> {
 		return this.#write(() => this.#stageConversation(undefined, { kind: "ownerless" }, ROOT_CONVERSATION_ID));
 	}
@@ -364,7 +364,7 @@ export class Transaction implements Tx {
 			const id = await this.#host.storage.mintId<EntryId>();
 			this.#assertOpen();
 			const { head, ...rest } = value;
-			// Undefined `head` and `byTaskId` are omitted by the copy.
+			// 未定义的 `head` 和 `byTaskId` 会在拷贝时被省略。
 			const record = copyJson(
 				{
 					...rest,
@@ -389,7 +389,7 @@ export class Transaction implements Tx {
 			const ownership = options.ownership;
 			let owner: AnyTaskRecord | undefined;
 			if (ownership.kind === "task") {
-				// Validated again against the owner's final candidate during assembly.
+				// 组装期间会再对照所有者的最终候选记录校验一次。
 				owner = await this.#currentTask(ownership.taskId);
 				this.#assertOpen();
 				if (owner === undefined) throw new Error(`Task owner ${ownership.taskId} does not exist`);
@@ -426,7 +426,7 @@ export class Transaction implements Tx {
 		});
 	}
 
-	/** Create a raw submission record with a fresh ID; no admission rules apply. */
+	/** 用新 ID 创建一条原始 submission 记录；不适用任何准入规则。 */
 	createSubmission(create: SubmissionCreate): Promise<SubmissionRecord> {
 		return this.#write(async () => {
 			await this.#requireConversation(create.conversationId);
@@ -440,8 +440,8 @@ export class Transaction implements Tx {
 	}
 
 	/**
-	 * Settle a submission. Resolved during assembly against the transaction's latest candidate record, falling back to
-	 * committed state, so it is not a caller table read and works after the first table write.
+	 * 结算一个 submission。组装期间针对事务内最新的候选记录解析，并回退到已提交状态，因此它不属于调用方的
+	 * 表读取，也能在首次表写入之后使用。
 	 */
 	settleSubmission(id: SubmissionId, settlement: SubmissionSettlement): void {
 		this.#assertOpen();
@@ -449,14 +449,14 @@ export class Transaction implements Tx {
 		this.#submissionChanges.push({ id, change: copyJson(settlement) as SubmissionSettlement });
 	}
 
-	/** Place a queued submission at `entry`; resolved during assembly like `settleSubmission()`. */
+	/** 将排队的 submission 放置到 `entry`；与 `settleSubmission()` 一样在组装期间解析。 */
 	placeSubmission(id: SubmissionId, entry: EntryId): void {
 		this.#assertOpen();
 		this.#hasTableWrite = true;
 		this.#submissionChanges.push({ id, change: { status: "placed", entry } });
 	}
 
-	/** Internal: replace one task record completely. Tasks change their own state through their runtime. */
+	/** 内部：完整替换一条任务记录。任务通过自身运行时改变其状态。 */
 	setTask(value: AnyTaskRecord): void {
 		this.#assertOpen();
 		this.#hasTableWrite = true;
@@ -474,21 +474,21 @@ export class Transaction implements Tx {
 		};
 	}
 
-	/** Internal: candidate records of the tasks this transaction created or replaced so far. */
+	/** 内部：本事务到目前为止创建或替换的任务的候选记录。 */
 	stagedTasks(): AnyTaskRecord[] {
 		const records: AnyTaskRecord[] = [];
 		for (const task of this.#tasksById.values()) if (task.write !== undefined) records.push(task.write.record);
 		return records;
 	}
 
-	/** Internal: conversations this transaction created or forked so far. */
+	/** 内部：本事务到目前为止创建或分叉的会话。 */
 	stagedConversations(): ConversationRecord[] {
 		const records: ConversationRecord[] = [];
 		for (const write of this.#writes) if (write.type === "conversation") records.push(write.value);
 		return records;
 	}
 
-	// ─── Documents ──────────────────────────────────────────────────────────
+	// ─── 文档 ──────────────────────────────────────────────────────────
 	doc<T extends JsonObject>(token: SessionDocToken<T>): Promise<Draft<T>>;
 	doc<T extends JsonObject>(token: ConversationDocToken<T>, conversationId: ConversationId): Promise<Draft<T>>;
 	doc<T extends JsonObject>(token: TaskDocToken<T>, taskId: TaskId): Promise<Draft<T>>;
@@ -532,7 +532,7 @@ export class Transaction implements Tx {
 			};
 			this.#documents.push(docEntry);
 			this.#latestDocumentByAddress.set(docEntry.addressId, docEntry);
-			// Capture retirement before awaiting so a pending old acquisition and its replacement stay distinct.
+			// 在 await 之前记录退役意图，使未完成的旧获取与它的替换者保持区分。
 			docEntry.draftPromise = this.#track(this.#acquire(docEntry, seed, latest?.retireOnCommit === true));
 			return docEntry.draftPromise;
 		} catch (error) {
@@ -567,7 +567,7 @@ export class Transaction implements Tx {
 				return Promise.resolve();
 			}
 			if (latest?.draftPromise !== undefined) {
-				// Retirement of an acquired draft persists its final content before retirement.
+				// 退役一个已获取的草稿会先持久化其最终内容再退役。
 				latest.retireOnCommit = true;
 				return this.#track(latest.draftPromise.then(() => undefined));
 			}
@@ -659,9 +659,7 @@ export class Transaction implements Tx {
 		entry.target = { kind: "retire-only", record };
 	}
 
-	// ─── Settlement ─────────────────────────────────────────────────────────
-
-	/** Seal after callback failure: abort every change and observe every pending operation. */
+	// ─── 结算 ─────────────────────────────────────────────────────────
 	async settleFailure(): Promise<void> {
 		this.#sealed = true;
 		this.#abortChanges();
@@ -669,8 +667,8 @@ export class Transaction implements Tx {
 	}
 
 	/**
-	 * Seal after callback success, prepare every open change, and assemble the atomic batch.
-	 * Any failure aborts every change before Storage admission.
+	 * 回调成功后封印（seal），准备每一个未决变更，并组装原子批次。
+	 * 任何失败都会在写入存储之前中止所有变更。
 	 */
 	async settleSuccess(): Promise<readonly StorageWrite[]> {
 		this.#sealed = true;
@@ -680,7 +678,7 @@ export class Transaction implements Tx {
 			throw new Error("Session commit callback settled before its pending Tx operations");
 		}
 		try {
-			// Synchronously prepare every open change; this revokes every draft.
+			// 同步准备每一个未决变更；这会撤销每一个草稿。
 			for (const document of this.#documents) {
 				if (document.change !== undefined) document.prepared = document.change.prepare();
 			}
@@ -691,12 +689,12 @@ export class Transaction implements Tx {
 		}
 	}
 
-	/** Abort every prepared change after Storage failure or when no write is required. */
+	/** 存储失败后或无需写入时，中止每一个已准备的变更。 */
 	discard(): void {
 		this.#abortChanges();
 	}
 
-	/** Adopt every prepared change by pointer swap after Storage success and describe the publication. */
+	/** 存储成功后通过指针交换采纳每一个已准备的变更，并描述发布内容。 */
 	adopt(seq: Seq): DocumentCommitChange[] {
 		const publications: DocumentCommitChange[] = [];
 		for (const plan of this.#plans) {
@@ -706,7 +704,7 @@ export class Transaction implements Tx {
 			const change = plan.change;
 			if (change !== undefined) {
 				const { tracker, prepared, loaded, version } = change;
-				// A new incarnation is adopted unless it retires in the same commit; a loaded one only when it changed.
+				// 新化身会被采纳，除非它在同一次提交中退役；已加载的化身只有发生变更时才被采纳。
 				if (loaded === undefined ? !plan.retire : prepared.ops.length > 0) tracker.adopt(prepared);
 				else prepared.abort();
 				if (loaded !== undefined) {
@@ -772,7 +770,7 @@ export class Transaction implements Tx {
 			}
 		}
 
-		// Terminal settlement retires every task document, including ones created by this transaction.
+		// 终端结算会退役每一个任务文档，包括本事务创建的那些。
 		const terminalTaskIds = new Set<TaskId>();
 		for (const task of this.#tasksById.values()) {
 			if (task.write?.record.state.status === "terminal") terminalTaskIds.add(task.write.record.id);
@@ -805,7 +803,7 @@ export class Transaction implements Tx {
 			}
 		}
 
-		// Resolve publication ownership before Storage admission so adoption remains synchronous.
+		// 在写入存储之前解析发布归属，使 adoption 保持同步。
 		for (const plan of plans) {
 			if (!publishes(plan)) continue;
 			const scope = plan.record.scope;
@@ -833,7 +831,7 @@ export class Transaction implements Tx {
 		}
 		for (const plan of plans) {
 			const change = plan.change;
-			// Checkpoint predicates run last, after every validation.
+			// 检查点谓词最后运行，在所有校验之后。
 			if (plan.content?.type === "document.change" && plan.content.content.kind === "delta" && change?.loaded) {
 				const { prepared, version } = change;
 				const info = { deltasSinceBase: change.loaded.deltasSinceBase };
@@ -847,11 +845,11 @@ export class Transaction implements Tx {
 		return writes;
 	}
 
-	// ─── Helpers ────────────────────────────────────────────────────────────
+	// ─── 辅助方法 ────────────────────────────────────────────────────────────
 
 	/**
-	 * New owned work needs a live owner, judged on the owner's final candidate: not `completing`, terminal, or
-	 * abort-marked. A task therefore cannot create owned work in the commit that finishes it (spec §5.5).
+	 * 新的任务资产需要一个活跃的所有者，以所有者的最终候选记录为准：不能是 `completing`、terminal 或
+	 * 已标记中止。因此任务无法在终结它自己的那次提交中创建任务资产（spec §5.5）。
 	 */
 	async #validateOwners(): Promise<void> {
 		const owners: { readonly what: string; readonly taskId: TaskId }[] = [];
@@ -909,7 +907,7 @@ export class Transaction implements Tx {
 		}
 	}
 
-	/** Register an operation so callback settlement can reject and drain it. */
+	/** 登记一个操作，使回调结算能够拒绝并清空它。 */
 	#track<T>(operation: Promise<T>): Promise<T> {
 		this.#pendingOperations.add(operation);
 		const settle = (): void => {
@@ -947,8 +945,8 @@ export class Transaction implements Tx {
 	}
 
 	/**
-	 * Lifecycle times: `startedAt` on the first change to `running`, `endedAt` on the change to `terminal`. Once set,
-	 * they carry over from the replaced record; records written before they existed lack them.
+	 * 生命周期时间：首次变为 `running` 时记录 `startedAt`，变为 `terminal` 时记录 `endedAt`。一旦设置，它们会从
+	 * 被替换的记录延续下来；早于这些字段存在的记录则没有它们。
 	 */
 	#stampTimes(value: AnyTaskRecord, candidate: AnyTaskRecord | undefined): AnyTaskRecord {
 		const status = value.state.status;
@@ -972,7 +970,7 @@ export class Transaction implements Tx {
 		return task;
 	}
 
-	/** Latest candidate task record, falling back to committed state; not a caller table read. */
+	/** 最新的候选任务记录，回退到已提交状态；不属于调用方的表读取。 */
 	async #currentTask(id: TaskId): Promise<AnyTaskRecord | undefined> {
 		return this.#tasksById.get(id)?.write?.record ?? (await this.#committedTask(id));
 	}
@@ -984,7 +982,7 @@ export class Transaction implements Tx {
 	}
 }
 
-/** Plan of one staged document: its record, content write, and prepared change. Retirement is decided later. */
+/** 一个暂存文档的计划：记录、内容写入和已准备的变更。退役稍后决定。 */
 function planDocument(document: DocumentEntry): DocumentPlan | undefined {
 	const target = document.target;
 	if (target === undefined) return undefined;
@@ -1015,7 +1013,7 @@ function planDocument(document: DocumentEntry): DocumentPlan | undefined {
 			const prepared = document.prepared!;
 			const version = definition.version;
 			const id = loaded.record.id;
-			// A version change stores a base even without operations; otherwise only a change stores a delta.
+			// 版本变更即使没有操作也会存储基线；否则只有变更才存储增量。
 			const content =
 				loaded.storedVersion < version
 					? ({ type: "document.change", id, content: { version, kind: "base", value: prepared.value } } as const)
@@ -1035,8 +1033,8 @@ function planDocument(document: DocumentEntry): DocumentPlan | undefined {
 }
 
 /**
- * Whether adoption publishes the plan: every creation, copy, and retirement, and a loaded incarnation that writes
- * content, which includes a migration-only base so observers of the older shape receive the new value.
+ * adoption 是否发布该计划：所有创建、复制和退役，以及写入内容的已加载化身——这包括仅用于迁移的基线，
+ * 使旧形态的观察者能收到新值。
  */
 function publishes(plan: DocumentPlan): boolean {
 	return plan.retire || plan.change?.loaded === undefined || plan.content !== undefined;

@@ -14,7 +14,7 @@ interface Observer {
 	closed: boolean;
 }
 
-/** Owns keyed instance lifetime and the cancellable tasks observing those instances. */
+/** 管理键控实例的生命周期，以及用于观察这些实例的可取消任务。 */
 export class InstanceDirectory<TEntry extends InstanceDirectoryEntry> {
 	readonly #entries = new Map<string, TEntry>();
 	readonly #observers = new Set<Observer>();

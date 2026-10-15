@@ -1,6 +1,6 @@
 import { createInMemoryModelRegistry, createModelRegistry, getModelRuntime } from "../model-runtime-test-utils.ts";
 /**
- * Local test harness for the new coding-agent test suite.
+ * coding-agent 新测试套件使用的本地测试框架。
  */
 
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -62,7 +62,7 @@ export function getAssistantTexts(harness: Harness): string[] {
 		.map((message) => getMessageText(message));
 }
 
-/** The latest result of `toolName` in the session transcript. */
+/** 会话记录中 `toolName` 对应的最新工具结果。 */
 export function getToolResult(harness: Harness, toolName: string): ToolResultMessage {
 	const result = harness.session.messages.findLast(
 		(message): message is ToolResultMessage => message.role === "toolResult" && message.toolName === toolName,
@@ -71,7 +71,7 @@ export function getToolResult(harness: Harness, toolName: string): ToolResultMes
 	return result;
 }
 
-/** An extension UI context that does nothing, with `overrides` applied. */
+/** 默认不执行操作的扩展 UI 上下文，并应用 `overrides` 中的覆盖项。 */
 export function createTestUiContext(overrides: Partial<ExtensionUIContext> = {}): ExtensionUIContext {
 	return {
 		select: async () => undefined,
@@ -119,7 +119,7 @@ export interface HarnessOptions {
 	extensionFactories?: Array<InlineExtension | CreateTestExtensionsResultInput>;
 	withConfiguredAuth?: boolean;
 	modelsJson?: Record<string, unknown>;
-	/** Session to continue, for example to test a resume. Default: a new in-memory session. */
+	/** 要继续的会话，例如用于测试恢复流程。默认值：新建内存会话。 */
 	sessionManager?: SessionManager;
 }
 

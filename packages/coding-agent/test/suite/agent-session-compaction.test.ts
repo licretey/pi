@@ -282,7 +282,7 @@ describe("AgentSession compaction characterization", () => {
 	it("throws when compacting without configured auth", async () => {
 		const harness = await createHarness({ withConfiguredAuth: false });
 		harnesses.push(harness);
-		// Auth is resolved only when Pi summarizes itself, after checking there is something to compact.
+		// 确认存在可压缩内容后，只有由 Pi 自行生成摘要时才会解析身份验证信息。
 		seedCompactableSession(harness);
 
 		await expect(harness.session.compact()).rejects.toThrow(`No API key found for ${harness.getModel().provider}.`);
@@ -356,7 +356,7 @@ describe("AgentSession compaction characterization", () => {
 		expect(transformContext).not.toHaveBeenCalled();
 		expect(getCurrentSystemPrompt(requestContext?.messages ?? [])).not.toBe(harness.session.agent.state.systemPrompt);
 		expect(getCurrentTools(requestContext?.messages ?? [])).toEqual([]);
-		// Regression test for #9652: split-turn summaries use a clear Markdown conversation boundary.
+		// #9652 回归测试：拆分轮次的摘要使用清晰的 Markdown 对话边界。
 		expect(JSON.stringify(requestContext?.messages)).toContain("# Conversation\\n[User]: message to compact");
 		expect(requestOptions).toMatchObject({ cacheRetention: "none" });
 		expect(requestOptions?.sessionId).not.toBe("active-routing-session");
@@ -473,8 +473,8 @@ describe("AgentSession compaction characterization", () => {
 		expect(harness.session.getLastAssistantText()).toBe("completed response");
 	});
 
-	// Regression coverage for #8133: model overrides must also apply between assistant turns.
-	// Regression coverage for #9740: an oversized trailing tool result must still produce a cut point.
+	// #8133 回归测试：模型覆盖设置也必须应用于助手轮次之间。
+	// #9740 回归测试：末尾工具结果过大时仍必须生成截断点。
 	it.each([false, true])(
 		"compacts after an oversized tool result in the same run (model override: %s)",
 		async (modelOverride) => {
@@ -744,7 +744,7 @@ describe("AgentSession compaction characterization", () => {
 		await compactExpectation;
 	});
 
-	// Regression test for #8920.
+	// #8920 回归测试。
 	it("aborts an in-progress manual compaction and waits until the session is idle", async () => {
 		const { harness, compactionStarted } = await createAbortableCompactionHarness();
 		harnesses.push(harness);

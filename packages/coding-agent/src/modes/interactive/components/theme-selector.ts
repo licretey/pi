@@ -8,7 +8,7 @@ const THEME_SELECT_LIST_LAYOUT: SelectListLayoutOptions = {
 };
 
 /**
- * Component that renders a theme selector
+ * 用于呈现主题选择器的组件。
  */
 export class ThemeSelectorComponent extends Container {
 	private selectList: SelectList;
@@ -23,7 +23,7 @@ export class ThemeSelectorComponent extends Container {
 		super();
 		this.onPreview = onPreview;
 
-		// Get available themes and create select items
+		// 获取可用主题并创建选择项。
 		const themes = getAvailableThemes();
 		const themeItems: SelectItem[] = themes.map((name) => ({
 			value: name,
@@ -31,13 +31,13 @@ export class ThemeSelectorComponent extends Container {
 			description: name === currentTheme ? "(current)" : undefined,
 		}));
 
-		// Add top border
+		// 添加顶部边框。
 		this.addChild(new DynamicBorder());
 
-		// Create selector
+		// 创建选择器。
 		this.selectList = new SelectList(themeItems, 10, getSelectListTheme(), THEME_SELECT_LIST_LAYOUT);
 
-		// Preselect current theme
+		// 预选当前主题。
 		const currentIndex = themes.indexOf(currentTheme);
 		if (currentIndex !== -1) {
 			this.selectList.setSelectedIndex(currentIndex);
@@ -57,7 +57,7 @@ export class ThemeSelectorComponent extends Container {
 
 		this.addChild(this.selectList);
 
-		// Add bottom border
+		// 添加底部边框。
 		this.addChild(new DynamicBorder());
 	}
 

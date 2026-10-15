@@ -1,8 +1,8 @@
 /**
- * Skills Configuration
+ * 技能配置。
  *
- * Skills provide specialized instructions loaded into the system prompt.
- * Discover, filter, merge, or replace them.
+ * 技能提供专门的指令，并会加载到系统提示中。
+ * 可发现、筛选、合并或替换这些指令。
  */
 
 import {
@@ -14,7 +14,7 @@ import {
 	type Skill,
 } from "@earendil-works/pi-coding-agent";
 
-// Or define custom skills inline
+// 也可以直接在代码中定义自定义技能。
 const customSkill: Skill = {
 	name: "my-skill",
 	description: "Custom project instructions",
@@ -37,7 +37,7 @@ const loader = new DefaultResourceLoader({
 });
 await loader.reload();
 
-// Discover all skills from cwd/.pi/skills, ~/.pi/agent/skills, etc.
+// 从 cwd/.pi/skills、~/.pi/agent/skills 等位置发现技能。
 const { skills: allSkills, diagnostics } = loader.getSkills();
 console.log(
 	"Discovered skills:",

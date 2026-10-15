@@ -20,7 +20,7 @@ function defineThemeTokens<const T extends ThemeTokenDescriptors>(tokens: T): T 
 	return tokens;
 }
 
-/** Theme token metadata in the same order used by theme files and the published JSON Schema. */
+/** 主题 token 元数据，顺序与主题文件及公开的 JSON Schema 保持一致。 */
 export const THEME_TOKENS = defineThemeTokens({
 	accent: { slot: "foreground", description: "Primary accent color (logo, selected items, cursor)" },
 	border: { slot: "foreground", description: "Normal borders" },

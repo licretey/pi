@@ -39,9 +39,8 @@ async function forwardStream(
 }
 
 /**
- * Returns a stream synchronously while running async setup (auth resolution,
- * lazy module loading) behind it. Setup failures terminate the stream with an
- * error event.
+ * 同步返回数据流，并在后台执行异步准备工作（解析认证信息、延迟加载模块）。准备工作失败时，
+ * 数据流会以错误事件结束。
  */
 export function lazyStream(
 	model: Model<Api>,
@@ -62,9 +61,8 @@ export function lazyStream(
 }
 
 /**
- * Wraps a dynamically imported API implementation module as `ProviderStreams`.
- * The module loads on first stream call; the host's import cache deduplicates
- * loads. Load failures terminate the returned stream with an error event.
+ * 将动态导入的 API 实现模块包装为 `ProviderStreams`。
+ * 首次调用 stream 时才加载模块；宿主的导入缓存会合并重复加载。加载失败时，返回的数据流会以错误事件结束。
  */
 export interface LazyApiCapabilities {
 	fetchDeferred?: boolean;

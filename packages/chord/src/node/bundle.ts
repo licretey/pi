@@ -17,11 +17,11 @@ export interface BundleFacetsOptions {
 		readonly id: string;
 		readonly version?: string;
 	};
-	/** Opaque application-selected entry names mapped to TypeScript or JavaScript source files. */
+	/** 应用程序选择的不透明条目名称及其对应的 TypeScript 或 JavaScript 源文件。 */
 	readonly entries: Readonly<Record<string, string>>;
 	readonly outdir: string;
 	readonly workingDirectory?: string;
-	/** Additional package imports intentionally left for the loading application to resolve. */
+	/** 有意留给加载方应用程序解析的其他包导入项。 */
 	readonly external?: readonly string[];
 	readonly sourceMap?: boolean;
 	readonly minify?: boolean;
@@ -35,7 +35,7 @@ export interface BundleFacetsResult {
 	readonly manifestPath: string;
 }
 
-/** Bundle each opaque facet entry into an independent content-addressed CommonJS file. */
+/** 将每个不透明 facet 条目打包为独立的内容寻址 CommonJS 文件。 */
 export async function bundleFacets(options: BundleFacetsOptions): Promise<BundleFacetsResult> {
 	validateOptions(options);
 	const workingDirectory = resolve(options.workingDirectory ?? process.cwd());

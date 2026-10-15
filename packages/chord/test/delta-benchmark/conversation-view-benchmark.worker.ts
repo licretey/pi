@@ -5,8 +5,7 @@ import { setImmediate } from "node:timers/promises";
 import type { Draft } from "../../src/delta/draft.ts";
 import { applyImmutable, type JsonValue, type NonEmptyPath, type Op, type Path, track } from "../../src/delta/index.ts";
 
-// Provisional Pico5 benchmark schemas. They intentionally model architecture and
-// workload shape, not a committed public API or persisted wire format.
+// Pico5 基准测试使用的临时结构，用于模拟架构和工作负载，不代表已确定的公共 API 或持久化通信格式。
 const PROVISIONAL_SCHEMA = "pico5.conversation-view.provisional.v0";
 const MiB = 1024 * 1024;
 const MOUNTED_KEYS = ["config", "inbox", "turn", "preferences", "live"] as const;
@@ -837,8 +836,7 @@ function isResetJump(frame: DeltaFrame, previousSequence: number): boolean {
 }
 
 async function forwardOpsOnly(frame: DeltaFrame): Promise<void> {
-	// Models WatchHandle.start's serialized async listener. It forwards operations
-	// only; it intentionally does not construct or update a consumer-side replica.
+	// 模拟 WatchHandle.start 中串行执行的异步监听器。这里只转发操作；有意不创建或更新消费者侧的副本。
 	await Promise.resolve();
 	deliveryFrameReferences += 1;
 	deliveryOperationReferences += frame.ops.length;
@@ -943,7 +941,7 @@ async function commit(index: number): Promise<void> {
 
 	const projectApplyStart = performance.now();
 	if (aggregateFrame !== undefined) {
-		// Immutable application may safely share public placements with the projection.
+		// 不可变应用可以安全地与投影共用公开位置数据。
 		applyProjectedBatch(aggregateFrame.ops);
 	}
 	phaseSamples.projectApply.push(performance.now() - projectApplyStart);

@@ -1,13 +1,13 @@
 import type { ShellOutputSkip } from "../env/index.ts";
 import { utf8ByteLength } from "../truncate.ts";
 
-/** Retention limits of one tool's output. */
+/** 单个工具输出的保留上限。 */
 export type OutputLimits = { readonly maxBytes: number; readonly maxLines: number; readonly retain: "head" | "tail" };
 
-/** Retained output and what the limits dropped. */
+/** 保留的输出，以及上限丢弃的部分。 */
 export type BoundedOutput = { readonly text: string; readonly droppedBytes: number; readonly droppedLines: number };
 
-/** An exact slice of the input within the limits, and what it left out. */
+/** 位于上限之内、对输入的精确切片，以及它省略的部分。 */
 export type OutputSlice = {
 	readonly text: string;
 	readonly bytes: number;
@@ -18,18 +18,17 @@ export type OutputSlice = {
 const NEWLINE = 0x0a;
 const INVALID_OUTPUT = /[\x00-\x08\x0b-\x1f\ufff9-\ufffb]/g;
 const encoder = new TextEncoder();
-/** Slices decode exactly: a U+FEFF at a slice's start is text, not a byte-order mark. */
+/** 切片解码是精确的：切片开头的 U+FEFF 是文本，而不是字节顺序标记。 */
 const decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 
-/** Remove control characters that break display and transcripts; tabs and newlines stay. */
+/** 移除破坏显示与 transcript 的控制字符；tab 和换行保留。 */
 export function sanitizeOutput(text: string): string {
 	return text.replace(INVALID_OUTPUT, "");
 }
 
 /**
- * Bound `text` to whole lines within the limits: the first lines for `head`, the last lines for `tail`. The result is an
- * exact slice, trailing newline included. A single line longer than `maxBytes` is cut at the byte limit on a character
- * boundary.
+ * 在上限内把 `text` 约束为整行：`head` 取前面的行，`tail` 取后面的行。结果是一个精确切片，含末尾换行。
+ * 超过 `maxBytes` 的单行会在字节上限处按字符边界截断。
  */
 export function boundOutput(text: string, limits: OutputLimits): OutputSlice {
 	const bytes = encoder.encode(text);
@@ -62,7 +61,7 @@ function headRange(bytes: Uint8Array, limits: OutputLimits): [number, number] {
 
 function tailRange(bytes: Uint8Array, limits: OutputLimits): [number, number] {
 	if (limits.maxLines === 0 || limits.maxBytes === 0) return [bytes.length, bytes.length];
-	// A trailing newline ends the last line rather than starting another.
+	// 末尾的换行结束最后一行，而不是开启新的一行。
 	const last = bytes[bytes.length - 1] === NEWLINE ? bytes.length - 2 : bytes.length - 1;
 	let start = 0;
 	let lines = 1;
@@ -77,20 +76,20 @@ function tailRange(bytes: Uint8Array, limits: OutputLimits): [number, number] {
 	if (bytes.length - start > limits.maxBytes) {
 		const from = bytes.length - limits.maxBytes;
 		const newline = bytes.indexOf(NEWLINE, from - 1);
-		// The first line starting inside the byte window, or a cut of the last line when it alone is too long.
+		// 从字节窗口内开始的第一行，或当最后一行单独超长时对它的截断。
 		start = newline !== -1 && newline + 1 < bytes.length ? newline + 1 : characterStart(bytes, from);
 	}
 	return [start, bytes.length];
 }
 
-/** The last character boundary at or before `index`. */
+/** `index` 处或之前最近的字符边界。 */
 export function characterEnd(bytes: Uint8Array, index: number): number {
 	let end = index;
 	while (end > 0 && ((bytes[end] ?? 0) & 0xc0) === 0x80) end--;
 	return end;
 }
 
-/** The first character boundary at or after `index`. */
+/** `index` 处或之后最近的字符边界。 */
 function characterStart(bytes: Uint8Array, index: number): number {
 	let start = index;
 	while (start < bytes.length && ((bytes[start] ?? 0) & 0xc0) === 0x80) start++;
@@ -105,20 +104,20 @@ function lineCount(bytes: Uint8Array): number {
 }
 
 /**
- * Bounded running output of one tool call. Accepting a chunk costs time proportional to the chunk: head retention stops
- * storing once the window is full, and tail retention drops stored text the window no longer needs when it snapshots.
- * Counts of the whole stream are kept so the dropped totals stay exact.
+ * 单个工具调用的有界运行中输出。接收一个 chunk 的时间代价与 chunk 大小成正比：head 保留在窗口填满后停止
+ * 存储，tail 保留在快照时丢弃窗口不再需要的已存文本。
+ * 整个流的计数都会保留，因此被丢弃的总量保持精确。
  */
 export class OutputBuffer {
 	readonly #limits: OutputLimits;
 	/**
-	 * Decoder of byte chunks. A string chunk or a skip ends an incomplete character of earlier bytes (it becomes U+FFFD);
-	 * the next byte chunk then starts a new character. As in `StreamDecoder`, only a byte-order mark at the very start of
-	 * the output is dropped, never a U+FEFF later in it.
+	 * 字节 chunk 的解码器。一个字符串 chunk 或一次 skip 会终结前序字节组成的不完整字符（使其变成 U+FFFD）；
+	 * 随后的下一个字节 chunk 再开始一个新字符。与 `StreamDecoder` 一样，只有输出最开头的字节顺序标记会被
+	 * 丢弃，更后面的 U+FEFF 绝不丢弃。
 	 */
 	readonly #decoder = new TextDecoder("utf-8", { ignoreBOM: true });
 	#started = false;
-	/** Stored chunks: for head the start of the stream, for tail a suffix that still contains the next window. */
+	/** 已存储的 chunks：head 模式保存流的开头，tail 模式保存仍包含下一个窗口的后缀。 */
 	#chunks: { readonly text: string; readonly bytes: number; readonly newlines: number }[] = [];
 	#storedBytes = 0;
 	#storedNewlines = 0;
@@ -131,18 +130,17 @@ export class OutputBuffer {
 		this.#limits = limits;
 	}
 
-	/** Bytes currently held; bounded by the limits plus one chunk. */
+	/** 当前持有的字节数；以上限加一个 chunk 为界。 */
 	get storedBytes(): number {
 		return this.#storedBytes;
 	}
 
 	/**
-	 * Accept a chunk; returns whether anything was accepted. `skipped` is output omitted right before the chunk, which
-	 * must be more than the tail window by at least one byte or line (`ShellOutputInfo.skipped`); only tail retention
-	 * accepts it.
+	 * 接收一个 chunk；返回是否有内容被接收。`skipped` 是紧邻 chunk 之前被省略的输出，它必须比 tail 窗口还多
+	 * 至少一个字节或一行（`ShellOutputInfo.skipped`）；只有 tail 保留模式接受它。
 	 */
 	push(chunk: string | Uint8Array, skipped?: ShellOutputSkip): boolean {
-		// Bytes of an incomplete character from an earlier byte chunk come first.
+		// 前序字节 chunk 中不完整字符的字节放在最前。
 		const pending = typeof chunk === "string" || skipped !== undefined ? this.#decoder.decode() : "";
 		let text = typeof chunk === "string" ? chunk : this.#decoder.decode(chunk, { stream: true });
 		const first = !this.#started && pending === "" && skipped === undefined;
@@ -156,7 +154,7 @@ export class OutputBuffer {
 		return true;
 	}
 
-	/** Count omitted output; nothing stored before it can be in the window once the text after it arrives. */
+	/** 记入被省略的输出；一旦其后的文本到来，它之前存储的内容都不可能再进入窗口。 */
 	#skip(skipped: ShellOutputSkip): void {
 		if (skipped.bytes === 0) return;
 		this.#totalBytes += skipped.bytes;
@@ -167,7 +165,7 @@ export class OutputBuffer {
 		this.#storedNewlines = 0;
 	}
 
-	/** Flush an incomplete trailing character as a replacement character; call when the stream ends. */
+	/** 将末尾不完整的字符冲刷为替换字符；流结束时调用。 */
 	end(): void {
 		this.#accept(this.#decoder.decode());
 	}
@@ -184,12 +182,12 @@ export class OutputBuffer {
 		this.#storedBytes += bytes;
 		this.#storedNewlines += newlines;
 		if (this.#limits.retain === "head") {
-			// Nothing past a full window is ever needed.
+			// 超出完整窗口之后的内容永远不会被需要。
 			this.#full = this.#storedBytes > this.#limits.maxBytes || this.#storedNewlines >= this.#limits.maxLines;
 			return true;
 		}
-		// Drop leading chunks while the rest still holds more than a window: more than `maxBytes` bytes or `maxLines`
-		// newlines, plus one, so the window's line start can still be found. Each chunk is dropped once.
+		// 在其余内容仍多于一个窗口时丢弃头部 chunks：即多于 `maxBytes` 字节或多于 `maxLines`
+		// 个换行再加一，这样窗口的行首仍能被找到。每个 chunk 只被丢弃一次。
 		while (this.#chunks.length > 1) {
 			const first = this.#chunks[0]!;
 			const bytesAfter = this.#storedBytes - first.bytes;
@@ -202,15 +200,15 @@ export class OutputBuffer {
 		return true;
 	}
 
-	/** Retained, sanitized output and what the limits dropped from the whole stream. */
+	/** 保留的、净化后的输出，以及上限从整个流中丢弃的部分。 */
 	snapshot(): BoundedOutput {
 		const stored =
 			this.#chunks.length === 1 ? this.#chunks[0]!.text : this.#chunks.map((chunk) => chunk.text).join("");
 		const kept = boundOutput(stored, this.#limits);
 		const storedLines = lines(this.#storedNewlines, stored === "" || stored.endsWith("\n"));
 		const keptLines = storedLines - kept.droppedLines;
-		// Tail windows never reach back before this one, but finding a later window's first line needs what precedes it:
-		// keep the shortest suffix longer than the window by a byte or a line, as `#accept` does.
+		// tail 窗口不会回溯越过本窗口，但寻找更晚窗口的首行需要它之前的文本：
+		// 像 `#accept` 那样，保留比窗口长一个字节或一行之后的最短后缀。
 		if (this.#limits.retain === "tail" || this.#chunks.length > 1) {
 			const text = this.#limits.retain === "tail" ? tailMargin(stored, this.#limits) : stored;
 			const bytes = this.#limits.retain === "tail" ? utf8ByteLength(text) : this.#storedBytes;
@@ -227,8 +225,8 @@ export class OutputBuffer {
 }
 
 /**
- * The shortest suffix of `text` with more than `maxBytes` bytes or more than `maxLines` newlines, or all of it. The
- * tail window of any text that ends with this suffix, followed by anything, is the same as of `text` followed by it.
+ * `text` 中字节数多于 `maxBytes` 或换行数多于 `maxLines` 的最短后缀，否则为整个 `text`。任何以此后缀结尾的
+ * 文本，其后无论接什么，其 tail 窗口都与 `text` 接上该内容后的 tail 窗口相同。
  */
 function tailMargin(text: string, limits: OutputLimits): string {
 	const bytes = encoder.encode(text);
@@ -246,7 +244,7 @@ function tailMargin(text: string, limits: OutputLimits): string {
 	return start === 0 ? text : decoder.decode(bytes.subarray(start));
 }
 
-/** Lines of text with `newlines` newlines; a final unterminated line counts. */
+/** 带有 `newlines` 个换行的文本行数；末尾未终结的一行也计入。 */
 function lines(newlines: number, terminated: boolean): number {
 	return newlines + (terminated ? 0 : 1);
 }
@@ -257,13 +255,12 @@ function countNewlines(text: string): number {
 	return count;
 }
 
-/** Each progress commit also buys a pause proportional to what it wrote. */
+/** 每次进度提交还会换得一段与写入量成正比的停顿。 */
 export const PROGRESS_BYTES_PER_SECOND = 100 * 1024;
 
 /**
- * Adaptive progress commits: the first change after an idle period commits at once; each commit then delays the next
- * by at least `minIntervalMs` and by its written size at 100 KiB/s. At most one commit is in flight; changes made
- * meanwhile coalesce into the next one.
+ * 自适应进度提交：空闲期之后的第一个变更立即提交；此后每次提交都会把下一次推迟至少 `minIntervalMs`，并按
+ * 其写入量以 100 KiB/s 追加延迟。同时至多有一个提交在途中；期间发生的变更会合并进下一次提交。
  */
 export class Progress {
 	readonly #write: () => Promise<number>;
@@ -282,13 +279,13 @@ export class Progress {
 		this.#minIntervalMs = minIntervalMs;
 	}
 
-	/** Schedule a commit. */
+	/** 排定一次提交。 */
 	mark(): void {
 		this.#dirty = true;
 		this.#schedule();
 	}
 
-	/** Schedule a commit; the promise settles with the commit that includes this change. */
+	/** 排定一次提交；promise 会伴随包含了本次变更的那次提交落定。 */
 	markAndWait(): Promise<void> {
 		const waiter = Promise.withResolvers<void>();
 		this.#waiters.push(waiter);
@@ -296,7 +293,7 @@ export class Progress {
 		return waiter.promise;
 	}
 
-	/** Stop committing and wait for the commit in flight; returns the waiters the final commit must settle. */
+	/** 停止提交并等待在途提交；返回最后那次提交需要落定的 waiters。 */
 	async stop(): Promise<PromiseWithResolvers<void>[]> {
 		this.#stopped = true;
 		clearTimeout(this.#timer);

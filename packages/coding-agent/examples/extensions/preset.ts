@@ -1,15 +1,14 @@
 /**
- * Preset Extension
+ * 预设扩展
  *
- * Allows defining named presets that configure model, thinking level, tools,
- * and system prompt instructions. Presets are defined in JSON config files
- * and can be activated via CLI flag, /preset command, or Ctrl+Shift+U to cycle.
+ * 用于定义具名预设，以配置模型、思考等级、工具和系统提示词指令。
+ * 预设定义在 JSON 配置文件中，可通过 CLI 标志、/preset 命令启用，或按 Ctrl+Shift+U 循环切换。
  *
- * Config files (merged, project takes precedence):
- * - ~/.pi/agent/presets.json (global)
- * - <cwd>/.pi/presets.json (project-local)
+ * 配置文件（合并读取，项目配置优先）：
+ * - ~/.pi/agent/presets.json（全局配置）
+ * - <cwd>/.pi/presets.json（项目配置）
  *
- * Example presets.json:
+ * presets.json 示例：
  * ```json
  * {
  *   "plan": {
@@ -29,13 +28,13 @@
  * }
  * ```
  *
- * Usage:
- * - `pi --preset plan` - start with plan preset
- * - `/preset` - show selector to switch presets mid-session
- * - `/preset implement` - switch to implement preset directly
- * - `Ctrl+Shift+U` - cycle through presets
+ * 用法：
+ * - `pi --preset plan`：以 plan 预设启动。
+ * - `/preset`：显示选择器，以便在会话中切换预设。
+ * - `/preset implement`：直接切换到 implement 预设。
+ * - `Ctrl+Shift+U`：循环切换预设。
  *
- * CLI flags always override preset values.
+ * CLI 标志始终优先于预设值。
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -45,17 +44,17 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 import { CONFIG_DIR_NAME, DynamicBorder, getAgentDir } from "@earendil-works/pi-coding-agent";
 import { Container, Key, type SelectItem, SelectList, Text } from "@earendil-works/pi-tui";
 
-// Preset configuration
+// 预设配置
 interface Preset {
-	/** Provider name (e.g., "anthropic", "openai") */
+	/** 提供商名称，例如 "anthropic"、"openai"。 */
 	provider?: string;
-	/** Model ID (e.g., "claude-sonnet-4-5") */
+	/** 模型 ID，例如 "claude-sonnet-4-5"。 */
 	model?: string;
-	/** Thinking level */
+	/** 思考等级。 */
 	thinkingLevel?: "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
-	/** Tools to enable (replaces default set) */
+	/** 要启用的工具（替换默认工具集）。 */
 	tools?: string[];
-	/** Instructions to append to system prompt */
+	/** 要追加到系统提示词中的指令。 */
 	instructions?: string;
 }
 
@@ -64,8 +63,8 @@ interface PresetsConfig {
 }
 
 /**
- * Load presets from config files.
- * Project-local presets override global presets with the same name.
+ * 从配置文件中加载预设。
+ * 同名的项目预设会覆盖全局预设。
  */
 function loadPresets(cwd: string): PresetsConfig {
 	const globalPath = join(getAgentDir(), "presets.json");
@@ -74,7 +73,7 @@ function loadPresets(cwd: string): PresetsConfig {
 	let globalPresets: PresetsConfig = {};
 	let projectPresets: PresetsConfig = {};
 
-	// Load global presets
+	// 加载全局预设。
 	if (existsSync(globalPath)) {
 		try {
 			const content = readFileSync(globalPath, "utf-8");
@@ -84,7 +83,7 @@ function loadPresets(cwd: string): PresetsConfig {
 		}
 	}
 
-	// Load project presets
+	// 加载项目预设。
 	if (existsSync(projectPath)) {
 		try {
 			const content = readFileSync(projectPath, "utf-8");
@@ -94,7 +93,7 @@ function loadPresets(cwd: string): PresetsConfig {
 		}
 	}
 
-	// Merge (project overrides global)
+	// 合并配置（项目配置覆盖全局配置）。
 	return { ...globalPresets, ...projectPresets };
 }
 
@@ -110,17 +109,17 @@ export default function presetExtension(pi: ExtensionAPI) {
 	let activePreset: Preset | undefined;
 	let originalState: OriginalState | undefined;
 
-	// Register --preset CLI flag
+	// 注册 --preset CLI 标志。
 	pi.registerFlag("preset", {
 		description: "Preset configuration to use",
 		type: "string",
 	});
 
 	/**
-	 * Apply a preset configuration.
+	 * 应用预设配置。
 	 */
 	async function applyPreset(name: string, preset: Preset, ctx: ExtensionContext): Promise<boolean> {
-		// Snapshot state before the first preset is applied (i.e. only when transitioning from no-preset)
+		// 首次应用预设前保存当前状态（仅在从未应用预设切换到应用预设时执行）。
 		if (activePresetName === undefined) {
 			originalState = {
 				model: ctx.model,
@@ -129,7 +128,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 			};
 		}
 
-		// Apply model if specified
+		// 如果指定了模型，则应用该模型。
 		if (preset.provider && preset.model) {
 			const model = ctx.modelRegistry.find(preset.provider, preset.model);
 			if (model) {
@@ -142,12 +141,12 @@ export default function presetExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		// Apply thinking level if specified
+		// 如果指定了思考等级，则应用该等级。
 		if (preset.thinkingLevel) {
 			pi.setThinkingLevel(preset.thinkingLevel);
 		}
 
-		// Apply tools if specified
+		// 如果指定了工具，则应用该工具列表。
 		if (preset.tools && preset.tools.length > 0) {
 			const allToolNames = pi.getAllTools().map((t) => t.name);
 			const validTools = preset.tools.filter((t) => allToolNames.includes(t));
@@ -162,7 +161,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		// Store active preset for system prompt injection
+		// 保存当前预设，以便注入系统提示词。
 		activePresetName = name;
 		activePreset = preset;
 
@@ -170,7 +169,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 	}
 
 	/**
-	 * Build description string for a preset.
+	 * 生成预设的描述文本。
 	 */
 	function buildPresetDescription(preset: Preset): string {
 		const parts: string[] = [];
@@ -194,7 +193,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 	}
 
 	/**
-	 * Show preset selector UI using custom SelectList component.
+	 * 使用自定义 SelectList 组件显示预设选择界面。
 	 */
 	async function showPresetSelector(ctx: ExtensionContext): Promise<void> {
 		const presetNames = Object.keys(presets);
@@ -207,7 +206,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 			return;
 		}
 
-		// Build select items with descriptions
+		// 构造带描述的选择项。
 		const items: SelectItem[] = presetNames.map((name) => {
 			const preset = presets[name];
 			const isActive = name === activePresetName;
@@ -218,7 +217,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 			};
 		});
 
-		// Add "None" option to clear preset
+		// 添加 "None" 选项以清除当前预设。
 		items.push({
 			value: "(none)",
 			label: "(none)",
@@ -229,10 +228,10 @@ export default function presetExtension(pi: ExtensionAPI) {
 			const container = new Container();
 			container.addChild(new DynamicBorder((str) => theme.fg("accent", str)));
 
-			// Header
+			// 标题。
 			container.addChild(new Text(theme.fg("accent", theme.bold("Select Preset"))));
 
-			// SelectList with themed styling
+			// 使用主题样式的 SelectList。
 			const selectList = new SelectList(items, Math.min(items.length, 10), {
 				selectedPrefix: (text) => theme.fg("accent", text),
 				selectedText: (text) => theme.fg("accent", text),
@@ -246,7 +245,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 
 			container.addChild(selectList);
 
-			// Footer hint
+			// 页脚提示。
 			container.addChild(new Text(theme.fg("dim", "↑↓ navigate • enter select • esc cancel")));
 
 			container.addChild(new DynamicBorder((str) => theme.fg("accent", str)));
@@ -268,7 +267,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 		if (!result) return;
 
 		if (result === "(none)") {
-			// Clear preset and restore original state
+			// 清除预设并还原初始状态。
 			activePresetName = undefined;
 			activePreset = undefined;
 			if (originalState) {
@@ -294,7 +293,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 	}
 
 	/**
-	 * Update status indicator.
+	 * 更新状态指示器。
 	 */
 	function updateStatus(ctx: ExtensionContext) {
 		if (activePresetName) {
@@ -356,11 +355,11 @@ export default function presetExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// Register /preset command
+	// 注册 /preset 命令。
 	pi.registerCommand("preset", {
 		description: "Switch preset configuration",
 		handler: async (args, ctx) => {
-			// If preset name provided, apply directly
+			// 如果提供了预设名称，则直接应用。
 			if (args?.trim()) {
 				const name = args.trim();
 				const preset = presets[name];
@@ -377,12 +376,12 @@ export default function presetExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			// Otherwise show selector
+			// 否则显示选择器。
 			await showPresetSelector(ctx);
 		},
 	});
 
-	// Inject preset instructions into system prompt
+	// 将预设指令注入系统提示词。
 	pi.on("before_agent_start", async (event) => {
 		if (activePreset?.instructions) {
 			return {
@@ -391,12 +390,12 @@ export default function presetExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// Initialize on session start
+	// 会话启动时初始化。
 	pi.on("session_start", async (_event, ctx) => {
-		// Load presets from config files
+		// 从配置文件中加载预设。
 		presets = loadPresets(ctx.cwd);
 
-		// Check for --preset flag
+		// 检查是否指定了 --preset 标志。
 		const presetFlag = pi.getFlag("preset");
 		if (typeof presetFlag === "string" && presetFlag) {
 			const preset = presets[presetFlag];
@@ -409,7 +408,7 @@ export default function presetExtension(pi: ExtensionAPI) {
 			}
 		}
 
-		// Restore preset from session state
+		// 从会话状态还原预设。
 		const entries = ctx.sessionManager.getEntries();
 		const presetEntry = entries
 			.filter((e: { type: string; customType?: string }) => e.type === "custom" && e.customType === "preset-state")
@@ -420,14 +419,14 @@ export default function presetExtension(pi: ExtensionAPI) {
 			if (preset) {
 				activePresetName = presetEntry.data.name;
 				activePreset = preset;
-				// Don't re-apply model/tools on restore, just keep the name for instructions
+				// 恢复时不重新应用模型或工具，只保留预设名称以供指令使用。
 			}
 		}
 
 		updateStatus(ctx);
 	});
 
-	// Persist preset state
+	// 持久化预设状态。
 	pi.on("turn_start", async () => {
 		if (activePresetName) {
 			pi.appendEntry("preset-state", { name: activePresetName });

@@ -48,12 +48,12 @@ export interface GoogleOptions extends StreamOptions {
 	toolChoice?: "auto" | "none" | "any";
 	thinking?: {
 		enabled: boolean;
-		budgetTokens?: number; // -1 for dynamic, 0 to disable
+		budgetTokens?: number; // -1 表示动态预算，0 表示禁用。
 		level?: GoogleApiThinkingLevel;
 	};
 }
 
-// Counter for generating unique tool call IDs
+// 用于生成唯一工具调用 ID 的计数器。
 let toolCallCounter = 0;
 
 export const stream: StreamFunction<"google-generative-ai", GoogleOptions> = (
@@ -105,8 +105,8 @@ export const stream: StreamFunction<"google-generative-ai", GoogleOptions> = (
 			const blockIndex = () => blocks.length - 1;
 			for await (const chunk of googleStream) {
 				await options?.onProviderStreamEvent?.(chunk, model);
-				// @google/genai documents GenerateContentResponse.responseId as an output-only field
-				// used to identify each response. Keep the first non-empty one from the stream.
+				// @google/genai 文档说明 GenerateContentResponse.responseId 是仅用于输出的字段。
+				// 用于标识每个响应。保留数据流中第一个非空值。
 				output.responseId ||= chunk.responseId;
 				const candidate = chunk.candidates?.[0];
 				if (candidate?.content?.parts) {
@@ -192,7 +192,7 @@ export const stream: StreamFunction<"google-generative-ai", GoogleOptions> = (
 								currentBlock = null;
 							}
 
-							// Generate unique ID if not provided or if it's a duplicate
+							// 未提供 ID 或 ID 重复时，生成唯一 ID。
 							const providedId = part.functionCall.id;
 							const needsNewId =
 								!providedId || output.content.some((b) => b.type === "toolCall" && b.id === providedId);
@@ -286,7 +286,7 @@ export const stream: StreamFunction<"google-generative-ai", GoogleOptions> = (
 			stream.push({ type: "done", reason: output.stopReason, message: output });
 			stream.end();
 		} catch (error) {
-			// Remove internal index property used during streaming
+			// 移除流式处理期间使用的内部 index 属性。
 			for (const block of output.content) {
 				if ("index" in block) {
 					delete (block as { index?: number }).index;
@@ -353,7 +353,7 @@ function createClient(
 	const httpOptions: { baseUrl?: string; apiVersion?: string; headers?: Record<string, string> } = {};
 	if (model.baseUrl) {
 		httpOptions.baseUrl = model.baseUrl;
-		httpOptions.apiVersion = ""; // baseUrl already includes version path, don't append
+		httpOptions.apiVersion = ""; // baseUrl 已包含版本路径，不要再追加。
 	}
 	const headers = providerHeadersToRecord({ "User-Agent": getPiUserAgent(), ...model.headers, ...optionsHeaders });
 	if (headers) {

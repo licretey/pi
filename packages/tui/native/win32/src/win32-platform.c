@@ -171,8 +171,8 @@ static void read_clipboard_image(clipboard_job* job) {
 }
 
 static void clipboard_execute(clipboard_job* job) {
-    // A real clipboard owner is required for text writes, including under Node
-    // without a console. Create and destroy it on the same worker thread.
+    // 写入文本需要真实的剪贴板所有者，包括在没有控制台的 Node 进程中。
+    // 必须在同一个工作线程中创建并销毁该所有者。
     HWND owner = 0;
     if (job->operation == CLIPBOARD_WRITE) {
         owner = CreateWindowExW(0, L"STATIC", 0, 0, 0, 0, 0, 0,

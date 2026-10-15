@@ -3,9 +3,8 @@ import type { JsonValue } from "@earendil-works/chord";
 type JsonContainer = Record<string, JsonValue> | JsonValue[];
 
 /**
- * Assign `value` at `target[key]` leaf by leaf. Chord records a container assignment as one full set and only emits an
- * append when a string leaf is reassigned with a longer string, so writing the partial whole would store and publish the
- * complete message on every flush.
+ * 逐叶（leaf）地把 `value` 赋到 `target[key]`。Chord 会把对容器的赋值记录为一次完整覆盖（full set），仅当某个字符串
+ * 叶子被重新赋值为更长的字符串时才发出追加（append），因此若整体部分性地写入，每次 flush 都会存储并发布完整消息。
  */
 export function assignJson(target: JsonContainer, key: string | number, value: JsonValue): void {
 	const slots = target as Record<string | number, JsonValue>;

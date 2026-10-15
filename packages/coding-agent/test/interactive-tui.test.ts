@@ -370,7 +370,7 @@ type RenderSessionEntriesContext = {
 
 describe("InteractiveMode transcript rebuild", () => {
 	it("drops the fullscreen selection when session entries are re-rendered", async () => {
-		// Regression test for #9311: selection coordinates survived session switches.
+		// #9311 回归测试：切换会话后选择坐标仍然保留。
 		const terminal = new RecordingTerminal(40, 4);
 		const ui = createInteractiveTui({
 			tuiMode: "fullscreen",

@@ -120,7 +120,7 @@ export interface RegisterFauxProviderOptions {
 	provider?: string;
 	models?: FauxModelDefinition[];
 	deferred?: {
-		/** Number of fetches that return the original handle before the scripted response becomes ready. */
+		/** 预设响应就绪前，返回原始句柄的 fetch 次数。 */
 		pendingFetches?: number;
 		pollAfterMs?: number;
 	};
@@ -214,7 +214,7 @@ function messageToText(message: Message): string {
 	return toolResultToText(message);
 }
 
-/** Length of the prompt text that joins `messages` with blank lines. */
+/** 将 `messages` 以空行连接后得到的提示词文本长度。 */
 function joinedLength(messages: readonly string[], count = messages.length): number {
 	let length = count > 0 ? (count - 1) * 2 : 0;
 	for (let index = 0; index < count; index++) length += messages[index]!.length;
@@ -222,8 +222,7 @@ function joinedLength(messages: readonly string[], count = messages.length): num
 }
 
 /**
- * Length of the common prefix of the two joined prompts. Equal messages are compared whole; characters are compared
- * only from the first message that differs.
+ * 两个拼接后提示的公共前缀长度。相同的消息按完整消息比较；只有从首个不同消息开始才逐字符比较。
  */
 function commonPromptPrefixLength(previous: readonly string[], current: readonly string[]): number {
 	let index = 0;
@@ -248,7 +247,7 @@ function withUsageEstimate(
 	options: StreamOptions | undefined,
 	promptCache: Map<string, readonly string[]>,
 ): AssistantMessage {
-	// One text per message; the whole prompt joins them with blank lines.
+	// 每条消息对应一段文本；整个提示会用空行连接这些文本。
 	const prompt = context.messages.map((message) => `${message.role}:${messageToText(message)}`);
 	const promptLength = joinedLength(prompt);
 	const promptTokens = Math.ceil(promptLength / 4);
@@ -692,13 +691,13 @@ export function createFauxCore(options: RegisterFauxProviderOptions) {
 }
 
 /**
- * Faux provider for tests built on explicit `Models` collections:
+ * 用于测试的伪提供商，基于显式创建的 `Models` 集合：
  *
  * ```ts
- * const faux = fauxProvider();
- * const models = createModels();
- * models.setProvider(faux.provider);
- * faux.setResponses([fauxAssistantMessage("hi")]);
+ * const faux = fauxProvider(); // 创建伪提供商
+ * const models = createModels(); // 创建模型集合
+ * models.setProvider(faux.provider); // 注册提供商
+ * faux.setResponses([fauxAssistantMessage("hi")]); // 设置模拟响应
  * ```
  */
 export function fauxProvider(options: RegisterFauxProviderOptions = {}): FauxProviderHandle {

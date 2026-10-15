@@ -22,13 +22,13 @@ import {
 import type { ExecutionEnv } from "../src/env/index.ts";
 import { context } from "./session-support.ts";
 
-/** Models and registry that survive a close/reopen, like a host process's own objects. */
+/** 关闭并重新打开 Harness 后仍保留的模型和注册表，如同宿主进程自身持有的对象。 */
 export type ChatSetup = {
 	readonly faux: FauxProviderHandle;
 	readonly models: Models;
 	readonly registry: Registry;
 	readonly reports: unknown[];
-	/** Live Harness settings; tests assign fields to change them between decisions. */
+	/** 当前 Harness 设置；测试会赋值修改这些字段，以便在不同决策之间切换设置。 */
 	readonly settings: { -readonly [K in keyof HarnessSettings]: HarnessSettings[K] };
 	now: () => number;
 };
@@ -40,11 +40,11 @@ export function chatSetup(options: RegisterFauxProviderOptions = {}): ChatSetup 
 	return { faux, models, registry: createRegistry(), reports: [], settings: {}, now: () => Date.now() };
 }
 
-/** Open a Harness over `storage` and return its root, configured with the faux model on first creation. */
+/** 基于 `storage` 打开 Harness 并返回根对话；首次创建时将其配置为使用 faux 模型。 */
 export async function openChat(
 	storage: Storage,
 	setup: ChatSetup,
-	/** One environment for every conversation, or an `env` function. */
+	/** 所有对话共用的环境，或用于按需提供环境的 `env` 函数。 */
 	options: { readonly env?: ExecutionEnv | NonNullable<HarnessOptions["env"]> } = {},
 ): Promise<{ readonly harness: Harness; readonly root: Conversation }> {
 	const harness = await Harness.open(
@@ -65,13 +65,13 @@ export async function openChat(
 	return { harness, root };
 }
 
-/** Raw entries of a conversation, oldest first. */
+/** 按时间从旧到新返回对话的原始条目。 */
 export async function allEntries(conversation: Conversation, callContext: Context = context): Promise<EntryRecord[]> {
 	const page = await conversation.entries({}, 1000, undefined, callContext);
 	return [...page.items].reverse();
 }
 
-/** Text of the first text content of a message. */
+/** 返回消息中第一段文本内容。 */
 export function textOf(message: Message | undefined): string | undefined {
 	if (message === undefined) return undefined;
 	if (message.role === "system") return undefined;
@@ -80,7 +80,7 @@ export function textOf(message: Message | undefined): string | undefined {
 	return text?.type === "text" ? text.text : undefined;
 }
 
-/** Poll `check` in real time until it holds; for waits that span throttle windows and timers. */
+/** 实时轮询 `check`，直到条件成立；适用于等待时间跨越节流窗口和定时器的场景。 */
 export async function waitFor(check: () => boolean | Promise<boolean>, timeoutMs = 5000): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
 	while (!(await check())) {
@@ -90,8 +90,8 @@ export async function waitFor(check: () => boolean | Promise<boolean>, timeoutMs
 }
 
 /**
- * Faux response that never answers; the run stays busy until its generation is cancelled. `reached` resolves once the
- * request was sent, after the generation's preparation and request commits.
+ * 永不返回答案的 faux 响应；生成过程会一直保持忙碌，直到被取消。生成过程完成准备和请求提交并发出请求后，
+ * `reached` 就会兑现。
  */
 export function unanswered(): { readonly step: FauxResponseStep; readonly reached: Promise<void> } {
 	let reach!: () => void;
@@ -107,7 +107,7 @@ export function unanswered(): { readonly step: FauxResponseStep; readonly reache
 	return { step, reached };
 }
 
-/** The installed tools with these names, as `configure()` takes them. */
+/** 从已安装工具中按名称查找 `configure()` 所需的工具。 */
 export function toolsNamed(setup: ChatSetup, ...names: string[]): ToolRegistration[] {
 	const installed = setup.registry.snapshot().tools();
 	return names.map((name) => {

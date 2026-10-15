@@ -199,8 +199,7 @@ describe("AgentSessionRuntime characterization", () => {
 
 		expect(switchResult.cancelled).toBe(false);
 		expect(runtime.session.sessionFile).toBe(firstSessionFile);
-		// The outgoing session settled before replacement: the interrupted tool
-		// call has a persisted tool result instead of dangling forever.
+		// 被替换前，原会话已完成收尾：中断的工具调用已持久化工具结果，不会一直悬而未决。
 		const outgoingEntries = SessionManager.open(outgoingSession.sessionFile!)
 			.getEntries()
 			.filter((entry) => entry.type === "message");

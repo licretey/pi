@@ -91,7 +91,7 @@ test("accepts a valid coding-agent package and rejects development-only packages
 	assert.throws(() => smokeTestCodingAgent(directory), /contains development-only code/);
 });
 
-// #9132: smoke-test the public SDK, not just a bundled CLI that hides missing imports.
+// #9132：冒烟测试公共 SDK，而不只是会掩盖缺失导入的打包 CLI。
 test("fails when the SDK imports an undeclared server despite a working CLI", (t) => {
 	const directory = createFixture(t, { importServer: true });
 	assert.throws(() => smokeTestCodingAgent(directory), /Cannot find package '@earendil-works\/pi-server'/);

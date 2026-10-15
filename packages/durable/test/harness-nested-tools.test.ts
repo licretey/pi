@@ -46,7 +46,7 @@ function tool(name: string, execute: Tool["execute"], extra: Partial<Tool> = {})
 	return defineTool({ name, description: name, parameters: Parameters, execute, ...extra });
 }
 
-/** Returns `echo <text>` and counts its runs. */
+/** 返回 `echo <text>`，并记录其运行次数。 */
 function echoTool(extra: Partial<Tool> = {}) {
 	const state = { runs: 0 };
 	const registration = tool(
@@ -70,7 +70,7 @@ function results(entries: readonly EntryRecord[]): ToolResultMessage[] {
 	return entries.filter((entry) => ToolResultEntry.is(entry)).map((entry) => entry.model![0] as ToolResultMessage);
 }
 
-/** The text of a result message, or the value a schema-less nested call gives programs. */
+/** 结果消息中的文本，或无架构嵌套调用向程序返回的值。 */
 function text(result: NestedToolExecutionResult | ToolResultMessage | undefined): string {
 	if (result === undefined) return "";
 	if (!("role" in result)) return typeof result.structuredOutput === "string" ? result.structuredOutput : "";
@@ -118,7 +118,7 @@ describe("nested tool calls", () => {
 			diagnostics: [],
 			durationMs: expect.any(Number),
 		});
-		// One result entry: the model-issued call's, which records nothing of its nested calls.
+		// 只有一条结果记录，属于模型发起的调用；其嵌套调用不会单独记录。
 		expect(results(entries).map((result) => [result.toolCallId, text(result)])).toEqual([["c1", "got echo a"]]);
 		expect(results(entries)[0]).not.toHaveProperty("nestedCalls");
 		expect(parent!.input).toMatchObject({ kind: "model", callId: "c1" });
@@ -130,7 +130,7 @@ describe("nested tool calls", () => {
 			key: "1",
 			call: { type: "toolCall", id: "c1/1", name: "echo", arguments: { text: "a" } },
 		});
-		// The receipt stays small: the result lived in the caller's documents, which retired with it.
+		// 回执保持精简：结果保存在调用方的文档中，并随调用方一同退役。
 		expect(child!.state).toEqual({
 			status: "terminal",
 			outcome: { status: "completed", result: { kind: "nested" } },
@@ -315,11 +315,11 @@ describe("nested tool calls", () => {
 			status: "terminal",
 			outcome: { status: "aborted", result: { kind: "nested" } },
 		});
-		// The aborted call's result keeps its details; programs get no partial output, which only the model read.
+		// 中止调用的结果仍保留 details；程序不会收到部分输出，只有模型读取了这些输出。
 		const childEnd = ends.find((event) => event.type === "tool_execution_end" && event.toolCallId === "c1/1");
 		expect(childEnd).toMatchObject({ result: { isError: true, details: { step: 1 } } });
 		expect((childEnd as { result?: NestedToolExecutionResult }).result).not.toHaveProperty("structuredOutput");
-		// The nested call ends, with its result, before its caller.
+		// 嵌套调用及其结果会先于调用方结束。
 		expect(ends.map((event) => [event.type === "tool_execution_end" && event.toolCallId, "result" in event])).toEqual(
 			[
 				["c1/1", true],
@@ -418,7 +418,7 @@ describe("nested tool calls", () => {
 		]);
 		const nestedEnd = events.find((event) => event.type === "tool_execution_end" && event.toolCallId === "c1/1");
 		expect(nestedEnd).toMatchObject({ result: { structuredOutput: "slow done", isError: false } });
-		// Events name the call's task and, for a nested call, the calling one.
+		// 事件会标明调用对应的任务；对于嵌套调用，还会标明其调用方。
 		const [parent, child] = await toolTasks(harness);
 		const parentEnd = events.find((event) => event.type === "tool_execution_end" && event.toolCallId === "c1");
 		expect(nestedEnd).toMatchObject({ taskId: child!.id, parentTaskId: parent!.id });
@@ -512,7 +512,7 @@ describe("nested tool calls", () => {
 						blocked.resolve();
 						await aborted(callContext.abortSignal!);
 					}
-					// A call new to the rerun: its slot, after the reattached one's, is found and finishes.
+					// 这是重跑时新增的调用：找到重新附加调用之后的槽位，并完成该调用。
 					const second = await api.executeTool("echo", { text: "b" }, callContext);
 					return { output: [{ type: "text", text: `run ${runs}: ${text(first)}, ${text(second)}` }] };
 				},
@@ -611,7 +611,7 @@ describe("nested tool calls", () => {
 				await api.details({ step: 1 }, callContext);
 				running.resolve();
 				await aborted(callContext.abortSignal!).catch(() => {});
-				// The caller's cleanup waits for this abort; hold it there until the Harness closes.
+				// 调用方的清理流程会等待此次中止；让它保持等待，直到 Harness 关闭。
 				cleaning.resolve();
 				await release.promise;
 				throw new Error("aborted");
@@ -637,7 +637,7 @@ describe("nested tool calls", () => {
 		opened.harness.resume();
 		expect((await (await opened.harness.submission(id, context))!.wait(context)).status).toBe("done");
 		await opened.harness.waitForIdle(context);
-		// The caller is replay-unsafe: it reports the interruption, and its cleanup aborts the nested call.
+		// 调用方不支持安全重放：它会报告中断，并在清理时中止嵌套调用。
 		const [result] = results(await allEntries(opened.root));
 		expect(result).toMatchObject({ toolCallId: "c1", isError: true });
 		expect(text(result)).toContain("Tool batch was interrupted");
@@ -678,7 +678,7 @@ describe("nested tool calls", () => {
 		const setup = chatSetup();
 		const bAborted = deferred();
 		const started = { a: deferred(), b: deferred() };
-		// A only stops once B was told to stop.
+		// 只有在通知 B 停止后，A 才会停止。
 		addTool(
 			setup.registry,
 			tool("a", async () => {
@@ -829,7 +829,7 @@ describe("nested tool calls", () => {
 				}
 			}
 		});
-		// The second slot writes first, so a wrong slot index in the update path would show.
+		// 第二个槽位先写入，因此更新流程中的槽位索引错误会显现出来。
 		wrote.two.resolve();
 		await eventually(() => updates.length === 1);
 		wrote.one.resolve();
@@ -870,7 +870,7 @@ describe("nested tool calls", () => {
 		setup.faux.setResponses([call("batch"), DONE]);
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		const submission = await root.submit({ type: "input", content: "go" }, context);
-		// `details()` resolved before this, so a progress commit would have landed already.
+		// 此前 `details()` 已完成，因此进度提交此时本应已经生效。
 		await running.promise;
 		const [slot] = (await harness.snapshot(LiveDoc, root.id, context))!.nestedTools!;
 		expect(slot).toEqual({
@@ -923,7 +923,7 @@ describe("nested tool calls", () => {
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await harness.waitForIdle(context);
 		await stream.stop();
-		// The abort's result is built from the slot, which never got the output.
+		// 中止结果根据槽位构建，而该槽位从未收到输出。
 		const end = ends.find((event) => event.type === "tool_execution_end" && event.toolCallId === "c1/1");
 		const result = (end as { result?: NestedToolExecutionResult }).result!;
 		expect(result).toMatchObject({ isError: true });
@@ -981,7 +981,7 @@ describe("nested tool calls", () => {
 		await submission.wait(context);
 		await harness.waitForIdle(context);
 		await stream.stop();
-		// The start event carries the arguments the call runs with; the task input keeps the ones it was made with.
+		// 开始事件携带调用实际运行时使用的参数；任务输入则保留创建任务时的参数。
 		const start = starts.find((event) => event.type === "tool_execution_start" && event.toolCallId === "c1/1");
 		expect(start).toMatchObject({ args: { text: large } });
 		const nested = (await toolTasks(harness)).find((task) => (task.input as ToolTaskInput).kind === "nested");
@@ -1035,7 +1035,7 @@ describe("nested tool calls", () => {
 			setup.registry,
 			tool("batch", async (_args, api, callContext) => {
 				await api.executeTool("echo", { text: "n1" }, callContext);
-				// n2 makes m1 and m2 and settles, which removes them from between n2 and n3.
+				// n2 创建 m1 和 m2 后结束，因此它们会从 n2 与 n3 之间移除。
 				await api.executeTool("inner", {}, callContext);
 				await api.executeTool("echo", { text: "n3" }, callContext);
 				await api.executeTool("echo", { text: "n4" }, callContext);
@@ -1059,7 +1059,7 @@ describe("nested tool calls", () => {
 
 	it("gives callers a result with its task ID and only diagnostics for a nested call the scheduler faulted", async () => {
 		const setup = chatSetup();
-		// Details that are not JSON make the result commit throw, so the task faults and stores no result.
+		// details 中包含非 JSON 数据会使结果提交抛出异常，因此任务失败且不会保存结果。
 		addTool(
 			setup.registry,
 			tool("echo", async () => ({ details: { count: 1n } as unknown as JsonValue })),
@@ -1115,7 +1115,7 @@ describe("nested tool calls", () => {
 		const setup = chatSetup();
 		const release = deferred();
 		const checked = deferred();
-		// Diagnostics win over output for the error text, which is cut to 500 characters.
+		// 错误文本优先使用诊断信息而非输出内容，并截断至 500 个字符。
 		addTool(
 			setup.registry,
 			tool("verbose", async () => ({
@@ -1137,7 +1137,7 @@ describe("nested tool calls", () => {
 			setup.registry,
 			tool("paid", async () => ({ usage })),
 		);
-		// An error with mixed content: programs get the list, the summary its text.
+		// 错误包含混合内容：程序获得列表，摘要则获得文本。
 		addTool(
 			setup.registry,
 			tool("broken", async () => ({
@@ -1202,14 +1202,14 @@ describe("nested tool calls", () => {
 
 describe("tool task version 1 records", () => {
 	/**
-	 * Store a live tool task for call `c1` of an assistant entry, close, and rewrite its record as version 1 stored it:
-	 * `{ assistant, callId }` input at version 1, with `checkpoint`. Returns the storage path and the task ID.
+	 * 为助手条目的 `c1` 调用存储一个运行中的工具任务，关闭后再按版本 1 的格式重写记录：
+	 * 输入为 `{ assistant, callId }` 且版本为 1，并包含 `checkpoint`。返回存储路径和任务 ID。
 	 */
 	async function storeVersion1(setup: ChatSetup, checkpoint: JsonValue): Promise<{ path: string; id: TaskId }> {
 		const directory = await mkdtemp(join(tmpdir(), "pi-durable-tool-v1-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
-		// No submission, so the Harness never starts scheduling and the task stays pending.
+		// 没有提交内容，因此 Harness 不会启动调度，任务会保持等待状态。
 		const { harness, root } = await openChat(await openNodeSqliteStorage(path), setup);
 		const id = await root.commit(async (tx) => {
 			const entry = await tx.appendEntry(AssistantEntry, root.id, { model: [call("echo", { text: "old" })] });

@@ -1,11 +1,10 @@
 /**
- * Nested tool call storage benchmark. Per run, one model-issued tool makes `calls` parallel nested calls of `blob`,
- * each streaming `bytes` of output in 8 chunks `gapMs` apart; at depth 2 it makes them through `calls / 10` parallel
- * `fan` calls of 10 each. With `progress: false` the nested calls commit no running output. Reports commits, logical
- * bytes written (JSON of the storage writes) by write type, the stored size after each run, and the heap: its peak during a run, sampled every 5 ms, and what stays after a
- * run and a GC, both over the heap after a GC before the first run. A 2 ms gap is a fast tool such as `read`: it ends
- * before a second progress commit. A 50 ms gap streams for 400 ms, as a short `bash` command does, and commits progress
- * every 100 ms.
+ * 嵌套工具调用存储基准测试。每轮中，一个由模型发起的工具会并行创建 `calls` 个 `blob` 嵌套调用，
+ * 每个调用以 `gapMs` 为间隔分 8 个数据块流式输出 `bytes` 字节；深度为 2 时，每个调用还会并行创建
+ * `calls / 10` 组嵌套调用，每组包含 10 个。`progress: false` 时，嵌套调用不会提交运行中输出。测试会按写入类型
+ * 报告提交次数、写入的逻辑字节数（存储写入内容的 JSON 大小）、每轮后的存储大小，以及堆内存峰值（每 5 毫秒采样）和
+ * 垃圾回收后保留的内存；后二者均以首轮开始前完成垃圾回收后的堆占用为基准。间隔为 2 毫秒时，`read` 这类快速工具会在
+ * 下一次进度提交前结束。间隔为 50 毫秒时，数据会持续流式输出 400 毫秒，类似短时 `bash` 命令，并每 100 毫秒提交进度。
  *
  *   node --conditions=source --experimental-strip-types --expose-gc test/nested-tools-bench.ts [streaming|nesting]
  */
@@ -36,7 +35,7 @@ type Scenario = {
 	depth: 1 | 2;
 	bytes: number;
 	gapMs: number;
-	/** Whether nested calls stream their running output to `pi.live`. */
+	/** 嵌套调用是否将运行中输出流式写入 `pi.live`。 */
 	progress: boolean;
 	runs: number;
 };
@@ -46,7 +45,7 @@ type Run = {
 	written: Written;
 	storedBytes: number;
 	ms: number;
-	/** Over the heap after a GC before the first run. */
+	/** 相对于首轮开始前完成垃圾回收后的堆占用。 */
 	peakHeap: number;
 	heldHeap: number;
 };
@@ -60,7 +59,7 @@ function heapAfterGc(): number {
 }
 
 const CHUNKS = 8;
-/** Calls each inner `fan` makes at depth 2. */
+/** 深度为 2 时，每个内部 fan 创建的调用数。 */
 const FAN_OUT = 10;
 
 async function directorySize(path: string): Promise<number> {
@@ -99,7 +98,7 @@ async function runScenario(scenario: Scenario): Promise<{ perRun: Run[]; closedB
 		models.setProvider(faux.provider);
 		const registry = createRegistry();
 		const chunk = `${"x".repeat(scenario.bytes / CHUNKS - 1)}\n`;
-		// Streams its output and returns none, so its result is the retained output, as bash's is.
+		// 该工具会流式输出且不返回结果，因此其工具结果就是保留的输出，与 bash 一致。
 		const blob = defineTool({
 			name: "blob",
 			description: "Stream a blob",
@@ -113,7 +112,7 @@ async function runScenario(scenario: Scenario): Promise<{ perRun: Run[]; closedB
 			},
 		});
 		const options = scenario.progress ? {} : { progress: false as const };
-		/** A tool that makes `count` parallel nested calls of `target`, which get `{ n, count: FAN_OUT }`. */
+		/** 创建 `count` 个并行 `target` 嵌套调用的工具；每个调用接收 `{ n, count: FAN_OUT }`。 */
 		const fanOut = (name: string, target: string) =>
 			defineTool({
 				name,
@@ -185,7 +184,7 @@ async function runScenario(scenario: Scenario): Promise<{ perRun: Run[]; closedB
 	}
 }
 
-/** A run that answers `done` may still have failed tools; the model-issued call's result says whether any did. */
+/** 即使一次运行回答了 `done`，其中的工具调用仍可能失败；模型发起调用的结果会说明是否发生失败。 */
 async function assertToolsSucceeded(root: Conversation, run: number): Promise<void> {
 	const page = await root.entries({}, 10, undefined, context);
 	const result = page.items.find((entry) => ToolResultEntry.is(entry))?.model?.[0];

@@ -5,16 +5,16 @@ import { dirname, relative, sep } from "node:path";
 import type { Context } from "@earendil-works/chord";
 import { FileError, type FileWatcher, type WatchChange, type WatchTarget } from "./index.ts";
 
-/** How `NodeExecutionEnv` watches. */
+/** `NodeExecutionEnv` 如何进行监视。 */
 export interface NodeWatchOptions {
 	/**
-	 * Force a mode. By default `polling` is chosen on Windows, where native watchers keep directories open and so block
-	 * renaming their parents, and for file systems that do not report remote changes.
+	 * 强制指定模式。默认情况下，Windows 上会选择 `polling`（原生监视器会保持目录打开，从而阻碍重命名其父目录），
+	 * 对不上报远程变更的文件系统也会选择 `polling`。
 	 */
 	mode?: "native" | "polling";
-	/** Interval between snapshots in `polling` mode; default 2000 ms. */
+	/** `polling` 模式下快照之间的间隔；默认 2000 毫秒。 */
 	pollIntervalMs?: number;
-	/** Most directories one watcher covers; default 10,000. */
+	/** 单个监视器可覆盖的最大目录数；默认 10,000。 */
 	maxDirectories?: number;
 }
 
@@ -25,7 +25,7 @@ type ResolvedTarget = {
 	readonly names: ReadonlySet<string>;
 };
 
-/** What a snapshot remembers of one path. Directories and ancestors are compared by identity only. */
+/** 快照为每个路径记住的信息。目录与祖先仅按身份（identity）比较。 */
 type Entry = {
 	readonly kind: "file" | "directory" | "symlink" | "other";
 	readonly dev: number;
@@ -37,33 +37,31 @@ type Entry = {
 
 type Snapshot = Map<string, Entry>;
 
-/** A native watcher and the identity of what it was installed on: a path replaced by another file needs a new one. */
+/** 原生监视器及其安装对象的身份：路径被另一个文件替换后需要新的监视器。 */
 type Installed = { readonly watcher: FSWatcher; readonly dev: number; readonly ino: number };
 
-/** A scan: the snapshot, and targets that are symbolic links to files, whose files need their own watchers. */
+/** 一次扫描的结果：快照，以及作为文件符号链接的目标，这些文件需要各自的监视器。 */
 type Scan = { readonly snapshot: Snapshot; readonly linkedFiles: ReadonlySet<string> };
 
 const DEBOUNCE_MS = 50;
 /**
- * On macOS, `fs.watch` returns before libuv's FSEvents stream is live, and changes in between are never reported
- * (about 2% of changes made right after the call, none after 100 ms). A rescan this long after installing watchers
- * catches them.
+ * 在 macOS 上，`fs.watch` 返回时 libuv 的 FSEvents 流尚未就绪，期间的变更永远不会被上报
+ * （约占调用后立即做出变更的 2%，100 毫秒后则没有）。安装监视器这么久之后再重扫一次即可捕获它们。
  */
 const FSEVENTS_SETTLE_MS = 500;
 const DEFAULT_POLL_MS = 2000;
 const DEFAULT_MAX_DIRECTORIES = 10_000;
-/** In polling mode, recently modified small files are also compared by content: a second write within the file system's
- * timestamp granularity can keep size and modification time. */
+/** 在 polling 模式下，最近修改过的小文件还会按内容比较：在文件系统时间戳粒度内的第二次写入，可能保住大小和修改时间。 */
 const HASH_MAX_BYTES = 256 * 1024;
 const HASH_RECENT_MS = 5000;
 
-/** Linux `statfs` magic numbers of file systems that accept watches but do not report changes made elsewhere. */
+/** Linux `statfs` 的文件系统魔数：这些文件系统接受监视，但不上报在别处做出的变更。 */
 const UNRELIABLE_FILE_SYSTEMS = new Set([
 	0x6969, // NFS
 	0x517b, // SMB
 	0xff534d42, // CIFS
 	0xfe534d42, // SMB2
-	0x65735546, // FUSE (sshfs, Android shared storage)
+	0x65735546, // FUSE（sshfs、Android 共享存储）
 	0x01021997, // 9P (WSL2 Windows drives)
 	0x0bd00bd0, // Lustre
 	0x47504653, // GPFS
@@ -112,7 +110,7 @@ function sameEntry(a: Entry, b: Entry): boolean {
 	);
 }
 
-/** Ancestors of `path`, nearest first, up to the root. */
+/** `path` 的各个祖先，由近及远，直到根目录。 */
 function ancestorsOf(path: string): string[] {
 	const result: string[] = [];
 	for (let current = dirname(path); ; current = dirname(current)) {
@@ -121,7 +119,7 @@ function ancestorsOf(path: string): string[] {
 	}
 }
 
-/** Whether `path` is `ancestor` or below it. */
+/** `path` 是否为 `ancestor` 本身或位于其之下。 */
 function isWithin(path: string, ancestor: string): boolean {
 	return path === ancestor || path.startsWith(ancestor.endsWith(sep) ? ancestor : ancestor + sep);
 }
@@ -131,10 +129,9 @@ function excluded(target: ResolvedTarget, name: string): boolean {
 }
 
 /**
- * Watches by snapshots: native events only trigger a debounced rescan, and changes are the difference between
- * snapshots plus the event paths. A replaced file, a renamed or recreated ancestor, or a directory created with its
- * contents therefore never depends on which events an operating system sends. New directories get their watchers
- * before they are scanned again, so nothing written into them before the watcher existed is missed.
+ * 基于快照进行监视：原生事件仅触发一次去抖的重扫，变更即快照之间的差异再加上事件路径。
+ * 因此被替换的文件、被重命名或重建的祖先、或连同内容一起创建的目录，都绝不依赖操作系统发送了哪些事件。
+ * 新目录会先获得监视器、之后才被再次扫描，所以监视器存在之前写入其中的内容不会漏掉。
  */
 export class NodeFileWatcher implements FileWatcher {
 	readonly #targets: readonly ResolvedTarget[];
@@ -164,7 +161,7 @@ export class NodeFileWatcher implements FileWatcher {
 		this.#maxDirectories = options.maxDirectories ?? DEFAULT_MAX_DIRECTORIES;
 	}
 
-	/** Establish coverage: watchers first, then the snapshot later changes are compared with. */
+	/** 建立覆盖：先装监视器，再生成快照供之后的变更比较。 */
 	static async open(
 		targets: readonly WatchTarget[],
 		resolvePath: (path: string) => string,
@@ -177,8 +174,8 @@ export class NodeFileWatcher implements FileWatcher {
 			hidden: target.exclude?.hidden === true,
 			names: new Set(target.exclude?.names ?? []),
 		}));
-		// Windows refuses to rename a directory while another directory below it is open, and a native watcher keeps
-		// every watched directory open: watching would break renames of their parents, so Windows polls.
+		// Windows 拒绝在另一个目录在其下方处于打开状态时重命名该目录，而原生监视器会让每个被监视的
+		// 目录保持打开：监视会破坏其父目录的重命名，所以 Windows 采用轮询。
 		const mode =
 			options.mode ??
 			(process.platform === "win32" || (await anyUnreliable(resolved.map((target) => target.path)))
@@ -221,7 +218,7 @@ export class NodeFileWatcher implements FileWatcher {
 		try {
 			this.#onChange(change);
 		} catch {
-			// A throwing callback must not stop watching.
+			// 抛异常的回调绝不能让监视停止。
 		}
 	}
 
@@ -280,19 +277,19 @@ export class NodeFileWatcher implements FileWatcher {
 		return this.#running;
 	}
 
-	/** Rescan, report differences, and install watchers for new directories, rescanning until none are new. */
+	/** 重扫并上报差异，为新目录安装监视器，反复重扫直到没有新目录。 */
 	async #sync(report: boolean): Promise<Set<string>> {
 		const changed = new Set<string>();
 		for (let round = 0; round < 10 && !this.#closed; round++) {
 			const scan = await this.#scan();
-			// Closed during the scan: installing watchers now would leak them.
+			// 扫描期间已关闭：此时安装监视器会泄漏它们。
 			if (this.#closed) break;
 			const next = scan.snapshot;
 			if (report) for (const path of this.#diff(this.#snapshot, next)) changed.add(path);
 			this.#snapshot = next;
 			if (this.#mode === "polling" || !this.#reconcileWatchers(scan)) break;
 			if (process.platform === "darwin") this.#scheduleSettle();
-			// Something written into a new directory before its watcher existed shows up in the next round.
+			// 在新目录的监视器存在之前写入其中的一切，会在下一轮显现出来。
 			report = true;
 		}
 		return changed;
@@ -308,7 +305,7 @@ export class NodeFileWatcher implements FileWatcher {
 		return changed;
 	}
 
-	/** An ancestor that changed identity moved every target below it; report those targets. */
+	/** 身份发生变化的祖先移动了其下所有目标；上报那些目标。 */
 	#reported(path: string): string {
 		if (this.#targets.some((target) => isWithin(path, target.path))) return path;
 		return this.#targets.find((target) => isWithin(target.path, path))?.path ?? path;
@@ -317,12 +314,12 @@ export class NodeFileWatcher implements FileWatcher {
 	async #scan(): Promise<Scan> {
 		const snapshot: Snapshot = new Map();
 		const linkedFiles = new Set<string>();
-		// Directories are counted once, but traversed once per target: overlapping targets differ in recursion and
-		// exclusions, and an entry recorded for one target must still be descended into for another.
+		// 目录只计数一次，但每个目标各遍历一次：重叠的目标在递归与排除规则上不同，
+		// 为某个目标记录过的条目，对另一个目标仍要继续下钻。
 		const counted = new Set<string>();
 		const traversed = new Set<string>();
-		/** Kinds of listed entries, not following links: a target that links to a directory is recorded by `stat`, but
-		 * symbolic links below a recursive target are not followed. */
+		/** 已列出条目的种类（不跟随链接）：链接到目录的目标由 `stat` 记录，
+		 * 但递归目标下方的符号链接不会被跟随。 */
 		const listed = new Map<string, Entry["kind"]>();
 		const countDirectory = (path: string): void => {
 			counted.add(path);
@@ -353,7 +350,7 @@ export class NodeFileWatcher implements FileWatcher {
 			try {
 				names = await readdir(directory);
 			} catch (error) {
-				// The watched directory itself must be readable; below it, unreadable directories are skipped.
+				// 被监视的目录本身必须可读；其下方的不可读目录会被跳过。
 				if (directory === target.path && isDenied(error)) throw error;
 				if (isNodeError(error) && ["ENOENT", "EACCES", "EPERM", "ENOTDIR"].includes(error.code ?? "")) return;
 				throw error;
@@ -367,7 +364,7 @@ export class NodeFileWatcher implements FileWatcher {
 					if (stats === undefined) continue;
 					kind = entryOf(stats).kind;
 					listed.set(path, kind);
-					// A target's own entry (following links) wins over its listing by another target.
+					// 目标自身的条目（跟随链接）优先于另一个目标对它的列出。
 					if (!snapshot.has(path)) await record(path, stats);
 				}
 				if (target.recursive && kind === "directory") {
@@ -380,11 +377,11 @@ export class NodeFileWatcher implements FileWatcher {
 			for (const ancestor of ancestorsOf(target.path)) {
 				if (snapshot.has(ancestor)) continue;
 				const stats = await lstat(ancestor).catch(() => undefined);
-				// Identity only: an ancestor's own timestamps change with every unrelated sibling.
+				// 只按身份：祖先自身的时间戳会随任何无关兄弟的变化而改变。
 				if (stats !== undefined) snapshot.set(ancestor, { ...entryOf(stats), size: 0, mtimeMs: 0 });
 			}
-			// The target itself may be a symbolic link to what is watched; follow it. A missing target is watched for its
-			// creation; one that cannot be reached for lack of permission fails.
+			// 目标本身可能是指向被监视对象的符号链接；要跟随它。缺失的目标会一直被监视直至其被创建；
+			// 因权限不足而无法触达的目标则失败。
 			let stats: Stats;
 			try {
 				stats = await stat(target.path);
@@ -405,9 +402,9 @@ export class NodeFileWatcher implements FileWatcher {
 	}
 
 	/**
-	 * Watch every existing ancestor of each target, each target directory, each target that is a symbolic link to a file
-	 * (changes to that file are not events of the link's directory), and on Linux each directory below a recursive target
-	 * (elsewhere one recursive watcher per target). Returns whether a watcher was added.
+	 * 监视每个目标的全部现存祖先、每个目标目录、每个作为指向文件的符号链接的目标（对那些文件的变更不属于
+	 * 链接所在目录的事件），以及在 Linux 上递归目标下的每个目录（其他平台每个目标一个递归监视器）。
+	 * 返回是否新加了监视器。
 	 */
 	#reconcileWatchers({ snapshot, linkedFiles }: Scan): boolean {
 		const wanted = new Map<string, boolean>();
@@ -430,7 +427,7 @@ export class NodeFileWatcher implements FileWatcher {
 		}
 		for (const [path, installed] of this.#watchers) {
 			const entry = snapshot.get(path);
-			// Gone, or replaced: a watcher follows the directory it was installed on, not the path.
+			// 已消失，或已被替换：监视器跟随它所安装的目录，而不是路径。
 			if (!wanted.has(path) || entry === undefined || entry.dev !== installed.dev || entry.ino !== installed.ino) {
 				installed.watcher.close();
 				this.#watchers.delete(path);
@@ -447,7 +444,7 @@ export class NodeFileWatcher implements FileWatcher {
 						? this.#onLinkedFileEvent(path)
 						: this.#onEvent(path, filename === null ? undefined : String(filename)),
 				);
-				// A watched directory that disappears or fails: rescan, which also replaces the watcher.
+				// 被监视目录消失或出错：重扫一次，同时也会替换掉该监视器。
 				watcher.on("error", () => {
 					watcher.close();
 					if (this.#watchers.get(path)?.watcher === watcher) this.#watchers.delete(path);
@@ -456,7 +453,7 @@ export class NodeFileWatcher implements FileWatcher {
 				this.#watchers.set(path, { watcher, dev: entry.dev, ino: entry.ino });
 				added = true;
 			} catch (error) {
-				// Out of watches or unsupported: compare snapshots from now on, and say coverage was uncertain.
+				// 监视额度耗尽或不支持：从现在起改为比较快照，并声明覆盖曾经不可靠。
 				if (isNodeError(error) && error.code !== "ENOENT" && error.code !== "EACCES" && error.code !== "EPERM") {
 					this.#switchToPolling();
 					return false;
@@ -481,13 +478,13 @@ export class NodeFileWatcher implements FileWatcher {
 		if (this.#closed) return;
 		const path =
 			filename === undefined ? directory : `${directory.endsWith(sep) ? directory : directory + sep}${filename}`;
-		// Events about unrelated siblings of an ancestor, or about excluded entries, are ignored.
+		// 关于祖先的无关兄弟、或被排除条目的事件一律忽略。
 		const relevant = this.#inScope(path);
 		if (relevant) this.#events.add(this.#reported(path));
 		if (relevant || filename === undefined) this.#scheduleFlush();
 	}
 
-	/** The file a target links to changed: report the target. */
+	/** 目标所链接的文件发生了变化：上报该目标。 */
 	#onLinkedFileEvent(target: string): void {
 		if (this.#closed) return;
 		this.#events.add(target);
@@ -507,7 +504,7 @@ export class NodeFileWatcher implements FileWatcher {
 	}
 }
 
-/** Whether any path, or its nearest existing ancestor, is on a file system that does not report remote changes. */
+/** 任何路径或其最近现存祖先，是否位于不上报远程变更的文件系统上。 */
 async function anyUnreliable(paths: readonly string[]): Promise<boolean> {
 	if (process.platform !== "linux" && process.platform !== "android") return false;
 	for (const path of paths) {

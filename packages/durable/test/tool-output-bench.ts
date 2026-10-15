@@ -1,11 +1,11 @@
 /**
- * Tool output benchmark: drives the real tool task, adaptive progress throttle, and `pi.live` commits.
+ * 工具输出基准测试：运行实际工具任务、自适应进度节流和 `pi.live` 提交流程。
  *
  *   node --conditions=source --experimental-strip-types --expose-gc test/tool-output-bench.ts
  *
- * Each scenario runs in its own child process so peak RSS is its own. Rate scenarios write output for a fixed time,
- * then close the Harness mid-round (persistent backends) to measure replay of the round's delta chain on reopen, and
- * finish the run to measure the stored size after the round's base and reclamation. Throughput scenarios push 1 GiB.
+ * 每个场景都在独立子进程中运行，以单独测量其 RSS 峰值。速率场景会在固定时间内写入输出，
+ * 然后在一轮中途关闭 Harness（持久化后端），测量重新打开时重放该轮增量链的耗时；
+ * 最后完成运行，以测量该轮基准提交和回收后的存储大小。吞吐量场景会写入 1 GiB 数据。
  */
 import { execFile } from "node:child_process";
 import { mkdtemp, open, readdir, rm, stat } from "node:fs/promises";
@@ -36,13 +36,13 @@ const GIB = 1 << 30;
 const LINE = "The quick brown fox jumps over the lazy dog. Unique identifier";
 const BIG_FILE = join(tmpdir(), "pi-durable-bench-1gib.txt");
 
-/** Output one tool writes per tick, and the pause between ticks. */
+/** 工具每个时钟周期写入的输出，以及周期之间的暂停时间。 */
 const RATES: Record<Rate, { readonly lines: number; readonly pauseMs: number }> = {
-	// A line every 200 ms, like a slow build step.
+	// 每 200 毫秒输出一行，模拟缓慢的构建步骤。
 	low: { lines: 1, pauseMs: 200 },
-	// Bursts of 25 lines every 50 ms (~40 KB/s), like a compiler or test run.
+	// 每 50 毫秒突发输出 25 行（约 40 KB/s），模拟编译器或测试运行。
 	normal: { lines: 25, pauseMs: 50 },
-	// Continuous 64 KiB chunks, yielding to the event loop between them.
+	// 连续输出 64 KiB 数据块，并在块之间让出事件循环。
 	high: { lines: 800, pauseMs: 0 },
 };
 
@@ -61,9 +61,9 @@ async function main(): Promise<void> {
 			}
 		}
 		for (const retain of ["head", "tail"] as const) scenarios.push({ kind: "firehose", backend, retain });
-		// Identical lines: how often Chord's bounded overlap search falls back to writing the whole tail window.
+		// 相同行：统计 Chord 的有界重叠搜索回退为写入整个尾部窗口的频率。
 		scenarios.push({ kind: "firehose", backend, retain: "tail", repetitive: true });
-		// One long round: the delta chain a chatty tail tool builds before the round's base.
+		// 单个长轮次：持续输出的尾部工具在该轮基准提交前构建的增量链。
 		if (backend !== "memory")
 			scenarios.push({ kind: "rate", backend, rate: "high", retain: "tail", tools: 1, seconds: 30 });
 		scenarios.push({ kind: "cat", backend });
@@ -93,7 +93,7 @@ function label(scenario: Scenario): Record<string, unknown> {
 
 async function ensureBigFile(): Promise<void> {
 	if ((await stat(BIG_FILE).catch(() => undefined))?.size === GIB) return;
-	// Unique lines, written in 64 MiB blocks and cut at exactly 1 GiB.
+	// 不重复的行，每次写入 64 MiB，恰好在 1 GiB 处截断。
 	const file = await open(BIG_FILE, "w");
 	try {
 		let index = 0;
@@ -113,7 +113,7 @@ type Metrics = {
 	ms: number;
 	liveCommits: number;
 	liveOpKiB: number;
-	/** Output writes recorded as a whole-string set, including each slot's first write; the rest are appends/trims. */
+	/** 将输出写入记录为完整字符串集合，包含每个槽位的首次写入；其余操作均为追加或截断。 */
 	outputSets: number;
 	commitP50Ms: number;
 	commitP99Ms: number;
@@ -150,9 +150,9 @@ async function runScenario(scenario: Scenario): Promise<Metrics> {
 					execute: async (_args, api, callContext) => {
 						let counter = 0;
 						let written = 0;
-						// The firehose reuses one prebuilt chunk so it measures the Harness, not string building.
+						// 高速连续输出场景复用预先构建的数据块，以测量 Harness 性能，而非字符串构建速度。
 						const prebuilt = scenario.kind === "firehose" ? lines(api.callId, 0, rate.lines) : undefined;
-						// Repetitive: identical lines with one numbered line per chunk, so the tail window keeps sliding.
+						// 重复输出：每个数据块包含相同的行和一行编号，因此尾部窗口会持续滑动。
 						const repeated = "y\n".repeat(32 * 1024 - 8);
 						while (!stop && (scenario.kind === "rate" || written < GIB)) {
 							const chunk =
@@ -166,7 +166,7 @@ async function runScenario(scenario: Scenario): Promise<Metrics> {
 								rate.pauseMs === 0 ? setImmediate(resolve) : setTimeout(resolve, rate.pauseMs),
 							);
 						}
-						// A persistent rate scenario stays in flight until close, so reopen replays the round.
+						// 持久化速率场景会一直运行到关闭，因此重新打开时会重放该轮。
 						if (scenario.kind === "rate" && scenario.backend !== "memory") {
 							await new Promise((_, reject) =>
 								callContext.abortSignal!.addEventListener("abort", () =>
@@ -212,7 +212,7 @@ async function runScenario(scenario: Scenario): Promise<Metrics> {
 			await new Promise((resolve) => setTimeout(resolve, (scenario.seconds ?? RATE_SECONDS) * 1000));
 			stop = true;
 			if (scenario.backend !== "memory") {
-				// Let the last progress commit land, then close mid-round and time replay on reopen.
+				// 等待最后一次进度提交完成，然后在一轮中途关闭，并测量重新打开时的重放耗时。
 				await new Promise((resolve) => setTimeout(resolve, 600));
 				metrics.midRoundKiB = await footprint(scenario.backend, path);
 				await harness.close(context);
@@ -257,7 +257,7 @@ async function openStorage(backend: Backend, path: string): Promise<Storage> {
 	return openNodeJsonlStorage(path, context);
 }
 
-/** Measure every Storage commit. */
+/** 测量每次 Storage 提交。 */
 function timed(storage: Storage, latencies: number[]): Storage {
 	return new Proxy(storage, {
 		get(target, property) {

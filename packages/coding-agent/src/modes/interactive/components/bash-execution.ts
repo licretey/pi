@@ -1,5 +1,5 @@
 /**
- * Component for displaying bash command execution with streaming output.
+ * 显示 Bash 命令执行及其流式输出的组件。
  */
 
 import { Container, Loader, Spacer, Text, type TUI } from "@earendil-works/pi-tui";
@@ -15,7 +15,7 @@ import { DynamicBorder } from "./dynamic-border.ts";
 import { keyHint, keyText } from "./keybinding-hints.ts";
 import { truncateToVisualLines } from "./visual-truncate.ts";
 
-// Preview line limit when not expanded (matches tool execution behavior)
+// 折叠时的预览行数上限（与工具执行结果的显示行为一致）。
 const PREVIEW_LINES = 20;
 
 export class BashExecutionComponent extends Container {
@@ -28,7 +28,7 @@ export class BashExecutionComponent extends Container {
 	private fullOutputPath?: string;
 	private expanded = false;
 	private contentContainer: Container;
-	/** `dim` marks `!!` commands, whose output is excluded from the model context. */
+	/** 使用 `dim` 标记以 `!!` 开头的命令；这类命令的输出会从模型上下文中排除。 */
 	private readonly colorKey: "dim" | "bashMode";
 	private outputPad: number;
 
@@ -39,13 +39,13 @@ export class BashExecutionComponent extends Container {
 		this.outputPad = outputPad;
 		const borderColor = (str: string) => theme.fg(this.colorKey, str);
 
-		// Add spacer
+		// 添加间隔。
 		this.addChild(new Spacer(1));
 
-		// Top border
+		// 上边框。
 		this.addChild(new DynamicBorder(borderColor));
 
-		// Content container (holds dynamic content between borders)
+		// 内容容器（用于放置边框之间的动态内容）。
 		this.contentContainer = new Container();
 		this.addChild(this.contentContainer);
 
@@ -53,17 +53,17 @@ export class BashExecutionComponent extends Container {
 			ui,
 			(spinner) => theme.fg(this.colorKey, spinner),
 			(text) => theme.fg("muted", text),
-			`Running... (${keyText("tui.select.cancel")} to cancel)`, // Plain text for loader
+			`Running... (${keyText("tui.select.cancel")} to cancel)`, // 加载指示器使用纯文本。
 		);
 
-		// Bottom border
+		// 下边框。
 		this.addChild(new DynamicBorder(borderColor));
 
 		this.updateDisplay();
 	}
 
 	/**
-	 * Set whether the output is expanded (shows full output) or collapsed (preview only).
+	 * 设置输出是否展开（显示完整内容）或折叠（仅显示预览）。
 	 */
 	setExpanded(expanded: boolean): void {
 		this.expanded = expanded;
@@ -81,14 +81,14 @@ export class BashExecutionComponent extends Container {
 	}
 
 	appendOutput(chunk: string): void {
-		// Strip ANSI codes and normalize line endings
-		// Note: binary data is already sanitized in tui-renderer.ts executeBashCommand
+		// 移除 ANSI 控制码并统一换行符。
+		// 注意：二进制数据已在 tui-renderer.ts 的 executeBashCommand 中清理。
 		const clean = stripAnsi(chunk).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
-		// Append to output lines
+		// 追加到输出行。
 		const newLines = clean.split("\n");
 		if (this.outputLines.length > 0 && newLines.length > 0) {
-			// Append first chunk to last line (incomplete line continuation)
+			// 将首个数据块追加到上一行（续接尚未完成的行）。
 			this.outputLines[this.outputLines.length - 1] += newLines[0];
 			this.outputLines.push(...newLines.slice(1));
 		} else {
@@ -113,42 +113,42 @@ export class BashExecutionComponent extends Container {
 		this.truncationResult = truncationResult;
 		this.fullOutputPath = fullOutputPath;
 
-		// Stop loader
+		// 停止加载指示器。
 		this.loader.stop();
 
 		this.updateDisplay();
 	}
 
 	private updateDisplay(): void {
-		// Apply truncation for LLM context limits (same limits as bash tool)
+		// 按 LLM 上下文限制截断（与 Bash 工具使用相同的限制）。
 		const fullOutput = this.outputLines.join("\n");
 		const contextTruncation = truncateTail(fullOutput, {
 			maxLines: DEFAULT_MAX_LINES,
 			maxBytes: DEFAULT_MAX_BYTES,
 		});
 
-		// Get the lines to potentially display (after context truncation)
+		// 获取待显示的行（已按上下文限制截断）。
 		const availableLines = contextTruncation.content ? contextTruncation.content.split("\n") : [];
 
-		// Apply preview truncation based on expanded state
+		// 根据展开状态截断预览内容。
 		const previewLogicalLines = availableLines.slice(-PREVIEW_LINES);
 		const hiddenLineCount = availableLines.length - previewLogicalLines.length;
 
-		// Rebuild content container
+		// 重建内容容器。
 		this.contentContainer.clear();
 
-		// Command header
+		// 命令标题。
 		const header = new Text(theme.fg(this.colorKey, theme.bold(`$ ${this.command}`)), this.outputPad, 0);
 		this.contentContainer.addChild(header);
 
-		// Output
+		// 输出内容。
 		if (availableLines.length > 0) {
 			if (this.expanded) {
-				// Show all lines
+				// 显示所有行。
 				const displayText = availableLines.map((line) => theme.fg("muted", line)).join("\n");
 				this.contentContainer.addChild(new Text(`\n${displayText}`, this.outputPad, 0));
 			} else {
-				// Use shared visual truncation utility with width-aware caching
+				// 使用共享的视觉截断工具，并按宽度缓存结果。
 				const styledOutput = previewLogicalLines.map((line) => theme.fg("muted", line)).join("\n");
 				const styledInput = `\n${styledOutput}`;
 				let cachedWidth: number | undefined;
@@ -170,13 +170,13 @@ export class BashExecutionComponent extends Container {
 			}
 		}
 
-		// Loader or status
+		// 加载指示器或状态。
 		if (this.status === "running") {
 			this.contentContainer.addChild(this.loader);
 		} else {
 			const statusParts: string[] = [];
 
-			// Show how many lines are hidden (collapsed preview)
+			// 显示折叠预览中隐藏的行数。
 			if (hiddenLineCount > 0) {
 				if (this.expanded) {
 					statusParts.push(
@@ -195,7 +195,7 @@ export class BashExecutionComponent extends Container {
 				statusParts.push(theme.fg("error", `(exit ${this.exitCode})`));
 			}
 
-			// Add truncation warning (context truncation, not preview truncation)
+			// 添加截断警告（指上下文截断，而非预览截断）。
 			const wasTruncated = this.truncationResult?.truncated || contextTruncation.truncated;
 			if (wasTruncated && this.fullOutputPath) {
 				statusParts.push(theme.fg("warning", `Output truncated. Full output: ${this.fullOutputPath}`));
@@ -208,14 +208,14 @@ export class BashExecutionComponent extends Container {
 	}
 
 	/**
-	 * Get the raw output for creating BashExecutionMessage.
+	 * 获取用于创建 BashExecutionMessage 的原始输出。
 	 */
 	getOutput(): string {
 		return this.outputLines.join("\n");
 	}
 
 	/**
-	 * Get the command that was executed.
+	 * 获取已执行的命令。
 	 */
 	getCommand(): string {
 		return this.command;

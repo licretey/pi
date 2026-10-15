@@ -385,8 +385,8 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 		if (response === undefined) {
 			throw new Error("Pi eval input must include at least one prompt step.");
 		}
-		// A forced prompt is not recorded in the transcript, so use the one the transform
-		// extension sent; otherwise the replayed transcript prompt is what the provider received.
+		// 强制指定的提示词不会记录在会话文本中，因此应使用 transform 扩展实际发送的提示词；
+		// 否则，重放会话文本时使用的提示词才是提供商实际收到的内容。
 		const systemPrompt = forcedSystemPrompt ?? getCurrentSystemPrompt(session.messages);
 		const stats = session.getSessionStats();
 		const hasPricing = [model.cost, ...(model.cost.tiers ?? [])].some(
@@ -481,7 +481,7 @@ export function createPiCodingAgentHarness<TOutput extends JsonValue>(
 	});
 }
 
-/** Documentation evals intentionally exclude shell and unrestricted network tools. */
+/** 文档评测会有意排除 shell 和不受限制的网络工具。 */
 export const DOCUMENTATION_EVAL_TOOLS = ["read", "write", "edit", "grep", "find", "ls"] as const;
 
 export function resolveDocumentationVariant(

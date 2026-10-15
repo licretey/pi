@@ -47,7 +47,7 @@ afterAll(() => {
 });
 
 describe("Node SEA extension loading", () => {
-	// Regression test for #8237 and #9540.
+	// #8237 和 #9540 回归测试。
 	it("loads jiti and bundled virtual modules only when importing an extension", async () => {
 		expect(state.jitiModuleLoads).toBe(0);
 		expect(state.virtualModulesLoads).toBe(0);
@@ -61,8 +61,8 @@ describe("Node SEA extension loading", () => {
 		expect(state.createJiti).toHaveBeenCalledOnce();
 
 		const options = state.createJiti.mock.calls[0][1] as JitiOptionsProbe;
-		// Source TypeScript also uses virtual modules, so tryNative: false is what
-		// proves the compiled-binary branch took precedence over the source branch.
+		// 源码 TypeScript 同样使用虚拟模块，因此 tryNative: false 可以证明
+		// 编译后二进制文件分支优先于源码分支执行。
 		expect(options.tryNative).toBe(false);
 		expect(options.alias).toBeUndefined();
 		expect(options.virtualModules?.typebox).toBeDefined();

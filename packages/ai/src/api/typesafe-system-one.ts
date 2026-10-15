@@ -3,8 +3,8 @@ import { isRecord } from "./classifier-shared.ts";
 import { classifySystemOne, type SystemOneTransport } from "./system-one-shared.ts";
 
 /**
- * TypeSafe's native System One protocol. OpenRouter serves the same protocol,
- * so both providers use this API with different base URLs.
+ * TypeSafe 原生的 System One 协议。OpenRouter 也提供相同协议，
+ * 因此两个提供商使用同一 API，只是基础 URL 不同。
  */
 const transport: SystemOneTransport = {
 	api: "typesafe-system-one",
@@ -17,6 +17,6 @@ const transport: SystemOneTransport = {
 	},
 };
 
-/** TypeSafe System One classification with public `bool` values mapped to wire-level `noul`. */
+/** TypeSafe System One 分类接口：将公开的 `bool` 值映射为线上协议使用的 `noul`。 */
 export const classify: ClassifierFunction<ClassifierOptions> = (model, context, options) =>
 	classifySystemOne(transport, model, context, options);

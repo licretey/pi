@@ -1,23 +1,22 @@
 #!/usr/bin/env node
 /**
- * Release script for pi-mono
+ * pi-mono 发布脚本。
  *
- * Usage:
+ * 用法：
  *   node scripts/release.mjs <major|minor|patch>
  *   node scripts/release.mjs <x.y.z>
  *
- * Steps:
- * 1. Check for uncommitted changes
- * 2. Verify every public workspace package is registered on npm
- *    and refresh the Nix model catalog pin if it is stale
- * 3. Bump version via npm run version:xxx or set an explicit version
- * 4. Update CHANGELOG.md files: [Unreleased] -> [version] - date
- * 5. Regenerate release artifacts
- * 6. Run checks and tests
- * 7. Commit and tag the release
- * 8. Add new [Unreleased] section to changelogs
- * 9. Commit next-cycle changelog updates
- * 10. Push main and the tag to trigger CI publication and verified pi.dev announcement
+ * 步骤：
+ * 1. 检查是否存在未提交的更改。
+ * 2. 确认所有公开工作区包均已发布到 npm；若 Nix 模型目录固定版本已过期，则更新它。
+ * 3. 通过 npm run version:xxx 升级版本，或设置明确的版本号。
+ * 4. 更新 CHANGELOG.md 文件：将 [Unreleased] 改为 [版本号] - 日期。
+ * 5. 重新生成发布产物。
+ * 6. 运行检查和测试。
+ * 7. 提交并为本次发布创建标签。
+ * 8. 在变更日志中添加新的 [Unreleased] 区段。
+ * 9. 提交下一周期的变更日志更新。
+ * 10. 推送 main 分支和标签，触发 CI 发布及 pi.dev 的验证公告。
  */
 
 import { execSync, spawnSync } from "node:child_process";
@@ -156,9 +155,8 @@ function bumpOrSetVersion(target) {
 		run(`npm version ${target} --workspaces --no-git-tag-version --no-workspaces-update && node scripts/sync-versions.js && npm install --package-lock-only --ignore-scripts`);
 	}
 
-	// npm version can temporarily install the previous workspace versions before
-	// sync-versions updates inter-package ranges. Remove those stale lock entries,
-	// refresh the lockfile, then hydrate from the final dependency graph.
+	// sync-versions 更新包间依赖范围之前，npm version 可能会暂时安装旧版工作区包。
+	// 删除锁文件中的过期条目，刷新锁文件，然后根据最终依赖关系图安装依赖。
 	removeStaleWorkspaceLockEntries();
 	run("npm install --package-lock-only --ignore-scripts");
 	run("npm ci --ignore-scripts");
@@ -199,7 +197,7 @@ function addUnreleasedSection() {
 	for (const changelog of changelogs) {
 		const content = readFileSync(changelog, "utf-8");
 
-		// Insert after "# Changelog\n\n"
+		// 在 "# Changelog\n\n" 之后插入。
 		const updated = content.replace(
 			/^(# Changelog\n\n)/,
 			`$1${unreleasedSection}`
@@ -209,10 +207,10 @@ function addUnreleasedSection() {
 	}
 }
 
-// Main flow
+// 主流程。
 console.log("\n=== Release Script ===\n");
 
-// 1. Check for uncommitted changes
+// 1. 检查是否存在未提交的更改。
 console.log("Checking for uncommitted changes...");
 const status = run("git status --porcelain", { silent: true });
 if (status && status.trim()) {
@@ -222,33 +220,32 @@ if (status && status.trim()) {
 }
 console.log("  Working directory clean\n");
 
-// 2. Verify npm package registration before modifying the worktree.
+// 2. 修改工作区之前，确认 npm 软件包均已注册。
 assertPackagesAreRegisteredWithNpm();
 
-// Release tags are immutable, so the tagged Nix pin must already build the
-// release. Refresh it before the version bump, while pi.dev still knows the
-// current version, so it lands in the release commit.
+// 发布标签不可变，因此带标签的 Nix 固定版本必须能够构建该发行版。
+// 在升级版本前刷新固定版本，此时 pi.dev 仍识别当前版本，这样更新会包含在发布提交中。
 console.log("Refreshing the Nix model catalog pin if stale...");
 run("node scripts/update-model-catalog-pin.mjs --if-stale");
 console.log();
 
-// 3. Bump or set version
+// 3. 升级版本或设置指定版本。
 const version = bumpOrSetVersion(RELEASE_TARGET);
 console.log(`  New version: ${version}\n`);
 
-// 4. Update changelogs
+// 4. 更新变更日志。
 console.log("Updating CHANGELOG.md files...");
 updateChangelogsForRelease(version);
 console.log();
 
-// 5. Regenerate release artifacts
+// 5. 重新生成发布产物。
 console.log("Regenerating release artifacts...");
 run("npm run generate:models");
 run("npm run check:model-data");
 run("npm run install-lock:coding-agent");
 console.log();
 
-// 6. Run checks and tests
+// 6. 运行检查和测试。
 console.log("Running checks...");
 run("npm run check");
 console.log();
@@ -257,8 +254,8 @@ console.log("Building packages for tests...");
 run("npm run build:offline");
 console.log();
 
-// PI_RELEASE_SKIP_TESTS=1 skips the test suite, e.g. when it already passed in `npm run release:local`
-// and an overloaded machine makes timing-sensitive tests fail. Checks and the install check still run.
+// 设置 PI_RELEASE_SKIP_TESTS=1 可跳过测试套件，例如测试已通过 `npm run release:local`，
+// 但机器负载过高导致对时序敏感的测试失败时。常规检查和安装检查仍会运行。
 if (process.env.PI_RELEASE_SKIP_TESTS === "1") {
 	console.log("Skipping tests (PI_RELEASE_SKIP_TESTS=1)\n");
 } else {
@@ -271,25 +268,25 @@ console.log("Checking the packed coding-agent consumer install...");
 run("npm run check:package-install");
 console.log();
 
-// 7. Commit and tag
+// 7. 提交更改并创建标签。
 console.log("Committing and tagging...");
 stageChangedFiles();
 run(`git commit -m "Release v${version}"`);
 run(`git tag v${version}`);
 console.log();
 
-// 8. Add new [Unreleased] sections
+// 8. 添加新的 [Unreleased] 区段。
 console.log("Adding [Unreleased] sections for next cycle...");
 addUnreleasedSection();
 console.log();
 
-// 9. Commit
+// 9. 提交变更日志更新。
 console.log("Committing changelog updates...");
 stageChangedFiles();
 run(`git commit -m "Add [Unreleased] section for next cycle"`);
 console.log();
 
-// 10. Push
+// 10. 推送到远程仓库。
 console.log("Pushing to remote...");
 run("git push origin main");
 run(`git push origin v${version}`);

@@ -19,8 +19,8 @@ import {
 import { daemon } from "./daemon.ts";
 
 /**
- * The conformance suite over a real SSH server on this machine, configured by CI: `PI_ENV_SSH_HOST`, `PI_ENV_SSH_USER`
- * `PI_ENV_SSH_KEY` and `PI_ENV_SSH_PROGRAM`. On Windows this covers deployment and the daemon's launch through the server's default shell.
+ * 使用真实 SSH 服务器运行的一致性测试套件，由 CI 通过 `PI_ENV_SSH_HOST`、`PI_ENV_SSH_USER`、
+ * `PI_ENV_SSH_KEY` 和 `PI_ENV_SSH_PROGRAM` 配置连接。在 Windows 上，此测试还覆盖守护进程部署及通过服务器默认 shell 启动。
  */
 const host = process.env.PI_ENV_SSH_HOST;
 const root = mkdtempSync(join(tmpdir(), "pi-env-ssh-external-"));
@@ -37,7 +37,7 @@ async function connect(): Promise<{ connection: Connection; remote: RemotePlatfo
 			knownHostsFile: join(root, "known_hosts"),
 			hostKeyAlias: "pi-env-external",
 		};
-		// Each stage is logged, so a hang in CI shows where it is.
+		// 每个阶段都会写入日志，CI 中发生挂起时可以据此定位。
 		const log = (text: string) => process.stderr.write(`[ssh-external ${new Date().toISOString()}] ${text}\n`);
 		log("scanning the host key");
 		await acceptHostKey(target, (await scanHostKey(target)).lines);

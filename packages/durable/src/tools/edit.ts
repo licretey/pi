@@ -43,8 +43,8 @@ function isSingleEditInput(value: unknown): value is SingleEditInput {
 }
 
 /**
- * Repair shapes models commonly send: `edits` as a JSON string or as a single edit object, and a top-level
- * `oldText`/`newText` pair. Works on a copy; the call's arguments stay unchanged.
+ * 修复模型常发送的形状：`edits` 是 JSON 字符串或单个编辑对象，以及顶层的 `oldText`/`newText` 对。
+ * 在副本上工作；调用的参数保持不变。
  */
 function prepareEditArguments(input: unknown): EditToolInput {
 	if (!input || typeof input !== "object" || Array.isArray(input)) return input as EditToolInput;

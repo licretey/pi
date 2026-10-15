@@ -146,7 +146,7 @@ describe("TUI.queryTerminalColors", () => {
 			terminal.sendInput("\x1b]10;#ffffff\x07");
 			terminal.sendInput("\x1b]11;rgb:0000/0000/0000\x1b\\");
 			for (const reply of PALETTE_REPLIES) terminal.sendInput(reply);
-			// Resolves once every reply arrived, without waiting for DA1.
+			// 收齐所有响应后立即完成，不必等待 DA1。
 			assert.deepStrictEqual(await query, {
 				foreground: WHITE,
 				background: BLACK,
@@ -165,7 +165,7 @@ describe("TUI.queryTerminalColors", () => {
 			const first = tui.queryTerminalColors({ timeoutMs: 1000 });
 			const second = tui.queryTerminalColors({ timeoutMs: 1000 });
 			terminal.sendInput("\x1b]11;#000000\x07");
-			// An incomplete palette is dropped.
+			// 不完整的调色板会被丢弃。
 			for (const reply of PALETTE_REPLIES.slice(0, 8)) terminal.sendInput(reply);
 			terminal.sendInput(DA1);
 			terminal.sendInput(DA1);
@@ -190,7 +190,7 @@ describe("TUI.queryTerminalColors", () => {
 			assert.deepStrictEqual(late, [{ foreground: undefined, background: WHITE, palette: undefined }]);
 			assert.deepStrictEqual(component.inputs, []);
 
-			// With no query pending, color replies are ordinary input again.
+			// 没有待处理查询时，颜色响应会重新作为普通输入处理。
 			terminal.sendInput("\x1b]11;#ffffff\x07");
 			assert.deepStrictEqual(component.inputs, ["\x1b]11;#ffffff\x07"]);
 		} finally {

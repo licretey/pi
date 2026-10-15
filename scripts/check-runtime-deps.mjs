@@ -18,7 +18,7 @@ import {
 import { API } from "typescript/unstable/sync";
 import { getPublicWorkspacePackages } from "./release-packages.mjs";
 
-// Packages without tsconfig.build.json are checked against a synthetic config.
+// 使用合成配置检查没有 tsconfig.build.json 的包。
 const fallbackConfigName = "tsconfig.runtime-deps-fallback.json";
 const fallbackConfig = JSON.stringify({ include: ["src/**/*"] });
 const failures = [];
@@ -113,8 +113,8 @@ try {
 			if (fileName.endsWith(".d.ts") || fileName.endsWith(".json")) continue;
 			const path = relative(sourceDirectory, resolve(fileName));
 			if (path.startsWith("..") || isAbsolute(path)) continue;
-			// TypeScript's exclude only filters roots: imports can pull excluded files
-			// back into the build. Reject that too, including type-only imports.
+			// TypeScript 的 exclude 只会过滤根文件；被导入的文件仍可能重新进入构建，
+			// 因此也要拒绝这种情况，包括仅导入类型的语句。
 			if (!roots.has(resolve(fileName))) {
 				failures.push(`${fileName} is excluded from ${manifest.name}'s build but imported by it`);
 			}

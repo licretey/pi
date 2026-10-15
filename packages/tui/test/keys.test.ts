@@ -1,5 +1,5 @@
 /**
- * Tests for keyboard input handling
+ * 键盘输入处理测试。
  */
 
 import assert from "node:assert";
@@ -40,14 +40,14 @@ function withEnvVars(vars: Record<string, string | undefined>, fn: () => void): 
 
 describe("matchesKey", () => {
 	describe("Kitty protocol with alternate keys (non-Latin layouts)", () => {
-		// Kitty protocol flag 4 (Report alternate keys) sends:
-		// CSI codepoint:shifted:base ; modifier:event u
-		// Where base is the key in standard PC-101 layout
+		// Kitty 协议标志 4（报告备用按键）发送以下格式：
+		// CSI 格式：codepoint（码点）:shifted（Shift 后码点）:base（基础键）; modifier（修饰键）:event（事件类型）u。
+		// 其中 base 是标准 PC-101 键盘布局中的按键。
 
 		it("should match Ctrl+c when pressing Ctrl+С (Cyrillic) with base layout key", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic 'с' = codepoint 1089, Latin 'c' = codepoint 99
-			// Format: CSI 1089::99;5u (codepoint::base;modifier with ctrl=4, +1=5)
+			// 西里尔字母 'с' 的码点为 1089，拉丁字母 'c' 的码点为 99。
+			// 格式：CSI 1089::99;5u（码点::基础按键;修饰键，其中 ctrl=4，再加 1 得到 5）。
 			const cyrillicCtrlC = "\x1b[1089::99;5u";
 			assert.strictEqual(matchesKey(cyrillicCtrlC, "ctrl+c"), true);
 			setKittyProtocolActive(false);
@@ -55,7 +55,7 @@ describe("matchesKey", () => {
 
 		it("should match Ctrl+d when pressing Ctrl+В (Cyrillic) with base layout key", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic 'в' = codepoint 1074, Latin 'd' = codepoint 100
+			// 西里尔字母 'в' 的码点为 1074，拉丁字母 'd' 的码点为 100。
 			const cyrillicCtrlD = "\x1b[1074::100;5u";
 			assert.strictEqual(matchesKey(cyrillicCtrlD, "ctrl+d"), true);
 			setKittyProtocolActive(false);
@@ -63,7 +63,7 @@ describe("matchesKey", () => {
 
 		it("should match Ctrl+z when pressing Ctrl+Я (Cyrillic) with base layout key", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic 'я' = codepoint 1103, Latin 'z' = codepoint 122
+			// 西里尔字母 'я' 的码点为 1103，拉丁字母 'z' 的码点为 122。
 			const cyrillicCtrlZ = "\x1b[1103::122;5u";
 			assert.strictEqual(matchesKey(cyrillicCtrlZ, "ctrl+z"), true);
 			setKittyProtocolActive(false);
@@ -71,8 +71,8 @@ describe("matchesKey", () => {
 
 		it("should match Ctrl+Shift+p with base layout key", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic 'з' = codepoint 1079, Latin 'p' = codepoint 112
-			// ctrl=4, shift=1, +1 = 6
+			// 西里尔字母 'з' 的码点为 1079，拉丁字母 'p' 的码点为 112。
+			// ctrl=4，shift=1，再加 1 得到 6。
 			const cyrillicCtrlShiftP = "\x1b[1079::112;6u";
 			assert.strictEqual(matchesKey(cyrillicCtrlShiftP, "ctrl+shift+p"), true);
 			setKittyProtocolActive(false);
@@ -80,7 +80,7 @@ describe("matchesKey", () => {
 
 		it("should still match direct codepoint when no base layout key", () => {
 			setKittyProtocolActive(true);
-			// Latin ctrl+c without base layout key (terminal doesn't support flag 4)
+			// 不包含基础布局按键的拉丁字母 ctrl+c（终端不支持标志 4）。
 			const latinCtrlC = "\x1b[99;5u";
 			assert.strictEqual(matchesKey(latinCtrlC, "ctrl+c"), true);
 			setKittyProtocolActive(false);
@@ -146,17 +146,17 @@ describe("matchesKey", () => {
 
 		it("should handle shifted key in format", () => {
 			setKittyProtocolActive(true);
-			// Format with shifted key: CSI codepoint:shifted:base;modifier u
-			// Latin 'c' with shifted 'C' (67) and base 'c' (99)
-			const shiftedKey = "\x1b[99:67:99;2u"; // shift modifier = 1, +1 = 2
+			// 带 Shift 按键的格式：CSI codepoint:shifted:base;modifier u
+			// 拉丁字母 'c' 的大写形式 'C'（67），基础按键为 'c'（99）。
+			const shiftedKey = "\x1b[99:67:99;2u"; // shift 修饰键为 1，再加 1 得到 2。
 			assert.strictEqual(matchesKey(shiftedKey, "shift+c"), true);
 			setKittyProtocolActive(false);
 		});
 
 		it("should handle event type in format", () => {
 			setKittyProtocolActive(true);
-			// Format with event type: CSI codepoint::base;modifier:event u
-			// Cyrillic ctrl+c release event (event type 3)
+			// 带事件类型的格式：CSI codepoint::base;modifier:event u
+			// 西里尔字母 ctrl+c 的释放事件（事件类型为 3）。
 			const releaseEvent = "\x1b[1089::99;5:3u";
 			assert.strictEqual(matchesKey(releaseEvent, "ctrl+c"), true);
 			setKittyProtocolActive(false);
@@ -164,10 +164,10 @@ describe("matchesKey", () => {
 
 		it("should handle full format with shifted key, base key, and event type", () => {
 			setKittyProtocolActive(true);
-			// Full format: CSI codepoint:shifted:base;modifier:event u
-			// Cyrillic 'С' (shifted) with base 'c', Ctrl+Shift pressed, repeat event
-			// Cyrillic 'с' = 1089, Cyrillic 'С' = 1057, Latin 'c' = 99
-			// ctrl=4, shift=1, +1 = 6, repeat event = 2
+			// 完整格式：CSI codepoint:shifted:base;modifier:event u
+			// 西里尔字母 'С'（Shift 后）对应基础按键 'c'，同时按下 Ctrl+Shift，并产生重复事件。
+			// 西里尔字母 'с' = 1089，西里尔字母 'С' = 1057，拉丁字母 'c' = 99。
+			// ctrl=4，shift=1，再加 1 得到 6；重复事件类型为 2。
 			const fullFormat = "\x1b[1089:1057:99;6:2u";
 			assert.strictEqual(matchesKey(fullFormat, "ctrl+shift+c"), true);
 			setKittyProtocolActive(false);
@@ -175,7 +175,7 @@ describe("matchesKey", () => {
 
 		it("should prefer codepoint for Latin letters even when base layout differs", () => {
 			setKittyProtocolActive(true);
-			// Dvorak Ctrl+K reports codepoint 'k' (107) and base layout 'v' (118)
+			// Dvorak 键盘布局下，Ctrl+K 报告码点 'k'（107）和基础布局按键 'v'（118）。
 			const dvorakCtrlK = "\x1b[107::118;5u";
 			assert.strictEqual(matchesKey(dvorakCtrlK, "ctrl+k"), true);
 			assert.strictEqual(matchesKey(dvorakCtrlK, "ctrl+v"), false);
@@ -184,7 +184,7 @@ describe("matchesKey", () => {
 
 		it("should prefer codepoint for symbol keys even when base layout differs", () => {
 			setKittyProtocolActive(true);
-			// Dvorak Ctrl+/ reports codepoint '/' (47) and base layout '[' (91)
+			// Dvorak 键盘布局下，Ctrl+/ 报告码点 '/'（47）和基础布局按键 '['（91）。
 			const dvorakCtrlSlash = "\x1b[47::91;5u";
 			assert.strictEqual(matchesKey(dvorakCtrlSlash, "ctrl+/"), true);
 			assert.strictEqual(matchesKey(dvorakCtrlSlash, "ctrl+["), false);
@@ -193,7 +193,7 @@ describe("matchesKey", () => {
 
 		it("should not match wrong key even with base layout", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic ctrl+с with base 'c' should NOT match ctrl+d
+			// 带基础按键 'c' 的西里尔字母 ctrl+с 不应匹配 ctrl+d。
 			const cyrillicCtrlC = "\x1b[1089::99;5u";
 			assert.strictEqual(matchesKey(cyrillicCtrlC, "ctrl+d"), false);
 			setKittyProtocolActive(false);
@@ -201,7 +201,7 @@ describe("matchesKey", () => {
 
 		it("should not match wrong modifiers even with base layout", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic ctrl+с should NOT match ctrl+shift+c
+			// 西里尔字母 ctrl+с 不应匹配 ctrl+shift+c。
 			const cyrillicCtrlC = "\x1b[1089::99;5u";
 			assert.strictEqual(matchesKey(cyrillicCtrlC, "ctrl+shift+c"), false);
 			setKittyProtocolActive(false);
@@ -311,13 +311,13 @@ describe("matchesKey", () => {
 	describe("Legacy key matching", () => {
 		it("should match legacy Ctrl+c", () => {
 			setKittyProtocolActive(false);
-			// Ctrl+c sends ASCII 3 (ETX)
+			// Ctrl+c 会发送 ASCII 3（ETX）。
 			assert.strictEqual(matchesKey("\x03", "ctrl+c"), true);
 		});
 
 		it("should match legacy Ctrl+d", () => {
 			setKittyProtocolActive(false);
-			// Ctrl+d sends ASCII 4 (EOT)
+			// Ctrl+d 会发送 ASCII 4（EOT）。
 			assert.strictEqual(matchesKey("\x04", "ctrl+d"), true);
 		});
 
@@ -347,14 +347,14 @@ describe("matchesKey", () => {
 
 		it("should match legacy Ctrl+symbol", () => {
 			setKittyProtocolActive(false);
-			// Ctrl+\ sends ASCII 28 (File Separator) in legacy terminals
+			// 在传统终端中，Ctrl+\ 会发送 ASCII 28（文件分隔符）。
 			assert.strictEqual(matchesKey("\x1c", "ctrl+\\"), true);
 			assert.strictEqual(parseKey("\x1c"), "ctrl+\\");
-			// Ctrl+] sends ASCII 29 (Group Separator) in legacy terminals
+			// 在传统终端中，Ctrl+] 会发送 ASCII 29（组分隔符）。
 			assert.strictEqual(matchesKey("\x1d", "ctrl+]"), true);
 			assert.strictEqual(parseKey("\x1d"), "ctrl+]");
-			// Ctrl+_ sends ASCII 31 (Unit Separator) in legacy terminals
-			// Ctrl+- is on the same physical key on US keyboards
+			// 在传统终端中，Ctrl+_ 会发送 ASCII 31（单元分隔符）。
+			// 在美式键盘上，Ctrl+- 与 Ctrl+_ 位于同一个物理按键。
 			assert.strictEqual(matchesKey("\x1f", "ctrl+_"), true);
 			assert.strictEqual(matchesKey("\x1f", "ctrl+-"), true);
 			assert.strictEqual(parseKey("\x1f"), "ctrl+-");
@@ -362,17 +362,17 @@ describe("matchesKey", () => {
 
 		it("should match legacy Ctrl+Alt+symbol", () => {
 			setKittyProtocolActive(false);
-			// Ctrl+Alt+[ sends ESC followed by ESC (Ctrl+[ = ESC)
+			// Ctrl+Alt+[ 会发送两个连续的 ESC（Ctrl+[ = ESC）。
 			assert.strictEqual(matchesKey("\x1b\x1b", "ctrl+alt+["), true);
 			assert.strictEqual(parseKey("\x1b\x1b"), "ctrl+alt+[");
-			// Ctrl+Alt+\ sends ESC followed by ASCII 28
+			// Ctrl+Alt+\ 会先发送 ESC，再发送 ASCII 28。
 			assert.strictEqual(matchesKey("\x1b\x1c", "ctrl+alt+\\"), true);
 			assert.strictEqual(parseKey("\x1b\x1c"), "ctrl+alt+\\");
-			// Ctrl+Alt+] sends ESC followed by ASCII 29
+			// Ctrl+Alt+] 会先发送 ESC，再发送 ASCII 29。
 			assert.strictEqual(matchesKey("\x1b\x1d", "ctrl+alt+]"), true);
 			assert.strictEqual(parseKey("\x1b\x1d"), "ctrl+alt+]");
-			// Ctrl+_ sends ASCII 31 (Unit Separator) in legacy terminals
-			// Ctrl+- is on the same physical key on US keyboards
+			// 在传统终端中，Ctrl+_ 会发送 ASCII 31（单元分隔符）。
+			// 在美式键盘上，Ctrl+- 与 Ctrl+_ 位于同一个物理按键。
 			assert.strictEqual(matchesKey("\x1b\x1f", "ctrl+alt+_"), true);
 			assert.strictEqual(matchesKey("\x1b\x1f", "ctrl+alt+-"), true);
 			assert.strictEqual(parseKey("\x1b\x1f"), "ctrl+alt+-");
@@ -553,7 +553,7 @@ describe("parseKey", () => {
 	describe("Kitty protocol with alternate keys", () => {
 		it("should return Latin key name when base layout key is present", () => {
 			setKittyProtocolActive(true);
-			// Cyrillic ctrl+с with base layout 'c'
+			// 带基础布局按键 'c' 的西里尔字母 ctrl+с。
 			const cyrillicCtrlC = "\x1b[1089::99;5u";
 			assert.strictEqual(parseKey(cyrillicCtrlC), "ctrl+c");
 			setKittyProtocolActive(false);
@@ -561,7 +561,7 @@ describe("parseKey", () => {
 
 		it("should prefer codepoint for Latin letters when base layout differs", () => {
 			setKittyProtocolActive(true);
-			// Dvorak Ctrl+K reports codepoint 'k' (107) and base layout 'v' (118)
+			// Dvorak 键盘布局下，Ctrl+K 报告码点 'k'（107）和基础布局按键 'v'（118）。
 			const dvorakCtrlK = "\x1b[107::118;5u";
 			assert.strictEqual(parseKey(dvorakCtrlK), "ctrl+k");
 			setKittyProtocolActive(false);
@@ -569,7 +569,7 @@ describe("parseKey", () => {
 
 		it("should prefer codepoint for symbol keys when base layout differs", () => {
 			setKittyProtocolActive(true);
-			// Dvorak Ctrl+/ reports codepoint '/' (47) and base layout '[' (91)
+			// Dvorak 键盘布局下，Ctrl+/ 报告码点 '/'（47）和基础布局按键 '['（91）。
 			const dvorakCtrlSlash = "\x1b[47::91;5u";
 			assert.strictEqual(parseKey(dvorakCtrlSlash), "ctrl+/");
 			setKittyProtocolActive(false);

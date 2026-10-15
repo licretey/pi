@@ -16,5 +16,5 @@ const noopTelemetrySpan: TelemetrySpan = {
 };
 Object.freeze(noopTelemetrySpan);
 
-/** Shared telemetry context used when an application does not provide one. */
+/** 应用未提供遥测上下文时使用的共享上下文。 */
 export const NOOP_TELEMETRY_CONTEXT: TelemetryContext = noopTelemetrySpan;

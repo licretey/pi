@@ -4,10 +4,10 @@ import { visibleWidth, wrapTextWithAnsi } from "../src/utils.ts";
 
 describe("regional indicator width regression", () => {
 	it("treats partial flag grapheme as full-width to avoid streaming render drift", () => {
-		// Repro context:
-		// During streaming, "🇨🇳" often appears as an intermediate "🇨" first.
-		// If "🇨" is measured as width 1 while terminal renders it as width 2,
-		// differential rendering can drift and leave stale characters on screen.
+		// 复现场景：
+		// 流式输出期间，"🇨🇳" 常会先以中间态 "🇨" 出现。
+		// 如果 "🇨" 被测量为宽度 1，而终端将它显示为宽度 2，
+		// 差异渲染就会发生偏移，导致屏幕上残留旧字符。
 		const partialFlag = "🇨";
 		const listLine = "      - 🇨";
 
@@ -16,8 +16,8 @@ describe("regional indicator width regression", () => {
 	});
 
 	it("wraps intermediate partial-flag list line before overflow", () => {
-		// Width 9 cannot fit "      - 🇨" if 🇨 is width 2 (8 + 2 = 10).
-		// This must wrap to avoid terminal auto-wrap mismatch.
+		// 如果 🇨 的宽度为 2（8 + 2 = 10），宽度为 9 的行就无法容纳 "      - 🇨"。
+		// 此处必须换行，以避免与终端自动换行行为不一致。
 		const wrapped = wrapTextWithAnsi("      - 🇨", 9);
 
 		assert.strictEqual(wrapped.length, 2);

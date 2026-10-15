@@ -1,7 +1,7 @@
 /*
- * Adapted from modelcontextprotocol/typescript-sdk v1.29.0 src/client/auth.ts.
- * Copyright (c) 2024 Anthropic, PBC. Licensed under MIT; see LICENSES/.
- * Modified to remove Zod/CORS shims and enforce authorization-server issuer validation.
+ * 改编自 modelcontextprotocol/typescript-sdk v1.29.0 的 src/client/auth.ts。
+ * 版权所有 (c) 2024 Anthropic, PBC。依据 MIT 许可证授权；详见 LICENSES/。
+ * 修改为移除 Zod/CORS 兼容层，并强制校验授权服务器发行者。
  */
 
 import type { McpFetch } from "../auth-provider.ts";
@@ -20,19 +20,19 @@ function discard(response: Response | undefined): void {
 	void response?.body?.cancel().catch(() => {});
 }
 
-/** 4xx and 502 mean "not here", so discovery tries the next candidate URL. */
+/** 4xx 和 502 表示当前地址没有所需资源，因此发现流程会尝试下一个候选 URL。 */
 function isDiscoveryMiss(status: number): boolean {
 	return (status >= 400 && status < 500) || status === 502;
 }
 
-/** Path suffix for `/.well-known/<kind><path>`; empty for the root path. */
+/** `/.well-known/<kind><path>` 的路径后缀；根路径对应空字符串。 */
 function pathSuffix(pathname: string): string {
 	return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 }
 
 function field(header: string, name: string): string | undefined {
 	const match = header.match(new RegExp(String.raw`(?:^|[,\s])${name}=(?:"([^"]*)"|([^\s,]+))`, "i"));
-	// An empty value (`scope=""`) carries no information, so it counts as absent.
+	// 空值（`scope=""`）不包含任何信息，因此视为未提供。
 	return match?.[1] || match?.[2] || undefined;
 }
 
@@ -136,7 +136,7 @@ export async function discoverAuthorizationServerMetadata(
 		const metadata = parseAuthorizationServerMetadata(await response.json());
 		if (!options.skipIssuerValidation) {
 			const expected = String(authorizationServerUrl);
-			// URL parsing adds a trailing slash to bare origins, so compare without one on either side.
+			// URL 解析会为不带路径的源添加尾部斜杠，因此比较前先去掉两侧的尾部斜杠。
 			const trim = (value: string) => (value.endsWith("/") ? value.slice(0, -1) : value);
 			if (trim(metadata.issuer) !== trim(expected)) throw new OAuthIssuerMismatchError(expected, metadata.issuer);
 		}
@@ -149,7 +149,7 @@ export async function discoverOAuthServerInfo(
 	serverUrl: string | URL,
 	options: {
 		resourceMetadataUrl?: URL;
-		/** Metadata document to use instead of discovery. It is trusted as configured, so its issuer is not checked. */
+		/** 用于替代发现流程的元数据文档。由于该文档由配置指定并直接信任，因此不会检查其 issuer。 */
 		authorizationServerMetadataUrl?: URL;
 		fetch?: McpFetch;
 		skipIssuerValidation?: boolean;

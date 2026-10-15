@@ -6,14 +6,14 @@ import type { CodemodeJsonSchema, CodemodeTool } from "./types.ts";
 
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const INDENT = "  ";
-/** Largest rendered input type, in characters, before it becomes `unknown`. */
+/** 输入类型声明在退化为 `unknown` 前允许的最大字符数。 */
 export const DEFAULT_INPUT_SCHEMA_MAX_CHARS = 16_000;
-/** Local `$ref` expansions per rendered schema, so shared definitions cannot blow up the output. */
+/** 每个生成的 schema 最多展开的本地 `$ref` 数量，避免共享定义导致输出过大。 */
 const MAX_REF_EXPANSIONS = 32;
 
 /**
- * TypeScript types for MCP results, from the MCP `CallToolResult` schema, so `CallToolResult<T>`
- * declarations can refer to them.
+ * 根据 MCP 的 `CallToolResult` schema 定义的 MCP 结果 TypeScript 类型，供 `CallToolResult<T>`
+ * 声明引用。
  */
 export const MCP_TYPESCRIPT_PREAMBLE = `type Role = "user" | "assistant";
 type MetaObject = Record<string, unknown>;
@@ -98,9 +98,9 @@ export interface RenderDeclarationsOptions {
 }
 
 /**
- * Render TypeScript declarations for the script-visible API. Tools become members of
- * `declare const tools`, globals become `declare function` statements, and `ns.member` globals
- * members of `declare const ns`. Descriptions become doc comments; schemas become types.
+ * 为脚本可见的 API 生成 TypeScript 声明。工具会成为 `declare const tools` 的成员，
+ * 全局函数会生成 `declare function` 语句，`ns.member` 形式的全局函数会成为 `declare const ns` 的成员。
+ * 描述会转换为文档注释，schema 会转换为类型。
  */
 export function renderDeclarations(options: RenderDeclarationsOptions): string {
 	const sections: string[] = [];
@@ -130,10 +130,10 @@ export function renderDeclarations(options: RenderDeclarationsOptions): string {
 }
 
 /**
- * One tool as a member of the `tools` object: `name(args: T): Promise<R>;` with the
- * name as the identifier scripts use. Input types longer than `inputMaxChars` render as `unknown`.
- * Tools whose output schema is an MCP `CallToolResult` render as `Promise<CallToolResult<T>>`,
- * which needs {@link MCP_TYPESCRIPT_PREAMBLE}.
+ * 将单个工具生成为 `tools` 对象的成员，形式为 `name(args: T): Promise<R>;`，
+ * 其中名称是脚本使用的标识符。输入类型超过 `inputMaxChars` 时会生成为 `unknown`。
+ * 输出 schema 为 MCP `CallToolResult` 的工具会生成为 `Promise<CallToolResult<T>>`，
+ * 这需要 {@link MCP_TYPESCRIPT_PREAMBLE}。
  */
 export function renderToolSignature(
 	tool: Pick<CodemodeTool, "name" | "inputSchema" | "outputSchema">,
@@ -147,8 +147,7 @@ export function renderToolSignature(
 }
 
 /**
- * A tool's sample: the description followed by the tool's declaration. Used for tool
- * listings and `ALL_TOOLS` entries.
+ * 工具的示例文本：先列出描述，再列出工具声明。用于工具列表和 `ALL_TOOLS` 条目。
  */
 export function renderToolSample(
 	tool: Pick<CodemodeTool, "name" | "description" | "inputSchema" | "outputSchema">,
@@ -159,9 +158,9 @@ export function renderToolSample(
 }
 
 /**
- * The `structuredContent` schema of an MCP `CallToolResult` output schema (detected by a
- * `content` array of objects, boolean `isError`, and object `_meta`), `true` when it declares none, or
- * `undefined` when the schema is not a `CallToolResult`.
+ * 获取 MCP `CallToolResult` 输出 schema 中的 `structuredContent` schema。通过对象数组形式的
+ * `content`、布尔值 `isError` 和对象 `_meta` 进行识别；未声明时返回 `true`，
+ * schema 不是 `CallToolResult` 时返回 `undefined`。
  */
 export function mcpStructuredContentSchema(schema: CodemodeJsonSchema | undefined): CodemodeJsonSchema | undefined {
 	if (!isObject(schema) || !isObject(schema.properties)) return undefined;
@@ -175,8 +174,8 @@ export function mcpStructuredContentSchema(schema: CodemodeJsonSchema | undefine
 }
 
 /**
- * The type a tool call resolves to: `CallToolResult<T>` for MCP output schemas (needs
- * {@link MCP_TYPESCRIPT_PREAMBLE}), the schema's type otherwise, and `unknown` without a schema.
+ * 工具调用结果的类型：MCP 输出 schema 使用 `CallToolResult<T>`（需要 {@link MCP_TYPESCRIPT_PREAMBLE}），
+ * 其他情况使用 schema 对应的类型；没有 schema 时使用 `unknown`。
  */
 export function renderToolOutputType(schema: CodemodeJsonSchema | undefined): string {
 	const structured = mcpStructuredContentSchema(schema);
@@ -219,11 +218,10 @@ function union(types: string[]): string {
 }
 
 /**
- * Convert a JSON Schema to a TypeScript type expression: objects on one line (`{ a: string; b?: number; }`) with properties sorted by name,
- * or one property per line with `//` comments when a property has a description; `Array<T>` for
- * arrays. Local references (`#/$defs/...`, `#/definitions/...`) resolve against `schema`;
- * recursive and remote references render as `unknown`. A result longer than `maxChars` renders as
- * `unknown`.
+ * 将 JSON Schema 转换为 TypeScript 类型表达式：对象属性按名称排序，默认单行输出
+ *（`{ a: string; b?: number; }`）；属性带有描述时，会按每行一个属性并添加 `//` 注释的形式输出；
+ * 数组使用 `Array<T>`。本地引用（`#/$defs/...`、`#/definitions/...`）会相对于 `schema` 解析；
+ * 递归引用和远程引用会生成为 `unknown`。结果超过 `maxChars` 时也会生成为 `unknown`。
  */
 export function schemaToType(schema: CodemodeJsonSchema, options: { maxChars?: number } = {}): string {
 	const type = toType(schema, { root: schema, resolving: new Set(), expansions: 0 });
@@ -232,7 +230,7 @@ export function schemaToType(schema: CodemodeJsonSchema, options: { maxChars?: n
 
 interface SchemaContext {
 	root: CodemodeJsonSchema;
-	/** References being expanded on the current path, to stop at recursive types. */
+	/** 当前递归路径中正在展开的引用，用于在遇到递归类型时停止展开。 */
 	resolving: Set<string>;
 	expansions: number;
 }

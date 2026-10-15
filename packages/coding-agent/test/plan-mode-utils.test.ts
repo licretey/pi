@@ -105,7 +105,7 @@ describe("cleanStepText", () => {
 	});
 
 	it("removes markdown code", () => {
-		expect(cleanStepText("run `npm install`")).toBe("Npm install"); // "run" is stripped as action word
+		expect(cleanStepText("run `npm install`")).toBe("Npm install"); // 会移除作为动作词的 "run"。
 		expect(cleanStepText("check the `config.json` file")).toBe("Config.json file");
 	});
 
@@ -248,8 +248,8 @@ describe("markCompletedSteps", () => {
 
 		const count = markCompletedSteps("[DONE:99]", items);
 
-		expect(count).toBe(1); // Still counts the marker found
-		expect(items[0].completed).toBe(false); // But doesn't mark anything
+		expect(count).toBe(1); // 仍会计入找到的标记。
+		expect(items[0].completed).toBe(false); // 但不会将任何项目标记为已完成。
 	});
 
 	it("doesn't double-complete already completed items", () => {

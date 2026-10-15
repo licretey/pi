@@ -39,9 +39,9 @@ import {
 
 export interface ExtensionOAuthConfig {
 	name: string;
-	/** Whether access through this auth method is backed by a provider subscription. */
+	/** 此身份验证方式是否由提供商订阅提供访问权限。 */
 	isSubscription?: boolean;
-	/** @deprecated Retained for extension source compatibility; ignored by canonical auth flows. */
+	/** @deprecated 为兼容扩展源码而保留；标准身份验证流程会忽略此选项。 */
 	usesCallbackServer?: boolean;
 	login(callbacks: OAuthLoginCallbacks): Promise<OAuthCredentials>;
 	refreshToken(credentials: OAuthCredentials, signal: AbortSignal): Promise<OAuthCredentials>;
@@ -87,7 +87,7 @@ export interface ProviderClassifierModelConfig extends ProviderModelConfigBase {
 
 export type ProviderModelConfig = ProviderChatModelConfig | ProviderImageModelConfig | ProviderClassifierModelConfig;
 
-/** Input type for the extension registerProvider API. */
+/** 扩展 registerProvider API 的输入类型。 */
 export interface ProviderConfigInput {
 	name?: string;
 	baseUrl?: string;
@@ -423,7 +423,7 @@ function composeApiKeyAuth(
 	const inherited = base?.auth.apiKey;
 	const rawKey = configuredApiKey(config, extension);
 	const oauth = extension?.oauth ?? base?.auth.oauth;
-	// OAuth-only providers get no fabricated API-key login method.
+	// 仅支持 OAuth 的提供商不会被虚构出 API 密钥登录方式。
 	if (!inherited && rawKey === undefined && oauth) return undefined;
 	const rawHeaders = configuredHeaders(config, extension);
 	const authHeader = extension?.authHeader ?? config?.authHeader ?? false;
@@ -510,8 +510,8 @@ function rawModelHeaders(
 	config: ModelsJsonProvider | undefined,
 	extension: ProviderConfigInput | undefined,
 ): Record<string, string> | undefined {
-	// models.json definitions and overrides are chat-only. Extension definitions
-	// are matched by operation and id so colliding models cannot share headers.
+	// models.json 定义和覆盖项仅适用于聊天模型。扩展定义会按操作类型和 ID 匹配，
+	// 避免 ID 冲突的模型共用标头。
 	const chatDefinition = isModelType(model, "chat")
 		? config?.models?.find((entry) => entry.id === model.id)
 		: undefined;
@@ -538,7 +538,7 @@ export function validateExtensionProvider(
 	applyExtension(providerId, applyModelsJson(providerId, getAllProviderModels(base), modelsConfig), extension);
 }
 
-/** Compose built-in, models.json, and extension layers without reading credentials. */
+/** 合并内置配置、models.json 和扩展配置层，不读取凭据。 */
 export function composeModelProvider(
 	providerId: string,
 	base: Provider | undefined,
@@ -550,8 +550,8 @@ export function composeModelProvider(
 	let refreshedExtensionModels: ProviderConfigInput["models"];
 	const currentExtension = (): ProviderConfigInput | undefined =>
 		extension && refreshedExtensionModels ? { ...extension, models: refreshedExtensionModels } : extension;
-	// models.json modelOverrides are the topmost user-config layer: they apply once,
-	// after custom-model upserts, extension model replacement, and legacy OAuth projection.
+	// models.json 的 modelOverrides 是优先级最高的用户配置层：它们会在自定义模型插入或更新、
+	// 扩展模型替换和旧版 OAuth 投影之后统一应用一次。
 	const getAllModels = (): AnyModel[] => {
 		let models = applyExtension(
 			providerId,
@@ -559,7 +559,7 @@ export function composeModelProvider(
 			currentExtension(),
 		);
 		if (extensionOAuthCredential && extension?.oauth?.modifyModels) {
-			// The extension hook is chat-only; other model types pass through untouched.
+			// 扩展钩子只处理聊天模型；其他模型类型会原样保留。
 			models = [
 				...extension.oauth.modifyModels(
 					models.filter((model) => isModelType(model, "chat")),
@@ -573,7 +573,7 @@ export function composeModelProvider(
 			return override && isModelType(model, "chat") ? applyModelOverride(model, override) : model;
 		});
 	};
-	// Validate eagerly so registration/reload reports structural errors immediately.
+	// 提前执行校验，使注册或重新加载时能立即报告结构错误。
 	getAllModels();
 	const apiKey = composeApiKeyAuth(providerId, base, config, extension);
 	const oauth = composeOAuthAuth(providerId, base, config, extension);
@@ -621,7 +621,7 @@ export function composeModelProvider(
 						await context.publish({
 							update: () => {
 								if (refreshed) {
-									// Validate before publishing the new synchronous list.
+									// 发布新的同步列表前先进行校验。
 									applyExtension(providerId, applyModelsJson(providerId, getAllProviderModels(base), config), {
 										...extension,
 										models: refreshed,

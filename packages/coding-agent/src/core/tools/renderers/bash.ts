@@ -1,9 +1,8 @@
 /**
- * Presentation for the shell tools.
+ * Shell 工具的展示层。
  *
- * Renderers live apart from the implementation so a process that only displays tool output does not
- * load the execution path or its typebox parameter schema. `bash.ts` spreads these into the shell
- * tool definition, so the tool's public shape is unchanged.
+ * 将渲染器与实现分开，避免只展示工具输出的进程加载执行逻辑及其 typebox 参数模式。
+ * `bash.ts` 会将这些渲染器展开到 Shell 工具定义中，因此工具的公开结构保持不变。
  */
 
 import { Container, Spacer, Text } from "@earendil-works/pi-tui";
@@ -99,8 +98,8 @@ function rebuildBashResultRenderComponent(
 		component.addChild(new Text(`\n${theme.fg("warning", `[${warnings.join(". ")}]`)}`, 0, 0));
 	}
 
-	// A final result's recorded duration wins: it is monotonic and survives reloads. The renderer's own clock is the
-	// fallback for live progress and for results stored without one.
+	// 优先使用最终结果中记录的耗时：该值单调递增且重新加载后仍保留。
+	// 实时进度或未记录耗时的结果则回退使用渲染器自身的计时。
 	if (!options.isPartial && durationMs !== undefined) {
 		component.addChild(new Text(`\n${theme.fg("muted", `Took ${formatDuration(durationMs)}`)}`, 0, 0));
 	} else if (startedAt !== undefined) {
@@ -110,7 +109,7 @@ function rebuildBashResultRenderComponent(
 	}
 }
 
-/** Shell renderers are shared by bash and powershell, which differ only in the prompt they display. */
+/** Bash 和 PowerShell 共用 Shell 渲染器，两者仅显示的命令提示符不同。 */
 export function createShellRenderers(prompt: string): Pick<ToolDefinition<any, any>, "renderCall" | "renderResult"> {
 	return {
 		renderCall(args, _theme, context) {

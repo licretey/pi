@@ -1,10 +1,10 @@
 /**
- * An Agent with the tools of an MCP server plus a codemode tool that calls them from JavaScript.
+ * 一个智能体，既可直接使用 MCP 服务器提供的工具，也可通过 codemode 工具从 JavaScript 调用它们。
  *
  *   ANTHROPIC_API_KEY=... node packages/agent/examples/mcp-codemode/main.ts \
  *     npx -y @modelcontextprotocol/server-filesystem .
  *
- * The arguments are the command that starts a stdio MCP server.
+ * 参数是用于启动 stdio MCP 服务器的命令及其参数。
  */
 
 import { Agent } from "@earendil-works/pi-agent-core";
@@ -33,7 +33,7 @@ try {
 		streamFn: models.streamSimple.bind(models),
 	});
 	const mcpTools = await createMcpTools(client, "mcp");
-	// The model can call the MCP tools directly or batch them in one codemode script.
+	// 模型可以直接调用 MCP 工具，也可以在一个 codemode 脚本中批量调用它们。
 	agent.state.tools = [...mcpTools, createCodemodeTool(mcpTools, createNestedToolRunner(agent))];
 
 	agent.subscribe((event) => {

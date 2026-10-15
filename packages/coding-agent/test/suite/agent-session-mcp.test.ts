@@ -47,8 +47,8 @@ const SERVER_TOOLS = [
 ];
 
 /**
- * Minimal MCP server over an in-memory transport. Records the tool calls it receives.
- * `initializeDelayMs` delays the answer to `initialize`; `Infinity` never answers.
+ * 基于内存传输的最小 MCP 服务器，会记录收到的工具调用。
+ * `initializeDelayMs` 用于延迟 `initialize` 响应；设为 `Infinity` 时永不响应。
  */
 function createFakeServer(
 	calls: string[],
@@ -76,7 +76,7 @@ function createFakeServer(
 				return {
 					resources: [
 						{ uri: "docs://intro", name: "intro", mimeType: "text/markdown", _meta: { x: 1 } },
-						// MCP App user interfaces are left out.
+						// 此处不包含 MCP App 用户界面。
 						{ uri: "ui://docs/viewer", name: "viewer", mimeType: "text/html;profile=mcp-app" },
 					],
 				};
@@ -130,12 +130,12 @@ describe("AgentSession MCP integration", () => {
 		options: {
 			autoEnableCodemode?: boolean;
 			builtInTools?: string[];
-			/** `--tools` and `--exclude-tools`. */
+			/** `--tools` 和 `--exclude-tools` 参数。 */
 			allowedToolNames?: string[];
 			excludedToolNames?: string[];
-			/** Session to continue. */
+			/** 要继续使用的会话。 */
 			sessionManager?: SessionManager;
-			/** Whether to wait for `mcp__docs__search` to register. Default: true. */
+			/** 是否等待 `mcp__docs__search` 完成注册。默认值：true。 */
 			waitForTools?: boolean;
 			extensionFactories?: ExtensionFactory[];
 			toolExposure?: Record<string, McpExposure>;
@@ -172,8 +172,7 @@ describe("AgentSession MCP integration", () => {
 			},
 			source: "test",
 		};
-		// `builtInTools` are the built-in tools active at the start. The MCP extension activates codemode
-		// or tool_search.
+		// `builtInTools` 是启动时已启用的内置工具。MCP 扩展会启用 codemode 或 tool_search。
 		const harness = await createHarness({
 			initialActiveToolNames: allowedToolNames ?? builtInTools ?? [],
 			allowedToolNames,
@@ -198,7 +197,7 @@ describe("AgentSession MCP integration", () => {
 		await harness.session.bindExtensions({
 			uiContext: createTestUiContext({ notify: (message) => notifications.push(message) }),
 		});
-		// The first prompt waits only for servers with direct tools; wait for the others here.
+		// 第一条提示词只会等待提供直接工具的服务器；其他服务器在此处等待。
 		if (waitForTools) {
 			await vi.waitFor(() =>
 				expect(harness.session.getAllTools().some((tool) => tool.name === "mcp__docs__search")).toBe(true),
@@ -213,7 +212,7 @@ describe("AgentSession MCP integration", () => {
 			.flatMap((message) => (message.toolsAdded ?? []).map((tool) => tool.name));
 	}
 
-	/** The `mcp_servers` prompt section as the model currently has it. */
+	/** 当前模型所见提示词中的 `mcp_servers` 部分。 */
 	function serversSection(harness: Harness): string | null | undefined {
 		let section: string | null | undefined;
 		for (const message of harness.session.messages) {
@@ -241,7 +240,7 @@ describe("AgentSession MCP integration", () => {
 			expect(harness.session.getAllTools().map((tool) => tool.name)).not.toContain("bash");
 		}
 
-		// A direct MCP tool stays registered but is declared only when --tools names it.
+		// 直接 MCP 工具会继续注册，但只有通过 --tools 指定时才会声明给模型。
 		const { harness } = await setup("codemode", undefined, {
 			allowedToolNames: ["codemode"],
 			toolExposure: { fail: "direct" },
@@ -253,7 +252,7 @@ describe("AgentSession MCP integration", () => {
 	});
 
 	it("removes MCP tools with --no-tools", async () => {
-		// The first prompt waits for servers with direct tools, so their tools would be registered by then.
+		// 第一条提示词会等待提供直接工具的服务器，因此此时这些工具应已完成注册。
 		const { harness, servers } = await setup("direct", undefined, { allowedToolNames: [], waitForTools: false });
 		harness.setResponses([fauxAssistantMessage("done")]);
 		await harness.session.prompt("go");
@@ -270,7 +269,7 @@ describe("AgentSession MCP integration", () => {
 		await first.harness.session.prompt("second");
 		expect(declaredToolNames(first.harness)).toContain("mcp__docs__search");
 
-		// Like `pi --tools read,codemode -c` followed by /tree.
+		// 模拟先运行 `pi --tools read,codemode -c`，再执行 /tree。
 		const second = await setup("direct", undefined, {
 			allowedToolNames: ["read", "codemode"],
 			sessionManager: first.harness.sessionManager,
@@ -281,7 +280,7 @@ describe("AgentSession MCP integration", () => {
 		if (!firstAssistant) throw new Error("No assistant entry");
 		await second.harness.session.navigateTree(firstAssistant.id);
 
-		// The transcript's loadout is restored without the MCP tools it declared.
+		// 会恢复会话文本中的工具配置，但不会恢复其中声明的 MCP 工具。
 		expect(second.harness.session.getActiveToolNames()).toEqual([]);
 		expect(second.harness.session.getAllTools().map((tool) => tool.name)).toContain("mcp__docs__search");
 	});
@@ -325,7 +324,7 @@ describe("AgentSession MCP integration", () => {
 	it("exposes codemode-only MCP tools through codemode and hides them from the model", async () => {
 		const { harness, calls } = await setup("codemode");
 		const searchName = createMcpToolName("docs", "search");
-		// MCP tools resolve to their CallToolResult, errors included.
+		// MCP 工具会解析为 CallToolResult，包括错误结果。
 		harness.setResponses([
 			fauxAssistantMessage(
 				[
@@ -354,18 +353,18 @@ describe("AgentSession MCP integration", () => {
 
 		await harness.session.prompt("search the docs");
 
-		// Exec was activated for the codemode-exposed server; MCP tools are never declared.
+		// 已为通过 codemode 暴露的服务器启用 exec；MCP 工具不会直接声明给模型。
 		expect(harness.session.getActiveToolNames()).toEqual(["codemode"]);
 		expect(declaredToolNames(harness)).toEqual(["codemode"]);
 		expect(nestedToolNames(harness)).toEqual([searchName, "mcp__docs__fail", "mcp__docs__shot"]);
-		// The description lists neither the server nor its tools; scripts search for them.
+		// 描述中不会列出服务器及其工具；脚本会自行搜索它们。
 		const codemode = harness.session.agent.state.tools.find((tool) => tool.name === "codemode");
 		expect(codemode?.description).not.toContain("mcp__docs");
 		expect(codemode?.description).not.toContain("Shared MCP Types:");
 
 		const result = toolResult(harness, "codemode");
 		expect(result.isError).toBe(false);
-		// Output items keep the order the script produced them in; each image follows the path it was saved to.
+		// 输出项保持脚本生成时的顺序；每张图片后都跟随其保存路径。
 		const savedPath = /^\[Image saved to (\S+\.png) \(image\/png, \d+B\)\]$/.exec(
 			(result.content[1] as { text: string }).text,
 		)?.[1];
@@ -405,7 +404,7 @@ describe("AgentSession MCP integration", () => {
 		expect(nestedToolNames(harness)).toContain(searchName);
 	});
 
-	// Regression: #10239.
+	// #10239 回归测试。
 	it.each([false, true])("routes tools whose names differ only in - and _ (reverse: %s)", async (reverse) => {
 		const tools = [
 			{ name: "read-file", description: "dashed", inputSchema: { type: "object", properties: {} } },
@@ -452,7 +451,7 @@ describe("AgentSession MCP integration", () => {
 
 		expect(declaredToolNames(harness)).toEqual(["mcp__docs__search", "mcp__docs__fail", "mcp__docs__shot"]);
 		expect(harness.session.getActiveToolNames()).not.toContain("codemode");
-		// Boolean annotation hints are passed on for permission extensions.
+		// 布尔值注解提示会继续传递给权限扩展。
 		const annotations = new Map(harness.session.getAllTools().map((tool) => [tool.name, tool.annotations]));
 		expect(annotations.get("mcp__docs__fail")).toEqual({ destructiveHint: true, readOnlyHint: false });
 		expect(annotations.get("mcp__docs__search")).toBeUndefined();
@@ -467,7 +466,7 @@ describe("AgentSession MCP integration", () => {
 			const { harness, servers } = await setup(exposure, () => tools);
 			harness.setResponses([fauxAssistantMessage("ready")]);
 			await harness.session.prompt("start");
-			// Direct tools are declared to the model, codemode tools are only callable from codemode.
+			// 直接工具会声明给模型；codemode 工具只能从 codemode 中调用。
 			const reachable = () =>
 				exposure === "direct" ? harness.session.getActiveToolNames() : nestedToolNames(harness);
 			const listChanged = async () => {
@@ -508,7 +507,7 @@ describe("AgentSession MCP integration", () => {
 
 		await harness.session.prompt("read");
 
-		// The resource tools take the exposure of the servers they reach.
+		// 资源工具沿用其所访问服务器的暴露范围。
 		expect(harness.session.getActiveToolNames()).toEqual(
 			expect.arrayContaining(["list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"]),
 		);
@@ -562,7 +561,7 @@ return { uris: listed.resources.map((r) => r.uri), text: read.contents[0].text }
 		harness.setResponses([fauxAssistantMessage("ready")]);
 		await harness.session.prompt("start");
 
-		// `search` is declared, `shot` is only callable from codemode, `fail` keeps the server's `hidden`.
+		// `search` 会声明给模型，`shot` 只能由 codemode 调用，`fail` 保留服务器的 `hidden` 设置。
 		expect(declaredToolNames(harness)).toEqual(["codemode", "mcp__docs__search"]);
 		expect(nestedToolNames(harness)).toEqual(["mcp__docs__search", "mcp__docs__shot"]);
 		const codemode = harness.session.agent.state.tools.find((tool) => tool.name === "codemode");
@@ -592,7 +591,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 
 		await harness.session.prompt("go");
 
-		// The instructions stay out of every tool description.
+		// 指令不会出现在任何工具描述中。
 		const description = (name: string) =>
 			harness.session.agent.state.tools.find((tool) => tool.name === name)?.description ?? "";
 		expect(description("codemode")).not.toContain("mcp__docs");
@@ -607,7 +606,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 			},
 			sameForAliases: true,
 		});
-		// The system prompt lists the server with its configured description rather than its instructions.
+		// 系统提示词会使用服务器配置的描述，而不是其指令。
 		expect(serversSection(harness)).toContain("- mcp__docs (codemode): Search the product docs");
 	});
 
@@ -678,7 +677,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 	});
 
 	it("does not activate another extension's tool named codemode", async () => {
-		// Registered first, so it wins over the codemode extension's codemode.
+		// 由于先注册，因此优先于 codemode 扩展注册的 codemode。
 		const otherExec: ExtensionFactory = (pi) => {
 			pi.registerTool({
 				name: "codemode",
@@ -696,7 +695,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 		expect(harness.session.getActiveToolNames()).toEqual([]);
 	});
 
-	/** A server named `slow` whose answer to `initialize` takes `initializeDelayMs`, without waiting for it. */
+	/** 名为 `slow` 的服务器，其 `initialize` 响应会延迟 `initializeDelayMs`，但此处不会等待该响应。 */
 	async function setupSlow(
 		config: {
 			exposure?: McpExposure;
@@ -735,14 +734,14 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 	}
 
 	it("does not hold the first prompt for codemode servers that are still connecting", async () => {
-		// The server never answers `initialize`.
+		// 服务器永远不响应 `initialize`。
 		const { harness } = await setupSlow({}, Number.POSITIVE_INFINITY);
 		harness.setResponses([fauxAssistantMessage("ready")]);
 
 		await harness.session.prompt("start");
 
 		expect(getAssistantTexts(harness)).toEqual(["ready"]);
-		// Codemode is activated from the config, before the server connects.
+		// codemode 会在服务器连接前根据配置启用。
 		expect(declaredToolNames(harness)).toEqual(["codemode"]);
 	});
 
@@ -766,7 +765,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 		const systemMessages = harness.session.messages.filter(
 			(message): message is SystemMessage => message.role === "system",
 		);
-		// The first request lists the server by name; its summary follows as an appended patch.
+		// 第一条请求按名称列出服务器；其摘要随后以追加补丁的形式提供。
 		expect(systemMessages).toHaveLength(2);
 		expect(systemMessages[0].sections?.[MCP_SERVERS_SECTION]).toContain("- mcp__slow (codemode)\n");
 		expect(systemMessages[1].sections).toEqual({
@@ -940,7 +939,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 	});
 
 	it("activates tool_search for deferred MCP tools and keeps loaded tools declared on the branch", async () => {
-		// No built-in tools are active; the MCP extension activates tool_search, not codemode.
+		// 当前没有启用内置工具；MCP 扩展会启用 tool_search，而不是 codemode。
 		const { harness, calls } = await setup("deferred");
 		const searchName = createMcpToolName("docs", "search");
 		harness.setResponses([
@@ -953,7 +952,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 		await harness.session.prompt("find a docs tool");
 
 		expect(harness.session.getActiveToolNames()).toEqual(["tool_search", searchName]);
-		// The description does not depend on the connected servers.
+		// 描述不依赖已连接的服务器。
 		const toolSearch = harness.session.agent.state.tools.find((tool) => tool.name === "tool_search");
 		expect(toolSearch?.description).toBe(TOOL_SEARCH_DESCRIPTION);
 
@@ -961,7 +960,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 		expect(getMessageText(search)).toBe(
 			`Loaded 1 tool. They are available from your next call:\n- ${searchName}: Search the docs.`,
 		);
-		// Only the loaded tool is added; earlier declarations are not repeated.
+		// 只添加已加载的工具，不会重复先前的声明。
 		const loadMessages = harness.session.messages.filter(
 			(message): message is SystemMessage =>
 				message.role === "system" && (message.toolsAdded ?? []).some((tool) => tool.name === searchName),
@@ -971,8 +970,7 @@ return { docs, sameForAliases: aliases.every((alias) => JSON.stringify(alias) ==
 		expect(getMessageText(toolResult(harness, searchName))).toBe("loaded guide\nloaded faq");
 		expect(calls).toEqual(['search:{"query":"loaded"}']);
 
-		// Loads are recorded in the transcript: navigating back before the load drops the tool,
-		// navigating to a later entry restores it.
+		// 加载记录会写入会话文本：回退到加载之前会移除该工具，前进到之后的条目则会恢复该工具。
 		const branch = harness.sessionManager.getBranch();
 		const firstUser = branch.find((entry) => entry.type === "message" && entry.message.role === "user");
 		const last = branch.at(-1);
@@ -1001,7 +999,7 @@ describe("AgentSession MCP servers registered by extensions", () => {
 		while (harnesses.length > 0) harnesses.pop()?.cleanup();
 	});
 
-	/** `configured` are the mcp.json servers; `plugins` register servers through the extension API. */
+	/** `configured` 表示 mcp.json 中的服务器；`plugins` 表示通过扩展 API 注册的服务器。 */
 	async function setup(plugins: ExtensionFactory | ExtensionFactory[], configured: McpServerEntry[] = []) {
 		const connected: McpServerEntry[] = [];
 		const harness = await createHarness({
@@ -1021,7 +1019,7 @@ describe("AgentSession MCP servers registered by extensions", () => {
 			],
 		});
 		harnesses.push(harness);
-		// `/reload` emits session_start only to bound extensions.
+		// `/reload` 只会向已绑定的扩展发送 session_start。
 		await harness.session.bindExtensions({ uiContext: createTestUiContext() });
 		return { harness, connected };
 	}
@@ -1048,14 +1046,14 @@ describe("AgentSession MCP servers registered by extensions", () => {
 		pi.registerMcpServer("late", { url: "http://late.invalid" });
 		await vi.waitFor(() => expect(harness.session.getCallableToolNames()).toContain("mcp__late__search"));
 		expect(connected.map((entry) => entry.name)).toEqual(["late"]);
-		// Codemode-exposed tools need the codemode tool, which is activated for them.
+		// 通过 codemode 暴露的工具依赖 codemode 工具，因此会为它们启用该工具。
 		expect(harness.session.getActiveToolNames()).toContain("codemode");
 
 		pi.unregisterMcpServer("late");
 		await vi.waitFor(() => expect(harness.session.getCallableToolNames()).not.toContain("mcp__late__search"));
 	});
 
-	// "my_docs" shares the namespace of "my-docs" (#10239).
+	// "my_docs" 与 "my-docs" 共用同一命名空间（#10239）。
 	it.each(["my-docs", "my_docs"])("prefers the mcp.json server over a registered %s", async (name) => {
 		const configured: McpServerEntry = {
 			name: "my-docs",
@@ -1078,7 +1076,7 @@ describe("AgentSession MCP servers registered by extensions", () => {
 		await setup([
 			(pi) => {
 				pi.registerMcpServer("taken", { url: "http://x.invalid" });
-				// Registering again replaces the extension's own registration.
+				// 再次注册会替换该扩展自己的注册项。
 				pi.registerMcpServer("taken", { url: "http://y.invalid" });
 				pi.registerMcpServer("my-server", { url: "http://x.invalid" });
 			},
@@ -1094,7 +1092,7 @@ describe("AgentSession MCP servers registered by extensions", () => {
 		]);
 		expect(errors).toEqual([
 			expect.stringMatching(/MCP server "taken" is already registered by extension/),
-			// Names that differ only in - and _ share a namespace (#10239).
+			// 仅 `-` 和 `_` 不同的名称共用同一个命名空间（#10239）。
 			'Error: MCP server "my_server" conflicts with registered server "my-server"',
 		]);
 	});
@@ -1119,8 +1117,8 @@ describe("AgentSession MCP tools after resume and reload", () => {
 	});
 
 	/**
-	 * A deferred `docs` server that answers `initialize` after `initializeDelayMs`; `connected` counts
-	 * its connections. `/reload` loads the extensions again.
+	 * 延迟响应的 `docs` 服务器，会在 `initializeDelayMs` 后响应 `initialize`；`connected` 记录其连接次数。
+	 * `/reload` 会重新加载扩展。
 	 */
 	async function setup(
 		sessionManager?: SessionManager,
@@ -1154,7 +1152,7 @@ describe("AgentSession MCP tools after resume and reload", () => {
 		};
 		const harness = await createHarness({ resourceLoader, sessionManager });
 		harnesses.push(harness);
-		// `/reload` emits session_start only to bound extensions.
+		// `/reload` 只会向已绑定的扩展发送 session_start。
 		await harness.session.bindExtensions({ uiContext: createTestUiContext() });
 		return { harness, connected };
 	}
@@ -1174,7 +1172,7 @@ describe("AgentSession MCP tools after resume and reload", () => {
 		const first = await setup();
 		await loadDocsSearch(first.harness);
 
-		// The session restores its tools before the server connects again.
+		// 会话会在服务器重新连接前恢复其工具配置。
 		const second = await setup(first.harness.sessionManager);
 		await vi.waitFor(() => expect(second.harness.session.getActiveToolNames()).toContain("mcp__docs__search"));
 		second.harness.setResponses([
@@ -1199,7 +1197,7 @@ describe("AgentSession MCP tools after resume and reload", () => {
 			const first = await setup();
 			await loadDocsSearch(first.harness);
 
-			// Like plan mode restoring its tools, or an extension adding one to the current loadout.
+			// 类似计划模式恢复工具，或扩展向当前工具配置中添加工具。
 			const setLoadout: ExtensionFactory = (pi) => {
 				pi.on("session_start", () => pi.setActiveTools(loadout ? [...loadout] : [...pi.getActiveTools(), "read"]));
 			};
@@ -1216,7 +1214,7 @@ describe("AgentSession MCP tools after resume and reload", () => {
 		const first = await setup();
 		await loadDocsSearch(first.harness);
 
-		// The first prompt does not wait for servers without direct tools.
+		// 第一条提示词不会等待不提供直接工具的服务器。
 		const second = await setup(first.harness.sessionManager, [], 200);
 		second.harness.setResponses([fauxAssistantMessage("done")]);
 		await second.harness.session.prompt("go");

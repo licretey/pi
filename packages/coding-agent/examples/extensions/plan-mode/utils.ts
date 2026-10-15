@@ -1,9 +1,9 @@
 /**
- * Pure utility functions for plan mode.
- * Extracted for testability.
+ * 计划模式使用的纯工具函数。
+ * 单独提取出来，便于测试。
  */
 
-// Destructive commands blocked in plan mode
+// 计划模式下会阻止的破坏性命令。
 const DESTRUCTIVE_PATTERNS = [
 	/\brm\b/i,
 	/\brmdir\b/i,
@@ -40,7 +40,7 @@ const DESTRUCTIVE_PATTERNS = [
 	/\b(vim?|nano|emacs|code|subl)\b/i,
 ];
 
-// Safe read-only commands allowed in plan mode
+// 计划模式下允许的安全只读命令。
 const SAFE_PATTERNS = [
 	/^\s*cat\b/,
 	/^\s*head\b/,
@@ -108,8 +108,8 @@ export interface TodoItem {
 
 export function cleanStepText(text: string): string {
 	let cleaned = text
-		.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1") // Remove bold/italic
-		.replace(/`([^`]+)`/g, "$1") // Remove code
+		.replace(/\*{1,2}([^*]+)\*{1,2}/g, "$1") // 移除粗体和斜体标记。
+		.replace(/`([^`]+)`/g, "$1") // 移除代码标记。
 		.replace(
 			/^(Use|Run|Execute|Create|Write|Read|Check|Verify|Update|Modify|Add|Remove|Delete|Install)\s+(the\s+)?/i,
 			"",

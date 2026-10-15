@@ -1,10 +1,10 @@
-// JSON mode: stream one prompt's run as JSON lines, like `pi --mode json`. Two modes:
-//   --events (default): the experimental agent events of watchEvents(), starting with a `snapshot` event.
-//   --ops: the raw ConversationView frames, starting with the view itself; each later line holds one commit's ops.
-// --storage sqlite (default) | jsonl | memory: sqlite writes a temporary database file, jsonl a temporary directory;
-// neither is deleted, and the path is printed to stderr at the end.
-// Uses OpenAI when OPENAI_API_KEY is set, and a scripted faux model otherwise.
-// Run from packages/durable:
+// JSON 模式：像 `pi --mode json` 一样，以 JSON 行流式输出一次提示词运行过程。支持两种模式：
+//   --events（默认）：watchEvents() 提供的实验性代理事件流，以 `snapshot` 事件开头。
+//   --ops：原始 ConversationView 帧，先输出视图本身，之后每行包含一次提交的操作。
+// --storage sqlite（默认）| jsonl | memory：sqlite 会写入临时数据库文件，jsonl 会写入临时目录；
+// 两者都不会删除，程序结束时会将路径输出到标准错误。
+// 设置 OPENAI_API_KEY 时使用 OpenAI，否则使用脚本控制的模拟模型。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/19-json.ts --events "What is in this directory?"
 import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -77,7 +77,7 @@ const env = new NodeExecutionEnv({ cwd: process.cwd() });
 const harness = await Harness.open(storage, { models, registry, env: () => env }, context);
 const root = await harness.root(context, { agent: { model } });
 
-// Attach before submitting, so the stream covers the whole run.
+// 在提交输入前建立监听，以便流涵盖整个运行过程。
 let stop: () => Promise<unknown>;
 if (mode === "events") {
 	const stream = await watchEvents(harness, root.id, context);
@@ -96,7 +96,7 @@ if (mode === "events") {
 const submission = await root.submit({ type: "input", content: prompt }, context);
 await submission.wait(context);
 await harness.waitForIdle(context);
-// Let the last batch reach the listener before stopping.
+// 等待最后一批事件送达监听器后再停止。
 await new Promise((resolve) => setTimeout(resolve, 0));
 await stop();
 await harness.close(context);

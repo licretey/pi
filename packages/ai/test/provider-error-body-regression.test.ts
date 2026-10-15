@@ -1,13 +1,10 @@
-// Per-tier provider regression for issues/provider-error-body-passthrough.
+// 按提供商层级验证 issues/provider-error-body-passthrough 的回归测试。
 //
-// Routes a 403-with-body error through the real provider catch path for one
-// representative per tier (Success Criterion 7): a body-blind text provider
-// (openai-completions), a status-only provider (openai-responses), and a
-// body-blind Bedrock provider. Each asserts the resulting errorMessage carries
-// both the HTTP status and the body reason. The image-provider tier is covered
-// by provider-error-body-passthrough.test.ts; the already-correct happy path
-// (no double body / no duplicated status) is asserted via the shared helper in
-// error-body.test.ts.
+// 为每个提供商层级选取一个代表，通过真实的提供商异常处理路径传递带响应体的 403 错误（成功标准 7）：
+// 不读取响应体的文本提供商（openai-completions）、仅处理状态码的提供商（openai-responses），以及
+// 不读取响应体的 Bedrock 提供商。每项测试都断言最终 errorMessage 同时包含 HTTP 状态码和响应体中的原因。
+// 图像提供商层级由 provider-error-body-passthrough.test.ts 覆盖；正常路径（不重复拼接响应体或状态码）
+// 则由 error-body.test.ts 中的共享辅助函数验证。
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { streamSimple as streamSimpleBedrock } from "../src/api/bedrock-converse-stream.ts";
@@ -15,8 +12,8 @@ import { stream as streamOpenAICompletions } from "../src/api/openai-completions
 import { stream as streamOpenAIResponses } from "../src/api/openai-responses.ts";
 import type { Model } from "../src/types.ts";
 
-// openai SDK APIError shape: "<status> status code (no body)" message, the
-// parsed body kept on `.error`.
+// openai SDK 的 APIError 结构：message 为“<status> status code (no body)”，
+// 解析后的响应体保存在 `.error` 中。
 class FakeAPIError extends Error {
 	status: number;
 	error: unknown;
@@ -33,7 +30,7 @@ const bedrockMock = vi.hoisted(() => ({
 }));
 
 const openaiMock = vi.hoisted(() => ({
-	// Default parsed body; individual tests may override before invoking.
+	// 默认解析后的响应体；各测试可在调用前覆盖此值。
 	parsedBody: { error: "blocked by gateway WAF" } as unknown,
 }));
 
@@ -147,9 +144,8 @@ describe("provider error body passthrough (per-tier regression)", () => {
 	});
 
 	it("openai-completions does not double-print the OpenRouter metadata.raw extra", async () => {
-		// OpenRouter returns the extra reason under error.error.metadata.raw, which
-		// is part of the parsed body normalizeProviderError already surfaces. The
-		// manual append must not duplicate it.
+		// OpenRouter 将额外原因放在 error.error.metadata.raw 中；该字段已包含在
+		// normalizeProviderError 暴露的解析响应体里，因此手动追加时不能重复添加。
 		openaiMock.parsedBody = {
 			message: "Provider returned error",
 			code: 403,

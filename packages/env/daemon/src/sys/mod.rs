@@ -1,5 +1,5 @@
-//! What differs between operating systems: error names, positional reads, temporary directories, opening readers,
-//! and starting and killing commands. Each implementation follows what Node (libuv) does on that system.
+//! 各操作系统间存在差异的行为：错误名称、定位读取、临时目录、打开读取句柄，
+//! 以及启动和终止命令。各实现均遵循 Node（libuv）在对应系统上的行为。
 
 #[cfg(unix)]
 mod unix;
@@ -11,26 +11,26 @@ mod windows;
 #[cfg(windows)]
 pub use windows::*;
 
-/// How a string command runs: the shell, its arguments before the command, and whether the command goes to its
-/// stdin instead of its arguments (legacy WSL `bash.exe`).
+/// 字符串命令的运行方式：使用的 Shell、命令前的参数，以及命令是否通过其
+/// 标准输入传递，而不是作为参数传递（旧版 WSL `bash.exe`）。
 pub struct ShellConfig {
     pub program: String,
     pub args: Vec<String>,
     pub command_on_stdin: bool,
 }
 
-/// How Node opens files: `r`, `writeFile` (`w`), `appendFile` (`a`), and `r+` for truncate and fsync.
+/// Node 打开文件的方式：`r`、`writeFile`（`w`）、`appendFile`（`a`），以及用于截断和 fsync 的 `r+`。
 #[derive(Clone, Copy)]
 pub enum OpenMode {
-    /// Node's `open(path, "r")`: any kind of file, blocking reads.
+    /// Node 的 `open(path, "r")`：允许打开任意类型的文件，读取时会阻塞。
     Read,
     Write,
     Append,
     ReadWrite,
 }
 
-/// An error code libuv reports where the system call itself reported another one, such as `ENOTDIR` from a recursive
-/// `mkdir` through a file, or `EISDIR` when Windows creates a file where a directory exists.
+/// 当系统调用报告的错误与 libuv 返回的错误代码不同时使用，例如递归 `mkdir` 路径经过文件时返回 `ENOTDIR`，
+/// 或 Windows 在目录已存在的位置创建文件时返回 `EISDIR`。
 #[derive(Debug)]
 pub struct Synthetic(pub &'static str);
 
@@ -46,7 +46,7 @@ pub fn synthetic(code: &'static str) -> std::io::Error {
     std::io::Error::other(Synthetic(code))
 }
 
-/// The libuv name of an error: a synthetic code, or the system's code translated per platform.
+/// 错误的 libuv 名称：合成错误代码，或按平台转换后的系统错误代码。
 pub fn error_name(error: &std::io::Error) -> &'static str {
     if let Some(Synthetic(code)) = error
         .get_ref()
@@ -57,12 +57,12 @@ pub fn error_name(error: &std::io::Error) -> &'static str {
     os_error_name(error)
 }
 
-/// Whether a path exists, following symbolic links, like Node's `access(path, F_OK)`.
+/// 跟随符号链接检查路径是否存在，与 Node 的 `access(path, F_OK)` 一致。
 pub fn path_exists(path: &str) -> bool {
     std::path::Path::new(path).metadata().is_ok()
 }
 
-/// Sixteen random bytes for temporary names (not for secrets).
+/// 用于临时名称的 16 个随机字节（不用于机密信息）。
 pub fn random_bytes() -> [u8; 16] {
     use std::hash::{BuildHasher, Hasher};
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -83,7 +83,7 @@ pub fn random_bytes() -> [u8; 16] {
     bytes
 }
 
-/// The daemon's working directory, the `process.cwd()` Node's `path.resolve` falls back to.
+/// 守护进程的工作目录；Node 的 `path.resolve` 会回退到 `process.cwd()`。
 pub fn cwd() -> String {
     std::env::current_dir()
         .map(|cwd| cwd.to_string_lossy().into_owned())

@@ -43,7 +43,7 @@ import type { TaskGraph, TaskGraphWatch } from "./task-graph.ts";
 import type { UsageState } from "./usage.ts";
 import type { ConversationView } from "./view.ts";
 
-/** Provider and model ID resolved through pi-ai `Models`. */
+/** 通过 pi-ai `Models` 解析出的 provider 与 model ID。 */
 export type ModelRef = {
 	readonly provider: string;
 	readonly modelId: string;
@@ -51,7 +51,7 @@ export type ModelRef = {
 
 export type UserInput = UserMessage["content"];
 
-/** Host submission: user input that may start a run, or a passive entry write. */
+/** 宿主提交（submission）：既可能是启动一次运行的用户输入，也可能是被动的 entry 写入。 */
 export type SubmissionDraft = {
 	readonly requestId?: string;
 } & (
@@ -75,7 +75,7 @@ export type SettledSubmissionRecord = SubmissionRecord & {
 	readonly status: "done" | "unanswered";
 };
 
-/** Awaitable host object for one durably admitted submission. */
+/** 对一次持久化接纳的 submission 可等待的宿主对象。 */
 export interface Submission {
 	readonly id: SubmissionId;
 	status(context: Context): Promise<SubmissionRecord>;
@@ -87,7 +87,7 @@ export type SettledTask<R> = TaskRecord<JsonValue, JsonValue, R> & {
 	readonly state: Extract<TaskState<JsonValue, R>, { readonly status: "terminal" }>;
 };
 
-/** Erased executable task definition stored in the registry. */
+/** 存入 registry 的、类型擦除后的可执行 task 定义。 */
 export type AnyTask = {
 	readonly definition: {
 		readonly name: string;
@@ -100,40 +100,40 @@ export type AnyTask = {
 	};
 };
 
-/** Options of `Conversation.abort()`. */
+/** `Conversation.abort()` 的选项。 */
 export type ConversationAbortOptions = {
 	/**
-	 * Cross background boundaries: mark every live task reached ignoring the background flag when the abort is admitted,
-	 * withdraw the queued inputs of every conversation reached, and wait until those tasks are terminal and the
-	 * conversation is ordinarily idle. Background work created afterwards is neither marked nor awaited.
+	 * 跨越 background 边界：当 abort 被接纳时，无视 background 标记，把到达的每个 live task 都标记中止，撤回到达的
+	 * 每个会话的排队输入，并等待这些 task 全部达到终态、会话回到普通意义上的空闲。之后再创建的 background 工作既
+	 * 不会被标记，也不会被等待。
 	 */
 	readonly background?: boolean;
 };
 
-/** Hook handler map declared by a task definition. */
+/** 由 task 定义声明的 hook 处理器映射。 */
 export type HooksOf<K> = K extends Task<infer _I, infer _S, infer _R, infer H> ? H : never;
 
 /**
- * Invocation-bound conversation operations for tasks and tools. Rejects after the invocation ends; passive entries are
- * written with ordinary transaction writes instead.
+ * 绑定到单次调用（invocation）的会话操作，供 task 与 tool 使用。调用结束后即拒绝；被动 entry 改用普通事务写入
+ * 完成。
  */
 export interface ConversationHandle {
 	readonly id: ConversationId;
 	submit(submission: InputSubmissionDraft, context: Context): Promise<Submission>;
-	/** `Conversation.abort()`: withdraw queued inputs, abort the ordinary ownership scope, and wait until it is idle. */
+	/** `Conversation.abort()`：撤回排队输入、中止普通所有权范围，并等待其空闲。 */
 	abort(context: Context, options?: ConversationAbortOptions): Promise<void>;
-	/** Resolve when the conversation's ordinary ownership scope has no live non-background task. */
+	/** 当会话的普通所有权范围内不再有 live 的非 background task 时 resolve。 */
 	waitForIdle(context: Context): Promise<void>;
 }
 
-/** Post-tools controls requested by a tool result. */
+/** 由工具结果请求的工具轮后（post-tools）控制。 */
 export type ToolControl = {
 	readonly addTools?: readonly string[];
 	readonly terminate?: true;
 	readonly handoff?: string;
 };
 
-/** Remark about a call for the model and the UI, such as truncation or a spill path; never part of the tool's data. */
+/** 面向模型与 UI 的关于一次调用的备注，例如截断或落盘（spill）路径；绝不属于工具数据本身。 */
 export type ToolDiagnostic = {
 	readonly severity: "info" | "warn" | "error";
 	readonly message: string;
@@ -141,97 +141,96 @@ export type ToolDiagnostic = {
 };
 
 /**
- * What a tool returns, on three channels: `output` for the model, `structuredOutput` for programs that call the tool
- * (`executeTool()` callers, code mode scripts), and `details` for UIs.
+ * 工具的返回结果，分三个通道：`output` 给模型，`structuredOutput` 给调用工具的程序（`executeTool()` 的调用方、
+ * code mode 脚本），`details` 给 UI。
  */
 export type ToolExecutionResult<TDetails extends JsonValue = JsonValue> = {
-	/** For the model. Omitted: the retained `output()` text. */
+	/** 给模型。省略时使用保留的 `output()` 文本。 */
 	readonly output?: ToolResultMessage["content"];
 	/**
-	 * For programs. Required unless `isError` when the tool declares `structuredOutputSchema`, and validated against it;
-	 * not allowed without one, where programs get the output itself (`NestedToolExecutionResult.structuredOutput`).
+	 * 给程序。当工具声明了 `structuredOutputSchema` 时必须提供（除非 `isError`），并按该 schema 校验；未声明时则
+	 * 不允许提供，此时程序直接拿到输出本身（`NestedToolExecutionResult.structuredOutput`）。
 	 */
 	readonly structuredOutput?: JsonValue;
 	readonly isError?: boolean;
-	/** Omitted: the last `details()` value becomes the details. */
+	/** 省略时：最后一次 `details()` 写入的值成为 details。 */
 	readonly details?: TDetails;
-	/** Added after those recorded through `api.diagnostic()`. */
+	/** 追加在通过 `api.diagnostic()` 记录的那些之后。 */
 	readonly diagnostics?: readonly ToolDiagnostic[];
-	/** Spend of the execution itself, such as a model call; stored on the result and in `pi.usage.tools`. */
+	/** 该执行自身的开销，例如某次模型调用；存储在结果上，并计入 `pi.usage.tools`。 */
 	readonly usage?: Usage;
 	readonly control?: ToolControl;
 };
 
 /**
- * Result of a nested call, as `executeTool()` returns it. Programs read `structuredOutput`; the output for the model
- * is not kept, and `control` does not apply.
+ * 嵌套调用的结果，即 `executeTool()` 的返回值。程序读取 `structuredOutput`；给模型看的 output 不会被保留，
+ * `control` 也不生效。
  */
 export type NestedToolExecutionResult = {
-	/** The nested call's tool task. */
+	/** 该嵌套调用的工具 task。 */
 	readonly taskId: TaskId;
 	/**
-	 * The value for programs. A tool with `structuredOutputSchema`: its validated `structuredOutput`, absent on an error
-	 * result that has none. A tool without: its bounded output, success or error, as a string for one text item, an
-	 * `ImageContent` for one image, `""` for none, and the content list otherwise. Absent on an error result the Harness
-	 * wrote itself (unavailable, invalid, blocked, interrupted, aborted); `diagnostics` say what went wrong.
+	 * 给程序的值。带 `structuredOutputSchema` 的工具：其经过校验的 `structuredOutput`，在错误结果没有该值时缺席。
+	 * 不带 schema 的工具：其有界输出（成功或错误皆然），单个文本项时为 string，单张图片时为 `ImageContent`，
+	 * 无内容时为 `""`，其余为内容列表。在 Harness 自行写出的错误结果上（不可用、无效、被拦截、被中断、被中止）
+	 * 缺席；出错原因由 `diagnostics` 说明。
 	 */
 	readonly structuredOutput?: JsonValue;
 	readonly isError: boolean;
 	readonly details?: JsonValue;
 	readonly diagnostics: readonly ToolDiagnostic[];
 	readonly usage?: Usage;
-	/** Execution time of the attempt that produced the result; absent when it never executed. */
+	/** 产生该结果的那次尝试的执行耗时；从未执行时缺席。 */
 	readonly durationMs?: number;
 };
 
-/** Whether the tools of one round run at once or one after another in call order. */
+/** 同一轮的工具是并发执行还是按调用顺序逐个执行。 */
 export type ToolExecutionMode = "parallel" | "sequential";
 
-/** How many queued items of one mode a boundary places: the first, or all of them. */
+/** 一次边界（boundary）对某模式下排队项的放置数量：放第一个，还是全部放置。 */
 export type QueueMode = "all" | "one-at-a-time";
 
 /**
- * Operations available to one tool invocation. A plain object, so a wrapper can spread it. Every operation rejects after
- * the invocation ends.
+ * 单次工具调用可用的操作集合。是一个普通对象，因此包装器可以用展开语法复制。调用结束后，每个操作都会拒绝。
  */
 export interface ToolExecutionApi<TDetails extends JsonValue = JsonValue> extends DocumentObserver, DocumentReader {
 	readonly taskId: TaskId;
 	readonly conversationId: ConversationId;
 	readonly callId: string;
-	/** The tool task's phase snapshot. */
+	/** 工具 task 的 phase 快照。 */
 	readonly registry: RegistrySnapshot;
-	/** The calling conversation's agent, as the tool task's phase resolved it. */
+	/** 调用方会话的 agent，由工具 task 的 phase 解析得出。 */
 	agent(context: Context): Promise<Agent>;
-	/** `HarnessOptions.models`: the catalog, credentials, and request transforms generation uses. */
+	/** `HarnessOptions.models`：目录（catalog）、凭证以及生成所用的请求变换。 */
 	readonly models: Models;
-	/** Built by `HarnessOptions.env` for this call; `undefined` without an environment. */
+	/** 由本次调用的 `HarnessOptions.env` 构建；没有环境配置时为 `undefined`。 */
 	readonly env: ExecutionEnv | undefined;
 	/**
-	 * Append running output; it becomes the result's `output` when the result omits it. `skipped` counts output
-	 * omitted before the chunk, as reported by an environment given `outputWindow` (`ShellOutputInfo.skipped`).
+	 * 追加运行中的输出；结果省略 `output` 时，它会成为结果的 `output`。`skipped` 计入该 chunk 之前被省略的输出量，
+	 * 由配置了 `outputWindow` 的环境上报（`ShellOutputInfo.skipped`）。
 	 */
 	output(chunk: string | Uint8Array, skipped?: ShellOutputSkip): void;
 	/**
-	 * The tail this call's output keeps and the pace of its progress commits, for `ShellExecOptions.window`; `undefined`
-	 * when the tool keeps the head of its output, which cannot accept skips. A wrapper that replaces `output` and
-	 * transforms text must also replace this with `undefined`, so skipped text cannot bypass its transform.
+	 * 本次调用的输出所保留的尾部，以及进度提交的节奏，对应 `ShellExecOptions.window`；当工具保留的是输出头部
+	 * （无法接受 skipped）时为 `undefined`。替换了 `output` 并对文本做变换的包装器，也必须将本项替换为
+	 * `undefined`，以免被跳过的文本绕过其变换。
 	 */
 	readonly outputWindow: ShellOutputWindow | undefined;
 	/**
-	 * The output retained so far, as the model will see it when the result omits `output`, and whether earlier output was
-	 * dropped; for a tool that also returns that text in its `structuredOutput`.
+	 * 到目前为止保留的输出，即结果省略 `output` 时模型将看到的内容，以及更早的输出是否被丢弃；适用于同时把这段
+	 * 文本放进自己 `structuredOutput` 的工具。
 	 */
 	retainedOutput(): { readonly text: string; readonly truncated: boolean };
-	/** Record a model-visible remark about this call. */
+	/** 记录一条模型可见的、关于本次调用的备注。 */
 	diagnostic(diagnostic: ToolDiagnostic): void;
-	/** Replace running details; the last value becomes the result details when the result omits `details`. */
+	/** 替换运行中的 details；结果省略 `details` 时，最后一次写入的值成为结果 details。 */
 	details(value: TDetails, context: Context): Promise<void>;
 	commit<T>(change: (tx: Tx) => T | Promise<T>, context: Context): Promise<T>;
 	memo<T extends JsonValue>(name: string, context: Context): Promise<T | undefined>;
 	memo<T extends JsonValue>(name: string, candidate: T, context: Context): Promise<T>;
 	/**
-	 * Create a task in one commit. A child task of a tool that is not replay-safe defaults to `abandonOnRestart`: the
-	 * tool never resumes after a restart, so nothing awaits the child then.
+	 * 在一次提交内创建 task。对于不保证重放安全的工具，其子 task 默认为 `abandonOnRestart`：重启后该工具不会恢复
+	 * 执行，因此届时也没有谁在等待这个子 task。
 	 */
 	createTask<I, S extends { phase: string }, R, H extends object>(
 		task: Task<I, S, R, H>,
@@ -241,34 +240,29 @@ export interface ToolExecutionApi<TDetails extends JsonValue = JsonValue> extend
 	): Promise<TaskId<R>>;
 	getTask<R>(id: TaskId<R>, context: Context): Promise<TaskRecord<JsonValue, JsonValue, R> | undefined>;
 	waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>>;
-	/** Invocation-bound handle of an existing conversation, such as one this tool created in `commit()`. */
+	/** 既有会话的、绑定到本次调用的句柄，例如该工具在 `commit()` 中创建的那个会话。 */
 	conversation(id: ConversationId, context: Context): Promise<ConversationHandle | undefined>;
 	/**
-	 * Run tool `name` as a nested call of this one and wait for its result. The nested call is its own `pi.tool` task,
-	 * owned by this call: it resolves the tool among the conversation's tools, validates, runs the `ToolTask` hooks (which
-	 * see `call.parent`), applies output limits and the tool's replay policy, and reports progress in `pi.live.nestedTools`.
-	 * Its result returns here instead of entering the transcript. A call that is blocked, invalid, throws, is interrupted,
-	 * or is aborted returns an `isError` result.
+	 * 以本次调用为父级、把工具 `name` 作为嵌套调用执行，并等待其结果。该嵌套调用是一个独立的 `pi.tool` task，
+	 * 归本次调用所有：它会在会话的可用工具中解析该工具、做校验、执行 `ToolTask` hooks（能看见 `call.parent`）、
+	 * 应用输出上限与工具的重放策略，并把进度上报到 `pi.live.nestedTools`。其结果在这里返回，而不是写入 transcript。
+	 * 被拦截、无效、抛异常、被中断或被中止的调用会返回 `isError` 结果。
 	 *
-	 * The nested call's key names it within this call; its call ID is `<callId>/<key>`. By default the key is the call's
-	 * position among this invocation's nested calls, `1`, `2`, ... An explicit `key` must be non-empty, without `/`, not
-	 * `__proto__`, and not a positive integer, so it never collides with a default one. A rerun of a replay-safe tool
-	 * that makes a call with a used key, by calling in the same order or by passing the same `key`, gets that nested call
-	 * back, finished or still running, instead of starting another. A nested call a crash interrupted before its result
-	 * committed follows its own replay policy, so this is not exactly-once execution. Reusing a key with another tool or
-	 * other arguments throws. A tool that is not replay-safe never reruns: after a restart, its unfinished nested calls
-	 * are abandoned (`TaskOptions.abandonOnRestart`) before they run again.
+	 * 嵌套调用的 key 在本次调用范围内标识它；其 call ID 为 `<callId>/<key>`。默认 key 是本次调用的嵌套调用序号
+	 * `1`、`2`……显式 `key` 必须非空、不含 `/`、不能是 `__proto__`、也不能是正整数，从而绝不与默认 key 冲突。
+	 * 重放安全的工具重跑时，若以相同顺序调用或传入相同 `key` 再次发起已有 key 的调用，则取回那个嵌套调用（无论
+	 * 已完成还是仍在运行），而不是新启动一个。被崩溃打断且结果尚未提交的嵌套调用遵循其自身的重放策略，因此这并
+	 * 非严格的一次性（exactly-once）执行。相同 key 却配了不同工具或不同参数时抛错。不保证重放安全的工具绝不重跑：
+	 * 重启后，其未完成的嵌套调用会先被放弃（`TaskOptions.abandonOnRestart`），而不会再次执行。
 	 *
-	 * `progress: false` commits no running output, details, or diagnostics to the nested call's slot, only its status;
-	 * the result still carries its details and diagnostics, and a schema-less tool's output as `structuredOutput`. An
-	 * interrupted or aborted call's result is built from its slot, so it then has none of them. Either way, programs never
-	 * get the partial output of an interrupted or aborted call.
+	 * `progress: false` 时，不向嵌套调用的 slot 提交任何运行中输出、details 或 diagnostics，只提交其状态；结果仍会
+	 * 携带其 details 与 diagnostics，以及无 schema 工具以 `structuredOutput` 形式给出的输出。被中断或被中止的调用，
+	 * 其结果由其 slot 重建，因此届时这些字段一概没有。无论哪种方式，程序都不会拿到被中断或被中止调用的部分输出。
 	 *
-	 * Nested calls run as soon as they are made, whatever their `executionMode`; the caller decides what runs at once by
-	 * what it awaits. Cancelling `context` stops only the wait; the nested call runs on. When this call settles, nested
-	 * calls it left running are aborted first. A nested result's `usage` is already counted under its tool; a result
-	 * that passes it on counts it again. Rejects, instead of returning a result, once `execute()` has returned, when this
-	 * call is aborted, or when the Harness closes.
+	 * 嵌套调用一经发起即开始运行，与 `executionMode` 无关；调用方通过自己 await 什么来决定什么并发执行。取消
+	 * `context` 只会停止等待，嵌套调用继续运行。当本次调用 settle 时，其遗留未完成的嵌套调用会先被中止。嵌套结果
+	 * 的 `usage` 已计入其工具名下；若结果又把它向上传递，则会被重复计入。一旦 `execute()` 已返回、本次调用被中止
+	 * 或 Harness 已关闭，则直接拒绝（reject），而不再返回结果。
 	 */
 	executeTool(
 		name: string,
@@ -279,32 +273,31 @@ export interface ToolExecutionApi<TDetails extends JsonValue = JsonValue> extend
 }
 
 /**
- * Executable tool registered in a registry. Only pi-ai `Tool` fields enter the transcript. `args` are typed by
- * `parameters`, which the Harness validates them against before `execute()`; `defineTool()` infers both generics.
+ * 注册进 registry 的可执行工具。只有 pi-ai `Tool` 的字段会进入 transcript。`args` 的类型由 `parameters` 决定，
+ * Harness 在 `execute()` 之前会按它校验；`defineTool()` 会推导这两个泛型。
  */
 export type ToolRegistration<
 	TParameters extends TSchema = TSchema,
 	TDetails extends JsonValue = JsonValue,
 > = Tool<TParameters> & {
-	/** Whether an interrupted execution may rerun on recovery. Default `unsafe`. */
+	/** 被中断的执行在恢复后是否可以重跑。默认 `unsafe`。 */
 	readonly replay?: "safe" | "unsafe";
-	/** Default: the settings' `toolExecution`. One sequential call makes its whole round sequential. */
+	/** 默认取 settings 的 `toolExecution`。一个顺序执行的调用会把它的整轮都变成顺序执行。 */
 	readonly executionMode?: ToolExecutionMode;
 	/**
-	 * Repair arguments models commonly get wrong before validation, such as a JSON string where an array belongs. Must be
-	 * pure and must not mutate `args`: it runs again when a call is retried before its intent is recorded. Its result is
-	 * still validated against `parameters`.
+	 * 在校验之前，修复模型常弄错的参数，例如把 JSON 字符串放到本该是数组的位置。必须是纯函数，且不得改动
+	 * `args`：在调用意图被记录之前重试时它会再次执行。其结果仍会按 `parameters` 校验。
 	 */
 	prepareArguments?(args: unknown): Static<TParameters>;
 	/**
-	 * Schema of `structuredOutput`, which programs that call the tool receive. Omitted: they receive the result's bounded
-	 * output, success or error, as `NestedToolExecutionResult.structuredOutput` describes.
+	 * `structuredOutput` 的 schema，即调用该工具的程序会收到的值。省略时：这些程序收到结果的有界输出（成功或
+	 * 错误皆然），如 `NestedToolExecutionResult.structuredOutput` 所述。
 	 */
 	readonly structuredOutputSchema?: TSchema;
 	/**
-	 * Who may call the tool: the model, other tools through `executeTool()`, or both (default). A code mode tool is
-	 * `["model"]`, so scripts cannot start scripts; tools behind code mode, such as MCP tools, can be `["tools"]`, so the
-	 * model is never offered them.
+	 * 谁可以调用该工具：模型、经由 `executeTool()` 的其他工具，或两者（默认）。code mode 工具是 `["model"]`，
+	 * 因此脚本无法启动脚本；藏在 code mode 之后的工具（例如 MCP 工具）可以是 `["tools"]`，这样模型永远不会被
+	 * 直接提供它们。
 	 */
 	readonly callers?: readonly ("model" | "tools")[];
 	readonly outputLimits?: {
@@ -319,95 +312,95 @@ export type ToolRegistration<
 	): Promise<ToolExecutionResult<TDetails>>;
 };
 
-/** Input to system prompt section rendering for one request preparation. */
+/** 一次请求准备（request preparation）的系统提示各节（section）渲染的输入。 */
 export type PromptInput<Tool extends ToolRegistration = ToolRegistration> = {
 	readonly conversationId: ConversationId;
-	/** The request's resolution; `agent.tools` are the tools offered in this request. */
+	/** 本次请求的解析结果；`agent.tools` 即本次请求提供（offer）的工具。 */
 	readonly agent: Agent<Tool>;
-	/** Built by `HarnessOptions.env` for this preparation; `undefined` without an environment. */
+	/** 由 `HarnessOptions.env` 为本次准备构建；无环境时为 `undefined`。 */
 	readonly env: ExecutionEnv | undefined;
-	/** Sections already in effect after replaying the active transcript. */
+	/** 重放-active transcript 之后已生效的各节。 */
 	readonly shown: Readonly<Record<string, string>>;
-	/** Committed document reads. */
+	/** 已提交的文档读取。 */
 	readonly read: DocumentReader;
 };
 
-/** One system prompt section; the agent's sections render in order before each request. */
+/** 一个系统提示节；agent 的各节会在每次请求前按顺序渲染。 */
 export type PromptSection<Tool extends ToolRegistration = ToolRegistration> = {
 	readonly key: string;
 	render(input: PromptInput<Tool>, context: Context): string | undefined | Promise<string | undefined>;
-	/** Default true: wrap the text as `<key>\n...\n</key>`. */
+	/** 默认 true：把文本包成 `<key>\n...\n</key>`。 */
 	readonly tag?: boolean;
 };
 
-/** Built by `hook()`; matches tasks by name. */
+/** 由 `hook()` 构建；按名称匹配 task。 */
 export type HookRegistration = { readonly task: string; readonly handlers: object };
 
-/** Built by `wrapTool()` and `wrapSection()`; targets a tool name or a section key. Wrappers are pure. */
+/** 由 `wrapTool()` 与 `wrapSection()` 构建；目标是某个工具名或某个 section key。包装器必须为纯函数。 */
 export type Wrap<Tool extends ToolRegistration = ToolRegistration> =
 	| { readonly tool: string; wrap(tool: Tool): Tool }
 	| { readonly section: string; wrap(section: PromptSection<Tool>): PromptSection<Tool> };
 
-/** Named bundle of code; installed in a registry and selected by conversations by name. */
+/** 具名的 code 集合；安装进 registry，并由会话按名称选用。 */
 export interface Extension<Tool extends ToolRegistration = ToolRegistration> {
 	readonly name: string;
 	readonly tools?: readonly Tool[];
 	readonly sections?: readonly PromptSection<Tool>[];
 	readonly hooks?: readonly HookRegistration[];
-	/** Apply where this extension is selected, in order. */
+	/** 在该扩展被选中的所有位置按顺序应用。 */
 	readonly wraps?: readonly Wrap<Tool>[];
-	/** Resolved by name for every task, whichever conversations select this extension. */
+	/** 按名称为每个 task 解析，无论哪些会话选中了该扩展。 */
 	readonly tasks?: readonly AnyTask[];
 }
 
-/** Immutable view of one published registry state. */
+/** 一次已发布的 registry 状态的不可变视图。 */
 export interface RegistrySnapshot<Tool extends ToolRegistration = ToolRegistration> {
 	installed(): readonly Extension<Tool>[];
 	extension(name: string): Extension<Tool> | undefined;
-	/** Every installed tool with its extension, in install order. Names may repeat across extensions. */
+	/** 所有已安装工具及其所属扩展，按安装顺序。不同扩展间名称可以重复。 */
 	tools(): readonly { readonly extension: Extension<Tool>; readonly tool: Tool }[];
 	sections(): readonly { readonly extension: Extension<Tool>; readonly section: PromptSection<Tool> }[];
-	/** Built-in and installed task definitions. */
+	/** 内置的与已安装的 task 定义。 */
 	tasks(): readonly AnyTask[];
 	task(name: string): AnyTask | undefined;
 }
 
-/** Read side of a registry consumed by a Harness. */
+/** Harness 所消费的 registry 的读取端。 */
 export interface RegistryReader<Tool extends ToolRegistration = ToolRegistration> {
-	/** Immutable view of the whole current registry. */
+	/** 整个当前 registry 的不可变视图。 */
 	snapshot(): RegistrySnapshot<Tool>;
-	/** Called synchronously after every publication; wakes the scheduler to reconsider blocked tasks. */
+	/** 每次发布之后同步调用；唤醒调度器以重新评估被阻塞的 task。 */
 	subscribe(listener: () => void): () => void;
 }
 
-/** Application-owned registry of extensions. */
+/** 由应用持有的扩展 registry。 */
 export interface Registry<Tool extends ToolRegistration = ToolRegistration> extends RegistryReader<Tool> {
-	/** Install `extension`, or replace the installed extension with its name in place. Publishes at once. */
+	/** 安装 `extension`，或就地替换已安装的同名扩展。立即发布。 */
 	install(extension: Extension<Tool>): void;
-	/** Remove the installed extension with `extension.name`, whichever object it is. A later install appends. */
+	/** 移除已安装的名为 `extension.name` 的扩展，无论其对象是谁。之后的安装将重新追加。 */
 	uninstall(extension: Extension): void;
 }
 
-/** Stored choices of one conversation; names, not objects. Unset fields follow the host. */
+/** 某个会话存储的偏好；存名称而非对象。未设置的字段沿用宿主（host）默认。 */
 export type AgentState = {
 	model?: ModelRef;
 	thinkingLevel?: ModelThinkingLevel;
-	/** An array selects exactly these extensions, in order. An object edits the host default selection. */
+	/** 用数组表示恰好选中这些扩展、并保持该顺序。对象形式则用于编辑宿主默认选择。 */
 	extensions?: string[] | { add?: string[]; remove?: string[] };
-	/** Filters the selected extensions' tools: the enabled tools. An array enables exactly these, in order. */
+	/** 过滤被选中扩展的工具：得到启用的工具。数组形式表示恰好启用这些、并保持该顺序。 */
 	tools?: string[] | { remove: string[] };
 	/**
-	 * Filters the enabled tools the model may call (`callers` includes `model`): the tools offered to it. An array offers
-	 * exactly these, in order. Never widens: other tools can still call the ones it leaves out.
+	 * 过滤启用工具中模型可以调用的部分（`callers` 含 `model`）：即提供给模型的工具。数组形式表示恰好提供这些、
+	 * 并保持该顺序。绝不放宽：模型名下剔除的工具，其他工具仍可调用。
 	 */
 	modelTools?: string[] | { remove: string[] };
-	/** Rendered after every extension section, as the section `instructions`. */
+	/** 在每个扩展 section 之后渲染，即 section `instructions`。 */
 	instructions?: string;
-	/** Directory within the environment's file system, passed to `HarnessOptions.env`. */
+	/** 环境文件系统中的目录，传给 `HarnessOptions.env`。 */
 	cwd?: string;
 };
 
-/** A change to `pi.agent`: a given field replaces the stored one, `null` clears it, `undefined` changes nothing. */
+/** 对 `pi.agent` 的一次变更：给定字段则替换存储值，`null` 清除，`undefined` 不做任何改变。 */
 export type AgentChange = {
 	readonly model?: ModelRef | null;
 	readonly thinkingLevel?: ModelThinkingLevel | null;
@@ -421,39 +414,39 @@ export type AgentChange = {
 	readonly cwd?: string | null;
 };
 
-/** A conversation's agent resolved against a registry snapshot and the settings. */
+/** 某个会话的 agent，基于一个 registry 快照与 settings 解析得出。 */
 export type Agent<Tool extends ToolRegistration = ToolRegistration> = {
 	readonly model?: ModelRef;
 	readonly thinkingLevel: ModelThinkingLevel;
 	readonly extensions: readonly Extension<Tool>[];
-	/** The tools a request offers, in order: enabled, callable by the model, and selected by `modelTools`. */
+	/** 一次请求提供的工具，按顺序：已启用、可被模型调用，且被 `modelTools` 选中。 */
 	readonly tools: readonly Tool[];
-	/** The tools nested calls (`executeTool()`) resolve among, in order: enabled and callable by tools. */
+	/** 嵌套调用(`executeTool()`)在其中解析工具的集合,按顺序:已启用且可被工具调用。 */
 	readonly callable: readonly Tool[];
-	/** Extension sections, then `instructions` when set. */
+	/** 扩展各节,当 `instructions` 已设置时排在其后。 */
 	readonly sections: readonly PromptSection<Tool>[];
 	readonly instructions?: string;
 	readonly cwd?: string;
 };
 
 /**
- * Runs inside the creating commit, after the creation hook and the `agent` change. The conversation creation is already
- * a table write, so table reads here throw `ReadAfterWrite`; document access remains available.
+ * 在创建它的那次提交内运行,时机在创建 hook 与 `agent` 变更之后。整个会话的创建此时已经是表写入,因此这里的表读
+ * 会抛 `ReadAfterWrite`;文档访问仍然可用。
  */
 export type ConversationInit = (tx: Tx, conversationId: ConversationId) => void | Promise<void>;
 
 export type ConversationCreateOptions = {
 	readonly ownership: ConversationOwnership;
-	/** Applied in the creating commit after the creation hook's copy, before `init`. */
+	/** 在创建提交内、创建 hook 的副本之后、`init` 之前应用。 */
 	readonly agent?: AgentChange;
 	readonly init?: ConversationInit;
 };
 
-/** Curated pi-ai request options; absent fields use pi-ai defaults. */
+/** 精选过的 pi-ai 请求选项;缺席字段使用 pi-ai 的默认值。 */
 export type ConversationStreamOptions = {
 	transport?: Transport;
 	timeoutMs?: number;
-	/** Provider/SDK retries inside one request attempt. */
+	/** 单次请求尝试内部，provider/SDK 层面的重试。 */
 	maxRetries?: number;
 	maxRetryDelayMs?: number;
 	headers?: Record<string, string>;
@@ -462,7 +455,7 @@ export type ConversationStreamOptions = {
 	deferred?: boolean | { window?: "15m" | "1h" | "24h" };
 };
 
-/** Durable generation attempt retries; the JSON shape of pi-ai `RetryPolicy`. */
+/** 持久化的生成尝试重试策略；pi-ai `RetryPolicy` 的 JSON 形态。 */
 export type ConversationRetryPolicy = {
 	enabled: boolean;
 	maxRetries: number;
@@ -470,41 +463,41 @@ export type ConversationRetryPolicy = {
 	maxAgentDelayMs?: number;
 };
 
-/** Automatic compaction thresholds (spec §8.7); manual compaction ignores `enabled`. */
+/** 自动压缩（compaction）阈值（spec §8.7）；手动压缩忽略 `enabled`。 */
 export type CompactionPolicy = {
-	/** Threshold and overflow compaction. */
+	/** 阈值与溢出压缩的开关。 */
 	enabled: boolean;
-	/** Room kept free for the answer: generation blocks to compact above `contextWindow - reserveTokens`. */
+	/** 为回答保留的余量：超过 `contextWindow - reserveTokens` 时，生成会阻塞以先做压缩。 */
 	reserveTokens: number;
-	/** Approximate size of the recent context a summary keeps verbatim. */
+	/** 摘要中原样保留的近期上下文的大致规模。 */
 	keepRecentTokens: number;
-	/** Background compaction starts `backgroundTokens` below the blocking threshold; `0` disables it. */
+	/** 后台压缩在阻塞阈值之下 `backgroundTokens` 处启动；`0` 表示禁用。 */
 	backgroundTokens: number;
 };
 
 /**
- * How often running progress is committed. Each progress commit is a storage write; a host whose storage is remote can
- * commit less often, so live answers and tool output appear in larger steps.
+ * 运行进度提交的频率。每次进度提交都是一次存储写入；存储在远端的宿主可以降低提交频率，这样 live 回答与工具
+ * 输出会以更大的步幅出现。
  */
 export type ProgressPolicy = {
-	/** Minimum pause between commits of the answer being generated. */
+	/** 正在生成的回答，两次提交之间的最小间隔。 */
 	partialIntervalMs: number;
-	/** Minimum pause between commits of running tool output; large commits also pause in proportion to their size. */
+	/** 运行中工具输出两次提交之间的最小间隔；大体量提交还会按其规模成比例地追加间隔。 */
 	outputIntervalMs: number;
 };
 
-/** Why a compaction runs: `compact()`, a threshold in generation preparation, or a context overflow. */
+/** 触发一次压缩的原因：`compact()`、生成准备中的阈值，还是上下文溢出。 */
 export type CompactionReason = "manual" | "threshold" | "overflow";
 
 /**
- * `entryId` of a blocking compaction's summary, or the `submissionId` of a conversation-owned compaction's summary
- * write; both absent when nothing was compacted.
+ * 阻塞式压缩摘要的 `entryId`，或会话自有（conversation-owned）压缩的摘要写入对应的 `submissionId`；两者在
+ * 未发生压缩时皆缺席。
  */
 export type CompactionResult = { entryId?: EntryId; submissionId?: SubmissionId };
 
-/** Harness-wide run policy. Read at every resolution and never copied; getters are fine. Synchronous: some readers run on the Session line. */
+/** Harness 级别的运行策略。每次解析时读取且从不复制；getter 没问题。必须同步：部分读取端运行在 Session 线上。 */
 export type HarnessSettings = {
-	/** Default extension selection; absent: every installed extension, in install order. */
+	/** 默认扩展选择；缺席时：所有已安装扩展，按安装顺序。 */
 	readonly extensions?: readonly Extension[];
 	readonly stream?: ConversationStreamOptions;
 	readonly retry?: Partial<ConversationRetryPolicy>;
@@ -514,15 +507,15 @@ export type HarnessSettings = {
 	readonly steeringMode?: QueueMode;
 	readonly followUpMode?: QueueMode;
 	/**
-	 * How long an idle conversation keeps its last context read in memory, so its next run reads only newer entries.
-	 * Busy conversations always keep it; `0` drops it once the conversation is idle.
+	 * 空闲会话在内存中保留其最后一次上下文读取的时长，使其下次运行只需读取更新的 entry。忙会话总是保留；
+	 * `0` 表示会话一旦空闲就丢弃。
 	 */
 	readonly contextRetentionMs?: number;
 };
 
-/** Resolved settings: every field over its built-in default, object fields merged. */
+/** 已解析的 settings：每个字段都覆盖其内置默认值，对象字段做合并。 */
 export type Settings = {
-	/** Absent: every installed extension, in install order. */
+	/** 缺席时：所有已安装扩展，按安装顺序。 */
 	readonly extensions?: readonly Extension[];
 	readonly stream: ConversationStreamOptions;
 	readonly retry: ConversationRetryPolicy;
@@ -534,50 +527,50 @@ export type Settings = {
 	readonly contextRetentionMs: number;
 };
 
-/** What `HarnessOptions.env` builds an environment for. */
+/** `HarnessOptions.env` 为之构建环境的对象。 */
 export type EnvTarget = {
 	readonly conversationId: ConversationId;
-	/** The conversation's agent `cwd`. */
+	/** 会话的 agent `cwd`。 */
 	readonly cwd?: string;
 	readonly read: DocumentReader;
 };
 
 export type HarnessOptions<Tool extends ToolRegistration = ToolRegistration> = {
-	/** pi-ai model access used by generation. */
+	/** pi-ai 模型访问能力，由生成过程使用。 */
 	readonly models: Models;
 	readonly registry: RegistryReader<Tool>;
 	readonly settings?: HarnessSettings;
-	/** Builds a conversation's environment at each use. Never called on the Session line; may be async. */
+	/** 每次使用时构建会话的环境。绝不会在 Session 线上调用；可以是异步的。 */
 	readonly env?: (target: EnvTarget, context: Context) => ExecutionEnv | undefined | Promise<ExecutionEnv | undefined>;
 	/**
-	 * Runs in every commit that creates or forks a conversation, raw `tx.createConversation()` included, after the
-	 * built-in `pi.*` documents and before the conveniences apply `agent` and run `init`. A fork already has its copies.
-	 * Table reads throw `ReadAfterWrite`, as in `init`; a throw fails the creating commit.
+	 * 在每个创建或 fork 会话的提交内运行，包括原始的 `tx.createConversation()`，时机在内置 `pi.*` 文档之后、
+	 * 便捷方法应用 `agent` 并执行 `init` 之前。fork 的会话此时已带上其副本。与 `init` 一样，表读取会抛
+	 * `ReadAfterWrite`；抛错则使创建提交失败。
 	 */
 	readonly conversationCreated?: (tx: Tx, conversation: ConversationRecord) => void | Promise<void>;
 	readonly now?: () => number;
 	/**
-	 * Receives failures that do not fail the calling operation, such as a throwing hook or listener, and the error that
-	 * fails the Session, once. Its own throw or rejection is dropped.
+	 * 接收那些不会使调用操作失败的错误，例如抛异常的 hook 或 listener，以及使 Session 失败的那个错误，且每个
+	 * 错误只接收一次。它自身的 throw 或 rejection 会被丢弃。
 	 */
 	readonly onReport?: (error: unknown) => void;
 };
 
-/** Live task and what the scheduler would do with it under the current registry. */
+/** live task，以及调度器在当前 registry 下会怎么处理它。 */
 export type TaskInspection = {
 	readonly record: TaskRecord<JsonValue, JsonValue, JsonValue>;
-	readonly state: /** An invocation is active. */
+	readonly state: /** 一次调用（invocation）正在执行。 */
 		| { readonly kind: "running" }
-		/** The next scheduling pass reserves it; `migrates` when its definition is newer and has `migrate`. */
+		/** 下一次调度轮次将预留它；当其定义更新且带 `migrate` 时 `migrates` 为真。 */
 		| { readonly kind: "ready"; readonly migrates: boolean }
 		/**
-		 * Waits for these live tasks: the live part of its `on`, or, when abort-marked, its live ordinary owned work, which
-		 * must end before its abort handler starts.
+		 * 等待以下这些 live task：其 `on` 中的 live 部分，或在已标记中止时，其 live 的普通自有工作——后者必须在
+		 * 其 abort handler 启动前结束。
 		 */
 		| { readonly kind: "waiting"; readonly on: readonly TaskId[] }
-		/** Outcome held until its ordinary owned work drains. */
+		/** 结果被扣住，直到其普通自有工作排空。 */
 		| { readonly kind: "completing" }
-		/** No registered definition can take it; aborting it settles it as `orphaned`. */
+		/** 没有任何已注册定义可以接管它；中止它将以 `orphaned` 终态落定。 */
 		| {
 				readonly kind: "blocked";
 				readonly reason: "missing_task" | "task_too_old" | "migration_failed";
@@ -585,59 +578,59 @@ export type TaskInspection = {
 		  };
 };
 
-/** Point-in-time view of live work: unfinished tasks and submissions, read on the Session line. */
+/** live 工作的即时视图：未完成的 task 与 submission，在 Session 线上读取。 */
 export type HarnessInspection = {
 	readonly scheduling: "paused" | "running" | "closing";
 	readonly tasks: readonly TaskInspection[];
-	/** Queued and placed submissions, in ID order. */
+	/** 已排队与已放置的 submission，按 ID 顺序。 */
 	readonly submissions: readonly SubmissionRecord[];
 };
 
-/** Raw active transcript and derived model context. */
+/** 原始 active transcript 与派生的模型上下文。 */
 export type ContextView = {
-	/** Newest applicable head marker, if any. */
+	/** 最新适用的 head 标记（如存在）。 */
 	readonly head: EntryRecord | undefined;
-	/** Raw active entries: the head marker followed by non-head entries from its head through the tail. */
+	/** 原始 active entries：head 标记，随后是其 head 至尾部的非 head entry。 */
 	readonly entries: readonly EntryRecord[];
-	/** Per entry of `entries`, its model messages after edits and excluded stop reasons, before tool result ordering. */
+	/** 对 `entries` 中的每个 entry，其在编辑与排除的 stop reason 之后、工具结果排序之前的模型消息。 */
 	readonly contributions: readonly (readonly Message[])[];
-	/** Model context for the next provider request. */
+	/** 下一次 provider 请求的模型上下文。 */
 	readonly messages: readonly Message[];
 };
 
-/** Stateless handle for one conversation, bound to the Harness that returned it. Compare handles by `id`. */
+/** 面向单个会话的无状态句柄，绑定于返回它的 Harness。按 `id` 比较句柄。 */
 export interface Conversation {
 	readonly id: ConversationId;
 
-	/** Resolved with the current registry snapshot and settings. */
+	/** 基于当前 registry 快照与 settings 解析。 */
 	agent(context: Context): Promise<Agent>;
-	/** `configure()` in its own commit. */
+	/** 单独一次提交内的 `configure()`。 */
 	configure(change: AgentChange, context: Context): Promise<void>;
 
 	/**
-	 * Durably admit user input or a passive entry write. A busy conversation, or one with queued items, queues it in
-	 * `pi.inbox`; `whenBusy: "reject"` rejects with `ConversationBusy` instead and writes nothing.
+	 * 持久化接纳用户输入或被动 entry 写入。忙会话，或存在排队项的会话，会将其排队进 `pi.inbox`；设为
+	 * `whenBusy: "reject"` 时则改为拒绝并抛 `ConversationBusy`，且不写任何内容。
 	 */
 	submit(submission: SubmissionDraft, context: Context): Promise<Submission>;
 	/**
-	 * Admit a write of a `pi.reset` entry that starts a new context, carrying `handoff` as a user message when given.
-	 * Resolves after admission; while busy, it is placed at the next boundary.
+	 * 接纳一条启动全新上下文的 `pi.reset` entry 写入，若给定 `handoff` 则作为 user message 带上。接纳后即
+	 * resolve；忙时将放置在下一个边界。
 	 */
 	reset(handoff: string | undefined, context: Context): Promise<void>;
 	/**
-	 * Admit a manual compaction task and return its ID. It summarizes while the conversation keeps working and places its
-	 * summary through a write submission: at once when idle, otherwise at the next boundary (spec §8.7).
+	 * 接纳一个手动压缩 task 并返回其 ID。它在会话继续工作的同时做摘要，并通过写 submission 放置其摘要：空闲时
+	 * 立即放置，否则在下一个边界（spec §8.7）。
 	 */
 	compact(instructions: string | undefined, context: Context): Promise<TaskId<CompactionResult>>;
 
-	/** Session commit whose `tx.createTask()` defaults to this conversation. */
+	/** 以本会话为默认 `tx.createTask()` 目标的 Session commit。 */
 	commit<T>(change: (tx: Tx) => T | Promise<T>, context: Context): Promise<T>;
 	/**
-	 * Committed raw active transcript and model context. With `at`, the context as of that visible entry: the same view
-	 * `fork(at)` would start with, without creating a conversation.
+	 * 已提交的原始 active transcript 与模型上下文。给定 `at` 时，返回截至该可见 entry 的上下文：即 `fork(at)` 将
+	 * 以之开始的同一视图，只是不创建会话。
 	 */
 	context(context: Context, options?: { readonly at?: EntryId }): Promise<ContextView>;
-	/** Fork-aware history of this conversation, newest first unless `query.order` is `ascending`. */
+	/** 本会话的分叉感知历史，除非 `query.order` 为 `ascending`，否则最新在前。 */
 	entries(
 		query: Omit<EntryQuery, "conversationId">,
 		limit: number,
@@ -646,33 +639,33 @@ export interface Conversation {
 	): Promise<Page<EntryRecord, Cursor>>;
 	fork(at: EntryId, options: ConversationCreateOptions, context: Context): Promise<Conversation>;
 	/**
-	 * Withdraw queued inputs (queued writes stay), mark every live non-background task of the ordinary ownership scope,
-	 * signal them, and resolve once the scope is idle. Background subtrees survive unless `background` is set.
+	 * 撤回排队输入（排队的写入不受影响），标记普通所有权范围内的所有 live 非 background task 并发出中止信号，
+	 * 然后在范围空闲时 resolve。除非设置了 `background`，background 子树会存活。
 	 */
 	abort(context: Context, options?: ConversationAbortOptions): Promise<void>;
 	/**
-	 * Resolve when the ordinary ownership scope has no live non-background task: this conversation and the conversations
-	 * owned, transitively, by its non-background tasks.
+	 * 普通所有权范围内没有 live 非 background task 时 resolve：包括本会话，以及由其非 background task 传递性
+	 * 拥有的会话。
 	 */
 	waitForIdle(context: Context): Promise<void>;
-	/** The structural view (spec §9.3) as a disposable read-only Chord state. */
+	/** 结构化视图（spec §9.3），以一次性的只读 Chord 状态形式给出。 */
 	viewState(context: Context): Promise<AttachedReplicatedState<ConversationView>>;
-	/** The structural view as a serialized exact-frame watch with bounded pending frames. */
+	/** 结构化视图，以带有限 pending frame 的序列化精确帧 watch 形式给出。 */
 	watch(context: Context): Promise<ConversationWatch>;
 }
 
 export type ConversationWatch = WatchHandle<ConversationView>;
 
-/** Durable agent harness over one Session. */
+/** 构建于一个 Session 之上的持久 agent Harness。 */
 export interface Harness extends Session {
 	/**
-	 * Enable task scheduling. Idempotent; throws after close. Calls that ask for progress enable it too:
-	 * `Conversation.submit()`, `Conversation.compact()`, `Conversation.abort()`, `Submission.wait()`, `waitForTask()`,
-	 * `Harness.waitForIdle()`, and `Conversation.waitForIdle()`. Read-only viewers never do.
+	 * 启用 task 调度。幂等；close 之后抛错。请求进度的调用也会启用它：`Conversation.submit()`、
+	 * `Conversation.compact()`、`Conversation.abort()`、`Submission.wait()`、`waitForTask()`、
+	 * `Harness.waitForIdle()` 与 `Conversation.waitForIdle()`。只读 viewer 从不这样做。
 	 */
 	resume(): void;
 
-	/** Return the reserved root conversation, creating it with `agent` and `init` in one commit when absent. */
+	/** 返回预留的根会话；缺席时用 `agent` 与 `init` 在一次提交内创建它。 */
 	root(
 		context: Context,
 		options?: { readonly agent?: AgentChange; readonly init?: ConversationInit },
@@ -681,38 +674,38 @@ export interface Harness extends Session {
 	createConversation(options: ConversationCreateOptions, context: Context): Promise<Conversation>;
 
 	getTask<R>(id: TaskId<R>, context: Context): Promise<TaskRecord<JsonValue, JsonValue, R> | undefined>;
-	/** Live tasks and unsettled submissions. Writes nothing and runs no task code. */
+	/** live task 与未落定的 submission。不写任何内容，也不运行任何 task 代码。 */
 	inspect(context: Context): Promise<HarnessInspection>;
-	/** Reacquire a submission, for example after reopen. */
+	/** 重新获取一个 submission，例如 reopen 之后。 */
 	submission(id: SubmissionId, context: Context): Promise<Submission | undefined>;
-	/** `not_found` for an unknown submission or one of another conversation than `conversationId`. */
+	/** 未知 submission，或不属于 `conversationId` 的另一个会话的 submission，返回 `not_found`。 */
 	abortSubmission(
 		id: SubmissionId,
 		context: Context,
 		conversationId?: ConversationId,
 	): Promise<"aborted" | "already_placed" | "settled" | "not_found">;
 	/**
-	 * Commit the abort mark, signal and join an active run invocation, and schedule the abort invocation. A task whose
-	 * definition cannot take it settles as `orphaned` instead.
+	 * 提交中止标记、向活动的 run 调用发信号并 join 它，再调度 abort 调用。定义无法接管该 task 时，task 改为以
+	 * `orphaned` 落定。
 	 */
 	abortTask(id: TaskId, context: Context): Promise<"marked" | "terminal">;
-	/** Resolve with the terminal receipt; cancelling `context` cancels only this wait. */
+	/** 以终态回执 resolve；取消 `context` 只会取消这一次等待。 */
 	waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>>;
-	/** Resolve when the ordinary ownership scope of every ownerless conversation has no live non-background task. */
+	/** 当所有无主会话的普通所有权范围都没有 live 非 background task 时 resolve。 */
 	waitForIdle(context: Context): Promise<void>;
-	/** Session total: every conversation's `pi.usage` summed. */
+	/** Session 总量：所有会话的 `pi.usage` 之和。 */
 	usage(context: Context): Promise<UsageState>;
-	/** Every live task with its owner edge, status, and owned conversations (spec §9.5), as a disposable Chord state. */
+	/** 每个 live task 及其 owner 边、状态与拥有的会话（spec §9.5），以一次性 Chord 状态形式给出。 */
 	taskGraph(context: Context): Promise<AttachedReplicatedState<TaskGraph>>;
-	/** The task graph as a serialized exact-frame watch with bounded pending frames. */
+	/** task graph，以带有限 pending frame 的序列化精确帧 watch 形式给出。 */
 	watchTaskGraph(context: Context): Promise<TaskGraphWatch>;
 }
 
-/** What a hook may use: committed reads and the asking task's memos, which hooks and the task share. */
+/** hook 可用的能力：已提交的读取，以及发起调用的 task 的 memos（hooks 与该 task 共享）。 */
 export interface HookApi extends DocumentReader {
 	readonly taskId: TaskId;
 	readonly conversationId: ConversationId;
-	/** `HarnessOptions.models`. */
+	/** `HarnessOptions.models`。 */
 	readonly models: Models;
 	memo<T extends JsonValue>(name: string, context: Context): Promise<T | undefined>;
 	memo<T extends JsonValue>(name: string, candidate: T, context: Context): Promise<T>;
@@ -720,36 +713,36 @@ export interface HookApi extends DocumentReader {
 
 export type HookResult<T> = T | undefined | Promise<T | undefined>;
 
-/** Hooks of the built-in generation task. */
+/** 内置生成 task 的 hooks。 */
 export interface GenerationHooks {
-	/** Before every request attempt, including recovery; the result is used for that request only. */
+	/** 每次请求尝试之前（含恢复），其结果只作用于该次请求。 */
 	beforeRequest(
 		request: { readonly messages: readonly Message[] },
 		api: HookApi,
 		context: Context,
 	): HookResult<{ readonly messages: readonly Message[] }>;
-	/** Every terminal provider message, before classification. */
+	/** 每条终态 provider 消息，在分类之前。 */
 	afterResponse(message: AssistantMessage, api: HookApi, context: Context): void | Promise<void>;
-	/** A final answer; the first `continue` appends a user message and continues the run. */
+	/** 一次最终回答；首个 `continue` 会追加一条 user message 并继续运行。 */
 	onYield(answer: AssistantMessage, api: HookApi, context: Context): HookResult<{ readonly continue: UserInput }>;
-	/** After every tool of the round is terminal; `results` are the round's result entries in call order. */
+	/** 本轮每个工具都终态之后；`results` 是本轮的结果 entry，按调用顺序。 */
 	afterTools(assistant: EntryId, results: readonly EntryId[], api: HookApi, context: Context): void | Promise<void>;
 }
 
-/** A call as tool hooks see it; `parent` is set for a nested call, one a running tool made through `executeTool()`. */
+/** 工具 hooks 眼中的调用；嵌套调用（一个运行中的工具经 `executeTool()` 发起的调用）会设置 `parent`。 */
 export type ToolHookCall = ToolCall & {
 	readonly parent?: { readonly taskId: TaskId; readonly callId: string };
 };
 
-/** Hooks of the built-in tool task, for model-issued and nested calls. */
+/** 内置工具 task 的 hooks，覆盖模型发起的与嵌套的调用。 */
 export interface ToolHooks {
-	/** Before intent; the first `block` wins, otherwise `arguments` replace the call's arguments. A throw blocks. */
+	/** 意图之前；首个 `block` 生效，否则 `arguments` 替换该调用的参数。抛错即拦截。 */
 	beforeTool(
 		call: ToolHookCall,
 		api: HookApi,
 		context: Context,
 	): HookResult<{ readonly arguments?: JsonObject; readonly block?: string }>;
-	/** After execution, before the result is committed; replaces the result. */
+	/** 执行之后、结果提交之前；替换该结果。 */
 	afterTool(
 		call: ToolHookCall,
 		result: ToolExecutionResult,
@@ -758,12 +751,11 @@ export interface ToolHooks {
 	): HookResult<ToolExecutionResult>;
 }
 
-/** Hooks of the built-in compaction task. */
+/** 内置压缩 task 的 hooks。 */
 export interface CompactionHooks {
 	/**
-	 * After range selection, before summarizing; the first decision wins. `entries` are the active entries the summary
-	 * replaces, the head marker first, and `messages` their model context, the summarizer's source; `firstKept` is the
-	 * first entry kept verbatim.
+	 * 范围选定之后、摘要之前；首个决策生效。`entries` 是该摘要要替换的 active entries（head 标记在最前），
+	 * `messages` 是它们的模型上下文、即摘要器的输入源；`firstKept` 是第一个逐字保留的 entry。
 	 */
 	beforeCompact(
 		compaction: {

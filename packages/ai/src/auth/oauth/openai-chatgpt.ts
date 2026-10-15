@@ -1,8 +1,7 @@
 /**
- * OpenAI Responses API token sharing through Sign in with ChatGPT.
+ * 通过“使用 ChatGPT 登录”共享 OpenAI Responses API token。
  *
- * This public-client flow uses no client secret and sends the resulting user
- * access token directly to api.openai.com.
+ * 此公共客户端流程不使用客户端密钥，并会将获得的用户访问 token 直接发送到 api.openai.com。
  */
 
 import { randomBytes } from "node:crypto";
@@ -12,7 +11,7 @@ import { getProviderEnvValue } from "../../utils/provider-env.ts";
 import type { LoginOptions, OAuthAuth, OAuthCredential, ProviderAuthInteraction } from "../types.ts";
 import { generatePKCE } from "./pkce.ts";
 
-// every login registers a new client with this ID; OpenAI returns the issued client ID in the callback
+// 每次登录都使用此 ID 注册新客户端；OpenAI 会在回调中返回签发的客户端 ID。
 const DYNAMIC_CLIENT_ID = "dynamic_agent_client";
 const AGENT_NAME_HINT = "Pi";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -25,7 +24,7 @@ const CALLBACK_PATH = "/auth/callback";
 const REDIRECT_URI = `http://127.0.0.1:${CALLBACK_PORT}${CALLBACK_PATH}`;
 const DIRECT_TOKEN_SCOPE = "chatgpt.tokens.use.direct";
 const SCOPE = `openid profile email offline_access resource.invoke ${DIRECT_TOKEN_SCOPE}`;
-// Refresh this long before the real expiry so a request never starts with a token about to expire.
+// 在 token 真正过期前提前刷新，避免请求开始时 token 即将过期。
 const EXPIRY_MARGIN_MS = 3 * 60 * 1000;
 
 type AuthorizationResult = {
@@ -197,8 +196,8 @@ async function exchangeAuthorizationCode(
 		}),
 		signal,
 	);
-	// Pi does not use the ID token to identify the user or read profile data.
-	// Keep the presence check as part of the token-response contract.
+	// Pi 不使用 ID token 识别用户或读取个人资料。
+	// 仍将其是否存在作为 token 响应契约的一部分进行检查。
 	if (typeof token.id_token !== "string" || token.id_token.trim().length === 0) {
 		throw new Error("OpenAI OAuth token response did not contain an ID token");
 	}
@@ -222,7 +221,7 @@ async function refreshAccessToken(credential: OAuthCredential, signal: AbortSign
 	return credentialFromTokenResponse(token, clientId);
 }
 
-/** OpenAI identifies each installation ("agent host") by a stable URI such as `urn:uuid:<uuid>`. */
+/** OpenAI 使用稳定 URI（例如 `urn:uuid:<uuid>`）标识每个安装实例（“智能体宿主”）。 */
 function agentHostId(deviceId: string | undefined): string {
 	if (!deviceId || !UUID_PATTERN.test(deviceId)) {
 		throw new Error("Sign in with ChatGPT requires a device ID (UUID) for this installation");
@@ -238,8 +237,8 @@ async function loginOpenAIChatGPT(
 	const { verifier, challenge } = await generatePKCE();
 	const state = randomValue();
 	const nonce = randomValue();
-	// Without this server, the browser's callback would reach whatever else holds the port (another
-	// pending login or the Codex CLI), which rejects it as a state mismatch. Fail with a clear error instead.
+	// 没有此服务器时，浏览器回调可能会到达其他占用该端口的程序（另一个待完成的登录流程或 Codex CLI），
+	// 后者会因 state 不匹配而拒绝请求。此处改为返回明确错误。
 	const callback = await startCallbackServer(state).catch((error: unknown) => {
 		if (!(error instanceof Error && "code" in error && error.code === "EADDRINUSE")) throw error;
 		throw new Error(
@@ -288,11 +287,9 @@ async function loginOpenAIChatGPT(
 	} finally {
 		manualAbort.abort();
 		callback.server.close();
-		// close() only stops accepting new connections. Browsers open spare connections ahead of
-		// time, and one that has not sent a request yet stays open and attached to this server.
-		// A later login in the same process starts a new server with a new state, but the browser
-		// may send that login's callback over the spare connection. This server would then handle
-		// it and reject it with "OAuth state mismatch", and the new login would never see it.
+		// close() 只会停止接受新连接。浏览器会提前打开备用连接；尚未发送请求的连接仍保持打开并关联到此服务器。
+		// 同一进程后续的登录会启动带有新 state 的服务器，但浏览器可能通过旧备用连接发送该登录的回调。
+		// 这样旧服务器就会处理并以 "OAuth state mismatch" 拒绝回调，而新登录流程永远收不到它。
 		callback.server.closeAllConnections();
 	}
 }

@@ -1,12 +1,12 @@
 /**
- * Resolve configuration values that may be shell commands, environment variables, or literals.
- * Used by auth-storage.ts and model-registry.ts.
+ * 解析配置值；配置值可以是 shell 命令、环境变量或字面量。
+ * 由 auth-storage.ts 和 model-registry.ts 使用。
  */
 
 import { execSync, spawnSync } from "child_process";
 import { getShellConfig } from "../utils/shell.ts";
 
-// Cache for shell command results (persists for process lifetime)
+// shell 命令结果缓存（在进程生命周期内有效）
 const commandResultCache = new Map<string, string | undefined>();
 const ENV_VAR_NAME_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const ENV_VAR_NAME_PREFIX_RE = /^[A-Za-z_][A-Za-z0-9_]*/;
@@ -136,11 +136,11 @@ export function isConfigValueConfigured(config: string, env?: Record<string, str
 }
 
 /**
- * Resolve a config value (API key, header value, etc.) to an actual value.
- * - If starts with "!", executes the rest as a shell command and uses stdout (cached)
- * - Interpolates "$ENV_VAR" or "${ENV_VAR}" references with the named environment variable
- * - In non-command values, "$$" escapes a literal "$" and "$!" escapes a literal "!"
- * - Otherwise treats the value as a literal
+ * 将配置值（例如 API 密钥或请求头值）解析为实际值。
+ * - 以 "!" 开头时，将其余部分作为 shell 命令执行并使用标准输出（结果会缓存）
+ * - 将 "$ENV_VAR" 或 "${ENV_VAR}" 替换为对应的环境变量值
+ * - 对于非命令值，"$$" 转义为字面量 "$"，"$!" 转义为字面量 "!"
+ * - 其他情况按字面量处理
  */
 export function resolveConfigValue(config: string, env?: Record<string, string>): string | undefined {
 	const reference = parseConfigValueReference(config);
@@ -216,7 +216,7 @@ function executeCommand(commandConfig: string): string | undefined {
 }
 
 /**
- * Resolve all header values using the same resolution logic as API keys.
+ * 使用与 API 密钥相同的规则解析所有请求头值。
  */
 export function resolveConfigValueUncached(config: string, env?: Record<string, string>): string | undefined {
 	const reference = parseConfigValueReference(config);
@@ -251,7 +251,7 @@ export function resolveConfigValueOrThrow(config: string, description: string, e
 }
 
 /**
- * Resolve all header values using the same resolution logic as API keys.
+ * 使用与 API 密钥相同的规则解析所有请求头值。
  */
 export function resolveHeaders(
 	headers: Record<string, string> | undefined,
@@ -281,7 +281,7 @@ export function resolveHeadersOrThrow(
 	return Object.keys(resolved).length > 0 ? resolved : undefined;
 }
 
-/** Clear the config value command cache. Exported for testing. */
+/** 清除配置值命令缓存。导出此函数供测试使用。 */
 export function clearConfigValueCache(): void {
 	commandResultCache.clear();
 }

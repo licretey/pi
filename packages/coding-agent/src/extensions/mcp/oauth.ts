@@ -1,13 +1,11 @@
 /**
- * OAuth sign-in for remote MCP servers.
+ * 远程 MCP 服务器的 OAuth 登录。
  *
- * Connections never start a browser flow on their own. They send the stored access token and, after
- * a 401, try the stored refresh token. When that is not possible they fail with
- * `McpOAuthAuthorizationRequiredError`, and the user signs in through `/mcp`, which runs
- * the authorization code flow (PKCE, a Client ID Metadata Document or dynamic client registration)
- * against a loopback callback.
+ * 连接本身绝不主动发起浏览器流程。它们发送已存储的 access token，收到 401 后尝试已存储的
+ * refresh token。当无法这样做时，抛出 `McpOAuthAuthorizationRequiredError`，由用户通过 `/mcp`
+ * 登录——它针对 loopback 回调运行授权码流程（PKCE、Client ID Metadata Document 或动态客户端注册）。
  *
- * Credentials live in `<agent-dir>/mcp-auth.json`, keyed by server name and URL.
+ * 凭证保存在 `<agent-dir>/mcp-auth.json` 中，按服务器名称和 URL 索引。
  */
 
 import { createHash } from "node:crypto";
@@ -38,49 +36,49 @@ import { mcpNamespace } from "../../core/mcp-servers.ts";
 
 const CALLBACK_HOST = "127.0.0.1";
 const CALLBACK_PATH = "/callback";
-/** Where pi.dev serves pi's Client ID Metadata Documents: `client.json` and `<callback ID>/client.json`. */
+/** pi.dev 托管 pi 的 Client ID Metadata Document 的地址：`client.json` 与 `<callback ID>/client.json`。 */
 const CLIENT_METADATA_BASE_URL = "https://pi.dev/oauth";
-/** Redirect URI for refreshes when none is stored. Refreshing never redirects the user. */
+/** 未存储 redirect URI 时刷新所用的地址。刷新从不重定向用户。 */
 const FALLBACK_REDIRECT_URL = `http://${CALLBACK_HOST}${CALLBACK_PATH}`;
-/** Access tokens this close to expiry are refreshed before they are sent. */
+/** 距过期只剩这么长时间的 access token 会在发送前先刷新。 */
 const REFRESH_SKEW_MS = 30_000;
 /**
- * Bounds each request to the authorization server, so an unresponsive one cannot hold the refresh lock,
- * delay shutdown, or keep a sign-in waiting for long.
+ * 限定对授权服务器的每次请求时长，防止无响应的授权服务器长时间占用刷新锁、
+ * 拖延关机或让登录流程久等。
  */
 const OAUTH_REQUEST_TIMEOUT_MS = 15_000;
-/** A refresh lock that its holder stopped renewing (the process was killed) is taken over after this. */
+/** 持有者停止续期（进程被杀）的刷新锁在此之后可被接管。 */
 const REFRESH_LOCK_STALE_MS = 20_000;
-/** How long to wait for another process's refresh: longer than a stale lock lives. */
+/** 等待其他进程完成刷新的时长：比一把过期锁的存活时间更长。 */
 const REFRESH_LOCK_WAIT_MS = 25_000;
 const REFRESH_LOCK_RETRY_MS = 100;
 
 export interface McpOAuthSettings {
 	clientId?: string;
-	/** Already resolved. */
+	/** 已解析完毕。 */
 	clientSecret?: string;
 	callbackPort?: number;
-	/** Loopback redirect URI; see `McpOAuthConfig.callbackUrl`. */
+	/** loopback 重定向 URI；见 `McpOAuthConfig.callbackUrl`。 */
 	callbackUrl?: string;
-	/** Scopes to request, separated by spaces. */
+	/** 要请求的 scope，以空格分隔。 */
 	scope?: string;
-	/** `client_name` for dynamic client registration. Default: `APP_NAME`. */
+	/** 动态客户端注册的 `client_name`。默认：`APP_NAME`。 */
 	clientName?: string;
-	/** See `McpOAuthConfig.clientRegistration`. */
+	/** 见 `McpOAuthConfig.clientRegistration`。 */
 	clientRegistration?: "dcr" | "cimd";
-	/** See `McpOAuthConfig.authServerMetadataUrl`. */
+	/** 见 `McpOAuthConfig.authServerMetadataUrl`。 */
 	authServerMetadataUrl?: URL;
 }
 
-/** Where the loopback callback server listens and the redirect URI it serves. */
+/** loopback 回调服务器的监听位置及其服务的重定向 URI。 */
 interface CallbackSettings {
-	/** Address to listen on. */
+	/** 监听地址。 */
 	host: string;
-	/** Host name in the redirect URI. */
+	/** 重定向 URI 中的主机名。 */
 	redirectHost: string;
 	port: number | undefined;
 	path: string;
-	/** The exact redirect URI, when the port is fixed. */
+	/** 端口固定时的精确重定向 URI。 */
 	fixedRedirectUrl: string | undefined;
 }
 
@@ -89,14 +87,14 @@ function callbackSettings(settings: McpOAuthSettings): CallbackSettings {
 	const address = url.hostname.replace(/^\[|\]$/g, "");
 	const port = url.port ? Number(url.port) : settings.callbackPort;
 	let fixedRedirectUrl: string | undefined;
-	// A configured URI with a port is sent exactly as written, since servers compare it as a string.
+	// 带端口的已配置 URI 会按原样发送，因为服务器按字符串精确比较它。
 	if (url.port) fixedRedirectUrl = settings.callbackUrl;
 	else if (port !== undefined) {
 		url.port = String(port);
 		fixedRedirectUrl = url.href;
 	}
 	return {
-		// `localhost` is served on 127.0.0.1; browsers fall back to it when ::1 refuses.
+		// `localhost` 由 127.0.0.1 服务；当 ::1 拒绝连接时浏览器会回退到它。
 		host: address === "localhost" ? CALLBACK_HOST : address,
 		redirectHost: address,
 		port,
@@ -105,7 +103,7 @@ function callbackSettings(settings: McpOAuthSettings): CallbackSettings {
 	};
 }
 
-/** Scopes of both lists, each once. */
+/** 两个列表 scope 的并集，各出现一次。 */
 function mergeScopes(...scopes: (string | undefined)[]): string | undefined {
 	const merged = [...new Set(scopes.flatMap((scope) => scope?.split(/\s+/).filter(Boolean) ?? []))];
 	return merged.length > 0 ? merged.join(" ") : undefined;
@@ -124,8 +122,8 @@ function serializeStates(states: StoredStates): string {
 }
 
 /**
- * Keys of a server's state: by name and URL, so servers sharing a URL keep separate accounts, and the
- * legacy key by URL alone, written by older versions.
+ * 服务器状态的键：按名称和 URL 存，这样共享同一 URL 的服务器能保留各自的账号；
+ * 另有仅按 URL 的旧版键，由旧版本写入。
  */
 function storeKeys(name: string, serverUrl: string): { key: string; legacyKey: string } {
 	const legacyKey = String(new URL(serverUrl));
@@ -133,14 +131,14 @@ function storeKeys(name: string, serverUrl: string): { key: string; legacyKey: s
 }
 
 export interface McpOAuthServerStore extends McpOAuthStateStore {
-	/** Run `fn` while no other process refreshes the server's tokens. */
+	/** 在没有其他进程刷新该服务器 token 时运行 `fn`。 */
 	withRefreshLock<T>(fn: () => Promise<T>): Promise<T>;
 }
 
-/** Per-server OAuth state (client registration, tokens, pending PKCE verifier) in `mcp-auth.json`. */
+/** 每个服务器的 OAuth 状态（客户端注册、token、待用的 PKCE verifier），存于 `mcp-auth.json`。 */
 export class McpOAuthCredentialStore {
 	private readonly backend: AuthStorageBackend;
-	/** Directory for the refresh lock files. Without one, refreshes are only serialized in this process. */
+	/** 刷新锁文件所在目录。没有它时，刷新只在本进程内串行化。 */
 	private readonly lockDir: string | undefined;
 
 	constructor(backend?: AuthStorageBackend, lockDir?: string) {
@@ -151,7 +149,7 @@ export class McpOAuthCredentialStore {
 	forServer(name: string, serverUrl: string): McpOAuthServerStore {
 		const { key, legacyKey } = storeKeys(name, serverUrl);
 		return {
-			// The first server to load legacy state takes it over; others with the same URL sign in again.
+			// 第一个加载旧版状态的服务器将其接管；其他同 URL 的服务器需重新登录。
 			load: () =>
 				this.backend.withLock((current) => {
 					const states = parseStates(current);
@@ -169,8 +167,8 @@ export class McpOAuthCredentialStore {
 	}
 
 	/**
-	 * A lock file per server. When the process exits, proper-lockfile removes the locks it holds; when
-	 * it is killed, the lock goes stale because it is no longer renewed, and the next process takes it over.
+	 * 每个服务器一把锁文件。进程正常退出时，proper-lockfile 会移除它持有的锁；进程被杀时，
+	 * 锁因不再续期而过期作废，由下一个进程接管。
 	 */
 	private async withRefreshLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
 		if (!this.lockDir) return fn();
@@ -185,7 +183,7 @@ export class McpOAuthCredentialStore {
 				minTimeout: REFRESH_LOCK_RETRY_MS,
 				maxTimeout: REFRESH_LOCK_RETRY_MS,
 			},
-			// The default throws from a timer. A lost lock at worst lets two refreshes overlap.
+			// 默认行为是从定时器中抛出异常。锁丢失最坏情况下也不过是两次刷新重叠。
 			onCompromised: () => {},
 		});
 		try {
@@ -195,14 +193,14 @@ export class McpOAuthCredentialStore {
 		}
 	}
 
-	/** The stored tokens of a server, for noticing sign-ins done by another process. Does not take over legacy state. */
+	/** 某个服务器已存储的 token，用于察觉另一个进程完成的登录。不接管旧版状态。 */
 	tokens(name: string, serverUrl: string): McpOAuthState["tokens"] {
 		const { key, legacyKey } = storeKeys(name, serverUrl);
 		const states = this.backend.withLock((current) => ({ result: parseStates(current) }));
 		return (states[key] ?? states[legacyKey])?.tokens;
 	}
 
-	/** Returns whether credentials were stored for the server. Removes legacy state the server would take over. */
+	/** 返回该服务器是否已存有凭证。会顺带移除该服务器本可接管的旧版状态。 */
 	remove(name: string, serverUrl: string): boolean {
 		const { key, legacyKey } = storeKeys(name, serverUrl);
 		return this.backend.withLock((current) => {
@@ -223,7 +221,7 @@ export class McpOAuthCredentialStore {
 	}
 }
 
-/** `fetch` with `OAUTH_REQUEST_TIMEOUT_MS` per request, on top of the request's own signal. */
+/** 在请求自身的 signal 之上，为每个请求附加 `OAUTH_REQUEST_TIMEOUT_MS` 的 `fetch`。 */
 function timedFetch(fetch: McpFetch = globalThis.fetch): McpFetch {
 	return (input, init) => {
 		const timeout = AbortSignal.timeout(OAUTH_REQUEST_TIMEOUT_MS);
@@ -235,7 +233,7 @@ function registeredRedirectUrls(client: OAuthClientInformationMixed | undefined)
 	return client && "redirect_uris" in client ? client.redirect_uris : [];
 }
 
-/** 12 characters identifying an MCP server URL in callback paths, computed like Codex does. */
+/** 用于在回调路径中标识 MCP 服务器 URL 的 12 字符串，计算方式与 Codex 相同。 */
 function callbackId(serverUrl: string): string {
 	const url = new URL(serverUrl);
 	url.hash = "";
@@ -243,10 +241,9 @@ function callbackId(serverUrl: string): string {
 }
 
 /**
- * pi's Client ID Metadata Document, for `clientRegistration: "cimd"`, chosen like Codex chooses its own.
- * The configuration ensures the default callback path. Without the `iss` parameter in authorization
- * responses (RFC 9207), the redirect URI and the document are specific to the MCP server, so a response
- * cannot be mixed up with one from another authorization server (RFC 9700 section 4.4.2.2).
+ * pi 的 Client ID Metadata Document，用于 `clientRegistration: "cimd"`，挑选方式与 Codex 为自己挑选的相同。
+ * 该配置确保使用默认回调路径。授权响应中没有 `iss` 参数（RFC 9207）时，redirect URI 和文档都是
+ * 特定于该 MCP 服务器的，因此一个响应不会被混同于来自另一个授权服务器的响应（RFC 9700 第 4.4.2.2 节）。
  */
 function clientMetadataDocument(
 	serverUrl: string,
@@ -293,22 +290,20 @@ function createProvider(
 }
 
 export interface McpAuthProvider extends AuthProvider {
-	/** Resolves when no refresh is running, so shutdown does not drop rotated tokens before they are saved. */
+	/** 当没有刷新正在进行时 resolve，保证关机不会在轮换出的 token 保存之前将其丢弃。 */
 	settled(): Promise<void>;
 }
 
 /**
- * Auth provider for MCP connections: sends the stored access token and refreshes it when it is about
- * to expire or after a 401. Throws `McpOAuthAuthorizationRequiredError` when the user has to sign in,
- * including when the server asks for more scope (`insufficient_scope`). `onChallenge` receives the
- * server's `WWW-Authenticate` challenge so sign-in can use its resource metadata URL and scope.
- * `settings` is only called when a refresh is needed, so a secret that fails to resolve fails the
- * refresh instead of the whole connection setup.
+ * MCP 连接的 auth provider：发送已存储的 access token，并在其即将过期或收到 401 后刷新。
+ * 当用户必须登录时抛出 `McpOAuthAuthorizationRequiredError`，包括服务器要求更多 scope 的情况
+ * （`insufficient_scope`）。`onChallenge` 接收服务器的 `WWW-Authenticate` challenge，使登录
+ * 流程能使用其中的 resource metadata URL 和 scope。`settings` 只在需要刷新时才被调用，因此
+ * 一个解析失败的 secret 只会让刷新失败，而不会让整个连接建立失败。
  *
- * Many servers rotate refresh tokens, so two refreshes with the same refresh token lose the grant.
- * Requests in this process share one refresh, and other processes are kept out by the store's
- * refresh lock, held from reading the tokens to saving new ones. Tokens that changed meanwhile
- * (another process refreshed them, or the user signed in) are used without refreshing.
+ * 许多服务器会轮换 refresh token，因此两次使用相同 refresh token 的刷新会导致授权被吊销。
+ * 本进程内的请求共享一次刷新，其他进程则被 store 的刷新锁挡在外面——该锁从读取 token 一直
+ * 持有到保存新 token。期间被改变的 token（另一进程刷新过，或用户已登录）会被直接使用而不刷新。
  */
 export function createMcpAuthProvider(options: {
 	serverUrl: string;
@@ -319,7 +314,7 @@ export function createMcpAuthProvider(options: {
 	const { serverUrl, store } = options;
 	let refreshing: Promise<void> | undefined;
 
-	/** Replace `staleToken`, the access token that expired or was rejected. */
+	/** 替换 `staleToken`——即已过期或被拒绝的 access token。 */
 	const refresh = (staleToken: string | undefined, fetch: McpFetch = globalThis.fetch, challenge?: OAuthChallenge) => {
 		refreshing ??= store
 			.withRefreshLock(async () => {
@@ -332,8 +327,8 @@ export function createMcpAuthProvider(options: {
 					registeredRedirectUrls(state.clientInformation)[0] ??
 					FALLBACK_REDIRECT_URL;
 				const provider = createProvider(serverUrl, store, settings, redirectUrl, () => {});
-				// Refreshes the tokens, or reports that a new sign-in is needed. Not cancellable: a refresh the
-				// server answered may have rotated the refresh token, so its answer must be saved.
+				// 刷新 token，或报告需要重新登录。不可取消：服务器已应答的刷新可能
+				// 轮换过 refresh token，因此其应答必须被保存。
 				const result = await authorizeMcp(provider, {
 					serverUrl,
 					resourceMetadataUrl: challenge?.resourceMetadataUrl,
@@ -356,14 +351,14 @@ export function createMcpAuthProvider(options: {
 			const token = state?.tokens?.access_token;
 			const expired = state?.tokensExpireAt !== undefined && state.tokensExpireAt - REFRESH_SKEW_MS <= Date.now();
 			if (!expired || !state?.tokens?.refresh_token) return token;
-			// Failures fall through: the request goes out with the old token and a 401 decides what happens.
+			// 失败则顺其自然：请求带着旧 token 发出，由 401 决定后续如何处理。
 			await refresh(token).catch(() => undefined);
 			return (await store.load())?.tokens?.access_token;
 		},
 		onUnauthorized: async (context) => {
 			const challenge = parseWwwAuthenticate(context.response.headers.get("www-authenticate"));
 			options.onChallenge(challenge);
-			// A refresh keeps the granted scope, so more scope needs a new sign-in.
+			// 刷新会保留已授予的 scope，因此要求更多 scope 需要一次新的登录。
 			if (challenge.error === "insufficient_scope") throw new McpOAuthAuthorizationRequiredError();
 			await refresh(context.token, context.fetch, challenge);
 		},
@@ -374,12 +369,12 @@ export function createMcpAuthProvider(options: {
 }
 
 export interface McpSignInPrompt {
-	/** Show the authorization URL to the user and open it in a browser. */
+	/** 向用户展示授权 URL 并在浏览器中打开。 */
 	showAuthorizationUrl(url: URL): void;
 	/**
-	 * Ask for the redirect URL from the browser address bar, for when the browser cannot reach the
-	 * loopback callback (for example over SSH). Aborted once the callback arrives or the sign-in is
-	 * cancelled. Resolves to `undefined` or an empty string when the user cancels.
+	 * 请用户从浏览器地址栏粘贴重定向 URL，用于浏览器无法访问 loopback 回调的情况
+	 * （例如通过 SSH）。回调到达或登录被取消后立即中止。用户取消时 resolve 为
+	 * `undefined` 或空字符串。
 	 */
 	promptForRedirectUrl(signal: AbortSignal): Promise<string | undefined>;
 }
@@ -400,7 +395,7 @@ function responseFromRedirectUrl(input: string, state: string, redirectUrl: URL)
 	} catch {
 		throw new Error("Expected the full redirect URL from the browser address bar");
 	}
-	// A server-specific redirect URI tells authorization servers apart, so it must match exactly.
+	// 特定于服务器的 redirect URI 可用于区分不同的授权服务器，因此必须精确匹配。
 	if (url.origin !== redirectUrl.origin || url.pathname !== redirectUrl.pathname) {
 		throw new Error("The redirect URL does not match this sign-in's redirect URI");
 	}
@@ -413,8 +408,8 @@ function responseFromRedirectUrl(input: string, state: string, redirectUrl: URL)
 }
 
 /**
- * Wait for the browser callback or a pasted redirect URL, whichever comes first. Aborting `signal`
- * aborts the prompt, which then cancels the sign-in.
+ * 等待浏览器回调或用户粘贴的重定向 URL，以先到达者为准。中止 `signal` 会中止提示，
+ * 进而取消本次登录。
  */
 async function waitForAuthorizationResponse(
 	callback: OAuthCallbackServer,
@@ -433,14 +428,14 @@ async function waitForAuthorizationResponse(
 	try {
 		return await Promise.race([fromBrowser, fromUser]);
 	} finally {
-		// The losing side rejects once the prompt is aborted or the callback server closes.
+		// 落败的一方（提示被中止或回调服务器关闭）会在此时 reject。
 		controller.abort();
 		fromBrowser.catch(() => undefined);
 		fromUser.catch(() => undefined);
 	}
 }
 
-/** Listen on `port`, or on a free port when it is taken and not `required`. */
+/** 监听 `port`；当端口被占用且并非 `required` 时，改监听一个空闲端口。 */
 async function listenForCallback(
 	settings: CallbackSettings,
 	extraPaths: string[],
@@ -466,9 +461,9 @@ async function listenForCallback(
 }
 
 /**
- * Sign in to an MCP server. Uses the stored refresh token when possible; otherwise runs the browser
- * authorization code flow. Tokens are saved to `store`. Aborting `signal` stops the sign-in at any
- * step with `McpSignInCancelledError`; requests to the authorization server are also time-limited.
+ * 登录 MCP 服务器。尽可能使用已存储的 refresh token；否则运行浏览器授权码流程。
+ * Token 会保存到 `store`。中止 `signal` 会在任意步骤以 `McpSignInCancelledError` 终止登录；
+ * 发往授权服务器的请求同样受时间限制。
  */
 export async function signInMcpServer(options: {
 	serverUrl: string;
@@ -483,14 +478,14 @@ export async function signInMcpServer(options: {
 	const stored = await store.load();
 	const stepUp = options.challenge?.error === "insufficient_scope";
 	const callbackOptions = callbackSettings(settings);
-	// Reuse the port of the registered redirect URI so the registered client stays valid.
+	// 复用已注册 redirect URI 的端口，以保持已注册客户端仍然有效。
 	const registered = registeredRedirectUrls(stored?.clientInformation)[0];
 	const preferredPort =
 		callbackOptions.port ?? (registered ? Number(new URL(registered).port) || undefined : undefined);
 	const cimd = settings.clientRegistration === "cimd";
 	const callback = await listenForCallback(
 		callbackOptions,
-		// The redirect URI of a server-specific Client ID Metadata Document.
+		// 特定于服务器的 Client ID Metadata Document 的 redirect URI。
 		cimd ? [`${CALLBACK_PATH}/${callbackId(serverUrl)}`] : [],
 		preferredPort,
 		callbackOptions.port !== undefined,
@@ -499,10 +494,11 @@ export async function signInMcpServer(options: {
 	try {
 		if (stored) {
 			const next: McpOAuthState = { ...stored };
-			// Every sign-in gets a fresh `state` parameter.
+			// 每次登录都获得一个全新的 `state` 参数。
 			delete next.oauthState;
-			// A registered client cannot use another redirect URI, and its tokens belong to it. A Client ID
-			// Metadata Document is not stored, so with one, a stored client was registered before and is replaced.
+			// 已注册的客户端不能使用其他 redirect URI，而且其 token 也属于它。Client ID
+			// Metadata Document 不会被存储，因此在使用它的情况下，已存储的客户端是此前
+			// 注册过的，会被替换。
 			const keepClient =
 				settings.clientId ||
 				(cimd ? !stored.clientInformation : registeredRedirectUrls(stored.clientInformation).includes(redirectUrl));
@@ -524,20 +520,20 @@ export async function signInMcpServer(options: {
 			signal,
 			resourceMetadataUrl: options.challenge?.resourceMetadataUrl,
 			authorizationServerMetadataUrl: settings.authServerMetadataUrl,
-			// A server asking for more scope gets it on top of the configured scope and, since the challenge
-			// may list only the missing scopes, on top of the scope granted so far.
+			// 要求更多 scope 的服务器会得到它——叠加在已配置的 scope 之上，并且由于 challenge
+			// 可能只列出了缺失的 scope，也叠加在迄今已授予的 scope 之上。
 			scope: mergeScopes(
 				settings.scope,
 				stepUp ? stepUpScope(stored?.tokens?.scope, options.challenge?.scope) : options.challenge?.scope,
 			),
 		};
-		// A refresh keeps the granted scope; a server asking for more needs the browser flow.
+		// 刷新会保留已授予的 scope；要求更多的服务器需要浏览器流程。
 		const skipRefresh = stepUp;
 		if ((await authorizeMcp(provider, { ...flow, skipRefresh })) === "AUTHORIZED") return;
 		if (!authorizationUrl) throw new Error("OAuth flow did not produce an authorization URL");
 
 		const state = await provider.state();
-		// The flow picks the redirect URI, which may be specific to the MCP server.
+		// 流程会挑选 redirect URI，它可能是特定于该 MCP 服务器的。
 		const authorizationRedirectUrl = new URL(authorizationUrl.searchParams.get("redirect_uri") ?? redirectUrl);
 		options.prompt.showAuthorizationUrl(authorizationUrl);
 		const { code, iss } = await waitForAuthorizationResponse(
@@ -549,7 +545,7 @@ export async function signInMcpServer(options: {
 		);
 		await authorizeMcp(provider, { ...flow, authorizationCode: code, iss });
 	} catch (error) {
-		// Aborted requests fail with the signal's reason; report them as the cancellation they are.
+		// 请求中止时会以 signal 的 reason 失败；将其作为取消操作报告。
 		if (signal?.aborted) throw new McpSignInCancelledError();
 		throw error;
 	} finally {

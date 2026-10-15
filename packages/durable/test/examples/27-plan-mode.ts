@@ -1,6 +1,6 @@
-// Plan mode: the user switches a conversation into a read-only planning mode, the agent writes a plan into the
-// extension's own document, and switching back restores the full tool set.
-// Run from packages/durable:
+// 计划模式：用户将对话切换为只读规划模式，智能体会把计划写入
+// 扩展自己的文档中，切回普通模式后会恢复完整工具集。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/27-plan-mode.ts
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -23,9 +23,9 @@ import { CodingTools, createReadTool } from "../../src/tools/index.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-// ─── Product code: the plan extension ───────────────────────────────────────
+// ─── 产品代码：计划扩展 ────────────────────────────────────────────────────
 
-// The current plan of a conversation. A fork keeps the plan it had at the fork entry.
+// 对话的当前计划。分支会保留创建分支的条目对应的计划。
 const PlanDoc = defineDoc<{ steps: string[] }>({
 	kind: "app.plan",
 	version: 1,
@@ -55,8 +55,8 @@ const Plan = defineExtension({
 	],
 });
 
-// Plan mode is a change to the conversation's agent: select the plan extension and offer only reading and
-// submitting. Clearing both returns to the host's default selection and every tool.
+// 计划模式会更改对话使用的智能体：选择 plan 扩展，并只提供读取和
+// submit_plan 工具。清空这两项设置后，会恢复宿主的默认选择和全部工具。
 const read = createReadTool();
 const enterPlanMode = { extensions: { add: [Plan] }, tools: [read, submitPlan] };
 const leavePlanMode = { extensions: null, tools: null };
@@ -82,7 +82,7 @@ registry.install(CodingTools);
 registry.install(Plan);
 const harness = await Harness.open(
 	new MemoryStorage(),
-	// Installed, but only CodingTools is selected by default: conversations opt into plan mode.
+	// 扩展虽已安装，但默认只选择 CodingTools；对话需显式选择 plan mode。
 	{ models, registry, settings: { extensions: [CodingTools] }, env: () => new NodeExecutionEnv({ cwd: directory }) },
 	context,
 );
@@ -99,12 +99,12 @@ await root.configure(leavePlanMode, context);
 console.log("tools again:", await tools());
 await (await root.submit({ type: "input", content: "Go ahead." }, context)).wait(context);
 
-// The model saw each switch as a system prompt change in its transcript.
+// 模型在对话记录中会将每次切换视为系统提示词变更。
 const { messages } = await root.context(context);
 for (const message of messages) {
 	if (message.role !== "system") continue;
 	console.log("system:", {
-		// A null section value removes it.
+		// 将分节值设为 null 即可移除该分节。
 		sections: message.sections,
 		added: message.toolsAdded?.map((tool) => tool.name),
 		removed: message.toolsRemoved?.map((tool) => tool.name),

@@ -14,10 +14,9 @@ const DEFAULT_CATALOG_BASE_URL = "https://pi.dev";
 const REMOTE_CATALOG_ATTEMPT_TIMEOUT_MS = 4_000;
 export const REMOTE_CATALOG_REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 /**
- * Model types this client can consume. Sent as `?types=` so the catalog server
- * returns the full-type shard instead of the chat-only one served to clients
- * that predate model types. A server that ignores the parameter still returns
- * the chat-only shard, which this client handles unchanged.
+ * 此客户端可使用的模型类型。通过 `?types=` 发送给目录服务器，以便获取包含所有类型的分片，
+ * 而不是仅提供给尚不支持模型类型的旧客户端的聊天模型分片。若服务器忽略该参数，仍会返回聊天模型分片，
+ * 客户端也会按原样处理。
  */
 export const REMOTE_CATALOG_MODEL_TYPES: readonly ModelType[] = ["chat", "image", "classifier"];
 
@@ -57,7 +56,7 @@ function remoteModels(entry: ModelsStoreEntry | undefined, localGeneratedAt: num
 	return entry.models;
 }
 
-/** Add a persisted pi.dev catalog overlay to a static built-in provider. */
+/** 将已持久化的 pi.dev 模型目录叠加到静态内置提供商上。 */
 export function withRemoteCatalog(
 	provider: Provider,
 	catalogBaseUrl: string = DEFAULT_CATALOG_BASE_URL,
@@ -95,8 +94,7 @@ export function withRemoteCatalog(
 				return;
 			}
 
-			// Only revalidate when a cached body backs the validator, so a 304 can never
-			// leave the overlay empty.
+			// 只有存在缓存正文支撑验证器时才发送重新验证请求，避免 304 响应导致叠加目录为空。
 			const validator = stored && stored.models.length > 0 ? stored.etag : undefined;
 			const url = new URL(`/api/models/providers/${encodeURIComponent(provider.id)}`, catalogBaseUrl);
 			url.searchParams.set("types", REMOTE_CATALOG_MODEL_TYPES.join(","));
@@ -114,8 +112,7 @@ export function withRemoteCatalog(
 			);
 			if (context.signal.aborted) return;
 			const checkedAt = Date.now();
-			// Unchanged: dynamicModels already holds the stored overlay, so only the
-			// freshness window moves.
+			// 内容未变化：dynamicModels 已包含已存储的目录叠加项，因此只需更新时间窗口。
 			if (response.status === 304 && stored) {
 				await context.publish({ persist: { ...stored, checkedAt } });
 				return;
@@ -132,8 +129,7 @@ export function withRemoteCatalog(
 				return;
 			}
 			if (!response.ok) {
-				// Transient failure: the cached body and its validator stay valid, so keep the
-				// etag and let the next refresh revalidate instead of downloading the catalog.
+				// 暂时性失败：缓存正文及其验证器仍有效，因此保留 etag，让下次刷新重新验证，避免重新下载目录。
 				await context.publish({ persist: { ...(stored ?? { models: [] }), checkedAt } });
 				throw new Error(`Model catalog request failed for ${provider.id}: ${response.status}`);
 			}

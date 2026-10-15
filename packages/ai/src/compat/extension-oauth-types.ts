@@ -1,19 +1,19 @@
 import type { OAuthCredentials } from "../auth/types.ts";
 
-/** Legacy extension OAuth prompt. */
+/** 旧版扩展 OAuth 提示。 */
 export interface OAuthPrompt {
 	message: string;
 	placeholder?: string;
 	allowEmpty?: boolean;
 }
 
-/** Legacy extension OAuth authorization link. */
+/** 旧版扩展 OAuth 授权链接。 */
 export interface OAuthAuthInfo {
 	url: string;
 	instructions?: string;
 }
 
-/** Legacy extension OAuth device-code notification. */
+/** 旧版扩展 OAuth 设备码通知。 */
 export interface OAuthDeviceCodeInfo {
 	userCode: string;
 	verificationUri: string;
@@ -31,7 +31,7 @@ export interface OAuthSelectPrompt {
 	options: OAuthSelectOption[];
 }
 
-/** Callback surface retained only for coding-agent extension compatibility. */
+/** 仅为兼容 coding-agent 扩展而保留的回调接口。 */
 export interface OAuthLoginCallbacks {
 	onAuth(info: OAuthAuthInfo): void;
 	onDeviceCode(info: OAuthDeviceCodeInfo): void;

@@ -190,7 +190,7 @@ describe("createAgentSession stream options", () => {
 			await fixture.session.prompt("test");
 			expect(fixture.session.cacheWarmingStatus?.nextWarmAt).toBeGreaterThan(Date.now());
 
-			// Equivalent shallow copies remain current, but removing the request prefix does not.
+			// 等价的浅拷贝仍保持当前状态，但移除请求前缀后则不再如此。
 			fixture.session.agent.state.messages = [...fixture.session.agent.state.messages];
 			fixture.session.agent.state.model = { ...fixture.session.agent.state.model };
 			expect(fixture.session.cacheWarmingStatus?.nextWarmAt).toBeGreaterThan(Date.now());
@@ -268,7 +268,7 @@ describe("createAgentSession stream options", () => {
 		expect(options?.maxRetryDelayMs).toBe(3000);
 	});
 
-	// Regression test for #9784.
+	// #9784 回归测试。
 	it("forwards provider stream events to extensions", async () => {
 		const providerEvent = { openrouter_metadata: { strategy: "direct" } };
 		const extensionEvents: unknown[] = [];

@@ -1,12 +1,12 @@
 /**
- * Shared utilities for compaction and branch summarization.
+ * 压缩和分支摘要共用的工具函数。
  */
 
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import { contentText, type Message } from "@earendil-works/pi-ai";
 
 // ============================================================================
-// File Operation Tracking
+// 文件操作跟踪。
 // ============================================================================
 
 export interface FileOperations {
@@ -24,12 +24,11 @@ export function createFileOps(): FileOperations {
 }
 
 /**
- * Extract file operations from tool calls in an assistant message, or from the nested calls
- * recorded on a tool result.
+ * 从 assistant 消息中的工具调用或工具结果中记录的嵌套调用中提取文件操作。
  */
 export function extractFileOpsFromMessage(message: AgentMessage, fileOps: FileOperations): void {
 	if (message.role === "toolResult") {
-		// Calls made from codemode scripts are recorded on the script's result.
+		// codemode 脚本发起的调用记录在脚本结果中。
 		for (const call of message.nestedCalls?.calls ?? []) addFileOp(call.name, call.arguments, fileOps);
 		return;
 	}
@@ -61,8 +60,8 @@ function addFileOp(toolName: string, args: Record<string, unknown> | undefined, 
 }
 
 /**
- * Compute final file lists from file operations.
- * Returns readFiles (files only read, not modified) and modifiedFiles.
+ * 根据文件操作计算最终文件列表。
+ * 返回 readFiles（仅读取、未修改的文件）和 modifiedFiles。
  */
 export function computeFileLists(fileOps: FileOperations): { readFiles: string[]; modifiedFiles: string[] } {
 	const modified = new Set([...fileOps.edited, ...fileOps.written]);
@@ -72,7 +71,7 @@ export function computeFileLists(fileOps: FileOperations): { readFiles: string[]
 }
 
 /**
- * Format file operations as XML tags for summary.
+ * 将文件操作格式化为摘要使用的 XML 标签。
  */
 export function formatFileOperations(readFiles: string[], modifiedFiles: string[]): string {
 	const sections: string[] = [];
@@ -87,15 +86,15 @@ export function formatFileOperations(readFiles: string[], modifiedFiles: string[
 }
 
 // ============================================================================
-// Message Serialization
+// 消息序列化。
 // ============================================================================
 
-/** Maximum characters for a tool result in serialized summaries. */
+/** 序列化摘要时工具结果允许的最大字符数。 */
 const TOOL_RESULT_MAX_CHARS = 2000;
 
 /**
- * Truncate text to a maximum character length for summarization.
- * Keeps the beginning and appends a truncation marker.
+ * 将文本截断到摘要所需的最大字符数。
+ * 保留开头部分，并在末尾附加截断标记。
  */
 function truncateForSummary(text: string, maxChars: number): string {
 	if (text.length <= maxChars) return text;
@@ -104,12 +103,12 @@ function truncateForSummary(text: string, maxChars: number): string {
 }
 
 /**
- * Serialize LLM messages to text for summarization.
- * This prevents the model from treating it as a conversation to continue.
- * Call convertToLlm() first to handle custom message types.
+ * 将 LLM 消息序列化为文本以供摘要使用。
+ * 这样可以避免模型将这些消息当作需要继续的对话。
+ * 先调用 convertToLlm() 处理自定义消息类型。
  *
- * Tool results are truncated to keep the summarization request within
- * reasonable token budgets. Full content is not needed for summarization.
+ * 工具结果会被截断，使摘要请求的令牌数保持在合理范围内。
+ * 摘要不需要完整内容。
  */
 export function serializeConversation(messages: Message[]): string {
 	const parts: string[] = [];
@@ -155,7 +154,7 @@ export function serializeConversation(messages: Message[]): string {
 }
 
 // ============================================================================
-// Summarization System Prompt
+// 摘要系统提示词。
 // ============================================================================
 
 export const SUMMARIZATION_SYSTEM_PROMPT = `You are a context summarization assistant. Your task is to read a conversation between a user and an AI assistant, then produce a structured summary following the exact format specified.

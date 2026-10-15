@@ -1,11 +1,11 @@
 /**
- * Tool discovery: a BM25 ranker over tool metadata, shared by `searchTools()` in codemode scripts and
- * the optional `tool_search` tool.
+ * 工具发现：基于工具元数据使用 BM25 排序器，由 codemode 脚本中的 `searchTools()` 和
+ * 可选的 `tool_search` 工具共用。
  *
- * `tool_search` searches tools that are not declared to
- * the model (`codemode` and `deferred` exposure) and loads the matches, so they are declared for the
- * next model call. Loading goes through the active tool set, so it is recorded in the transcript
- * like any other tool change and survives `/tree`, resume, and fork on that branch.
+ * `tool_search` 会搜索尚未向模型声明的工具
+ *（暴露方式为 `codemode` 和 `deferred`），并加载匹配项，使其在下一次模型调用时
+ * 得到声明。加载过程会更新活动工具集，因此会像其他工具变更一样记录在对话记录中，
+ * 并在该分支的 `/tree`、恢复和分叉操作后保留。
  */
 
 import { type Static, Type } from "typebox";
@@ -20,7 +20,7 @@ import type {
 export const TOOL_SEARCH_TOOL_NAME = "tool_search";
 export const DEFAULT_TOOL_SEARCH_LIMIT = 8;
 
-/** A tool as the ranker sees it: its name and the text built by {@link createToolSearchDocument}. */
+/** 排序器使用的工具信息：工具名称和由 {@link createToolSearchDocument} 构建的文本。 */
 export interface ToolSearchDocument {
 	name: string;
 	text: string;
@@ -31,7 +31,7 @@ export interface ToolSearchMatch {
 	score: number;
 }
 
-/** Ranks tools for a query. BM25 today; a hybrid ranker with embeddings can replace it. */
+/** 根据查询为工具排序。当前使用 BM25；之后可替换为结合向量嵌入的混合排序器。 */
 export interface ToolRanker {
 	rank(query: string, documents: readonly ToolSearchDocument[], limit: number): ToolSearchMatch[];
 }
@@ -60,7 +60,7 @@ const STOP_WORDS: ReadonlySet<string> = new Set([
 	"with",
 ]);
 
-/** Naive singular form, so `issues` matches `issue` and `searches` matches `search`. */
+/** 简单的单数化处理，使 `issues` 能匹配 `issue`，`searches` 能匹配 `search`。 */
 function stem(term: string): string {
 	if (term.length > 4 && term.endsWith("ies")) return `${term.slice(0, -3)}y`;
 	if (term.length > 4 && /(ches|shes|sses|xes|zes)$/.test(term)) return term.slice(0, -2);
@@ -68,7 +68,7 @@ function stem(term: string): string {
 	return term;
 }
 
-/** Lowercase terms, split at camelCase boundaries and non-alphanumerics, without stop words. */
+/** 将词项转为小写，在驼峰边界和非字母数字字符处分割，并移除停用词。 */
 export function tokenize(text: string): string[] {
 	return text
 		.replace(/([a-z0-9])([A-Z])/g, "$1 $2")
@@ -83,7 +83,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Schema descriptions and property names, recursively. */
+/** 递归提取 Schema 说明和属性名称。 */
 function schemaText(schema: unknown, parts: string[]): void {
 	if (!isObject(schema)) return;
 	if (typeof schema.description === "string") parts.push(schema.description);
@@ -101,9 +101,9 @@ function schemaText(schema: unknown, parts: string[]): void {
 }
 
 /**
- * Search text of a tool: the name, the name with `_`
- * as spaces, the description, schema descriptions and property names, and the namespace with its
- * description and instructions.
+ * 工具的可搜索文本包括名称、将名称中的 `_`
+ * 替换为空格后的名称、说明、Schema 说明和属性名称，以及命名空间的
+ * 名称、说明和使用指引。
  */
 export function createToolSearchDocument(
 	tool: Pick<ToolInfo, "name" | "description" | "parameters">,
@@ -115,7 +115,7 @@ export function createToolSearchDocument(
 	return { name: tool.name, text: parts.filter((part) => part.trim()).join(" ") };
 }
 
-/** Okapi BM25 with the usual parameters. Ties keep document order. */
+/** 使用常见参数的 Okapi BM25 排序。分数相同时保留文档原有顺序。 */
 export class Bm25Ranker implements ToolRanker {
 	private readonly k1: number;
 	private readonly b: number;
@@ -165,7 +165,7 @@ export const toolSearchSchema = Type.Object({
 
 export type ToolSearchInput = Static<typeof toolSearchSchema>;
 
-/** Whether the tool is this `tool_search`, not another extension's tool of the same name. */
+/** 判断该工具是否为当前的 `tool_search`，而非其他扩展注册的同名工具。 */
 export function isToolSearchTool(tool: Pick<ToolInfo, "name" | "parameters">): boolean {
 	return tool.name === TOOL_SEARCH_TOOL_NAME && tool.parameters === toolSearchSchema;
 }
@@ -176,26 +176,26 @@ export interface ToolSearchResultTool {
 }
 
 export interface ToolSearchToolDetails {
-	/** Tools loaded by this call. */
+	/** 本次调用加载的工具。 */
 	loaded: string[];
 }
 
 export interface ToolSearchToolOptions {
 	/**
-	 * The session's tools. `tool_search` searches the tools that are not declared to the model and
-	 * activates the matches. Without it, the tool finds nothing. An `ExtensionAPI` fits.
+	 * 会话中的工具。`tool_search` 会搜索尚未向模型声明的工具，
+	 * 并激活匹配项。未提供此对象时将找不到工具。`ExtensionAPI` 符合此接口。
 	 */
 	tools?: Pick<ExtensionAPI, "getAllTools" | "getActiveTools" | "setActiveTools">;
 }
 
-/** Whether `tool_search` can load a tool with this exposure. */
+/** 判断 `tool_search` 是否可以加载具有此暴露方式的工具。 */
 function isSearchable(exposure: ToolExposure): boolean {
 	return exposure === "codemode" || exposure === "deferred";
 }
 
 /**
- * Rank the searchable tools that are not active yet and activate the matches, so the next model
- * call declares them. Activation is recorded in the transcript like any tool change.
+ * 为尚未激活的可搜索工具排序并激活匹配项，使下一次模型
+ * 调用能看到这些工具。激活操作会像其他工具变更一样记录在对话记录中。
  */
 function searchAndLoad(
 	tools: NonNullable<ToolSearchToolOptions["tools"]>,
@@ -214,8 +214,8 @@ function searchAndLoad(
 }
 
 /**
- * The `tool_search` description. It does not list the searchable tools or their namespaces, so it
- * stays the same while tools are registered, for example when MCP servers connect.
+ * `tool_search` 的说明。它不列出可搜索工具及其命名空间，因此工具注册状态变化时
+ *（例如 MCP 服务器连接时）说明内容仍保持不变。
  */
 export const TOOL_SEARCH_DESCRIPTION = `# Tool discovery\n\nSearches over deferred tool metadata with BM25 and exposes matching tools for the next model call.\n\nSome of the tools, such as tools of MCP servers, may not have been provided to you upfront, and you should use this tool (\`${TOOL_SEARCH_TOOL_NAME}\`) to search for the required tools. For MCP tool discovery, always use \`${TOOL_SEARCH_TOOL_NAME}\`.`;
 
@@ -228,7 +228,7 @@ export function createToolSearchToolDefinition(
 		description: TOOL_SEARCH_DESCRIPTION,
 		promptSnippet: "Search for tools that are not loaded yet and load the matches",
 		parameters: toolSearchSchema,
-		// Searching is not something scripts need; it changes what the model sees.
+		// 搜索会改变模型可见的内容，因此不向脚本提供此功能。
 		exposure: "model-only",
 		async execute(_toolCallId, { query, limit }) {
 			if (query.trim() === "") throw new Error("query must not be empty");

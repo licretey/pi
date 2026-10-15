@@ -41,7 +41,7 @@ describe("Bm25Ranker", () => {
 		]);
 		expect(ranker.rank("pull requests", documents, 8)[0].name).toBe("mcp__github__create_pull_request");
 		expect(ranker.rank("search", documents, 1)).toHaveLength(1);
-		// Property names and descriptions are searchable.
+		// 属性名称和描述均可搜索。
 		expect(ranker.rank("closed", documents, 8).map((match) => match.name)).toEqual(["mcp__github__list_issues"]);
 	});
 
@@ -49,7 +49,7 @@ describe("Bm25Ranker", () => {
 		const ranker = new Bm25Ranker();
 		expect(ranker.rank("kubernetes", documents, 8)).toEqual([]);
 		expect(ranker.rank("the", documents, 8)).toEqual([]);
-		// Known v1 limit: no synonyms, so "tickets" does not find "issues".
+		// v1 的已知限制：不支持同义词，因此搜索“tickets”无法找到“issues”。
 		expect(ranker.rank("tickets", documents, 8)).toEqual([]);
 	});
 
@@ -79,16 +79,16 @@ describe("codemode description catalog", () => {
 		expect(description).toContain("Nested tools:");
 		expect(description).toContain("## mcp__github\nGitHub server");
 		expect(description).toContain("## mcp__docs\n\n### `mcp__docs");
-		// The search guidance is always there, so tools that appear later do not change it.
+		// 搜索指引始终存在，因此之后出现的工具不会改变它。
 		expect(description).toContain("find unlisted tools, such as MCP tools");
-		// #10555: the lookup helpers are async; without `await` scripts serialize the promise as {}.
+		// #10555：查找辅助函数是异步的；不使用 `await` 时，脚本会将 Promise 序列化为 {}。
 		expect(description).toContain("`await searchTools(query, { limit?, namespace? })`");
 		expect(description).toContain("`await describeTool(name)`");
 		expect(description).toContain("`await describeNamespace(name)`");
 	});
 
 	it("fills the budget round-robin, cheapest first, and says what is missing", () => {
-		// Each small section costs about 42 tokens: one tool per group, then one more.
+		// 每个小节约消耗 42 个 token：每组先放一个工具，再多放一个。
 		const description = createCodemodeDescription(all, { namespaces, inlineBudget: 170 });
 		expect(description).toContain("### `read_notes`");
 		expect(description).toContain("## mcp__docs (some tools not listed)");
@@ -96,7 +96,7 @@ describe("codemode description catalog", () => {
 		expect(description).not.toContain("### `mcp__docs__long`");
 		expect(description).toContain("## mcp__github (some tools not listed)");
 		expect(description).toContain("find unlisted tools, such as MCP tools");
-		// Deterministic: the same input gives the same description.
+		// 结果具有确定性：相同输入会得到相同描述。
 		expect(createCodemodeDescription(all, { namespaces, inlineBudget: 170 })).toBe(description);
 	});
 
@@ -104,7 +104,7 @@ describe("codemode description catalog", () => {
 		const deferred = new Set(github.map((entry) => entry.name));
 		const description = createCodemodeDescription(all, { namespaces, deferred });
 		expect(description).not.toContain("mcp__github");
-		// Deferred tools, such as those of a server that connects later, do not change the description.
+		// 延迟加载的工具（例如稍后才连接的服务器提供的工具）不会改变描述。
 		expect(description).toBe(createCodemodeDescription([plain, ...docs], { namespaces }));
 	});
 

@@ -87,7 +87,7 @@ describe("pi mcp", () => {
 			},
 		});
 
-		// Without `--`, options after the command belong to the command too.
+		// 未使用 `--` 时，命令后的选项也属于该命令。
 		const replaced = await run(["add", "files", "node", "server.js", "--port", "1"], undefined, added.agentDir);
 		expect(replaced.output).toContain('Replaced global MCP server "files"');
 		expect(readConfig(join(added.agentDir, "mcp.json"))).toEqual({
@@ -120,7 +120,7 @@ describe("pi mcp", () => {
 				fixture: servers.fixture,
 				docs: {
 					url: "https://example.com/mcp",
-					// biome-ignore lint/suspicious/noTemplateCurlyInString: literal config value reference
+					// biome-ignore lint/suspicious/noTemplateCurlyInString: 配置值中的字面量引用。
 					headers: { "X-Team": "core", Authorization: "Bearer ${DOCS_TOKEN}" },
 					exposure: "direct",
 					description: "Product docs",

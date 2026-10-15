@@ -1,5 +1,5 @@
 /**
- * Extension runner - executes extensions and manages their lifecycle.
+ * 扩展运行器（Extension runner）——执行扩展并管理其生命周期。
  */
 
 import type { AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
@@ -91,8 +91,8 @@ import type {
 	UserBashEventResult,
 } from "./types.ts";
 
-// Extension shortcuts compete with canonical keybinding ids from keybindings.json.
-// Only editor-global shortcuts are reserved here. Picker-specific bindings are not.
+// 扩展快捷键可能与 keybindings.json 中的标准按键绑定 ID 冲突。
+// 这里只预留编辑器全局快捷键，不预留选择器专用按键绑定。
 const RESERVED_KEYBINDINGS_FOR_EXTENSION_CONFLICTS = [
 	"app.interrupt",
 	"app.clear",
@@ -124,8 +124,7 @@ const buildBuiltinKeybindings = (resolvedKeybindings: KeybindingsConfig): BuiltI
 		const restrictOverride = (RESERVED_KEYBINDINGS_FOR_EXTENSION_CONFLICTS as readonly string[]).includes(keybinding);
 		for (const key of keyList) {
 			const normalizedKey = key.toLowerCase() as KeyId;
-			// If multiple actions bind the same key, the reserved action wins so extensions
-			// remain blocked by reserved shortcuts regardless of iteration order.
+			// 如果多个操作绑定了同一个按键，则保留操作优先，确保无论遍历顺序如何，扩展都无法占用保留快捷键。
 			const existing = builtinKeybindings[normalizedKey];
 			if (existing?.restrictOverride && !restrictOverride) continue;
 			builtinKeybindings[normalizedKey] = {
@@ -163,15 +162,15 @@ function isUserBashEventResult(value: unknown): value is UserBashEventResult {
 	);
 }
 
-/** Combined result from all before_agent_start handlers. */
+/** 所有 before_agent_start 处理器的合并结果。 */
 interface BeforeAgentStartCombinedResult {
 	messages: NonNullable<BeforeAgentStartEventResult["message"]>[];
 	systemPromptOptions: NormalizedBuildSystemPromptOptions;
 }
 
 /**
- * Events handled by the generic emit() method.
- * Events with dedicated emitXxx() methods are excluded for stronger type safety.
+ * 由通用 emit() 方法处理的事件。
+ * 具有专用 emitXxx() 方法的事件会被排除，以获得更强的类型安全性。
  */
 type RunnerEmitEvent = Exclude<
 	ExtensionEvent,
@@ -252,8 +251,8 @@ export type ReloadHandler = () => Promise<void>;
 export type ShutdownHandler = () => void;
 
 /**
- * Helper function to emit session_shutdown event to extensions.
- * Returns true if the event was emitted, false if there were no handlers.
+ * 向扩展发送 session_shutdown 事件的辅助函数。
+ * 如果事件已发出则返回 true；没有处理器时返回 false。
  */
 export async function emitSessionShutdownEvent(
 	extensionRunner: ExtensionRunner,
@@ -275,12 +274,10 @@ function sameMessages(left: AgentMessage[], right: AgentMessage[]): boolean {
 }
 
 /**
- * Re-attach the prompt and tool state after a `context` handler. Handlers only see the
- * conversation; the system messages belong to Pi. An unchanged conversation keeps every
- * system message in place, so models with mid-conversation support keep their cached
- * prefix. A changed one gets the replayed prompt sections and tool declarations as one
- * leading system message, so pruning, windowing, or slicing from a compaction summary
- * cannot drop them.
+ * `context` 处理器执行后重新附加提示词和工具状态。处理器只能看到对话；系统消息由 Pi 管理。
+ * 对话未变化时保留所有系统消息的位置，使支持对话中途续接的模型能够保留缓存前缀。
+ * 对话发生变化时，将重放后的提示词章节和工具声明合并为一条开头的系统消息，
+ * 避免压缩摘要中的裁剪、窗口截取或切片操作将其丢弃。
  */
 function restoreSystemMessages(
 	current: AgentMessage[],
@@ -299,8 +296,8 @@ export async function emitProjectTrustEvent(
 ): Promise<{ result?: ProjectTrustEventResult; errors: ExtensionError[] }> {
 	const errors: ExtensionError[] = [];
 	for (const { ext, handlers } of snapshotEventHandlers(extensionsResult.extensions, "project_trust")) {
-		// A single extension may register multiple handlers for the same event.
-		// The first project_trust handler that returns yes/no wins; undecided falls through.
+		// 单个扩展可以为同一事件注册多个处理器。
+		// 第一个返回 yes/no 的 project_trust 处理器胜出；返回 undecided 时继续检查后续处理器。
 		for (const handler of handlers) {
 			try {
 				const handlerResult = (await handler(event, ctx)) as ProjectTrustEventResult;
@@ -378,7 +375,7 @@ export class ExtensionRunner {
 		normalizeBuildSystemPromptOptions({ cwd: this.cwd });
 	private executeToolFn: ExtensionContextActions["executeTool"];
 	private getCallableToolsFn: () => readonly AgentTool[] = () => [];
-	/** Registered MCP servers already reported as unhandled. */
+	/** 已报告为未处理的已注册 MCP 服务器。 */
 	private readonly reportedMcpServers = new Set<string>();
 	private newSessionHandler: NewSessionHandler = async () => ({ cancelled: false });
 	private forkHandler: ForkHandler = async () => ({ cancelled: false });
@@ -418,7 +415,7 @@ export class ExtensionRunner {
 			unregisterVirtualModel?: (provider: string, id: string) => void;
 		},
 	): void {
-		// Copy actions into the shared runtime (all extension APIs reference this)
+		// 将操作复制到共享运行时（所有扩展 API 都引用此对象）。
 		this.runtime.sendMessage = actions.sendMessage;
 		this.runtime.sendUserMessage = actions.sendUserMessage;
 		this.runtime.appendEntry = actions.appendEntry;
@@ -436,7 +433,7 @@ export class ExtensionRunner {
 		this.runtime.setThinkingLevel = actions.setThinkingLevel;
 		this.runtime.createContext = () => this.createContext();
 
-		// Context actions (required)
+		// 上下文操作（必需）。
 		this.getModel = contextActions.getModel;
 		this.getScopedModels = contextActions.getScopedModels;
 		this.isIdleFn = contextActions.isIdle;
@@ -453,14 +450,14 @@ export class ExtensionRunner {
 		this.executeToolFn = contextActions.executeTool;
 		this.getCallableToolsFn = contextActions.getCallableTools ?? (() => []);
 
-		// Servers registered from now on reach the extension that connects them right away. Servers
-		// registered during loading are read on session_start.
+		// 从现在起注册的服务器会立即交给连接它们的扩展。此前注册的服务器
+		// 加载期间注册的服务器会在 session_start 时读取。
 		this.runtime.mcpServers.setChangeListener(() => {
 			void this.emit({ type: "mcp_servers_change", servers: this.runtime.mcpServers.list() });
 			this.reportUnhandledMcpServers();
 		});
 
-		// Flush provider registrations queued during extension loading
+		// 刷新扩展加载期间排队等待的提供商注册项。
 		for (const { name, config, extensionPath } of this.runtime.pendingProviderRegistrations) {
 			try {
 				if (providerActions?.registerProvider) {
@@ -513,8 +510,7 @@ export class ExtensionRunner {
 		}
 		this.runtime.pendingVirtualModelRegistrations = [];
 
-		// From this point on, provider registration/unregistration takes effect immediately
-		// without requiring a /reload.
+		// 从此处开始，提供商的注册/注销会立即生效，无需执行 /reload。
 		this.runtime.registerProvider = (name, config) => {
 			if (providerActions?.registerProvider) {
 				providerActions.registerProvider(name, config);
@@ -626,7 +622,7 @@ export class ExtensionRunner {
 		return this.extensions.map((e) => e.path);
 	}
 
-	/** Get all registered tools from all extensions (first registration per name wins). */
+	/** 获取所有扩展注册的工具；同名工具以最先注册的为准。 */
 	getAllRegisteredTools(): RegisteredTool[] {
 		const toolsByName = new Map<string, RegisteredTool>();
 		for (const ext of this.extensions) {
@@ -639,7 +635,7 @@ export class ExtensionRunner {
 		return Array.from(toolsByName.values());
 	}
 
-	/** Get a tool definition by name. Returns undefined if not found. */
+	/** 按名称获取工具定义；找不到时返回 undefined。 */
 	getToolDefinition(toolName: string): RegisteredTool["definition"] | undefined {
 		for (const ext of this.extensions) {
 			const tool = ext.tools.get(toolName);
@@ -746,8 +742,8 @@ export class ExtensionRunner {
 	}
 
 	/**
-	 * Report registered MCP servers when no extension handles `mcp_servers_change`, which means
-	 * nothing connects them (for example when another MCP extension replaced the built-in one).
+	 * 没有扩展处理 `mcp_servers_change` 时报告已注册的 MCP 服务器，这表示没有任何扩展会连接它们
+	 *（例如，另一个 MCP 扩展替换了内置扩展）。
 	 */
 	reportUnhandledMcpServers(): void {
 		if (this.hasHandlers("mcp_servers_change")) return;
@@ -786,7 +782,7 @@ export class ExtensionRunner {
 		return this.extensions.flatMap((ext) => (ext.markdownTransformer ? [ext.markdownTransformer] : []));
 	}
 
-	/** Renderers of calls to `toolName`: extension resolvers in load order, then `base`. */
+	/** `toolName` 调用的渲染器：先按加载顺序使用扩展解析器，最后使用 `base`。 */
 	resolveToolRenderers(toolName: string, base: () => ToolRenderers | undefined): ToolRenderers | undefined {
 		const resolvers = this.extensions.flatMap((ext) => ext.toolRenderers ?? []);
 		const resolve = (index: number): ToolRenderers | undefined =>
@@ -858,8 +854,8 @@ export class ExtensionRunner {
 	}
 
 	/**
-	 * Request a graceful shutdown. Called by extension tools and event handlers.
-	 * The actual shutdown behavior is provided by the mode via bindExtensions().
+	 * 请求正常关闭。由扩展工具和事件处理器调用。
+	 * 实际关闭行为由模式通过 bindExtensions() 提供。
 	 */
 	shutdown(): void {
 		this.shutdownHandler();
@@ -871,8 +867,8 @@ export class ExtensionRunner {
 	}
 
 	/**
-	 * Create an ExtensionContext for use in event handlers and tool execution.
-	 * Context values are resolved at call time, so changes via bindCore/bindUI are reflected.
+	 * 创建供事件处理器和工具执行使用的 ExtensionContext。
+	 * 上下文值会在调用时解析，因此 bindCore/bindUI 所做的更改会生效。
 	 */
 	createContext(): ExtensionContext {
 		const runner = this;
@@ -955,12 +951,12 @@ export class ExtensionRunner {
 	}
 
 	/**
-	 * Create the context for executing the tool call `toolCallId`: the extension context plus
-	 * `tools` and `executeTool()`. `signal` is the default signal of nested calls.
+	 * 为工具调用 `toolCallId` 创建执行上下文：包含扩展上下文以及 `tools` 和 `executeTool()`。
+	 * `signal` 是嵌套调用使用的默认信号。
 	 */
 	createToolContext(toolCallId: string, signal: AbortSignal | undefined): ExtensionToolContext {
 		const runner = this;
-		// createContext() returns a fresh object, so adding properties does not affect other contexts.
+		// createContext() 会返回新对象，因此添加属性不会影响其他上下文。
 		return Object.defineProperties(this.createContext() as ExtensionToolContext, {
 			tools: {
 				get() {
@@ -988,9 +984,8 @@ export class ExtensionRunner {
 	}
 
 	createCommandContext(): ExtensionCommandContext {
-		// Use property descriptors instead of object spread so the guarded getters from
-		// createContext() stay lazy. A spread would eagerly read them once and freeze the
-		// old values into the returned object, bypassing stale-instance checks.
+		// 使用属性描述符而非对象展开，以便 createContext() 中受保护的 getter 保持惰性。
+		// 对象展开会立即读取这些 getter，并将旧值固定到返回对象中，从而绕过过期实例检查。
 		const context = Object.defineProperties(
 			{},
 			Object.getOwnPropertyDescriptors(this.createContext()),
@@ -1117,7 +1112,7 @@ export class ExtensionRunner {
 		return result as RunnerEmitResult<TEvent>;
 	}
 
-	/** Returns the event's own action unless a handler overrides it; the last override wins. */
+	/** 返回事件自身的操作，除非处理器覆盖了它；存在多个覆盖时以最后一次为准。 */
 	async emitCacheWarmingDecision(event: CacheWarmingDecisionEvent): Promise<CacheWarmingAction> {
 		const ctx = this.createContext();
 		let action = event.action;
@@ -1193,7 +1188,7 @@ export class ExtensionRunner {
 
 					if (handlerResult.content !== undefined) {
 						currentEvent.content = handlerResult.content;
-						// Structured content that is not replaced along with the content may no longer match it.
+						// 如果结构化内容未随正文一起替换，它可能不再与正文匹配。
 						if (handlerResult.structuredContent === undefined) delete currentEvent.structuredContent;
 						modified = true;
 					}
@@ -1291,9 +1286,8 @@ export class ExtensionRunner {
 	}
 
 	/**
-	 * Run the request-time transforms in two phases. `context` handlers see the conversation
-	 * only and Pi restores the prompt and tool state after each; `context_with_system`
-	 * handlers then see the full transcript and their output is used as returned.
+	 * 分两个阶段运行请求期间的转换。`context` 处理器只看到对话；每个处理器执行后，Pi 会恢复提示和工具状态。
+	 * 随后，`context_with_system` 处理器会看到完整记录，并直接采用其返回结果。
 	 */
 	async emitContext(messages: AgentMessage[]): Promise<AgentMessage[]> {
 		const ctx = this.createContext();
@@ -1307,7 +1301,7 @@ export class ExtensionRunner {
 					const event: ContextEvent = { type: "context", messages: visibleMessages };
 					const handlerResult = (await handler(event, ctx)) as ContextEventResult | undefined;
 
-					// Handlers may return a new list or edit event.messages in place.
+					// 处理器可以返回新列表，也可以直接修改 event.messages。
 					const returned =
 						handlerResult?.messages ??
 						(sameMessages(visibleMessages, visibleSnapshot) ? undefined : visibleMessages);
@@ -1333,8 +1327,8 @@ export class ExtensionRunner {
 					const event: ContextWithSystemEvent = { type: "context_with_system", messages: currentMessages };
 					const handlerResult = (await handler(event, ctx)) as ContextEventResult | undefined;
 					currentMessages = handlerResult?.messages ?? currentMessages;
-					// Providers read the prompt and initial tools from the leading system message.
-					// Losing it is never intended; report it but honor the handler's output.
+					// 提供方会从开头的系统消息读取提示词和初始工具。
+					// 不应移除此消息；若处理器仍将其移除，则报告问题，但保留处理器的输出。
 					if (hadLeadingSystemMessage && currentMessages[0]?.role !== "system") {
 						this.emitError({
 							extensionPath: ext.path,
@@ -1395,7 +1389,7 @@ export class ExtensionRunner {
 		for (const { ext, handlers } of snapshotEventHandlers(this.extensions, "before_provider_headers")) {
 			for (const handler of handlers) {
 				try {
-					// Handlers mutate `headers` in place; the return value is ignored.
+					// 处理器会直接修改 `headers`；其返回值会被忽略。
 					const event: BeforeProviderHeadersEvent = {
 						type: "before_provider_headers",
 						headers,
@@ -1516,7 +1510,7 @@ export class ExtensionRunner {
 		return { skillPaths, promptPaths, themePaths };
 	}
 
-	/** Emit input event. Transforms chain, "handled" short-circuits. */
+	/** 发送输入事件。变换按链式顺序执行；返回“已处理”时会提前结束。 */
 	async emitInput(
 		text: string,
 		images: ImageContent[] | undefined,

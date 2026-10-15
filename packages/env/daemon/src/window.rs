@@ -1,6 +1,6 @@
-//! Durable's output window (`ShellExecOptions.window`, `ShellOutputInfo.skipped`): undelivered command output is held
-//! and coalesced; text followed by more than the window (by a byte or a line) can never be in the caller's tail and is
-//! replaced by counts. Delivery follows the caller's commit pace, and waits while an earlier frame is still unsent.
+//! Durable 的输出窗口（`ShellExecOptions.window`、`ShellOutputInfo.skipped`）：暂存并合并尚未交付的命令输出；
+//! 若后续文本超出窗口限制（按字节或行数计算），它就不可能出现在调用方的尾部内容中，因此用计数替代。
+//! 输出交付遵循调用方的提交节奏；前一帧尚未发送时会等待。
 
 use serde_json::{Value, json};
 use std::time::{Duration, Instant};
@@ -34,7 +34,7 @@ struct Skipped {
     ends_with_newline: bool,
 }
 
-/// One output event: its stream, text, and the output omitted right before it.
+    /// 一条输出事件：对应的流、文本，以及紧邻它之前被省略的输出。
 pub struct Event {
     pub stream: &'static str,
     pub text: String,
@@ -43,7 +43,7 @@ pub struct Event {
 
 pub struct Pending {
     window: Window,
-    /// Undelivered text in arrival order, by stream.
+    /// 尚未交付的文本，按流和到达顺序排列。
     segments: Vec<(&'static str, String)>,
     bytes: usize,
     newlines: usize,
@@ -71,7 +71,7 @@ impl Pending {
         self.segments.is_empty()
     }
 
-    /// When the next delivery may happen.
+    /// 下一次允许交付的时间。
     pub fn next_send(&self) -> Instant {
         self.next_send
     }
@@ -86,7 +86,7 @@ impl Pending {
             Some((last, existing)) if *last == stream => existing.push_str(&text),
             _ => self.segments.push((stream, text)),
         }
-        // Trimming costs a pass over the held text; do it once a few windows have accumulated.
+        // 修剪需要遍历暂存文本；累积到数个窗口大小后再执行。
         if self.bytes > 4 * (self.window.max_bytes + 1)
             || self.newlines > 4 * (self.window.max_lines + 1)
         {
@@ -94,15 +94,15 @@ impl Pending {
         }
     }
 
-    /// Whether the text after a cut still proves the cut text is outside the window.
+    /// 判断截断后的文本是否仍能证明被截掉的内容位于窗口之外。
     fn proves(&self, bytes: usize, newlines: usize) -> bool {
         bytes > self.window.max_bytes || newlines > self.window.max_lines
     }
 
-    /// Replace the longest prefix whose remainder still proves exclusion by counts.
+    /// 找出最长的前缀，使剩余文本仍能证明其被排除在窗口外，并用计数替换该前缀。
     fn trim(&mut self) {
         let mut removed = String::new();
-        // Whole segments first.
+        // 优先处理完整片段。
         while self.segments.len() > 1 {
             let (bytes, newlines) = {
                 let first = &self.segments[0].1;
@@ -116,12 +116,12 @@ impl Pending {
             self.newlines -= newlines;
             removed.push_str(&text);
         }
-        // Then a prefix of the first remaining segment, at a character boundary.
+        // 然后在字符边界处截取第一个剩余片段的前缀。
         let rest_bytes = self.bytes - self.segments[0].1.len();
         let rest_newlines = self.newlines - newline_count(&self.segments[0].1);
         let first = &self.segments[0].1;
         let mut cut = 0;
-        // By bytes: keep more than `max_bytes` overall.
+        // 按字节数计算：整体保留超过 `max_bytes` 的部分。
         let keep_bytes = (self.window.max_bytes + 1).saturating_sub(rest_bytes);
         if first.len() > keep_bytes {
             let mut index = first.len() - keep_bytes;
@@ -130,7 +130,7 @@ impl Pending {
             }
             cut = cut.max(index);
         }
-        // By lines: keep more than `max_lines` newlines overall, starting at a newline of this segment.
+        // 按行数计算：整体保留超过 `max_lines` 个换行符的部分，从此片段中的换行符开始。
         let keep_newlines = (self.window.max_lines + 1).saturating_sub(rest_newlines);
         if keep_newlines > 0 {
             let positions: Vec<usize> = first
@@ -163,13 +163,13 @@ impl Pending {
         }
     }
 
-    /// Deliver everything held: one event carrying the skip and all text after it, or one event per segment.
+    /// 交付所有暂存内容：若有跳过内容，则用一条事件携带跳过信息及其后的所有文本；否则每个片段各用一条事件。
     pub fn take(&mut self) -> Vec<Event> {
         let segments = std::mem::take(&mut self.segments);
         let delivered = self.bytes;
         self.bytes = 0;
         self.newlines = 0;
-        // The caller writes at most the window per sample, and paces itself by what it wrote.
+        // 调用方每次采样最多写入一个窗口大小的数据，并根据实际写入量控制节奏。
         let pace = Duration::from_secs_f64(
             delivered.min(self.window.max_bytes) as f64 / self.window.bytes_per_second,
         );
@@ -216,7 +216,7 @@ mod tests {
         }
     }
 
-    /// Bytes and newlines delivered or skipped, and the text after the last skip.
+    /// 已交付或跳过的字节数与换行数，以及最后一次跳过后的文本。
     fn total(events: &[Event]) -> (u64, u64, String) {
         let mut bytes = 0;
         let mut newlines = 0;

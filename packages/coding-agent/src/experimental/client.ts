@@ -13,11 +13,11 @@ export type ClientResult =
 	| { readonly kind: "prompted"; readonly serverId: string; readonly sessionId: string; readonly text: string };
 
 export interface RunClientOptions {
-	/** Directory searched when --connect is omitted. Defaults to PI_SERVER_DIR or ~/.pi/server. */
+	/** 未指定 --connect 时的搜索目录。默认为 PI_SERVER_DIR 或 ~/.pi/server。 */
 	readonly directory?: string;
 }
 
-/** Discover servers, then list Sessions, attach to one, or create one for a prompt. */
+/** 发现服务器后，列出会话、连接到现有会话，或为提示词创建新会话。 */
 export async function runClient(command: ClientCommand, options: RunClientOptions = {}): Promise<ClientResult> {
 	const runtime = await openClientRuntime(command, { directory: options.directory });
 	try {

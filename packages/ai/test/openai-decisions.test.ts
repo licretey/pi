@@ -41,7 +41,7 @@ const context: ClassifierContext = {
 	},
 };
 
-/** Response shape from the API reference and live `gpt-6-luna` requests. */
+/** API 参考文档及 `gpt-6-luna` 实际请求所使用的响应结构。 */
 const wireAnswers = [
 	{
 		type: "choice",
@@ -80,7 +80,7 @@ const image: ImageContent = { type: "image", data: "aW1hZ2U=", mimeType: "image/
 describe("OpenAI Decisions", () => {
 	it("maps questions to Decisions types and answers back by name", async () => {
 		const fetch = vi.fn(async (_input: string | URL | Request, _init?: RequestInit) =>
-			// Answers out of question order: they are matched by name.
+			// 回答顺序与问题顺序不同：根据名称进行匹配。
 			Response.json({ model: "gpt-6-luna", answers: [...wireAnswers].reverse(), usage: wireUsage }),
 		);
 
@@ -98,7 +98,7 @@ describe("OpenAI Decisions", () => {
 					type: "choice",
 					name: "category",
 					instructions: "Classify the message",
-					// Empty descriptions are omitted.
+					// 空描述会被省略。
 					choices: [{ value: "success", description: "Successful" }, { value: "failure" }],
 				},
 				{
@@ -240,7 +240,7 @@ describe("OpenAI Decisions", () => {
 					headers: { "retry-after-ms": "0" },
 				}),
 		);
-		// Default retries: the same input would time out again.
+		// 使用默认重试策略：相同输入会再次超时。
 		const result = await classify(model, context, { apiKey: "secret", fetch });
 
 		expect(fetch).toHaveBeenCalledOnce();

@@ -29,7 +29,7 @@ import {
 } from "../src/ssh.ts";
 import { daemon } from "./daemon.ts";
 
-/** The deployed daemon is named by its content. */
+/** 根据内容为已部署的守护进程命名。 */
 const deployedName = `pi-env-${createHash("sha256").update(readFileSync(daemon)).digest("hex").slice(0, 32)}`;
 const context = BACKGROUND_CONTEXT;
 
@@ -68,7 +68,7 @@ async function waitForPort(port: number): Promise<void> {
 	throw new Error("sshd did not start");
 }
 
-// A disposable sshd on localhost with its own host key, client key and home directory.
+// 在本机启动一次性 sshd，并使用专属主机密钥、客户端密钥和主目录。
 describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 	const root = mkdtempSync(join(tmpdir(), "pi-env-ssh-"));
 	const home = join(root, "home");
@@ -132,7 +132,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 			expect(remote.home).toBe(home);
 			const deployed = readFileSync(join(home, ".pi/mobile/tools", deployedName));
 			expect(deployed.equals(readFileSync(daemon))).toBe(true);
-			// Daemons of other contents are removed.
+			// 内容不同的其他守护进程会被删除。
 			expect(readdirSync(join(home, ".pi/mobile/tools")).filter((name) => name.startsWith("pi-env-"))).toEqual([
 				deployedName,
 			]);
@@ -173,9 +173,9 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 			const { pid } = await connection.info();
 			process.kill(pid, "SIGKILL");
 			await new Promise((done) => setTimeout(done, 300));
-			// Linux refuses to write a running program's file.
+			// Linux 不允许覆盖正在运行的程序文件。
 			writeFileSync(file, "tampered");
-			// The next start redeploys the verified binary instead of running whatever is there.
+			// 下次启动会重新部署已验证的二进制文件，而不会运行目标位置上任意已有的文件。
 			expect((await connection.info()).pid).not.toBe(pid);
 			expect(readFileSync(file).equals(readFileSync(daemon))).toBe(true);
 		} finally {
@@ -184,7 +184,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 	}, 60_000);
 
 	it("starts the daemon through the login shell only when asked", async () => {
-		// The login shell is the account's shell: sh and bash read .profile, zsh (the macOS default) reads .zprofile.
+		// 登录 shell 使用账户配置的 shell：sh 和 bash 会读取 .profile，zsh（macOS 默认 shell）会读取 .zprofile。
 		writeFileSync(join(home, ".profile"), "export PI_ENV_LOGIN=yes\n");
 		writeFileSync(join(home, ".zprofile"), "export PI_ENV_LOGIN=yes\n");
 		const login = async (loginShell: boolean) => {
@@ -214,7 +214,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		try {
 			expect(remote()).toBeUndefined();
 			const env = new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd: home });
-			// Nothing is trusted yet: each operation fails with the reason and tries again.
+			// 此时尚未信任任何密钥：每次操作都会报告失败原因，并在后续操作时重试。
 			const read = await env.readTextFile("missing.txt", context);
 			expect(read.ok ? "ok" : read.error.message).toMatch(/not trusted/);
 			const command = await env.exec(["sh", "-c", "exit 0"], undefined, context);

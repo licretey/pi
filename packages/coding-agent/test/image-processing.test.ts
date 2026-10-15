@@ -1,16 +1,16 @@
 /**
- * Tests for image processing utilities using Photon.
+ * 使用 Photon 测试图像处理工具函数。
  */
 
 import { describe, expect, it } from "vitest";
 import { convertToPng, loadPngTranscoder } from "../src/utils/image-convert.ts";
 import { formatDimensionNote, resizeImage } from "../src/utils/image-resize.ts";
 
-// Small 2x2 red PNG image (base64) - generated with ImageMagick
+// 使用 ImageMagick 生成的 2×2 红色 PNG 图像（Base64）。
 const TINY_PNG =
 	"iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQMAAABIeJ9nAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAAGUExURf8AAP///0EdNBEAAAABYktHRAH/Ai3eAAAAB3RJTUUH6gEOADM5Ddoh/wAAAAxJREFUCNdjYGBgAAAABAABJzQnCgAAACV0RVh0ZGF0ZTpjcmVhdGUAMjAyNi0wMS0xNFQwMDo1MTo1NyswMDowMOnKzHgAAAAldEVYdGRhdGU6bW9kaWZ5ADIwMjYtMDEtMTRUMDA6NTE6NTcrMDA6MDCYl3TEAAAAKHRFWHRkYXRlOnRpbWVzdGFtcAAyMDI2LTAxLTE0VDAwOjUxOjU3KzAwOjAwz4JVGwAAAABJRU5ErkJggg==";
 
-// Small 2x2 blue JPEG image (base64) - generated with ImageMagick
+// 使用 ImageMagick 生成的 2×2 蓝色 JPEG 图像（Base64）。
 const TINY_JPEG =
 	"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAMCAgMCAgMDAwMEAwMEBQgFBQQEBQoHBwYIDAoMDAsKCwsNDhIQDQ4RDgsLEBYQERMUFRUVDA8XGBYUGBIUFRT/2wBDAQMEBAUEBQkFBQkUDQsNFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBT/wAARCAACAAIDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAVAQEBAAAAAAAAAAAAAAAAAAAGCf/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AD3VTB3/2Q==";
 
@@ -62,9 +62,9 @@ describe("convertToPng", () => {
 		const result = await convertToPng(TINY_JPEG, "image/jpeg");
 		expect(result).not.toBeNull();
 		expect(result!.mimeType).toBe("image/png");
-		// Result should be valid base64
+		// 结果应为有效的 Base64。
 		expect(() => Buffer.from(result!.data, "base64")).not.toThrow();
-		// PNG magic bytes
+		// PNG 文件签名字节。
 		const buffer = Buffer.from(result!.data, "base64");
 		expect(buffer[0]).toBe(0x89);
 		expect(buffer[1]).toBe(0x50); // 'P'
@@ -82,7 +82,7 @@ describe("convertToPng", () => {
 	});
 });
 
-// Issue #10292: pi-tui uses this transcoder to show non-PNG images on Kitty-protocol terminals.
+// Issue #10292：pi-tui 使用此转码器在支持 Kitty 协议的终端中显示非 PNG 图像。
 it("loadPngTranscoder converts synchronously to oriented PNG data", async () => {
 	const transcoder = (await loadPngTranscoder())!;
 	const png = Buffer.from(transcoder(jpegWithXmpBeforeOrientation(), "image/jpeg")!, "base64");
@@ -142,14 +142,14 @@ describe("resizeImage", () => {
 		const originalBuffer = Buffer.from(LARGE_PNG_200x200, "base64");
 		const originalSize = originalBuffer.length;
 
-		// Set maxBytes to less than the original encoded image size
+		// 将 maxBytes 设为小于原始编码图像的大小。
 		const result = await resizeImage(imageBytes(LARGE_PNG_200x200), "image/png", {
 			maxWidth: 2000,
 			maxHeight: 2000,
 			maxBytes: Math.floor(LARGE_PNG_200x200.length * 0.9),
 		});
 
-		// Should have tried to reduce size
+		// 应已尝试缩小图像。
 		expect(result).not.toBeNull();
 		const resultBuffer = Buffer.from(result!.data, "base64");
 		expect(resultBuffer.length).toBeLessThan(originalSize);

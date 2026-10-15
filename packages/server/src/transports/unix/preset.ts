@@ -3,7 +3,7 @@ import type { ServerHost, SessionMetadata } from "../../types.ts";
 import { createUnixListener } from "./listener.ts";
 import type { UnixServerOptions } from "./types.ts";
 
-/** Compose Server with one Unix-domain socket listener. */
+/** 将 Server 与一个 Unix 域套接字监听器组合起来。 */
 export function createUnixServer<TMetadata extends SessionMetadata>(
 	host: ServerHost<TMetadata>,
 	options: UnixServerOptions,

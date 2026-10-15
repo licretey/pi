@@ -12,8 +12,8 @@ import { createHarness } from "../harness.ts";
 const mcpExtension = createMcpExtension({ loadConfig: () => ({ servers: [], errors: [] }) });
 
 describe("MCP tool renderers", () => {
-	// Regression #10285: a resumed session renders MCP tool calls before their server connected, if it
-	// ever does. They render with the MCP renderers anyway, instead of the expanded fallback.
+	// #10285 回归测试：恢复会话时，即使 MCP 服务器尚未连接，也会渲染工具调用，前提是
+	// 它们仍使用 MCP 渲染器进行渲染，而不会像其他情况那样使用展开后的回退渲染器。
 	it("renders calls to MCP tools that are not registered", async () => {
 		initTheme("dark");
 		const harness = await createHarness({ extensionFactories: [mcpExtension] });
@@ -28,7 +28,7 @@ describe("MCP tool renderers", () => {
 			} as unknown as ToolRenderContext);
 			expect(stripAnsi(call?.render(100).join("\n") ?? "")).toContain('my_docs/search query="pi"');
 			expect(resolve("not_mcp")).toBeUndefined();
-			// Registered tools keep their own renderers.
+			// 已注册的工具继续使用各自的渲染器。
 			expect(resolve("read")?.renderCall).toBe(harness.session.getToolDefinition("read")?.renderCall);
 		} finally {
 			harness.cleanup();

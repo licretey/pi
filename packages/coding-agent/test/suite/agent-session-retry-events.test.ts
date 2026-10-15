@@ -73,7 +73,7 @@ describe("AgentSession retry and event characterization", () => {
 		expect(harness.faux.state.callCount).toBe(3);
 	});
 
-	// Regression test for #9340.
+	// #9340 回归测试。
 	it("finalizes retry state when abort is requested after a retry attempt fails", async () => {
 		const harness = await createHarness({ settings: { retry: { enabled: true, maxRetries: 3, baseDelayMs: 0 } } });
 		harnesses.push(harness);

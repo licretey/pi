@@ -116,7 +116,7 @@ describe("Fireworks models", () => {
 		expect(payload?.reasoning_effort).toBe("max");
 	});
 
-	// Regression for #9323: native effort must reach Messages without budget-based fallback.
+	// #9323 回归测试：原生 effort 必须传递到 Messages，不能回退到基于预算的设置。
 	it.each([
 		["accounts/fireworks/models/deepseek-v4p1-flash", ["off", "low", "high", "max"]],
 		["accounts/fireworks/models/qwen3p8-max", ["off", "low", "medium", "xhigh"]],
@@ -149,7 +149,7 @@ describe("Fireworks models", () => {
 		}
 	});
 
-	// Regression for #9323: accepted aliases are not distinct native effort levels.
+	// #9323 回归测试：可接受的别名不代表不同的原生 effort 级别。
 	it.each([
 		["accounts/fireworks/models/glm-5p3", ["low", "high", "max"]],
 		["accounts/fireworks/routers/glm-5p3-fast", ["low", "high", "max"]],
@@ -198,7 +198,7 @@ describe("Fireworks models", () => {
 	});
 });
 
-// --- Integration tests for Fireworks Anthropic session affinity and tool compat ---
+// --- Fireworks Anthropic 会话亲和性和工具兼容性的集成测试 ---
 
 interface CapturedRequest {
 	headers: IncomingMessage["headers"];
@@ -300,7 +300,7 @@ async function captureAnthropicRequest(
 	const address = server.address() as AddressInfo;
 
 	try {
-		// Override the model's baseUrl to point to the local test server
+		// 覆盖模型的 baseUrl，使其指向本地测试服务器。
 		const localModel = { ...model, baseUrl: `http://127.0.0.1:${address.port}` };
 
 		const stream = streamAnthropic(localModel, normalizeContext(context), {
@@ -335,7 +335,7 @@ function getTools(body: Record<string, unknown>): Record<string, unknown>[] {
 describe("Anthropic-compatible session affinity and tool compat", () => {
 	it("sends x-session-affinity header for Fireworks models", async () => {
 		const model = createFireworksModel();
-		// Need a real port, capture will assign one
+		// 需要真实端口；capture 会分配一个端口。
 		const request = await captureAnthropicRequest(model, createContext(), {
 			sessionId: "fireworks-session-1",
 		});
@@ -362,7 +362,7 @@ describe("Anthropic-compatible session affinity and tool compat", () => {
 		expect(request.headers["x-session-affinity"]).toBeUndefined();
 	});
 
-	// Regression test for https://github.com/earendil-works/pi/issues/9102
+	// https://github.com/earendil-works/pi/issues/9102 的回归测试。
 	it("sends only x-session-id for OpenRouter models", async () => {
 		const request = await captureAnthropicRequest(createOpenRouterModel(), createContext(), {
 			sessionId: "openrouter-session-1",

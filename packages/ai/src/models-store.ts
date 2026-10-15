@@ -1,15 +1,15 @@
 import type { AnyModel } from "./types.ts";
 
 export interface ModelsStoreEntry {
-	/** Persisted models of every type. */
+	/** 每种类型的已持久化模型。 */
 	models: readonly AnyModel[];
-	/** Unix timestamp from the remote catalog's Last-Modified header. */
+	/** 来自远程目录 Last-Modified 头的 Unix 时间戳。 */
 	lastModified?: number;
-	/** Unix timestamp of the last completed remote check. */
+	/** 上次完成的远程检查的 Unix 时间戳。 */
 	checkedAt?: number;
 	/**
-	 * Opaque validator from the remote catalog's ETag header, stored verbatim
-	 * (quotes included) and echoed back as If-None-Match.
+	 * 来自远程目录 ETag 头的不透明校验器，按原样存储（含引号），
+	 * 并作为 If-None-Match 回传。
 	 */
 	etag?: string;
 }
@@ -18,7 +18,7 @@ export interface ModelsStoreOperationOptions {
 	signal?: AbortSignal;
 }
 
-/** Persistent model catalogs keyed by provider ID. */
+/** 以 provider ID 为键的持久化模型目录。 */
 export interface ModelsStore {
 	read(providerId: string, options?: ModelsStoreOperationOptions): Promise<ModelsStoreEntry | undefined>;
 	write(providerId: string, entry: ModelsStoreEntry, options?: ModelsStoreOperationOptions): Promise<void>;

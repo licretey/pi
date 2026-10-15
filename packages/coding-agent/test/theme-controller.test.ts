@@ -86,7 +86,7 @@ describe("InteractiveThemeController", () => {
 		const controller = createController(ui, () => SettingsManager.inMemory());
 		controller.applyFromSettings();
 
-		// Grayscale until the terminal answers.
+		// 在终端返回结果前使用灰度值。
 		expect(theme.name).toBe("system");
 		expect(theme.getFgAnsi("error")).toBe("\x1b[39m");
 
@@ -121,7 +121,7 @@ describe("InteractiveThemeController", () => {
 		expect(theme.name).toBe("light");
 
 		queryTerminalColors.mockResolvedValue(DARK);
-		// The report says light, but the terminal renders dark.
+		// 检测报告为浅色，但终端实际呈现为深色。
 		emitTerminalColorScheme("light");
 		await flush();
 		expect(theme.name).toBe("dark");
@@ -150,7 +150,7 @@ describe("InteractiveThemeController", () => {
 		};
 
 		await query(DARK);
-		// A timeout keeps the known colors; erasing them would count as a change and re-render.
+		// 超时后保留已知颜色；清除颜色会被视为发生变化并触发重新渲染。
 		await query({});
 		await query(structuredClone(DARK));
 		expect(ui.requestRender).toHaveBeenCalledOnce();

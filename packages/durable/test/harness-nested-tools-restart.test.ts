@@ -61,7 +61,7 @@ async function sqlitePath(): Promise<string> {
 	return join(directory, "session.sqlite");
 }
 
-/** Open the SQLite Harness without starting scheduling. */
+/** 打开 SQLite Harness，但不启动任务调度。 */
 function open(path: string, setup: ChatSetup) {
 	return openNodeSqliteStorage(path).then((storage) => openChat(storage, setup));
 }
@@ -75,7 +75,7 @@ function results(entries: Awaited<ReturnType<typeof allEntries>>): ToolResultMes
 	return entries.filter((entry) => ToolResultEntry.is(entry)).map((entry) => entry.model![0] as ToolResultMessage);
 }
 
-/** Collect tool end events from now on. */
+/** 从现在开始收集工具结束事件。 */
 async function collectEnds(harness: Harness, conversationId: Parameters<Harness["conversation"]>[0]) {
 	const ends: Extract<AgentEvent, { type: "tool_execution_end" }>[] = [];
 	const stream = await watchEvents(harness, conversationId, context);
@@ -96,7 +96,7 @@ describe("nested tool calls across a restart", () => {
 		const runs = { started: 0, gated: 0 };
 		const running = deferred();
 		const gated = deferred();
-		// Replay-safe, so only the abandonment keeps it from rerunning.
+		// 此调用可安全重放，因此只有将其标记为已放弃才能阻止重新运行。
 		addTool(
 			setup.registry,
 			tool(
@@ -118,7 +118,7 @@ describe("nested tool calls across a restart", () => {
 				return {};
 			}),
 		);
-		// Holds `gated` in its `call` phase, before intent, until the Harness closes.
+		// 将 `gated` 保持在意图记录前的 `call` 阶段，直到 Harness 关闭。
 		addHooks(setup.registry, ToolTask, {
 			beforeTool: async (hookCall, _api, hookContext: Context) => {
 				if (hookCall.name !== "gated") return undefined;
@@ -158,7 +158,7 @@ describe("nested tool calls across a restart", () => {
 		expect(end("c1/1")).toMatchObject({ isError: true, details: { step: 1 } });
 		expect(end("c1/1")).not.toHaveProperty("structuredOutput");
 		expect(codes(end("c1/2"))).toEqual(["abandoned"]);
-		// The caller reports the interruption.
+		// 调用方会报告这次中断。
 		const [result] = results(await allEntries(opened.root));
 		expect(result).toMatchObject({ toolCallId: "c1", isError: true });
 		expect(await opened.harness.snapshot(LiveDoc, opened.root.id, context)).toEqual({});
@@ -220,7 +220,7 @@ describe("nested tool calls across a restart", () => {
 		expect((await (await opened.harness.submission(id, context))!.wait(context)).status).toBe("done");
 		await opened.harness.waitForIdle(context);
 		expect(phases).toEqual(["work"]);
-		// The cascade passed the restart reason on.
+		// 级联中止传递了重启原因。
 		expect(aborts).toEqual(["restart"]);
 		expect((await opened.harness.getTask(worker!, context))?.state).toMatchObject({
 			status: "terminal",
@@ -384,7 +384,7 @@ describe("nested tool calls across a restart", () => {
 		await running.promise;
 		await opened.harness.close(context);
 
-		// An inspection-only open: no resume, no submission.
+		// 仅用于检查的打开操作：不恢复调度，也不提交任务。
 		opened = await open(path, setup);
 		const inspected = await opened.harness.inspect(context);
 		expect(inspected.scheduling).toBe("paused");
@@ -451,7 +451,7 @@ describe("nested tool calls across a restart", () => {
 		opened.harness.resume();
 		expect((await (await opened.harness.submission(id, context))!.wait(context)).status).toBe("done");
 		expect(runs).toEqual({ safe: 2, unsafe: 1, caller: 2 });
-		// Default keys follow call order, so the rerun found both calls.
+		// 默认键按调用顺序生成，因此重跑时找到了两个调用。
 		expect(await nestedTasks(opened.harness)).toHaveLength(2);
 		for (const task of await nestedTasks(opened.harness)) {
 			expect(task.abandonOnRestart).toBeUndefined();
@@ -511,7 +511,7 @@ describe("nested tool calls across a restart", () => {
 				expect(seen).toEqual(["echo a", "echo named"]);
 				expect(result!.isError).toBe(false);
 			} else {
-				// Key 1 was made with other arguments: the rerun throws instead of reusing a different call's result.
+				// 键 1 使用了不同参数创建：重新运行时会抛出异常，而不会复用其他调用的结果。
 				expect(runs).toEqual(["a", "named"]);
 				expect(result!.isError).toBe(true);
 				expect(JSON.stringify(result!.content)).toContain("Nested call c1/1 was already made with another tool");
@@ -591,7 +591,7 @@ describe("nested tool calls across a restart", () => {
 		addTool(
 			setup.registry,
 			tool("spawn", async (_args, api, callContext) => {
-				// A conversation the call owns, with background work in it, as a persistent subagent has.
+				// 创建由该调用拥有且包含后台工作的会话，模拟持久化子智能体。
 				background = await api.commit(async (tx) => {
 					const child = await tx.createConversation({ ownership: { kind: "task", taskId: api.taskId } });
 					return tx.createTask(Background, null, {

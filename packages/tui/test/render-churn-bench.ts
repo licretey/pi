@@ -1,19 +1,17 @@
 /**
- * Alt-screen render churn benchmark.
+ * 备用屏幕渲染分配量基准测试。
  *
- * Measures cumulative JS allocation and wall time for repeated TuiAltScreen
- * frames on a layout mirroring pi's fullscreen interactive mode:
- * VStack [ ScrollView(transcript), dock VStack [status, editor, footer] ].
+ * 在仿照 pi 全屏交互模式的布局中，测量重复渲染 TuiAltScreen 帧时的 JavaScript 累计内存分配量和耗时：
+ * VStack [ ScrollView(transcript), dock VStack [status, editor, footer] ]。
  *
- * Two scenarios:
- * - static: nothing changes between frames (pure recomposite churn)
- * - editor: one character appended to the editor per frame (doc scenario
- *   "30 editor updates")
+ * 两种场景：
+ * - static：帧与帧之间没有变化（仅重复合成造成的分配量）
+ * - editor：每帧向编辑器追加一个字符（文档中的“30 次编辑器更新”场景）
  *
- * Allocation is estimated with the V8 sampling heap profiler including
- * objects collected by minor/major GC, i.e. it measures churn, not retention.
+ * 使用 V8 采样堆分析器估算分配量，并计入已被小型或大型 GC 回收的对象；
+ * 因此测量的是分配活动量，而不是保留的内存量。
  *
- * Run from packages/tui: node test/render-churn-bench.ts
+ * 在 packages/tui 目录下运行：node test/render-churn-bench.ts
  */
 
 import { Session } from "node:inspector/promises";
@@ -31,7 +29,7 @@ const WARMUP_FRAMES = 20;
 const FRAMES = 300;
 const SAMPLING_INTERVAL = 4096;
 
-/** Terminal that discards output; keeps xterm parsing out of the measurement. */
+/** 丢弃输出的终端，避免将 xterm 解析开销计入测量结果。 */
 class NullTerminal implements Terminal {
 	bytesWritten = 0;
 	start(_onInput: (data: string) => void, _onResize: () => void): void {}
@@ -60,7 +58,7 @@ class NullTerminal implements Terminal {
 	setProgramStatus(): void {}
 }
 
-/** Editor stand-in: caches lines per (text, width), re-renders when text changes. */
+/** 编辑器替身：按（文本、宽度）缓存行，文本变化时重新渲染。 */
 class EditorSim implements Component {
 	private text = "";
 	private cachedText?: string;

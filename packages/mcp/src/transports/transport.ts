@@ -16,7 +16,7 @@ export interface McpTransport {
 	setProtocolVersion?(version: string): void;
 }
 
-/** Listener bookkeeping shared by transports. `emitClose` fires at most once per transport. */
+/** 各传输共用的监听器管理逻辑。每个传输最多触发一次 `emitClose`。 */
 export abstract class TransportEvents {
 	private messageListeners = new Set<McpTransportMessageListener>();
 	private errorListeners = new Set<McpTransportErrorListener>();

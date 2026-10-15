@@ -245,10 +245,10 @@ describe("defaultTools setting", () => {
 
 			writeSettings({ defaultTools: ["+inactive_tool", "+grep"] });
 			await session.reload();
-			// bash was disabled during the session and is not newly added, so it stays off.
+			// bash 在会话期间已被禁用，且没有新加入，因此继续保持禁用。
 			expect(session.getActiveToolNames().sort()).toEqual(["edit", "grep", "inactive_tool", "read", "write"]);
 
-			// Removing tools from the setting does not disable them.
+			// 从设置中移除工具不会禁用这些工具。
 			writeSettings({ defaultTools: ["-read"] });
 			await session.reload();
 			expect(session.getActiveToolNames().sort()).toEqual(["edit", "grep", "inactive_tool", "read", "write"]);

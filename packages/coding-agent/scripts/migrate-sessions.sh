@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
-# Migrate sessions from ~/.pi/agent/*.jsonl to proper session directories.
-# This fixes sessions created by the bug in v0.30.0 where sessions were
-# saved to ~/.pi/agent/ instead of ~/.pi/agent/sessions/<encoded-cwd>/.
+# 将会话从 ~/.pi/agent/*.jsonl 迁移到对应的会话目录。
+# 此脚本用于修复 v0.30.0 中的缺陷：当时会话被保存到 ~/.pi/agent/，
+# 而不是 ~/.pi/agent/sessions/<encoded-cwd>/。
 #
-# Usage: ./migrate-sessions.sh [--dry-run]
+# 用法：./migrate-sessions.sh [--dry-run]
 #
 
 set -e
@@ -14,11 +14,11 @@ DRY_RUN=false
 
 if [[ "$1" == "--dry-run" ]]; then
     DRY_RUN=true
-    echo "Dry run mode - no files will be moved"
+    echo "试运行模式：不会移动任何文件"
     echo
 fi
 
-# Find all .jsonl files directly in agent dir (not in subdirectories)
+# 查找 agent 目录直属的所有 .jsonl 文件（不包括子目录中的文件）。
 shopt -s nullglob
 files=("$AGENT_DIR"/*.jsonl)
 shopt -u nullglob
@@ -37,14 +37,14 @@ failed=0
 for file in "${files[@]}"; do
     filename=$(basename "$file")
     
-    # Read first line and extract cwd using jq
+    # 读取首行，并使用 jq 提取 cwd。
     if ! first_line=$(head -1 "$file" 2>/dev/null); then
         echo "SKIP: $filename - cannot read file"
         ((failed++))
         continue
     fi
     
-    # Parse JSON and extract cwd
+    # 解析 JSON 并提取 cwd。
     if ! cwd=$(echo "$first_line" | jq -r '.cwd // empty' 2>/dev/null); then
         echo "SKIP: $filename - invalid JSON"
         ((failed++))
@@ -57,7 +57,7 @@ for file in "${files[@]}"; do
         continue
     fi
     
-    # Encode cwd: remove leading slash, replace slashes with dashes, wrap with --
+    # 编码 cwd：移除开头的斜杠，将斜杠替换为连字符，并在两侧加上 --。
     encoded=$(echo "$cwd" | sed 's|^/||' | sed 's|[/:\\]|-|g')
     encoded="--${encoded}--"
     
@@ -89,5 +89,5 @@ echo "Skipped:  $failed"
 
 if [[ "$DRY_RUN" == true && $migrated -gt 0 ]]; then
     echo
-    echo "Run without --dry-run to perform the migration"
+    echo "如需执行迁移，请去掉 --dry-run 参数后重新运行。"
 fi

@@ -27,13 +27,13 @@ export interface UnixServerRoute {
 }
 
 export interface DiscoverUnixServersOptions {
-	/** Directory containing server-addressed Unix sockets. */
+	/** 存放按服务器 ID 命名的 Unix 套接字的目录。 */
 	directory: string;
-	/** Maximum time for each connection and handshake. Defaults to 1,000 ms. */
+	/** 每次连接及握手的最长等待时间，默认值为 1,000 毫秒。 */
 	timeoutMs?: number;
 }
 
-/** Discover reachable local servers by probing server-addressed Unix sockets. */
+/** 探测按服务器 ID 命名的 Unix 套接字，发现可连接的本地服务器。 */
 export async function discoverUnixServers(options: DiscoverUnixServersOptions): Promise<UnixServerRoute[]> {
 	if (process.platform === "win32") throw new Error("Unix transport is not supported on Windows");
 	const directory = options.directory;
@@ -68,7 +68,7 @@ export async function discoverUnixServers(options: DiscoverUnixServersOptions): 
 					try {
 						if (!(await lstat(candidate.path)).isSocket()) continue;
 					} catch (error) {
-						// A socket can disappear between readdir and lstat during normal server shutdown.
+						// 服务器正常关闭期间，套接字可能在 readdir 与 lstat 两次调用之间消失。
 						if (isErrorCode(error, "ENOENT")) continue;
 						throw error;
 					}
@@ -84,7 +84,7 @@ export async function discoverUnixServers(options: DiscoverUnixServersOptions): 
 	return routes.sort((left, right) => left.serverId.localeCompare(right.serverId));
 }
 
-/** Creates fresh Unix-domain socket transports for Client connection attempts in Node-compatible runtimes. */
+/** 为 Client 的连接尝试创建新的 Unix 域套接字传输，适用于兼容 Node.js 的运行时。 */
 export function createUnixTransportFactory(options: UnixTransportOptions): ByteTransportFactory {
 	const maxPendingBytes = validateUnixTransportOptions(options);
 	return (handlers) => connectUnixSocket(options.path, maxPendingBytes, handlers);
@@ -258,8 +258,8 @@ async function probeUnixServer(route: UnixServerRoute, timeoutMs: number): Promi
 		]);
 		return route;
 	} catch (error) {
-		// Missing/refused sockets are stale or shutting down. Protocol failures mean
-		// the endpoint is not the advertised server. Both are safe to omit.
+		// 套接字不存在或连接被拒绝，说明套接字已过期或服务器正在关闭；协议校验失败则说明
+		// 该端点并非所声明的服务器。这两种情况都可以安全地忽略。
 		if (
 			error instanceof UnixDiscoveryTimeoutError ||
 			error instanceof ProtocolValidationError ||

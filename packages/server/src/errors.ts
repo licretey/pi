@@ -10,7 +10,7 @@ type ServerOperationErrorCode =
 
 export const INTERNAL_SERVER_ERROR_MESSAGE = "Internal server error";
 
-/** A host or lifecycle error that can safely cross the protocol boundary. */
+/** 可安全跨越协议边界传递的宿主或生命周期错误。 */
 export class ServerError extends Error {
 	readonly code: ServerOperationErrorCode;
 

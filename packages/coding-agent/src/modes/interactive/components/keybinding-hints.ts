@@ -1,5 +1,5 @@
 /**
- * Utilities for formatting keybinding hints in the UI.
+ * 用于格式化界面快捷键提示的工具函数。
  */
 
 import { getKeybindings, type Keybinding, type KeyId } from "@earendil-works/pi-tui";

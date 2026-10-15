@@ -4,8 +4,8 @@ import { getMarkdownTheme, theme } from "../theme/theme.ts";
 import { keyText } from "./keybinding-hints.ts";
 
 /**
- * Component that renders a branch summary message with collapsed/expanded state.
- * Uses same background color as custom messages for visual consistency.
+ * 渲染可折叠/展开分支摘要消息的组件。
+ * 使用与自定义消息相同的背景色，以保持视觉一致。
  */
 export class BranchSummaryMessageComponent extends Box {
 	private expanded = false;

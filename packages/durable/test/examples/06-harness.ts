@@ -1,5 +1,5 @@
-// Open a Harness with a registry of extensions.
-// Run from packages/durable:
+// 使用扩展注册表打开 Harness。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/06-harness.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Type } from "@earendil-works/pi-ai";
@@ -16,10 +16,8 @@ import {
 
 const context = BACKGROUND_CONTEXT;
 
-// A Harness is a Session plus conversation handles and durable tasks. Extension
-// code (tools, prompt sections, hooks, tasks) comes in named extensions
-// installed in a registry the application owns. Nothing in the registry is
-// saved; it is this process's code.
+// Harness 由 Session、对话句柄和持久化任务组成。扩展代码（工具、提示词分节、钩子和任务）
+// 通过带名称的扩展提供，并安装在应用管理的注册表中。注册表中的内容不会保存；它们属于当前进程的代码。
 const read = defineTool({
 	name: "read",
 	description: "Read a file",
@@ -30,7 +28,7 @@ const Files = defineExtension({ name: "files", tools: [read] });
 const registry = createRegistry();
 registry.install(Files);
 
-// `models` is pi-ai's model access; generation calls models through it.
+// `models` 是 pi-ai 提供的模型访问接口，生成请求会通过它调用模型。
 const harness = await Harness.open(new MemoryStorage(), { models: createModels(), registry }, context);
 
 const Notes = defineDoc<{ text: string }>({
@@ -42,10 +40,8 @@ const Notes = defineDoc<{ text: string }>({
 	initial: () => ({ text: "" }),
 });
 
-// The root conversation always has ID 1. The first root() call creates it,
-// its built-in documents, the `agent` choices, and whatever `init` writes, all
-// in one commit. Later calls, including after a restart, return it and ignore
-// both options.
+// 根对话的 ID 始终为 1。首次调用 root() 时，会在同一事务中创建根对话、内置文档、`agent` 选项以及 `init` 写入的内容。
+// 后续调用（包括进程重启后）都会返回该根对话，并忽略这两个选项。
 const root = await harness.root(context, {
 	agent: { thinkingLevel: "low" },
 	init: async (tx, rootId) => {
@@ -53,7 +49,7 @@ const root = await harness.root(context, {
 	},
 });
 console.log("root:", root.id, await harness.snapshot(Notes, root.id, context));
-// The stored choices are names; agent() resolves them against the registry.
+// 保存的选项是名称；agent() 会根据注册表解析这些名称。
 console.log("stored agent:", await harness.snapshot(AgentDoc, root.id, context));
 const agent = await root.agent(context);
 console.log(

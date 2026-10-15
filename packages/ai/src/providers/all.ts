@@ -47,18 +47,17 @@ import { zaiCodingCnProvider } from "./zai-coding-cn.ts";
 
 export { radiusProvider };
 
-/** Providers present in the generated catalog. `KnownProvider` additionally
- * includes purely dynamic providers (e.g. "radius") that have no static
- * catalog entry. */
+/** 生成目录中存在的提供商。`KnownProvider` 还额外包含纯动态的提供商（例如
+ * "radius"），它们没有静态目录条目。 */
 export type BuiltinProvider = keyof typeof MODELS;
 
 type BuiltinChatModelId<TProvider extends BuiltinProvider> = keyof (typeof MODELS)[TProvider];
 type BuiltinImageModelId<TProvider extends BuiltinProvider> = keyof (typeof IMAGE_MODELS)[TProvider];
 type BuiltinClassifierModelId<TProvider extends BuiltinProvider> = keyof (typeof CLASSIFIER_MODELS)[TProvider];
-/** API ids of catalog entries. Built-in getters return `Model<Api>` shapes, not literal entry types. */
+/** 目录条目的 API id。内建 getter 返回 `Model<Api>` 形状，而非字面量条目类型。 */
 type CatalogApi<TEntry> = TEntry extends { api: infer TApi extends string } ? TApi : never;
 
-/** Typed read of one generated built-in chat model. */
+/** 类型化地读取一个生成的内建聊天模型。 */
 export function getBuiltinModel<TProvider extends BuiltinProvider, TModelId extends BuiltinChatModelId<TProvider>>(
 	provider: TProvider,
 	modelId: TModelId,
@@ -68,7 +67,7 @@ export function getBuiltinModel<TProvider extends BuiltinProvider, TModelId exte
 	>;
 }
 
-/** Typed read of one generated built-in image model. */
+/** 类型化地读取一个生成的内建图像模型。 */
 export function getBuiltinImageModel<
 	TProvider extends BuiltinProvider,
 	TModelId extends BuiltinImageModelId<TProvider>,
@@ -78,7 +77,7 @@ export function getBuiltinImageModel<
 	] as ImageModel<CatalogApi<(typeof IMAGE_MODELS)[TProvider][TModelId]>>;
 }
 
-/** Typed read of one generated built-in classifier model. */
+/** 类型化地读取一个生成的内建分类器模型。 */
 export function getBuiltinClassifierModel<
 	TProvider extends BuiltinProvider,
 	TModelId extends BuiltinClassifierModelId<TProvider>,
@@ -95,7 +94,7 @@ export function getBuiltinProviders(): BuiltinProvider[] {
 	return Object.keys(MODELS) as BuiltinProvider[];
 }
 
-/** Generation timestamp shared by all built-in provider catalogs. */
+/** 所有内建提供商目录共享的生成时间戳。 */
 export function getBuiltinModelDataGeneratedAt(): number | undefined {
 	const generatedAt = Date.parse(modelDataManifest.generatedAt);
 	return Number.isNaN(generatedAt) ? undefined : generatedAt;
@@ -132,7 +131,7 @@ export function getAllBuiltinModels<TProvider extends BuiltinProvider>(provider:
 	return [...getBuiltinModels(provider), ...getBuiltinImageModels(provider), ...getBuiltinClassifierModels(provider)];
 }
 
-/** All built-in providers, freshly constructed. */
+/** 所有内建提供商，均为新构造的实例。 */
 export function builtinProviders(): Provider[] {
 	return [
 		amazonBedrockProvider(),
@@ -180,7 +179,7 @@ export function builtinProviders(): Provider[] {
 	];
 }
 
-/** A `Models` collection with every built-in provider registered. */
+/** 注册了每个内建提供商的 `Models` 集合。 */
 export function builtinModels(options?: CreateModelsOptions): MutableModels {
 	const models = createModels(options);
 	for (const provider of builtinProviders()) {

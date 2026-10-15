@@ -1,12 +1,11 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { InteractiveMode } from "../../../src/modes/interactive/interactive-mode.ts";
 
-// Regression for https://github.com/earendil-works/pi/issues/5724
+// https://github.com/earendil-works/pi/issues/5724 的回归测试。
 //
 // `proper-lockfile` installs `signal-exit`, whose signal listener re-sends
-// SIGTERM/SIGHUP when it observes no other process listeners during the same
-// signal dispatch. InteractiveMode must therefore keep its signal handlers
-// registered until async terminal cleanup has completed.
+// 如果同一轮信号分发过程中没有其他进程监听器，Node 会在处理 SIGTERM/SIGHUP 时立即退出。
+// 因此，InteractiveMode 必须保留自己的信号处理器，直到异步终端清理完成。
 
 type ShutdownThis = {
 	isShuttingDown: boolean;

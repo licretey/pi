@@ -15,8 +15,8 @@ export function resolveCloudflareModel<TModel extends { baseUrl: string }>(
 }
 
 /**
- * Wrap an API implementation so Cloudflare account/gateway endpoint
- * placeholders materialize from the resolved provider env before dispatch.
+ * 包装 API 实现，使 Cloudflare account/gateway 端点占位符在分发前
+ * 从解析出的提供商 env 中填充为真实值。
  */
 export function cloudflareStreams(streams: ProviderStreams): ProviderStreams {
 	return {
@@ -27,7 +27,7 @@ export function cloudflareStreams(streams: ProviderStreams): ProviderStreams {
 	};
 }
 
-/** Classifier counterpart of {@link cloudflareStreams}. */
+/** {@link cloudflareStreams} 的分类器对应版本。 */
 export function cloudflareClassifier(classifier: ProviderClassifier): ProviderClassifier {
 	return {
 		classify: (model, context, options) =>

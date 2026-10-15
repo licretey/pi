@@ -12,20 +12,20 @@ import type { JsonObject, WatchEnd, WatchHandle } from "../types.ts";
 
 export type ObservedDocumentValue = Readonly<JsonObject> | null;
 
-/** Maximum exact committed frames retained behind one unavailable watch listener. */
+/** 单个不可用的监视监听器后方最多保留的精确提交帧数。 */
 const MAX_PENDING_WATCH_FRAMES = 100;
 
-/** Canonical terminal update for a retired document incarnation. */
+/** 文档实例退役时使用的标准终止更新。 */
 export const RETIREMENT_OPERATIONS: readonly Op[] = [["r", null]];
 
 /**
- * Session-to-Chord bridge owned one-to-one by one attached state: a document, or a conversation view. A `null` value
- * retires it. @internal
+ * Session 到 Chord 的桥接对象，由一个已附加状态（文档或对话视图）一对一持有。值为 `null` 时，该对象会被退役。
+ * @internal
  */
 export class CommittedStateSource<T = ObservedDocumentValue> implements ReplicatedStateSource<T> {
 	readonly #attachments = new Set<SessionSourceAttachment<T>>();
 	#release: (() => void) | undefined;
-	/** Released on disposal. */
+	/** 释放对象时调用。 */
 	#value: T | undefined;
 	#cursor = 0;
 	#retired = false;
@@ -60,7 +60,7 @@ export class CommittedStateSource<T = ObservedDocumentValue> implements Replicat
 		for (const attachment of [...this.#attachments]) attachment.publish(frame);
 	}
 
-	/** Stop publishing; the attached states keep their last value. A failure ends them the same way. */
+	/** 停止发布；已附加的状态保留最后一个值。会话失败时也以相同方式结束。 */
 	closeSession(): void {
 		if (this.#closed) return;
 		for (const attachment of [...this.#attachments]) attachment.dispose();
@@ -111,8 +111,7 @@ class SessionSourceAttachment<T> implements ReplicatedStateSourceAttachment<T> {
 			try {
 				this.#drain();
 			} catch {
-				// Chord's frame listener contains source-contract failures. Isolate an
-				// unexpected direct listener failure to this attachment as well.
+				// Chord 的帧监听器会处理数据源契约错误。此处也隔离意外发生的直接监听器错误，仅影响当前附加对象。
 				this.dispose();
 			}
 		});
@@ -151,7 +150,7 @@ type WatchFrame<T> = {
 };
 
 /**
- * Serialized exact-frame watch bound to one document incarnation or conversation view. A `null` value retires it.
+ * 绑定到单个文档实例或对话视图的串行精确帧监视器。值为 `null` 时，该监视器会被退役。
  * @internal
  */
 export class CommittedWatch<T = ObservedDocumentValue> implements WatchHandle<T> {
@@ -166,14 +165,14 @@ export class CommittedWatch<T = ObservedDocumentValue> implements WatchHandle<T>
 	#scheduled = false;
 	#running = false;
 	#retired = false;
-	/** Set once, by `#terminate()`. */
+	/** 由 `#terminate()` 设置一次。 */
 	#end: WatchEnd | undefined;
 	#cancellationSignal: AbortSignal | undefined;
 	#cancellationListener: (() => void) | undefined;
 
 	/**
-	 * `report` gets a listener's throw, which also ends the watch. `replace` gives the value an overflow delivers; by
-	 * default the newest value.
+	 * `report` 接收监听器抛出的异常；发生异常也会结束监视。缓冲区溢出时，`replace` 用于生成要交付的值；
+	 * 默认使用最新值。
 	 */
 	constructor(value: T, detach: () => void, report: (error: unknown) => void, replace?: () => T) {
 		this.#value = value;
@@ -216,7 +215,7 @@ export class CommittedWatch<T = ObservedDocumentValue> implements WatchHandle<T>
 		this.#terminate({ reason: "cancelled" });
 	}
 
-	/** End with `session_closed`, or with `session_failed` and the error when the Session failed. */
+	/** 会话正常结束时以 `session_closed` 结束；会话失败时以 `session_failed` 和错误信息结束。 */
 	closeSession(failure?: { readonly error: unknown }): void {
 		this.#terminate(
 			failure === undefined ? { reason: "session_closed" } : { reason: "session_failed", error: failure.error },
@@ -274,7 +273,7 @@ export class CommittedWatch<T = ObservedDocumentValue> implements WatchHandle<T>
 		}
 	}
 
-	/** End the watch, once: detach, drop pending frames, and settle `closed`. A callback already running keeps running. */
+	/** 仅结束一次监视：解除附加、丢弃待处理帧并完成 `closed`。已在运行的回调会继续执行。 */
 	#terminate(end: WatchEnd): void {
 		if (this.#end !== undefined) return;
 		this.#end = end;

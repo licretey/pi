@@ -9,7 +9,7 @@ type RenderCache = {
 };
 
 /**
- * Box component - a container that applies padding and background to all children
+ * 为所有子组件应用内边距和背景色的容器组件。
  */
 export class Box implements Component {
 	children: Component[] = [];
@@ -17,7 +17,7 @@ export class Box implements Component {
 	private paddingY: number;
 	private bgFn?: (text: string) => string;
 
-	// Cache for rendered output
+	// 渲染结果缓存。
 	private cache?: RenderCache;
 	private mouseLayout?: { width: number; children: Array<{ component: Component; height: number }> };
 
@@ -47,7 +47,7 @@ export class Box implements Component {
 
 	setBgFn(bgFn?: (text: string) => string): void {
 		this.bgFn = bgFn;
-		// Don't invalidate here - we'll detect bgFn changes by sampling output
+		// 此处不使缓存失效；后续会通过抽样输出检测 bgFn 是否变化。
 	}
 
 	setPaddingX(paddingX: number): void {
@@ -111,9 +111,9 @@ export class Box implements Component {
 		const contentWidth = Math.max(1, width - this.paddingX * 2);
 		const leftPad = " ".repeat(this.paddingX);
 
-		// Render all children. Keep the child lines unpadded: children usually return the same string
-		// objects every frame, so the cache check below is a cheap identity comparison per line.
-		// Padding here would create new strings that must be compared character by character.
+		// 渲染所有子组件。保留未填充的子行：子组件通常每帧返回相同的字符串对象，
+		// 因此下方的缓存检查可以按行快速比较对象。若在此处添加内边距，就会创建新字符串，
+		// 必须逐字符比较。
 		const childLines: string[] = [];
 		const mouseChildren: Array<{ component: Component; height: number }> = [];
 		for (const child of this.children) {
@@ -129,33 +129,33 @@ export class Box implements Component {
 			return [];
 		}
 
-		// Check if bgFn output changed by sampling
+		// 通过抽样检查 bgFn 的输出是否变化。
 		const bgSample = this.bgFn ? this.bgFn("test") : undefined;
 
-		// Check cache validity
+		// 检查缓存是否有效。
 		if (this.matchCache(width, childLines, bgSample)) {
 			return this.cache!.lines;
 		}
 
-		// Apply background and padding
+		// 应用背景色和内边距。
 		const result: string[] = [];
 
-		// Top padding
+		// 顶部内边距。
 		for (let i = 0; i < this.paddingY; i++) {
 			result.push(this.applyBg("", width));
 		}
 
-		// Content
+		// 内容。
 		for (const line of childLines) {
 			result.push(this.applyBg(leftPad + line, width));
 		}
 
-		// Bottom padding
+		// 底部内边距。
 		for (let i = 0; i < this.paddingY; i++) {
 			result.push(this.applyBg("", width));
 		}
 
-		// Update cache
+		// 更新缓存。
 		flattenLines(result);
 		this.cache = { childLines, width, bgSample, lines: result };
 
@@ -166,7 +166,7 @@ export class Box implements Component {
 		const visLen = visibleWidth(line);
 		const padNeeded = Math.max(0, width - visLen);
 		const padded = line + " ".repeat(padNeeded);
-		// Already padded to width, so apply the background directly instead of measuring the line again.
+		// 行已补齐至指定宽度，直接应用背景色，无需再次测量。
 		return this.bgFn ? this.bgFn(padded) : padded;
 	}
 }

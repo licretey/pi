@@ -11,7 +11,7 @@ import type { SessionEntry } from "../src/core/session-manager.ts";
 const zeroCost = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 };
 
 const models: ModelPriceSource = {
-	// $/million tokens; used as cache-read price fallback on full-miss turns
+	// 每百万 token 的价格；缓存完全未命中时用作缓存读取价格的回退值。
 	getModel: () => ({ cost: { cacheRead: 0.3 } }),
 };
 
@@ -66,9 +66,9 @@ function usageEntry(kind: string, timestamp: number): SessionEntry {
 	};
 }
 
-// Turn 1: fresh 100k cache write at $3.75/M
+// 第 1 轮：新写入 100k 缓存，费用为每百万 token $3.75。
 const turn1 = assistant({ cacheWrite: 100_000, cost: { cacheWrite: 0.375 }, timestamp: 0 });
-// Turn 2: healthy, everything read back at $0.30/M
+// 第 2 轮：缓存正常，全部读取缓存，费用为每百万 token $0.30。
 const turn2 = assistant({
 	cacheRead: 100_000,
 	cacheWrite: 5_000,
@@ -78,7 +78,7 @@ const turn2 = assistant({
 
 describe("computeCacheWaste", () => {
 	it("accumulates missed tokens and cost across turns", () => {
-		// Turn 3: full miss, previous 105k prompt re-billed at $3.75/M write
+		// 第 3 轮：缓存完全未命中，之前的 105k 提示词按每百万 token $3.75 重新计入写入费用。
 		const turn3 = assistant({ cacheWrite: 110_000, cost: { cacheWrite: 0.4125 }, timestamp: 120_000 });
 		const totals = computeCacheWaste([entry(turn1), entry(turn2), entry(turn3)], models);
 		expect(totals.missedTokens).toBe(105_000);
@@ -130,7 +130,7 @@ describe("detectCacheMiss", () => {
 		expect(miss).toBeDefined();
 		expect(miss?.missedTokens).toBe(105_000);
 		expect(miss?.missedCost).toBeCloseTo(0.36225, 5);
-		// 600s - 60s since the previous request
+		// 距离上次请求 600 秒，其中空闲时间为 600s - 60s。
 		expect(miss?.idleMs).toBe(540_000);
 		expect(miss?.modelChanged).toBe(false);
 	});

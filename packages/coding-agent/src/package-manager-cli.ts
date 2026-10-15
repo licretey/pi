@@ -57,8 +57,8 @@ function getActiveManagedInstallRoot(): string | undefined {
 
 	const managedRoot = resolve(configuredRoot);
 	const releasesDir = canonicalizePath(join(managedRoot, "releases"));
-	// The launcher environment is inherited by child processes. Do not classify a
-	// source checkout or another Pi installation launched from managed Pi as managed.
+	// 子进程会继承启动器环境变量。不要将从托管版 Pi 启动的源码检出目录或其他 Pi 安装
+	// 误判为托管安装。
 	if (getCwdRelativePath(canonicalizePath(getPackageDir()), releasesDir) === undefined) return undefined;
 
 	const markerPath = join(managedRoot, MANAGED_INSTALL_MARKER);
@@ -134,8 +134,8 @@ function activateManagedRelease(managedRoot: string, version: string): void {
 	}
 }
 
-// Keep the active release and the one running this update, which other open
-// sessions likely still use and which allows rolling back by editing current-version.
+// 保留当前生效版本和本次正在更新的版本：其他已打开的会话可能仍在使用它，
+// 并且保留它也允许通过修改 current-version 回滚。
 function pruneManagedReleases(managedRoot: string, activeVersion: string): void {
 	const releasesRoot = join(managedRoot, "releases");
 	let entries: string[];
@@ -149,7 +149,7 @@ function pruneManagedReleases(managedRoot: string, activeVersion: string): void 
 		try {
 			rmSync(join(releasesRoot, entry), { force: true, recursive: true });
 		} catch {
-			// Files may be in use (e.g. loaded native modules on Windows); retry on the next update.
+			// 文件可能仍在使用中（例如 Windows 上已加载的原生模块）；下次更新时再重试。
 		}
 	}
 }
@@ -163,7 +163,7 @@ function cleanupManagedStaging(managedRoot: string): void {
 			}
 		}
 	} catch {
-		// The staging directory does not exist yet or is not writable.
+		// 暂存目录尚不存在或不可写。
 	}
 }
 
@@ -184,7 +184,7 @@ export function cleanupManagedInstall(): void {
 			releaseLock();
 		}
 	} catch {
-		// A live update owns the staging directory, or cleanup is unavailable.
+		// 当前有更新任务正在使用暂存目录，或暂时无法执行清理。
 	}
 }
 
@@ -1115,8 +1115,8 @@ export async function handlePackageCommand(
 						return true;
 					}
 					console.log(chalk.green(`Updated ${APP_NAME} from ${VERSION} to ${selfUpdatePlan.version}`));
-					// The pi.dev installer migrates global npm installs to a managed install
-					// that pins all dependencies. It does not migrate pnpm, yarn, or bun installs.
+					// pi.dev 安装程序会将全局 npm 安装迁移为锁定所有依赖版本的托管安装。
+					// pnpm、yarn 和 bun 安装不会迁移。
 					if (installMethod === "npm") {
 						const installerCommand =
 							process.platform === "win32"

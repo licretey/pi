@@ -156,7 +156,7 @@ function acquireTrustLockSync(path: string): () => void {
 			lastError = error;
 			const start = Date.now();
 			while (Date.now() - start < delayMs) {
-				// Sleep synchronously to avoid changing trust store callers to async.
+				// 同步休眠，避免将信任存储的调用方改为异步。
 			}
 		}
 	}
@@ -177,11 +177,10 @@ function withTrustFileLock<T>(path: string, fn: () => T): T {
 }
 
 /**
- * Returns true when cwd has project-local resources that must be gated by
- * project trust: trust-requiring entries under cwd/.pi, or .agents/skills in
- * cwd or one of its ancestors. Returns false when no such project resources
- * exist. The user/global ~/.agents/skills directory is always treated as a
- * trusted user resource and is ignored here, even when cwd is $HOME.
+ * 如果 cwd 中存在必须经过以下机制控制的项目本地资源，则返回 true：
+ * 项目级信任：cwd/.pi 下需要信任的条目，或 cwd 及其任一祖先目录中的 .agents/skills。
+ * 如果不存在此类项目资源，则返回 false。用户级全局目录 ~/.agents/skills 始终视为
+ * 可信用户资源并在此处忽略，即使 cwd 等于 $HOME 也如此。
  */
 export function hasTrustRequiringProjectResources(cwd: string): boolean {
 	const homeDir = canonicalizePath(resolvePath(process.env.HOME || homedir()));

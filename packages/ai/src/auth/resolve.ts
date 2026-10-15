@@ -19,16 +19,15 @@ import type {
 export interface AuthResolutionOverrides {
 	apiKey?: string;
 	env?: ProviderEnv;
-	/** Require this much remaining OAuth-token validity; defaults to five minutes. */
+	/** OAuth 令牌必须至少剩余的有效时长；默认值为五分钟。 */
 	minOAuthValidityMs?: number;
 	signal?: AbortSignal;
 }
 
 /**
- * Auth resolution shared by all operations in a `Models` collection.
- * A stored credential owns the provider: ambient/env is consulted only when
- * nothing is stored. No silent env fallback after a failed refresh or for a
- * credential type without a matching handler.
+ * `Models` 集合中所有操作共用的认证解析逻辑。
+ * 已存储的凭据决定提供商的认证方式；只有未存储凭据时才查询外部来源或环境变量。
+ * 刷新失败后不会静默回退到环境变量；没有匹配处理器的凭据类型也不会回退。
  */
 export function resolveProviderAuth(
 	provider: { id: string; auth: ProviderAuth },
@@ -86,7 +85,7 @@ async function resolveProviderAuthWithSignal(
 		return undefined;
 	}
 
-	// Ambient (env vars, AWS profiles, ADC files).
+	// 从外部来源获取认证信息（环境变量、AWS 配置档、ADC 文件）。
 	return provider.auth.apiKey
 		? resolveApiKey(requestAuthContext, provider.auth.apiKey, provider.id, undefined, signal)
 		: undefined;
@@ -103,18 +102,15 @@ const DEFAULT_OAUTH_MINIMUM_VALIDITY_MS = 5 * 60 * 1000;
 const DEFAULT_OAUTH_REFRESH_TIMEOUT_MS = 15_000;
 
 /**
- * Refresh a stored OAuth credential under the credential-store lock and persist
- * the result before the lock is released. `needsRefresh` is re-checked under
- * the lock, so concurrent callers and processes refresh only once.
+ * 在凭据存储锁保护下刷新已存储的 OAuth 凭据，并在释放锁前持久化结果。
+ * 在锁内重新检查 `needsRefresh`，确保并发调用和并发进程只执行一次刷新。
  *
- * `signal` cancels only the wait for the lock. Once a refresh starts, the
- * provider may already have rotated the refresh token, so the refresh and its
- * persistence ignore `signal` and are bounded only by a timeout. Otherwise a
- * cancelled caller could discard the only valid refresh token. Callers that
- * must return promptly on cancellation race this promise with their signal.
+ * `signal` 只会取消等待锁的过程。刷新开始后，提供商可能已经轮换刷新令牌，
+ * 因此刷新及其持久化不会响应 `signal` 中止，只受超时限制。
+ * 否则，已取消的调用方可能会丢弃唯一有效的刷新令牌。需要在取消时立即返回的调用方，
+ * 应将此 Promise 与取消信号进行竞速处理。
  *
- * Resolves with the stored OAuth credential after the operation, or undefined
- * when the provider no longer has an OAuth credential.
+ * 操作完成后返回已存储的 OAuth 凭据；如果提供商不再有 OAuth 凭据，则返回 undefined。
  */
 export async function refreshStoredOAuthCredential(
 	credentials: CredentialStore,
@@ -155,8 +151,7 @@ export async function refreshStoredOAuthCredential(
 }
 
 /**
- * OAuth resolution with double-checked locking: tokens with less than five
- * minutes remaining are refreshed through `refreshStoredOAuthCredential`.
+ * 使用双重检查锁解析 OAuth：剩余有效时间不足五分钟的令牌会通过 `refreshStoredOAuthCredential` 刷新。
  */
 async function resolveStoredOAuth(
 	credentials: CredentialStore,
@@ -171,13 +166,12 @@ async function resolveStoredOAuth(
 	let credential = stored;
 
 	if (expiresSoon(credential)) {
-		// Optimistic check said expired; the authoritative check runs under the lock.
+		// 乐观检查判定令牌已过期；权威检查会在锁内执行。
 		const post = await refreshStoredOAuthCredential(credentials, providerId, oauth, expiresSoon, signal);
 		if (!post) return undefined; // logged out meanwhile
 		credential = post;
-		// The normal five-minute window triggers a refresh but does not impose a
-		// provider contract. Explicit callers (such as bearer-token export) do
-		// require the requested minimum after the refresh.
+		// 常规的五分钟窗口只会触发刷新，不构成提供商契约。显式调用方（如导出 bearer token）
+		// 则要求刷新后至少达到指定的有效时长。
 		if (minOAuthValidityMs !== undefined && expiresSoon(credential)) {
 			throw new ModelsError("oauth", `OAuth refresh returned a token that expires too soon for ${providerId}`);
 		}

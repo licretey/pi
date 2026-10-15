@@ -17,8 +17,8 @@ function createSessionFile(path: string): void {
 	};
 	writeFileSync(path, `${JSON.stringify(header)}\n`, "utf8");
 
-	// SessionManager only persists once it has seen at least one assistant message.
-	// Add a minimal assistant entry so subsequent appends are persisted.
+	// SessionManager 至少看到一条 assistant 消息后才会持久化会话。
+	// 添加最小化的 assistant 条目，以便后续追加内容能够持久化。
 	const mgr = SessionManager.open(path);
 	mgr.appendMessage({
 		role: "assistant",
@@ -51,7 +51,7 @@ describe("SessionInfo.modified", () => {
 		createSessionFile(filePath);
 
 		const before = await stat(filePath);
-		// Ensure the file mtime can differ from our message timestamp even on coarse filesystems.
+		// 确保即使在时间戳精度较低的文件系统上，文件修改时间也可能与消息时间戳不同。
 		await new Promise((r) => setTimeout(r, 10));
 
 		const mgr = SessionManager.open(filePath);

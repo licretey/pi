@@ -29,8 +29,8 @@ import {
 } from "../src/extensions/mcp/runtime.ts";
 import { convertMcpResult, createMcpToolName } from "../src/extensions/mcp/tools.ts";
 
-// Config values are resolved at connect time, so the literal reference must survive loading.
-// biome-ignore lint/suspicious/noTemplateCurlyInString: literal config value reference
+// 配置值会在连接时解析，因此加载过程中必须保留此字面引用。
+// biome-ignore lint/suspicious/noTemplateCurlyInString: 此处是配置中的字面引用。
 const TOKEN_HEADER = "Bearer ${TOKEN}";
 
 describe("MCP config", () => {
@@ -68,7 +68,7 @@ describe("MCP config", () => {
 		);
 
 		const trusted = loadMcpConfig({ ...paths, projectTrusted: true });
-		// Disabled servers are kept so /mcp can enable them again.
+		// 保留已禁用的服务器，以便之后通过 /mcp 再次启用。
 		expect(trusted.servers.map((server) => [server.name, server.scope, server.config])).toEqual([
 			["shared", "project", { command: "project-cmd", exposure: "direct" }],
 			["remote", "global", { url: "https://example.com/mcp", headers: { Authorization: TOKEN_HEADER } }],
@@ -80,7 +80,7 @@ describe("MCP config", () => {
 		expect(trusted.errors[2]).toContain('server "badUrl": url must be an http or https URL');
 		expect(trusted.errors[3]).toContain('invalid server name "bad name"');
 
-		// Untrusted projects cannot add or override servers, since stdio servers run commands.
+		// 不可信项目不能添加或覆盖服务器，因为 stdio 服务器会运行命令。
 		const untrusted = loadMcpConfig({ ...paths, projectTrusted: false });
 		expect(untrusted.servers.find((server) => server.name === "shared")?.config).toEqual({ command: "global-cmd" });
 	});
@@ -89,7 +89,7 @@ describe("MCP config", () => {
 	it("lets project entries override enabled and exposure of global servers", () => {
 		const paths = setup(
 			{ mcpServers: { tools: { command: "x", env: { TOKEN: "secret" } } } },
-			// An override cannot change the command, which would run with the global env.
+			// 覆盖项不能更改命令，因为该命令会在全局环境中运行。
 			{ mcpServers: { tools: { enabled: false, args: ["y"] }, missing: { enabled: false } } },
 		);
 		const project = join(paths.cwd, ".pi", "mcp.json");
@@ -109,12 +109,12 @@ describe("MCP config", () => {
 			{ command: "x", env: { TOKEN: "secret" }, enabled: false },
 		]);
 
-		// Overrides keep `enabled: true`, since it replaces the global value.
+		// 覆盖项保留 `enabled: true`，因为项目值会替换全局值。
 		updateMcpServerConfig(project, "tools", { enabled: true });
 		expect(JSON.parse(readFileSync(project, "utf8")).mcpServers.tools).toEqual({ enabled: true });
 	});
 
-	// Regression: #10239.
+	// #10239 回归测试。
 	it("rejects server names that differ only in - and _", () => {
 		const paths = setup({ mcpServers: { "work-files": { command: "a" }, work_files: { command: "b" } } }, {});
 		const { servers, errors } = loadMcpConfig({ ...paths, projectTrusted: false });
@@ -128,7 +128,7 @@ describe("MCP config", () => {
 				autoEnableCodemode: false,
 				mcpServers: {
 					later: { command: "x", exposure: "deferred" },
-					// `codemode-deferred` is an alias for `codemode`.
+					// `codemode-deferred` 是 `codemode` 的别名。
 					scripts: { command: "x", exposure: "codemode-deferred", toolExposure: { a: "codemode-deferred" } },
 					off: { command: "x", exposure: "hidden" },
 					wrong: { command: "x", exposure: "model-only" },
@@ -230,7 +230,7 @@ describe("MCP config", () => {
 		expect(getMcpToolExposure(config, "get_delete_hint")).toBe("codemode");
 		expect(getMcpToolExposure(config, "delete_repo")).toBe("hidden");
 		expect(getMcpToolExposure(config, "list_issues")).toBe("deferred");
-		// Only `*` is special.
+		// 只有 `*` 具有特殊含义。
 		expect(getMcpToolExposure({ command: "x", toolExposure: { "get_file.*": "direct" } }, "get_file_x")).toBe(
 			"codemode",
 		);
@@ -249,7 +249,7 @@ describe("MCP config", () => {
 			{ mcpServers: { radius: { url: "https://evil.example/mcp", auth: { provider: "radius" } } } },
 		);
 		const { servers, errors } = loadMcpConfig({ ...paths, projectTrusted: true });
-		// The project entry cannot replace the global one: it would send the credential to its own URL.
+		// 项目条目不能替换全局条目，否则会将凭据发送到项目指定的 URL。
 		expect(servers.map((server) => [server.name, server.scope, "url" in server.config && server.config.url])).toEqual(
 			[
 				["radius", "global", "https://radius.example/mcp"],
@@ -272,7 +272,7 @@ describe("MCP tools", () => {
 		expect(long).toHaveLength(64);
 		expect(long).toMatch(/^mcp__server__x+_[0-9a-f]{8}$/);
 		expect(createMcpToolName("server", `${"x".repeat(100)}y`)).not.toBe(long);
-		// Names that sanitize to one already taken by another tool get a hash suffix.
+		// 清理后的名称若与其他工具重名，会追加哈希后缀。
 		const taken = createMcpToolName("s", "a_b");
 		const second = createMcpToolName("s", "a-b", (name) => name === taken);
 		expect(second).toMatch(/^mcp__s__a_b_[0-9a-f]{8}$/);
@@ -297,7 +297,7 @@ describe("MCP tools", () => {
 				{ type: "text", text: "[audio audio/wav omitted]" },
 			],
 			details: { server: "docs", tool: "t" },
-			// Scripts get the server's blocks as sent, without `_meta`.
+			// 脚本会收到服务器发送的内容块，不包含 `_meta`。
 			structuredContent: { content: blocks, structuredContent: { ok: true } },
 		});
 		expect((await convertMcpResult("docs", "t", { content: [], structuredContent: { n: 1 } })).content).toEqual([
@@ -369,7 +369,7 @@ describe("MCP tools", () => {
 		const converted = await convertMcpResult("docs", "snapshot", result, { saveOutput });
 		expect(converted.content).toHaveLength(2);
 		const text = (converted.content[0] as { text: string }).text;
-		// Codex's format: a header, the start and end of the text, then the file with the full text.
+		// Codex 格式：包含头部、文本的起止位置，以及承载完整文本的文件。
 		expect(text).toMatch(
 			new RegExp(
 				`^Warning: truncated output \\(original token count: ${Math.ceil(full.length / 4)}\\)\nTotal output lines: 3000\n\nline 1\nline 2\n`,
@@ -383,7 +383,7 @@ describe("MCP tools", () => {
 		expect(saved).toEqual([full]);
 		expect(converted.structuredContent).toEqual(result);
 
-		// Text within the limit is not saved.
+		// 未超出限制的文本不会写入文件。
 		await convertMcpResult("docs", "small", { content: [{ type: "text", text: "ok" }] }, { saveOutput });
 		expect(saved).toHaveLength(1);
 	});
@@ -404,7 +404,7 @@ describe("MCP tools", () => {
 describe("MCP connections", () => {
 	const servers: InMemoryTransport[] = [];
 
-	/** In-memory server that answers initialize, tools/list, and tools/call with "ok". */
+	/** 内存中的服务器，会对 initialize、tools/list 和 tools/call 返回 "ok"。 */
 	function createTransport(options: { expireFirstCall?: boolean; methods?: string[]; noTools?: boolean } = {}) {
 		const pair = createInMemoryTransportPair();
 		servers.push(pair.server);
@@ -434,7 +434,7 @@ describe("MCP connections", () => {
 		void pair.server.start();
 		if (options.expireFirstCall) {
 			const send = pair.client.send.bind(pair.client);
-			// Simulates the HTTP transport's 404 for a session the server no longer knows.
+			// 模拟 HTTP 传输在服务器已不认识该会话时返回 404。
 			pair.client.send = async (message: JsonRpcMessage) => {
 				if ("method" in message && message.method === "tools/call") throw new McpSessionExpiredError("gone");
 				return send(message);
@@ -481,7 +481,7 @@ describe("MCP connections", () => {
 			const previousHome = process.env.HOME;
 			process.env.HOME = home;
 			mkdirSync(join(home, "work"));
-			// Answers every tool call with its working directory.
+			// 对每个工具调用都返回其工作目录。
 			writeFileSync(
 				join(home, "server.mjs"),
 				`import { createInterface } from "node:readline";
@@ -585,7 +585,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 	// #10249
 	it("closes a connection that is still initializing before close returns", async () => {
 		const pair = createInMemoryTransportPair();
-		// The server receives initialize but never answers it.
+		// 服务器会收到 initialize，但始终不作响应。
 		const initializing = new Promise<void>((resolve) => {
 			pair.server.onMessage(() => resolve());
 		});
@@ -625,7 +625,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 		void connection.getClient().catch((error) => {
 			failure = error;
 		});
-		// The first attempt failed; the retry is 250ms away.
+		// 首次尝试已失败；距离重试还有 250 毫秒。
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		await connection.close();
 		expect(String(failure)).toContain("status 503");
@@ -635,7 +635,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 		const transport = createTransport();
 		const send = transport.send.bind(transport);
 		const failed = new Set<string>();
-		// The first read and the first call fail with 502.
+		// 第一次读取和第一次调用都会返回 502。
 		transport.send = async (message) => {
 			const method = "method" in message ? message.method : "";
 			if ((method === "resources/read" || method === "tools/call") && !failed.has(method)) {

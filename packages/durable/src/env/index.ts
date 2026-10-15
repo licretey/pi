@@ -1,6 +1,6 @@
 import type { Context } from "@earendil-works/chord";
 
-/** Result of a fallible operation. Expected failures are returned instead of thrown. */
+/** 可能失败的操作的结果。预期中的失败以返回值表达，而不是抛出。 */
 export type Result<TValue, TError> = { ok: true; value: TValue } | { ok: false; error: TError };
 
 export function ok<TValue, TError>(value: TValue): Result<TValue, TError> {
@@ -64,7 +64,7 @@ export type ExecutionErrorCode =
 
 export class ExecutionError extends Error {
 	public code: ExecutionErrorCode;
-	/** Spill file of a command that timed out or was aborted after its output crossed the spill thresholds. */
+	/** 命令超时或被中止、且其输出超过溢出（spill）阈值后，完整输出所在的溢出文件。 */
 	public spillPath?: string;
 
 	constructor(code: ExecutionErrorCode, message: string, cause?: Error) {
@@ -92,86 +92,83 @@ export interface TextLineReader {
 	close(context: Context): Promise<void>;
 }
 
-/** Positional reads from one opened regular file; all calls see the same file even if its path is renamed. */
+/** 对单个已打开常规文件的按位置读取；即使其路径被重命名，所有调用看到的仍是同一个文件。 */
 export interface BinaryReader {
-	/** Metadata of the opened file, not of whatever its path names now. */
+	/** 已打开文件的元数据，而非其路径当前所指对象的元数据。 */
 	info(context: Context): Promise<Result<FileInfo, FileError>>;
-	/** Up to `length` bytes at `offset`; fewer only at end of file. */
+	/** 读取 `offset` 处至多 `length` 个字节；只有到文件末尾时才会少于该值。 */
 	read(offset: number, length: number, context: Context): Promise<Result<Uint8Array, FileError>>;
 	/**
-	 * One pass over the file that locates lines `[startLine, endLine)` (`endLine` absent: to the end), 0-based, where line
-	 * `k` starts after the `k`-th newline byte. Decoded sizes are those of the text `new TextDecoder().decode(file)` would
-	 * produce for that range, so a byte-order mark at the start of the file is not counted.
+	 * 一次遍历文件，定位 `[startLine, endLine)` 范围的行（缺省 `endLine` 表示直到结尾），从 0 计数，第 `k` 行
+	 * 开始于第 `k` 个换行字节之后。解码后的大小与 `new TextDecoder().decode(file)` 对该范围产出的文本一致，
+	 * 因此文件开头的字节序标记（BOM）不计入。
 	 */
 	scanLines(options: { startLine: number; endLine?: number }, context: Context): Promise<Result<LineScan, FileError>>;
 	close(context: Context): Promise<void>;
 }
 
-/** A file or directory to watch. It may be missing; creating it is a change. */
+/** 要监视的文件或目录。它可以不存在；创建它就是一次变更。 */
 export interface WatchTarget {
 	path: string;
-	/** Watch everything below a directory, not only its entries. Symbolic links below it are not followed. */
+	/** 监视目录下的一切，而不只是其直接条目。目录下方的符号链接不会被跟随。 */
 	recursive?: boolean;
-	/** Entries below `path` that are neither watched nor reported: names starting with `.`, or these names. */
+	/** `path` 之下既不监视也不上报的条目：以 `.` 开头的名称，或这些名称。 */
 	exclude?: { hidden?: boolean; names?: readonly string[] };
 }
 
 /**
- * What changed:
- * - `paths`: something at or below each path may have changed (a directory path covers its whole subtree). Calls may be
- *   spurious; a change is never missed while the watcher is healthy.
- * - `overflow`: coverage was uncertain for a while (lost events, reconnect); rescan everything that is watched.
- * - `error`: the watcher stopped, for example because the watched tree grew past the environment's limit; no calls
- *   follow.
+ * 发生了什么变化：
+ * - `paths`：每个路径处或其下方的内容可能发生了变化（目录路径覆盖其整个子树）。回调可能是虚假的；只要监视器健康，
+ *   变更就绝不会漏报。
+ * - `overflow`：一段时间内覆盖不可靠（事件丢失、重新连接）；请重新扫描所有被监视的内容。
+ * - `error`：监视器已停止，例如被监视的树超出了环境的限制；此后不会再有回调。
  */
 export type WatchChange = { paths: string[] } | { overflow: true } | { error: FileError };
 
 export interface FileWatcher {
 	/**
-	 * `native`: changes are reported within about two seconds. `polling`: the environment compares snapshots, because
-	 * the file system does not report changes reliably (network and FUSE file systems); a change undone between two
-	 * snapshots can be missed.
+	 * `native`：变更在大约两秒内上报。`polling`：环境通过比较快照来发现变更，因为文件系统无法可靠上报变更
+	 * （网络与 FUSE 文件系统）；在两次快照之间被撤销的变更可能被漏掉。
 	 */
 	readonly mode: "native" | "polling";
-	/** Stop watching; no `onChange` call starts after this resolves. Idempotent. */
+	/** 停止监视；此调用完成之后不会再触发 `onChange`。幂等。 */
 	close(context: Context): Promise<void>;
 }
 
-/** Where lines of a file are, as `BinaryReader.scanLines` found them. */
+/** 文件中各行的位置，按 `BinaryReader.scanLines` 扫描到的结果。 */
 export interface LineScan {
-	/** Newline bytes in the whole file; it has `newlines + 1` lines. */
+	/** 整个文件中的换行字节数；文件共有 `newlines + 1` 行。 */
 	newlines: number;
 	/**
-	 * Byte range of the selected lines: from the start of the first to the end of the last, without the newline that
-	 * ends it. A selection past the last line is empty at the end of the file.
+	 * 选中行的字节范围：从第一行的开头到最后一行的结尾（含结尾换行符之前）。超出最后一行的选择在文件末尾处为空。
 	 */
 	start: number;
 	end: number;
-	/** Where the first selected line ends: its newline, or the end of the file. */
+	/** 第一条选中行的结束位置：其换行符，或文件末尾。 */
 	firstLineEnd: number;
-	/** Where the last selected line starts. */
+	/** 最后一条选中行的起始位置。 */
 	lastLineStart: number;
-	/** UTF-8 byte length of the decoded selection and of its first line. */
+	/** 选中范围及其第一行解码后的 UTF-8 字节长度。 */
 	selectedBytes: number;
 	firstLineBytes: number;
 }
 
-/** Pages of one directory's entries. */
+/** 单个目录条目的分页读取器。 */
 export interface DirReader {
 	/**
-	 * Up to `maxEntries` entries in the order the file system returns them, continuing where the previous call stopped.
-	 * `done` marks the end; it may come with the last entries or with an empty page. An entry that disappears before its
-	 * metadata is read is skipped, as are entries of unsupported kinds. After a failed or aborted call, close the reader.
+	 * 按文件系统返回的顺序、从上次调用停止之处继续，返回至多 `maxEntries` 个条目。`done` 表示结束；它可能伴随
+	 * 最后一批条目出现，也可能伴随空页出现。元数据读取前就已消失的条目会被跳过，不支持种类的条目同样被跳过。
+	 * 调用失败或被中止后，请关闭该读取器。
 	 */
 	next(maxEntries: number, context: Context): Promise<Result<{ entries: FileInfo[]; done: boolean }, FileError>>;
 	close(context: Context): Promise<void>;
 }
 
-/** Portable filesystem capability. Operations return failures rather than throwing. */
+/** 可移植的文件系域能力。操作以返回值表达失败，而不是抛出。 */
 export interface FileSystem {
 	/**
-	 * The file namespace: equal ids see the same files at the same paths, whatever their `cwd`. Every local Node
-	 * environment shares one id; each container or remote host has its own.
+	 * 文件命名空间：相同 id 的环境在相同路径看到相同的文件，无论其 `cwd` 是什么。所有本地 Node 环境共享同一个
+	 * id；每个容器或远程主机各有自己的 id。
 	 */
 	readonly id: string;
 	cwd: string;
@@ -186,9 +183,8 @@ export interface FileSystem {
 	): Promise<Result<string[], FileError>>;
 	readBinaryFile(path: string, context: Context): Promise<Result<Uint8Array, FileError>>;
 	/**
-	 * Open a regular file for bounded positional reads. A directory fails with `is_directory`, other non-regular files
-	 * with `invalid`. With `noFollow`, a symbolic link as the final path component fails with `invalid` instead of being
-	 * followed; earlier components are still resolved.
+	 * 打开一个常规文件以进行有界的按位置读取。目录会以 `is_directory` 失败，其他非常规文件以 `invalid` 失败。
+	 * 设置 `noFollow` 时，路径最后一个分量为符号链接会以 `invalid` 失败，而不会被跟随；前面的分量仍会被解析。
 	 */
 	openBinaryReader(
 		path: string,
@@ -197,18 +193,17 @@ export interface FileSystem {
 	): Promise<Result<BinaryReader, FileError>>;
 	writeFile(path: string, content: string | Uint8Array, context: Context): Promise<Result<void, FileError>>;
 	appendFile(path: string, content: string | Uint8Array, context: Context): Promise<Result<void, FileError>>;
-	/** Truncate or extend a file to exactly `size` bytes. */
+	/** 将文件截断或扩展到恰好 `size` 字节。 */
 	truncateFile(path: string, size: number, context: Context): Promise<Result<void, FileError>>;
-	/** Flush file contents and metadata needed to retrieve them from an open file handle. */
+	/** 刷写文件内容及其元数据，确保日后能从已打开的文件句柄中重新取得这些内容。 */
 	flushFile(path: string, context: Context): Promise<Result<void, FileError>>;
 	renameFile(sourcePath: string, destinationPath: string, context: Context): Promise<Result<void, FileError>>;
 	fileInfo(path: string, context: Context): Promise<Result<FileInfo, FileError>>;
 	listDir(path: string, context: Context): Promise<Result<FileInfo[], FileError>>;
 	openDirReader(path: string, context: Context): Promise<Result<DirReader, FileError>>;
 	/**
-	 * Report changes to files and directories, for hosts that load resources from the environment. When the returned
-	 * watcher exists, coverage is established: a host that watches before it loads cannot miss a change made during the
-	 * load. See `WatchChange` for what is reported and `FileWatcher.mode` for how reliably.
+	 * 上报文件与目录的变更，供从环境中加载资源的主机使用。当返回的监视器存在时，覆盖即已建立：在加载之前就
+	 * 开始监视的主机不会漏掉加载期间发生的变更。上报内容见 `WatchChange`，可靠程度见 `FileWatcher.mode`。
 	 */
 	watch(
 		targets: readonly WatchTarget[],
@@ -235,16 +230,16 @@ export interface FileSystem {
 	cleanup(context: Context): Promise<void>;
 }
 
-/** Spill the complete output to a temporary file once it exceeds either threshold. */
+/** 一旦输出超过任一阈值，就把完整输出溢写（spill）到临时文件。 */
 export interface ShellSpillOptions {
 	afterBytes: number;
-	/** Complete or partial lines. */
+	/** 以完整行或部分行计。 */
 	afterLines: number;
 }
 
 export interface ShellExecResult {
 	exitCode: number;
-	/** Temporary file holding the complete raw output, when the spill thresholds were exceeded. */
+	/** 超过溢写阈值时，保存完整原始输出的临时文件。 */
 	spillPath?: string;
 }
 
@@ -254,70 +249,67 @@ export interface ShellExecOptions {
 	inheritEnv?: boolean;
 	timeout?: number;
 	/**
-	 * Every decoded chunk of stdout and stderr as it arrives, in arrival order, with the stream it came from: raw,
-	 * unbounded, and unthrottled. Each stream is decoded separately, so a character split across chunks survives.
+	 * stdout 与 stderr 的每个解码分块，按到达顺序连同其来源流一起回调：原始、无上限、不限速。每个流单独解码，
+	 * 因此跨分块被拆开的字符不会丢失。
 	 */
 	onOutput?: (text: string, context: Context, info: ShellOutputInfo) => void;
 	spill?: ShellSpillOptions;
 	/**
-	 * The caller keeps only this tail of the output, so the environment may omit output outside it and report the omission
-	 * as `info.skipped`. Without it, every chunk is delivered.
+	 * 调用方只保留输出的这一段尾部，环境因此可以省略此窗口之外的输出，并通过 `info.skipped` 上报省略。
+	 * 不设置时，每个分块都会被送达。
 	 */
 	window?: ShellOutputWindow;
 }
 
 /**
- * The tail of the combined output a caller keeps, and how often it samples it. An environment that transfers output
- * over a slow link uses it to omit what the caller would drop anyway and to send no faster than the caller commits.
+ * 调用方在合并输出中保留的尾部，及其采样频率。需要经慢速链路传输输出的环境可借此省略调用方反正会丢弃的内容，
+ * 并保证发送速度不超过调用方的提交速度。
  */
 export interface ShellOutputWindow {
-	/** UTF-8 bytes of decoded text kept at the end of the output. */
+	/** 在输出末尾保留的解码文本的 UTF-8 字节数。 */
 	maxBytes: number;
-	/** Lines kept at the end of the output. */
+	/** 在输出末尾保留的行数。 */
 	maxLines: number;
-	/** Minimum pause between the caller's samples of the output. */
+	/** 调用方两次采样输出之间的最小间隔。 */
 	minIntervalMs: number;
-	/** Each sample also pauses the caller in proportion to its size at this rate. */
+	/** 每次采样还会按此速率，与采样大小成比例地暂停调用方。 */
 	bytesPerSecond: number;
 }
 
 /**
- * Output an environment omitted, measured on the decoded text `onOutput` would have received: every U+FFFD counts as
- * three bytes, and no sanitizing is applied.
+ * 环境省略掉的输出，以 `onOutput` 本应收到的解码文本计量：每个 U+FFFD 按三字节计，且不做任何清洗（sanitize）。
  */
 export interface ShellOutputSkip {
-	/** UTF-8 byte length of the omitted text. */
+	/** 被省略文本的 UTF-8 字节长度。 */
 	bytes: number;
-	/** Newlines (U+000A) in the omitted text. */
+	/** 被省略文本中的换行符（U+000A）数量。 */
 	newlines: number;
-	/** Whether the omitted text ends with a newline. */
+	/** 被省略文本是否以换行符结尾。 */
 	endsWithNewline: boolean;
 }
 
 export interface ShellOutputInfo {
 	stream: "stdout" | "stderr";
 	/**
-	 * Output omitted immediately before this chunk, only with `window`. The chunk then holds all output after the
-	 * omission up to its end, and that is more than the window by at least one byte or one line: more than
-	 * `window.maxBytes` bytes or more than `window.maxLines` newlines. So the omitted text can never be in the kept tail.
-	 * The omission and such a chunk may span both streams in arrival order; `stream` then names the chunk's last stream.
-	 * Callers that need the streams apart do not pass `window`.
+	 * 紧邻本分块之前被省略的输出，仅在设置 `window` 时出现。此时本分块承载省略之后直至其结束前的全部输出，
+	 * 且超出窗口至少一个字节或一行：多于 `window.maxBytes` 字节，或多于 `window.maxLines` 个换行。因此被省略的
+	 * 文本绝不可能落在保留的尾部之内。省略与这样的分块可能按到达顺序横跨两个流；此时 `stream` 给出该分块
+	 * 最后所在的流。需要区分两个流的调用方不应传 `window`。
 	 */
 	skipped?: ShellOutputSkip;
 }
 
 export interface Shell {
 	/**
-	 * Run a command. A string runs through the environment's shell. An array runs `command[0]` directly with the rest
-	 * as its arguments, without a shell, so they reach the program unparsed. Aborting the context or a timeout kills
-	 * only this command's processes.
+	 * 运行一条命令。字符串形式的命令会经由环境的 shell 执行。数组形式则直接运行 `command[0]`，其余元素作为其
+	 * 参数，不经过 shell，因此参数会未经解析地送达程序。中止 context 或超时只会终止该命令自身的进程。
 	 */
 	exec(
 		command: string | readonly string[],
 		options: ShellExecOptions | undefined,
 		context: Context,
 	): Promise<Result<ShellExecResult, ExecutionError>>;
-	/** Kill every command this environment still runs; for its owner's shutdown, never for one request. */
+	/** 终止此环境仍在运行的所有命令；用于其所有者的关闭流程，绝不要用于单个请求。 */
 	cleanup(context: Context): Promise<void>;
 }
 

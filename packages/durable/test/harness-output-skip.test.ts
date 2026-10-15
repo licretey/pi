@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { ShellOutputSkip } from "../src/env/index.ts";
 import { OutputBuffer, type OutputLimits } from "../src/harness/output.ts";
 
-/** Deterministic PRNG (mulberry32) so failures reproduce from the printed seed. */
+/** 使用确定性的伪随机数生成器（mulberry32），以便根据输出的种子复现失败。 */
 function random(seed: number): () => number {
 	let state = seed >>> 0;
 	return () => {
@@ -14,8 +14,8 @@ function random(seed: number): () => number {
 	};
 }
 
-// Decoded shell output: ASCII, multi-byte and astral characters, replacement characters, CR/LF, tabs, and control
-// characters that sanitizing removes after bounding.
+// 解码后的 shell 输出：包含 ASCII、多字节和辅助平面字符、替换字符、CR/LF、制表符，
+// 以及在截断后清理过程中会被移除的控制字符。
 const ALPHABET = ["a", "b", "z", " ", "\n", "\n", "\n", "\r\n", "\t", "é", "€", "😀", "\ufffd", "\x01", "\x1b"];
 
 function randomChunk(next: () => number): string {
@@ -31,13 +31,13 @@ function measure(text: string): ShellOutputSkip {
 	return { bytes: Buffer.byteLength(text, "utf8"), newlines, endsWithNewline: text.endsWith("\n") };
 }
 
-/** Whether `text` proves that everything before it is outside the tail window. */
+/** 判断 `text` 是否能证明其之前的所有内容都已超出尾部窗口。 */
 function exceedsWindow(text: string, limits: OutputLimits): boolean {
 	const { bytes, newlines } = measure(text);
 	return bytes > limits.maxBytes || newlines > limits.maxLines;
 }
 
-/** Code-point boundaries of `text`, so a cut never splits a surrogate pair. */
+/** 返回 `text` 的码点边界，确保截断时不会拆开代理项对。 */
 function boundaries(text: string): number[] {
 	const result = [0];
 	let offset = 0;
@@ -49,9 +49,9 @@ function boundaries(text: string): number[] {
 }
 
 /**
- * Feed random output to one buffer in full and to another through a reference skipper that follows the contract of
- * `ShellOutputInfo.skipped`: it holds undelivered text, and when it flushes, it may replace a prefix of it by counts if
- * the rest exceeds the window. Snapshots must agree whenever both buffers have seen the same output.
+ * 将随机输出完整写入一个缓冲区，并通过符合 `ShellOutputInfo.skipped` 契约的参考跳过器写入另一个缓冲区：
+ * 它会暂存尚未送达的文本；刷新时，如果剩余内容超出窗口，可用计数信息替换其前缀。
+ * 两个缓冲区处理相同输出后，其快照必须一致。
  */
 function checkSeed(seed: number): void {
 	const next = random(seed);
@@ -75,7 +75,7 @@ function checkSeed(seed: number): void {
 			skipping.push(pending);
 		}
 		pending = "";
-		// Progress snapshots happen between deliveries and compact stored chunks.
+		// 进度快照会在数据送达之间生成，并压缩已存储的数据块。
 		if (next() < 0.5) skipping.snapshot();
 		expect(skipping.snapshot(), `seed ${seed}`).toEqual(full.snapshot());
 	};
@@ -95,8 +95,8 @@ function checkSeed(seed: number): void {
 }
 
 describe("OutputBuffer skipped output", () => {
-	// Progress commits snapshot at arbitrary moments; snapshots compact what is stored and must never change the window.
-	// A compaction to exactly the kept window lost the character that decides where a later window's first line starts.
+	// 进度提交可能在任意时刻生成快照；快照会压缩已存储内容，但绝不能改变窗口范围。
+	// 如果压缩结果恰好等于保留窗口，就会丢失用于确定后续窗口首行起点的字符。
 	it("keeps the same tail whenever progress snapshots happen", () => {
 		for (let seed = 1; seed <= 3000; seed++) {
 			const next = random(seed);
@@ -126,7 +126,7 @@ describe("OutputBuffer skipped output", () => {
 		const limits: OutputLimits = { maxBytes: 1000, maxLines: 2, retain: "tail" };
 		const full = new OutputBuffer(limits);
 		const skipping = new OutputBuffer(limits);
-		// The skipped text ends without a newline, so its last line continues in the delivered text.
+		// 被跳过的文本末尾没有换行符，因此最后一行会与后续送达的文本连在一起。
 		const omitted = "one\ntwo\nthr";
 		const kept = "ee\nfour\nfive\nsix";
 		full.push(omitted + kept);

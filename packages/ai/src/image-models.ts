@@ -2,14 +2,14 @@ import { IMAGE_MODELS } from "./models.generated.ts";
 import type { ImageApi, ImageModel } from "./types.ts";
 
 /**
- * Compat reads of the generated catalog restricted to image models. New code
- * uses `Models.getModelOfType("image", ...)` or `getBuiltinImageModel()` from `providers/all`.
+ * 兼容层对生成目录的读取，仅限于图像模型。新代码应使用
+ * `Models.getModelOfType("image", ...)` 或 `providers/all` 中的 `getBuiltinImageModel()`。
  */
 
 type Catalog = typeof IMAGE_MODELS;
 type ImageModelIds<TProvider extends keyof Catalog> = keyof Catalog[TProvider];
 
-/** Built-in providers with at least one image model in the generated catalog. */
+/** 在生成目录中至少有一个图像模型的内置 provider。 */
 export type BuiltinImageProvider = {
 	[TProvider in keyof Catalog]: [ImageModelIds<TProvider>] extends [never] ? never : TProvider;
 }[keyof Catalog];
@@ -28,7 +28,7 @@ for (const [provider, models] of Object.entries(IMAGE_MODELS)) {
 	if (imageModels.size > 0) imageModelsByProvider.set(provider, imageModels);
 }
 
-/** @deprecated Static catalog read. Use `getBuiltinImageModel` from "@earendil-works/pi-ai/providers/all" or `Models.getModelOfType("image", ...)`. */
+/** @deprecated 静态目录读取。请使用 "@earendil-works/pi-ai/providers/all" 中的 `getBuiltinImageModel` 或 `Models.getModelOfType("image", ...)`。 */
 export function getImageModel<TProvider extends BuiltinImageProvider, TModelId extends ImageModelIds<TProvider>>(
 	provider: TProvider,
 	modelId: TModelId,
@@ -36,12 +36,12 @@ export function getImageModel<TProvider extends BuiltinImageProvider, TModelId e
 	return imageModelsByProvider.get(provider)?.get(modelId as string) as BuiltinImageModel<TProvider, TModelId>;
 }
 
-/** @deprecated Static catalog read. Use `Models.getProviders()`. */
+/** @deprecated 静态目录读取。请使用 `Models.getProviders()`。 */
 export function getImageProviders(): BuiltinImageProvider[] {
 	return Array.from(imageModelsByProvider.keys()) as BuiltinImageProvider[];
 }
 
-/** @deprecated Static catalog read. Use `getBuiltinImageModels` from "@earendil-works/pi-ai/providers/all" or `Models.getModelsOfType("image")`. */
+/** @deprecated 静态目录读取。请使用 "@earendil-works/pi-ai/providers/all" 中的 `getBuiltinImageModels` 或 `Models.getModelsOfType("image")`。 */
 export function getImageModels<TProvider extends BuiltinImageProvider>(
 	provider: TProvider,
 ): BuiltinImageModel<TProvider, ImageModelIds<TProvider>>[] {

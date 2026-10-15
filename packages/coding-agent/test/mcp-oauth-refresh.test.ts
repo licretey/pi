@@ -26,7 +26,7 @@ describe("MCP OAuth refresh", () => {
 		cleanups.push(server.close);
 		const lockDir = mkdtempSync(join(tmpdir(), "pi-mcp-refresh-"));
 		cleanups.push(() => rmSync(lockDir, { recursive: true, force: true }));
-		// Stores sharing the credential file and lock directory stand in for separate pi processes.
+		// 共享凭据文件和锁目录的多个存储实例，用于模拟不同的 pi 进程。
 		const backend = new InMemoryAuthStorageBackend();
 		const process = () => {
 			const store = new McpOAuthCredentialStore(backend, lockDir).forServer("test", server.url);
@@ -56,7 +56,7 @@ describe("MCP OAuth refresh", () => {
 		server.expireAccessTokens();
 		const processes = [process(), process(), process()];
 
-		// The server rotates refresh tokens: a second refresh with refresh-1 would fail with invalid_grant.
+		// 服务器会轮换刷新令牌：再次使用 refresh-1 刷新会因 invalid_grant 而失败。
 		await Promise.all(
 			processes.map(({ provider }) =>
 				provider.onUnauthorized?.({
@@ -70,7 +70,7 @@ describe("MCP OAuth refresh", () => {
 
 		expect(server.log.filter((entry) => entry === "token refresh")).toHaveLength(1);
 		for (const { provider } of processes) expect(await provider.token()).toBe("access-2");
-		// The lock is released.
+		// 锁已释放。
 		expect(readdirSync(lockDir)).toEqual([]);
 	});
 
@@ -138,10 +138,10 @@ describe("MCP OAuth sign-in", () => {
 				});
 
 			await signInWith({ scope: "issues:read" });
-			// The token response names no scope, so the grant has the requested one.
+			// 令牌响应未指定 scope，因此授权范围采用请求中的范围。
 			expect((await store.load())?.tokens?.scope).toBe("issues:read");
-			// The step-up challenge lists only the missing scope. Requesting just that would lose
-			// issues:read, so the next request would ask for sign-in again.
+			// 权限升级质询只列出缺失的范围；若只请求该范围，就会丢失
+			// issues:read，导致下一次请求再次要求登录。
 			await signInWith({ error: "insufficient_scope", scope: "issues:write" });
 			expect(opened.map((url) => url.searchParams.get("scope"))).toEqual([
 				"issues:read",
@@ -201,7 +201,7 @@ describe("MCP OAuth client ID metadata documents", () => {
 		expect(server.registrations).toEqual([]);
 		expect(server.tokenRequests[0].get("client_id")).toBe("https://pi.dev/oauth/client.json");
 		expect(server.tokenRequests[0].get("redirect_uri")).toBe(redirect.href);
-		// The document is not stored, so signing in again refreshes the tokens instead of discarding them.
+		// 文档未被保存，因此再次登录会刷新令牌，而不是将其丢弃。
 		expect((await store.load())?.clientInformation).toBeUndefined();
 		await signIn(cimd);
 		expect(server.authorizations).toHaveLength(1);
@@ -212,7 +212,7 @@ describe("MCP OAuth client ID metadata documents", () => {
 	it("uses a document and callback path specific to the MCP server without the iss parameter", async () => {
 		const { server, signIn } = await startServer({ cimd: true });
 		await signIn(cimd);
-		// Computed like Codex: the first 9 bytes of the SHA-256 of the MCP server URL.
+		// 与 Codex 相同：取 MCP 服务器 URL 的 SHA-256 摘要前 9 个字节计算得出。
 		const id = createHash("sha256").update(server.url).digest().subarray(0, 9).toString("base64url");
 		const [authorization] = server.authorizations;
 		expect(authorization.get("client_id")).toBe(`https://pi.dev/oauth/${id}/client.json`);
@@ -227,7 +227,7 @@ describe("MCP OAuth client ID metadata documents", () => {
 		await signIn({});
 		expect((await store.load())?.clientInformation?.client_id).toBe("client-1");
 		await signIn(cimd);
-		// The registered client's tokens are not refreshed with another client.
+		// 已注册客户端的令牌不会由另一个客户端刷新。
 		expect(server.authorizations.map((authorization) => authorization.get("client_id"))).toEqual([
 			"client-1",
 			"https://pi.dev/oauth/client.json",
@@ -236,11 +236,11 @@ describe("MCP OAuth client ID metadata documents", () => {
 	});
 
 	it("accepts the authorization response only on the server-specific redirect URI", async () => {
-		// A mixed-up authorization server redirects to the shared callback path.
+		// 混淆攻击中的授权服务器会重定向到共用的回调路径。
 		const { signIn } = await startServer({ cimd: true, redirectPath: "/callback" });
 		await expect(signIn(cimd)).rejects.toThrow("arrived on another redirect URI");
 
-		// The same for a redirect URL pasted from the browser.
+		// 从浏览器粘贴的重定向 URL 也执行相同处理。
 		const { signIn: signInByPaste } = await startServer({ cimd: true });
 		let shown: URL | undefined;
 		const paste: McpSignInPrompt = {

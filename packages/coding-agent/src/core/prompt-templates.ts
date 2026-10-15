@@ -7,7 +7,7 @@ import type { ResourceDiagnostic } from "./diagnostics.ts";
 import { createSyntheticSourceInfo, type SourceInfo } from "./source-info.ts";
 
 /**
- * Represents a prompt template loaded from a markdown file
+ * 表示从 Markdown 文件加载的提示模板。
  */
 export interface PromptTemplate {
 	name: string;
@@ -15,12 +15,12 @@ export interface PromptTemplate {
 	argumentHint?: string;
 	content: string;
 	sourceInfo: SourceInfo;
-	filePath: string; // Absolute path to the template file
+	filePath: string; // 模板文件的绝对路径。
 }
 
 /**
- * Parse command arguments respecting quoted strings (bash-style)
- * Returns array of arguments
+ * 解析命令参数，并遵循引号字符串的规则（类似 Bash）。
+ * 返回参数数组。
  */
 export function parseCommandArgs(argsString: string): string[] {
 	const args: string[] = [];
@@ -56,17 +56,16 @@ export function parseCommandArgs(argsString: string): string[] {
 }
 
 /**
- * Substitute argument placeholders in template content
- * Supports:
- * - $1, $2, ... for positional args
- * - $@ and $ARGUMENTS for all args
- * - ${N:-default} for positional arg N with default when missing/empty
- * - ${@:-default} and ${ARGUMENTS:-default} for all args with a default when empty
- * - ${@:N} for args from Nth onwards (bash-style slicing)
- * - ${@:N:L} for L args starting from Nth
+ * 替换模板内容中的参数占位符。
+ * 支持：
+ * - $1、$2 等：按位置引用参数。
+ * - $@ 和 $ARGUMENTS：引用全部参数。
+ * - ${N:-default}：位置参数 N 缺失或为空时使用默认值。
+ * - ${@:-default} 和 ${ARGUMENTS:-default}：全部参数为空时使用默认值。
+ * - ${@:N}：从第 N 个参数开始引用后续参数（类似 Bash 切片）。
+ * - ${@:N:L}：从第 N 个参数开始引用 L 个参数。
  *
- * Note: Replacement happens on the template string only. Argument and default values
- * containing patterns like $1, $@, or $ARGUMENTS are NOT recursively substituted.
+ * 注意：只替换模板字符串中的占位符。参数值和默认值中的 $1、$@ 或 $ARGUMENTS 等内容不会递归替换。
  */
 export function substituteArgs(content: string, args: string[]): string {
 	const allArgs = args.join(" ");
@@ -81,8 +80,8 @@ export function substituteArgs(content: string, args: string[]): string {
 			}
 
 			if (sliceStart) {
-				let start = parseInt(sliceStart, 10) - 1; // Convert to 0-indexed (user provides 1-indexed)
-				// Treat 0 as 1 (bash convention: args start at 1)
+				let start = parseInt(sliceStart, 10) - 1; // 用户参数从 1 开始编号，此处转换为从 0 开始的索引。
+				// 按 Bash 约定，参数从 1 开始，因此将 0 视为 1。
 				if (start < 0) start = 0;
 
 				if (sliceLength) {
@@ -128,12 +127,12 @@ function loadTemplateFromFile(
 
 	const name = basename(filePath).replace(/\.md$/, "");
 
-	// Get description from frontmatter or first non-empty line
+	// 从 frontmatter 或首个非空行获取说明。
 	let description = typeof frontmatter.description === "string" ? frontmatter.description : "";
 	if (!description) {
 		const firstLine = body.split("\n").find((line) => line.trim());
 		if (firstLine) {
-			// Truncate if too long
+			// 超长时截断。
 			description = firstLine.slice(0, 60);
 			if (firstLine.length > 60) description += "...";
 		}
@@ -154,7 +153,7 @@ function loadTemplateFromFile(
 }
 
 /**
- * Scan a directory for .md files (non-recursive) and load them as prompt templates.
+ * 扫描目录中的 .md 文件（不递归），并将其作为提示模板加载。
  */
 function loadTemplatesFromDir(dir: string, getSourceInfo: (filePath: string) => SourceInfo): LoadPromptTemplatesResult {
 	const templates: PromptTemplate[] = [];
@@ -170,14 +169,14 @@ function loadTemplatesFromDir(dir: string, getSourceInfo: (filePath: string) => 
 		for (const entry of entries) {
 			const fullPath = join(dir, entry.name);
 
-			// For symlinks, check if they point to a file
+			// 对于符号链接，检查其是否指向文件。
 			let isFile = entry.isFile();
 			if (entry.isSymbolicLink()) {
 				try {
 					const stats = statSync(fullPath);
 					isFile = stats.isFile();
 				} catch {
-					// Broken symlink, skip it
+					// 符号链接无效，跳过。
 					continue;
 				}
 			}
@@ -198,13 +197,13 @@ function loadTemplatesFromDir(dir: string, getSourceInfo: (filePath: string) => 
 }
 
 export interface LoadPromptTemplatesOptions {
-	/** Working directory for project-local templates. */
+	/** 项目级模板所在的工作目录。 */
 	cwd: string;
-	/** Agent config directory for global templates. */
+	/** 全局模板所在的 Agent 配置目录。 */
 	agentDir: string;
-	/** Explicit prompt template paths (files or directories). */
+	/** 显式指定的提示词模板路径（文件或目录）。 */
 	promptPaths: string[];
-	/** Include default prompt directories. */
+	/** 是否包含默认提示词目录。 */
 	includeDefaults: boolean;
 }
 
@@ -214,10 +213,10 @@ export interface LoadPromptTemplatesResult {
 }
 
 /**
- * Load all prompt templates from:
- * 1. Global: agentDir/prompts/
- * 2. Project: cwd/{CONFIG_DIR_NAME}/prompts/
- * 3. Explicit prompt paths
+ * 从以下位置加载所有提示模板：
+ * 1. 全局目录：agentDir/prompts/
+ * 2. 项目目录：cwd/{CONFIG_DIR_NAME}/prompts/
+ * 3. 显式指定的提示词路径
  */
 export function loadPromptTemplates(options: LoadPromptTemplatesOptions): LoadPromptTemplatesResult {
 	const resolvedCwd = resolvePath(options.cwd);
@@ -298,8 +297,8 @@ export function loadPromptTemplates(options: LoadPromptTemplatesOptions): LoadPr
 }
 
 /**
- * Expand a prompt template if it matches a template name.
- * Returns the expanded content or the original text if not a template.
+ * 如果文本匹配模板名称，则展开对应提示模板。
+ * 若文本不是模板名称，则返回原文本。
  */
 export function expandPromptTemplate(text: string, templates: PromptTemplate[]): string {
 	if (!text.startsWith("/")) return text;

@@ -25,10 +25,10 @@ async function setup() {
 	return { harness, root, append, message };
 }
 
-/** A Harness over MemoryStorage that counts scanned entry rows, with a 21-entry root transcript. */
+/** 使用 MemoryStorage 并统计扫描条目数的 Harness，根会话记录包含 21 个条目。 */
 async function countingSetup(options: { readonly settings?: HarnessSettings; readonly now?: () => number } = {}) {
 	const scanned = { rows: 0 };
-	/** When set, the next range scan waits for it; bounds probes (one row, on the Session line) do not. */
+	/** 设置后，下一次范围扫描会等待此门闩；边界探测（单行且在 Session 队列中执行）不受影响。 */
 	const hold: { scan?: Promise<void> } = {};
 	const memory = new MemoryStorage();
 	const storage = new Proxy<Storage>(memory, {
@@ -107,7 +107,7 @@ describe("conversation context", () => {
 		expect(ids(view.entries)).toEqual([reset.id, after.id]);
 		expect(view.messages.map(describeMessage)).toEqual(["user:fresh start", "assistant:after reset"]);
 
-		// A compaction summary heads an earlier kept entry; older head markers in range drop out.
+		// 压缩摘要位于较早的保留条目前面；范围内更旧的起始标记会被排除。
 		const summary = await append({ kind: "summary", head: after.id, model: [user("summary")] });
 		const tail = await message(user("next"));
 		view = await root.context(context);
@@ -127,7 +127,7 @@ describe("conversation context", () => {
 		expect(view.entries).toHaveLength(5);
 		expect(view.messages.map(describeMessage)).toEqual(["user:first v3"]);
 
-		// Edits before the active range no longer apply.
+		// 活动范围之前的编辑不再生效。
 		const reset = await append({ kind: "reset", head: second.id });
 		view = await root.context(context);
 		expect(view.head?.id).toBe(reset.id);
@@ -177,14 +177,14 @@ describe("conversation context", () => {
 			"user:next",
 			"system:cwd",
 		]);
-		// Stored order and contributions stay as committed.
+		// 已存储的顺序和贡献内容保持提交时的状态。
 		expect(view.contributions.flat().map(describeMessage).slice(0, 3)).toEqual([
 			"user:first",
 			"user:steered",
 			"system:preamble",
 		]);
 
-		// After a reset, the baseline written after the handoff leads too.
+		// 重置后，交接之后写入的基线也会成为开头。
 		await append({ kind: "reset", head: "self", model: [user("handoff")] });
 		await message(system({ preamble: "Baseline." }), "pi.system");
 		view = await root.context(context);
@@ -212,7 +212,7 @@ describe("conversation context", () => {
 			details: { reason: "missing_result" },
 		});
 
-		// A head between a call and its results leaves stray results that are not sent.
+		// 起始标记若位于调用与其结果之间，这些游离结果不会被发送。
 		await root.commit((tx) => tx.appendEntry(root.id, { kind: "reset", head: second.id }), context);
 		const parentView = await root.context(context);
 		expect(parentView.messages.map(describeMessage)).toEqual([]);
@@ -237,7 +237,7 @@ describe("conversation context", () => {
 			const fork = await root.fork(at.id, { ownership: { kind: "ownerless" } }, context);
 			expect(await root.context(context, { at: at.id })).toEqual(await fork.context(context));
 		}
-		// Stepped back before the edit and the reset: neither applies, and a cut call gets synthesized results.
+		// 回退到编辑和重置之前：两者都不生效，被截断的调用会获得合成结果。
 		expect((await root.context(context, { at: call.id })).messages.map(describeMessage)).toEqual([
 			"user:first",
 			"assistant:calling",
@@ -272,7 +272,7 @@ describe("conversation context", () => {
 					const initial = await read();
 					expect(initial.view).toEqual(await root.context(taskContext));
 
-					// Three new entries: the bounds probe reads one row, the extension the three new ones.
+					// 新增了三个条目：边界探测读取一行，扩展读取这三个新条目。
 					await write({ kind: "message", model: [user("new")] });
 					await write({ kind: "note", data: { text: "display only" } });
 					await write({ kind: "message", model: [assistant("answer")] });
@@ -280,19 +280,19 @@ describe("conversation context", () => {
 					expect(extended.rows).toBe(4);
 					expect(extended.view).toEqual(await root.context(taskContext));
 
-					// A newer edit of an older entry applies to the extended range.
+					// 对旧条目的较新编辑会应用到扩展后的范围。
 					await write({ kind: "edit", edits: [{ target: first.id, action: "omit" }] });
 					const edited = await read();
 					expect(edited.rows).toBe(2);
 					expect(edited.view).toEqual(await root.context(taskContext));
 					expect(edited.view.messages.map(describeMessage)).not.toContain("user:first");
 
-					// An earlier cutoff reuses the range.
+					// 截止点提前时会复用该范围。
 					const cutoff = await read(extended.view.entries.at(-1)!.id);
 					expect(cutoff.rows).toBe(0);
 					expect(cutoff.view).toEqual(extended.view);
 
-					// A new head marker changes the range: read it whole.
+					// 新的起始标记会改变范围，因此需要完整读取。
 					await write({ kind: "reset", head: "self", model: [user("fresh")] });
 					const reset = await read();
 					expect(reset.view).toEqual(await root.context(taskContext));
@@ -387,16 +387,16 @@ describe("conversation context", () => {
 		await probe("idle");
 		clock += 600_000;
 		await probe("expired");
-		// Bounds probes read one row each. The child scans its own new entry; the waiting parent's later invocation and
-		// the probe within the retention period scan nothing new. After it, the probe reads the whole transcript again.
+		// 每次边界探测都读取一行。子对话扫描自身新增的条目；等待中的父对话后续调用以及保留期内的探测都不会扫描新内容。
+		// 超过保留期后，探测会再次读取整个会话文本。
 		expect(rows).toEqual({ parent: 22, child: 2, after: 1, idle: 1, expired: 23 });
 		await harness.close(context);
 	});
 
 	it("derives the same view from extended reads as from whole reads", async () => {
 		const { harness, registry, root } = await countingSetup();
-		// Deterministic pseudo-random transcript (32-bit LCG, high bits): calls and results in any order, missing and
-		// stray results, excluded stop reasons, system entries, notes, edits of earlier entries, and head markers.
+		// 使用确定性伪随机方式生成会话文本（32 位 LCG，取高位），涵盖任意顺序的调用和结果、缺失或多余的结果、
+		// 排除的停止原因、系统条目、备注、对早期条目的编辑，以及头部标记。
 		let seed = 7;
 		const random = (n: number) => {
 			seed = (Math.imul(seed, 1_664_525) + 1_013_904_223) >>> 0;
@@ -471,7 +471,7 @@ describe("conversation context", () => {
 						await append(root.id);
 						expect(await runtime.context(root.id, taskContext)).toEqual(await root.context(taskContext));
 						if (step % 10 === 9) {
-							// Overlapping reads, one with an earlier cutoff, share the kept range.
+							// 相互重叠的读取（其中一次的截止位置更早）共用保留范围。
 							const at = written[random(written.length)]!.id;
 							const [whole, cut] = await Promise.all([
 								runtime.context(root.id, taskContext),
@@ -481,7 +481,7 @@ describe("conversation context", () => {
 							expect(cut).toEqual(await root.context(taskContext, { at }));
 						}
 					}
-					// A fork sees its parent's entries through the fork point and extends with its own.
+					// 分支会看到父会话截至分叉点的条目，并接续自身的条目。
 					const fork = await root.fork(
 						written[random(written.length)]!.id,
 						{ ownership: { kind: "ownerless" } },
@@ -531,7 +531,7 @@ describe("conversation context", () => {
 					const view = await runtime.context(root.id, taskContext);
 					(view.messages as Message[]).length = 0;
 					(view.entries as EntryRecord[]).pop();
-					// Kept entries are frozen like MemoryStorage records.
+					// 保留的条目与 MemoryStorage 记录一样被冻结。
 					expect(() => {
 						(view.contributions[0]![0] as { content: unknown }).content = "changed";
 					}).toThrow(TypeError);
@@ -555,7 +555,7 @@ describe("conversation context", () => {
 
 	it("freezes kept entries deeply even when storage freezes them shallowly", async () => {
 		const memory = new MemoryStorage();
-		// Fresh copies with only the record itself frozen; their messages stay mutable.
+		// 创建新副本且只冻结记录本身；其中的消息仍可修改。
 		const storage = new Proxy<Storage>(memory, {
 			get(target, key) {
 				const value: unknown = Reflect.get(target, key, target);
@@ -631,7 +631,7 @@ describe("conversation context", () => {
 		const options = { ownership: { kind: "conversation" }, conversationId: root.id } as const;
 		const lateId = await harness.commit((tx) => tx.createTask(Late, {}, options), context);
 		expect((await harness.waitForTask(lateId, context)).state.outcome).toEqual(DONE.outcome);
-		// The conversation is busy again when the late read finishes; its range must not be kept.
+		// 延迟读取结束时会话再次处于忙碌状态，因此不能保留该范围。
 		const probeId = await harness.commit((tx) => tx.createTask(Probe, { name: "probe" }, options), context);
 		scans.resolve();
 		await late;
@@ -693,7 +693,7 @@ const DONE = { status: "terminal", outcome: { status: "completed", result: null 
 
 const ABORTED = { status: "terminal", outcome: { status: "aborted" } } as const;
 
-/** A task that reads its conversation's context once, named by its input. */
+/** 读取一次所属会话上下文的任务，其名称由输入指定。 */
 function probeTask(read: (name: string, load: () => Promise<ContextView>, taskContext: Context) => Promise<void>) {
 	return defineTask<{ name: string }, { phase: "run" }, null>({
 		name: "test.context-probe",

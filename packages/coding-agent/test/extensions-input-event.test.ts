@@ -17,14 +17,14 @@ describe("Input Event", () => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-input-test-"));
 		extensionsDir = path.join(tempDir, "extensions");
 		fs.mkdirSync(extensionsDir);
-		// Clean globalThis test vars
+		// 清理 globalThis 上的测试变量。
 		delete (globalThis as any).testVar;
 	});
 
 	afterEach(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 
 	async function createRunner(...extensions: string[]) {
-		// Clear and recreate extensions dir for clean state
+		// 清空并重新创建扩展目录，以获得干净的测试状态。
 		fs.rmSync(extensionsDir, { recursive: true, force: true });
 		fs.mkdirSync(extensionsDir);
 		for (let i = 0; i < extensions.length; i++) fs.writeFileSync(path.join(extensionsDir, `e${i}.ts`), extensions[i]);
@@ -35,12 +35,12 @@ describe("Input Event", () => {
 	}
 
 	it("returns continue when no handlers, undefined return, or explicit continue", async () => {
-		// No handlers
+		// 没有处理器。
 		expect((await (await createRunner()).emitInput("x", undefined, "interactive")).action).toBe("continue");
-		// Returns undefined
+		// 返回 undefined。
 		let r = await createRunner(`export default p => p.on("input", async () => {});`);
 		expect((await r.emitInput("x", undefined, "interactive")).action).toBe("continue");
-		// Returns explicit continue
+		// 显式返回 continue。
 		r = await createRunner(`export default p => p.on("input", async () => ({ action: "continue" }));`);
 		expect((await r.emitInput("x", undefined, "interactive")).action).toBe("continue");
 	});

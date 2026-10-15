@@ -35,7 +35,7 @@ export function createPresentationFacetData(artifacts: readonly FacetBundleArtif
 	};
 }
 
-/** Create local loaders only from artifacts selected and sent by the connected server. */
+/** 仅根据已连接服务器选择并发送的产物创建本地加载器。 */
 export function createPresentationFacetLoaders(data: JsonValue): readonly FacetLoader[] {
 	if (data === null || Array.isArray(data) || typeof data !== "object") {
 		throw new Error("Invalid presentation plugin data");

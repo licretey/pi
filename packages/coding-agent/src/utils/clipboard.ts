@@ -22,9 +22,9 @@ function emitOsc52(text: string): boolean {
 }
 
 /**
- * WSL without WSLg has no Linux display, so the Windows clipboard is written through
- * interop. PowerShell reads the text from a file because `clip.exe` and PowerShell stdin
- * decode piped bytes with the console code page, which mangles non-ASCII UTF-8.
+ * 未启用 WSLg 的 WSL 没有 Linux 图形界面，因此通过互操作功能写入 Windows 剪贴板。
+ * PowerShell 从文件读取文本，因为 `clip.exe` 和 PowerShell 的标准输入会按控制台代码页
+ * 解码管道字节，导致非 ASCII 的 UTF-8 字符损坏。
  */
 async function copyViaWindowsClipboard(text: string): Promise<boolean> {
 	const tmpFile = join(tmpdir(), `pi-wsl-clip-${randomUUID()}.txt`);
@@ -45,15 +45,15 @@ async function copyViaWindowsClipboard(text: string): Promise<boolean> {
 		try {
 			unlinkSync(tmpFile);
 		} catch {
-			// The file may not have been created.
+			// 临时文件可能尚未创建。
 		}
 	}
 }
 
-/** Read plain text from the system clipboard. */
+/** 读取系统剪贴板中的纯文本。 */
 export async function readClipboardText(): Promise<string | null> {
 	const commands: [string, string[]][] = [];
-	// Termux reports platform "android", not "linux" (#10391).
+	// Termux 报告的平台是 "android"，而不是 "linux"（#10391）。
 	if (process.env.TERMUX_VERSION) commands.push(["termux-clipboard-get", []]);
 	if (platform() === "linux") {
 		if (process.env.WAYLAND_DISPLAY) commands.push(["wl-paste", ["--no-newline", "--type", "text"]]);
@@ -72,7 +72,7 @@ export async function readClipboardText(): Promise<string | null> {
 	}
 }
 
-/** Read file paths, such as Finder file copies, from the native clipboard. */
+/** 从原生剪贴板读取文件路径，例如从 Finder 复制的文件。 */
 export async function readClipboardFilePaths(): Promise<string[] | null> {
 	const paths = await getNativeClipboard()?.getFilePaths?.();
 	return paths?.length ? paths : null;
@@ -82,8 +82,8 @@ export async function copyToClipboard(text: string): Promise<void> {
 	const p = platform();
 	const env = process.env;
 	let copied = false;
-	// Direct writes precede OSC 52 so the terminal cannot race the native writer.
-	// Linux tools retain clipboard selection ownership after this call returns.
+	// 先直接写入剪贴板，再发送 OSC 52，避免终端与原生写入操作发生竞态。
+	// Linux 工具在此调用返回后仍会持有剪贴板选择区。
 	if (p !== "linux") {
 		try {
 			const clipboard = getNativeClipboard();
@@ -92,7 +92,7 @@ export async function copyToClipboard(text: string): Promise<void> {
 				copied = true;
 			}
 		} catch {
-			// Try platform commands next.
+			// 接下来尝试平台命令。
 		}
 	}
 	if (!copied) {
@@ -115,13 +115,13 @@ export async function copyToClipboard(text: string): Promise<void> {
 	}
 	let osc52Emitted = false;
 	if (!copied && p === "linux" && isWSL(env)) {
-		// Windows Terminal supports OSC 52; prefer it over the slower PowerShell round trip.
+		// Windows Terminal 支持 OSC 52；优先使用它，避免较慢的 PowerShell 往返调用。
 		if (env.WT_SESSION) osc52Emitted = emitOsc52(text);
 		copied = osc52Emitted || (await copyViaWindowsClipboard(text));
 	}
-	// OSC 52 cannot be verified, so a desktop session with a display reports the failure
-	// instead (#9618). Without a display the terminal is the only clipboard route (containers,
-	// WSL without WSLg), and remote sessions always emit it to reach the client clipboard.
+	// 无法确认 OSC 52 是否成功，因此有图形显示的桌面会话会报告失败
+	//（#9618）。没有图形显示时，终端是唯一的剪贴板通道（例如容器和
+	// 未启用 WSLg 的 WSL）；远程会话则始终发送 OSC 52，以访问客户端剪贴板。
 	const headless = p === "linux" && !env.DISPLAY && !env.WAYLAND_DISPLAY && !env.TERMUX_VERSION;
 	let oversized = false;
 	if (!osc52Emitted && (isRemoteSession(env) || (!copied && headless))) {

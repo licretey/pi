@@ -38,9 +38,9 @@ async function resolveServerUrl(
 
 function modelIsSelectable(model: LlamaModelInfo, routerAutoload: boolean): boolean {
 	if (model.status.value === "loaded") return true;
-	// llama.cpp reports idle-slept models as "sleeping"; requests wake them automatically.
+	// llama.cpp 将空闲休眠的模型报告为 "sleeping"；收到请求时会自动唤醒。
 	if (model.status.value === "sleeping") return true;
-	// Unloaded presets are routable only when llama.cpp router autoload can load them on first use.
+	// 只有 llama.cpp 路由器支持自动加载时，未加载的预设模型才能在首次使用时加载并参与路由。
 	return routerAutoload && model.status.value === "unloaded" && !model.status.failed && model.source === "preset";
 }
 
@@ -81,23 +81,22 @@ function contextWindowOf(model: LlamaModelInfo, cachedContextWindow?: number): n
 type LlamaClassifierApi = "llama-cpp-classify" | "typesafe-system-one";
 
 /**
- * Whether llama.cpp reports a native decision model. Since llama.cpp 0.6.0, `GET /models` lists
- * `decisions` in `architecture.output_modalities` for these models, including unloaded and sleeping ones.
- * Older servers report `["text"]` or omit `architecture`, so their models are treated as chat models.
+ * 判断 llama.cpp 是否将模型报告为原生决策模型。自 llama.cpp 0.6.0 起，`GET /models` 会在这类模型的
+ * `architecture.output_modalities` 中列出 `decisions`，包括尚未加载和处于休眠状态的模型。
+ * 较旧版本的服务器会报告 `["text"]` 或省略 `architecture`，因此其模型会被视为聊天模型。
  */
 function isDecisionModel(model: LlamaModelInfo): boolean {
 	return model.architecture?.output_modalities?.includes("decisions") === true;
 }
 
-/** Decision-only models cannot generate text and are not listed for chat. */
+/** 仅支持决策的模型无法生成文本，因此不会列入聊天模型列表。 */
 function isChatModel(model: LlamaModelInfo): boolean {
 	return !isDecisionModel(model) || model.architecture?.output_modalities?.includes("text") === true;
 }
 
 /**
- * A llama.cpp model used as a classifier. Decision models answer natively through llama.cpp's
- * System One endpoint (`/v1/systemone`). Chat models fall back to `llama-cpp-classify`, which reads
- * answers from next-token label probabilities.
+ * 用作分类器的 llama.cpp 模型。决策模型通过 llama.cpp 的 System One 端点（`/v1/systemone`）原生作答；
+ * 聊天模型则使用 `llama-cpp-classify`，根据答案标签作为下一个 token 的概率得出答案。
  */
 function toPiClassifierModel(
 	model: LlamaModelInfo,
@@ -261,10 +260,9 @@ export function createLlamaProvider(): LlamaProviderController {
 			const routerAutoload = await routerAutoloadEnabled(client, catalog, context.signal);
 			if (context.signal.aborted) return;
 			const selectable = catalog.filter((model) => modelIsSelectable(model, routerAutoload));
-			// Only loaded models expose their chat template without side effects. Unloaded autoload presets would
-			// need to be loaded, while querying sleeping models may wake them. Those models remain without thinking
-			// support until they are loaded and a later catalog refresh discovers it. Decision models need no
-			// template, and llama.cpp reports them in the catalog regardless of their status.
+			// 只有已加载模型可以在不产生副作用的情况下提供聊天模板。自动加载的未加载预设需要先加载，查询休眠模型则可能将其唤醒。
+			// 这些模型在加载且后续目录刷新发现其思考能力之前，都不会提供思考支持。决策模型不需要模板，
+			// llama.cpp 会将其列入目录，无论当前状态如何。
 			const refreshed = await Promise.all(
 				selectable.filter(isChatModel).map(async (model) => {
 					const cachedContextWindow = cachedContextWindows.get(model.id);

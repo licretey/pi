@@ -25,10 +25,8 @@ export const readToolSystemPromptContribution = {
 export type ReadToolInput = Static<typeof readSchema>;
 
 /**
- * Result for programmatic callers such as codemode scripts: the text for text files, and an image
- * block for images that codemode's `image()` accepts. `note` is the text that goes with the image,
- * such as resize hints. Property descriptions are left out so the type stays on one line in tool
- * descriptions.
+ * 供 codemode 脚本等程序化调用方使用的结果：文本文件返回文本，图片返回可供 codemode `image()` 接收的
+ * 图片块。`note` 是与图片一起返回的文本，例如尺寸调整提示。省略属性描述，以便此类型在工具描述中保持单行显示。
  */
 const readOutputSchema = Type.Union([
 	Type.String(),
@@ -42,15 +40,15 @@ export interface ReadToolDetails {
 }
 
 /**
- * Pluggable operations for the read tool.
- * Override these to delegate file reading to remote systems (for example SSH).
+ * read 工具的可插拔操作。
+ * 覆盖这些操作即可将文件读取委托给远程系统（例如 SSH）。
  */
 export interface ReadOperations {
-	/** Read file contents as a Buffer */
+	/** 以 Buffer 形式读取文件内容。 */
 	readFile: (absolutePath: string) => Promise<Buffer>;
-	/** Check if file is readable (throw if not) */
+	/** 检查文件是否可读；不可读时抛出异常。 */
 	access: (absolutePath: string) => Promise<void>;
-	/** Detect image MIME type, return null or undefined for non-images */
+	/** 检测图片的 MIME 类型；文件不是图片时返回 null 或 undefined。 */
 	detectImageMimeType?: (absolutePath: string) => Promise<string | null | undefined>;
 }
 
@@ -61,15 +59,15 @@ const defaultReadOperations: ReadOperations = {
 };
 
 export interface ReadToolOptions {
-	/** Whether to auto-resize images. Default: true */
+	/** 是否自动调整图片尺寸。默认值：true。 */
 	autoResizeImages?: boolean;
-	/** Fallback resize profile when the execution context has no model metadata. */
+	/** 执行上下文没有模型元数据时使用的备用尺寸调整配置。 */
 	resizeOptions?: ModelImageResizeOptions;
-	/** Custom operations for file reading. Default: local filesystem */
+	/** 文件读取的自定义操作。默认使用本地文件系统。 */
 	operations?: ReadOperations;
 }
 
-/** The image block and its note, or the text for text files and images that could not be processed. */
+/** 返回图片块及其说明；对于文本文件或无法处理的图片，则返回文本。 */
 function toReadOutput(content: (TextContent | ImageContent)[]): ReadToolOutput {
 	const text = content.find((block) => block.type === "text")?.text ?? "";
 	const image = content.find((block) => block.type === "image");
@@ -123,7 +121,7 @@ export function createReadToolDefinition(
 						try {
 							const absolutePath = await resolveReadPathAsync(path, ctx?.cwd || cwd);
 							if (aborted) return;
-							// Check if file exists and is readable.
+							// 检查文件是否存在且可读。
 							await ops.access(absolutePath);
 							if (aborted) return;
 							const mimeType = ops.detectImageMimeType ? await ops.detectImageMimeType(absolutePath) : undefined;
@@ -131,7 +129,7 @@ export function createReadToolDefinition(
 							let details: ReadToolDetails | undefined;
 							const nonVisionImageNote = getNonVisionImageNote(ctx?.model);
 							if (mimeType) {
-								// Read image as binary.
+								// 以二进制形式读取图片。
 								const buffer = await ops.readFile(absolutePath);
 								const processed = await processImage(buffer, mimeType, {
 									autoResizeImages,
@@ -151,21 +149,21 @@ export function createReadToolDefinition(
 									];
 								}
 							} else {
-								// Read text content.
+								// 读取文本内容。
 								const buffer = await ops.readFile(absolutePath);
 								const textContent = buffer.toString("utf-8");
 								const allLines = textContent.split("\n");
 								const totalFileLines = allLines.length;
-								// Apply offset if specified. Convert from 1-indexed input to 0-indexed array access.
+								// 如指定 offset，则将从 1 开始的输入行号转换为从 0 开始的数组索引。
 								const startLine = offset ? Math.max(0, offset - 1) : 0;
 								const startLineDisplay = startLine + 1;
-								// Check if offset is out of bounds.
+								// 检查 offset 是否超出范围。
 								if (startLine >= allLines.length) {
 									throw new Error(`Offset ${offset} is beyond end of file (${allLines.length} lines total)`);
 								}
 								let selectedContent: string;
 								let userLimitedLines: number | undefined;
-								// If limit is specified by the user, honor it first. Otherwise truncateHead decides.
+								// 用户指定 limit 时优先遵循该值；否则由 truncateHead 决定截断范围。
 								if (limit !== undefined) {
 									const endLine = Math.min(startLine + limit, allLines.length);
 									selectedContent = allLines.slice(startLine, endLine).join("\n");
@@ -173,16 +171,16 @@ export function createReadToolDefinition(
 								} else {
 									selectedContent = allLines.slice(startLine).join("\n");
 								}
-								// Apply truncation, respecting both line and byte limits.
+								// 应用截断，同时遵守行数和字节数限制。
 								const truncation = truncateHead(selectedContent);
 								let outputText: string;
 								if (truncation.firstLineExceedsLimit) {
-									// First line alone exceeds the byte limit. Point the model at a bash fallback.
+									// 单独第一行就超过字节数限制，提示模型改用 bash 读取。
 									const firstLineSize = formatSize(Buffer.byteLength(allLines[startLine], "utf-8"));
 									outputText = `[Line ${startLineDisplay} is ${firstLineSize}, exceeds ${formatSize(DEFAULT_MAX_BYTES)} limit. Use bash: sed -n '${startLineDisplay}p' ${path} | head -c ${DEFAULT_MAX_BYTES}]`;
 									details = { truncation };
 								} else if (truncation.truncated) {
-									// Truncation occurred. Build an actionable continuation notice.
+									// 内容已截断，生成可供继续读取的提示。
 									const endLineDisplay = startLineDisplay + truncation.outputLines - 1;
 									const nextOffset = endLineDisplay + 1;
 									outputText = truncation.content;
@@ -193,12 +191,12 @@ export function createReadToolDefinition(
 									}
 									details = { truncation };
 								} else if (userLimitedLines !== undefined && startLine + userLimitedLines < allLines.length) {
-									// User-specified limit stopped early, but the file still has more content.
+									// 用户指定的 limit 提前停止了读取，但文件中仍有后续内容。
 									const remaining = allLines.length - (startLine + userLimitedLines);
 									const nextOffset = startLine + userLimitedLines + 1;
 									outputText = `${truncation.content}\n\n[${remaining} more lines in file. Use offset=${nextOffset} to continue.]`;
 								} else {
-									// No truncation and no remaining user-limited content.
+									// 没有发生截断，且用户指定的范围内没有剩余内容。
 									outputText = truncation.content;
 								}
 								content = [{ type: "text", text: outputText }];

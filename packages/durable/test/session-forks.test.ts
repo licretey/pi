@@ -576,7 +576,7 @@ describe("Session conversation document forks", () => {
 		await expect(
 			session.commit((tx) => tx.createConversation({ ownership: { kind: "ownerless" } }), context),
 		).rejects.toMatchObject({ name: "SessionFailed", cause: rejection });
-		// The failed Session closed its Storage; reopened, it holds nothing of the batch.
+		// 失败的 Session 已关闭其 Storage；重新打开后，其中不包含该批次的任何内容。
 		expect(await session.closed).toEqual({ reason: "failed", error: rejection });
 		expect(await storage.reopen().conversation(rejectedChildId, context)).toBeUndefined();
 	});

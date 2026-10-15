@@ -18,7 +18,7 @@ export interface ChatViewport {
 	readonly transcript: ScrollView;
 }
 
-/** Shared fullscreen transcript and fixed input-dock layout. */
+/** 共享的全屏对话记录与固定输入区布局。 */
 export function createChatViewport(options: ChatViewportOptions): ChatViewport {
 	const transcript = new ScrollView(options.document, {
 		follow: "end",

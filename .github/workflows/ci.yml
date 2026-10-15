@@ -59,7 +59,7 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      # Runs pi's MCP client from source against the pinned official conformance suite and fails on
-      # regressions against packages/coding-agent/test/mcp-conformance/baseline.json.
+      # 使用固定版本的官方一致性测试套件运行 pi 的 MCP 客户端源码；若相对于
+      # packages/coding-agent/test/mcp-conformance/baseline.json 出现回归，则测试失败。
       - name: MCP client conformance
         run: npm run test:mcp-conformance

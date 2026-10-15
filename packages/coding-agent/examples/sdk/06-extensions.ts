@@ -1,15 +1,15 @@
 /**
- * Extensions Configuration
+ * 扩展配置
  *
- * Extensions intercept agent events and can register custom tools.
- * They provide a unified system for extensions, custom tools, commands, and more.
+ * 扩展可以拦截 agent 事件并注册自定义工具。
+ * 它们为扩展、自定义工具、命令等提供统一机制。
  *
- * By default, extension files are discovered from:
+ * 默认会从以下位置发现扩展文件：
  * - ~/.pi/agent/extensions/
  * - <cwd>/.pi/extensions/
  * - Paths specified in settings.json "extensions" array
  *
- * An extension is a TypeScript file that exports a default function:
+ * 扩展是一个导出默认函数的 TypeScript 文件：
  *   export default function (pi: ExtensionAPI) { ... }
  */
 
@@ -20,8 +20,8 @@ import {
 	SessionManager,
 } from "@earendil-works/pi-coding-agent";
 
-// Extensions are discovered automatically from standard locations.
-// You can also add paths via settings.json or DefaultResourceLoader options.
+// 扩展会从标准位置自动发现。
+// 也可以通过 settings.json 或 DefaultResourceLoader 选项添加扩展路径。
 
 const resourceLoader = new DefaultResourceLoader({
 	cwd: process.cwd(),
@@ -55,7 +55,7 @@ try {
 	session.dispose();
 }
 
-// Example extension file (./my-logging-extension.ts):
+// 扩展文件示例（./my-logging-extension.ts）：
 /*
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
@@ -66,7 +66,7 @@ export default function (pi: ExtensionAPI) {
 
 	pi.on("tool_call", async (event) => {
 		console.log(\`[Extension] Tool: \${event.toolName}\`);
-		// Return { block: true, reason: "..." } to block execution
+		// 返回 { block: true, reason: "..." } 可阻止执行
 		return undefined;
 	});
 
@@ -74,7 +74,7 @@ export default function (pi: ExtensionAPI) {
 		console.log(\`[Extension] Low-level run ended, \${event.messages.length} messages\`);
 	});
 
-	// Register a custom tool
+	// 注册自定义工具
 	pi.registerTool({
 		name: "my_tool",
 		label: "My Tool",
@@ -88,7 +88,7 @@ export default function (pi: ExtensionAPI) {
 		}),
 	});
 
-	// Register a command
+	// 注册命令
 	pi.registerCommand("mycommand", {
 		description: "Do something",
 		handler: async (args, ctx) => {

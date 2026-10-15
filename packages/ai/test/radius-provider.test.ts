@@ -70,7 +70,7 @@ describe("Radius provider catalogs", () => {
 			contextWindow: 424242,
 		});
 		expect(models.getModel("radius", "organization-only")).toBeDefined();
-		// Models disabled by the organization must not reappear from the shipped catalog.
+		// 组织已禁用的模型不得从随包提供的目录中重新出现。
 		expect(models.getModels("radius").map((model) => model.id)).toEqual(["balanced", "organization-only"]);
 	});
 

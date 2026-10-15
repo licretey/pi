@@ -1,19 +1,19 @@
 /**
- * Minimal Mode Example - Demonstrates a "minimal" tool display mode
+ * 极简模式示例：演示工具的“极简”显示模式。
  *
- * This extension overrides built-in tools to provide custom rendering:
- * - Collapsed mode: Only shows the tool call (command/path), no output
- * - Expanded mode: Shows full output like the built-in renderers
+ * 此扩展会覆盖内置工具的渲染方式：
+ * - 折叠模式：只显示工具调用信息（命令/路径），不显示输出。
+ * - 展开模式：像内置渲染器一样显示完整输出。
  *
- * This demonstrates how a "minimal mode" could work, where ctrl+o cycles through:
- * - Standard: Shows truncated output (current default)
- * - Expanded: Shows full output (current expanded)
- * - Minimal: Shows only tool call, no output (this extension's collapsed mode)
+ * 此示例演示“极简模式”的一种实现方式，按 ctrl+o 可依次切换：
+ * - 标准：显示截断后的输出（当前默认模式）。
+ * - 展开：显示完整输出（当前展开模式）。
+ * - 极简：仅显示工具调用，不显示输出（本扩展的折叠模式）。
  *
- * Usage:
+ * 用法：
  *   pi -e ./minimal-mode.ts
  *
- * Then use ctrl+o to toggle between minimal (collapsed) and full (expanded) views.
+ * 然后使用 ctrl+o 在极简（折叠）视图和完整（展开）视图之间切换。
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -30,7 +30,7 @@ import { Text } from "@earendil-works/pi-tui";
 import { homedir } from "os";
 
 /**
- * Shorten a path by replacing home directory with ~
+ * 将主目录替换为 ~，以缩短路径。
  */
 function shortenPath(path: string): string {
 	const home = homedir();
@@ -56,7 +56,7 @@ export default function (pi: ExtensionAPI) {
 	const tools = createBuiltInTools(process.cwd());
 
 	// =========================================================================
-	// Read Tool
+	// Read 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.read,
@@ -65,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 			const path = shortenPath(args.path || "");
 			let pathDisplay = path ? theme.fg("accent", path) : theme.fg("toolOutput", "...");
 
-			// Show line range if specified
+			// 如果指定了行范围，则显示该范围。
 			if (args.offset !== undefined || args.limit !== undefined) {
 				const startLine = args.offset ?? 1;
 				const endLine = args.limit !== undefined ? startLine + args.limit - 1 : "";
@@ -76,12 +76,12 @@ export default function (pi: ExtensionAPI) {
 		},
 
 		renderResult(result, { expanded }, theme, _context) {
-			// Minimal mode: show nothing in collapsed state
+			// 极简模式：折叠时不显示内容。
 			if (!expanded) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded mode: show full output
+			// 展开模式：显示完整输出。
 			const textContent = result.content.find((c) => c.type === "text");
 			if (!textContent || textContent.type !== "text") {
 				return new Text("", 0, 0);
@@ -94,7 +94,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// =========================================================================
-	// Bash Tool
+	// Bash 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.bash,
@@ -108,12 +108,12 @@ export default function (pi: ExtensionAPI) {
 		},
 
 		renderResult(result, { expanded }, theme, _context) {
-			// Minimal mode: show nothing in collapsed state
+			// 极简模式：折叠时不显示内容。
 			if (!expanded) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded mode: show full output
+			// 展开模式：显示完整输出。
 			const textContent = result.content.find((c) => c.type === "text");
 			if (!textContent || textContent.type !== "text") {
 				return new Text("", 0, 0);
@@ -134,7 +134,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// =========================================================================
-	// Write Tool
+	// Write 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.write,
@@ -149,12 +149,12 @@ export default function (pi: ExtensionAPI) {
 		},
 
 		renderResult(result, { expanded }, theme, _context) {
-			// Minimal mode: show nothing (file was written)
+			// 极简模式：不显示内容（文件已写入）。
 			if (!expanded) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded mode: show error if any
+			// 展开模式：如果有错误则显示错误。
 			if (result.content.some((c) => c.type === "text" && c.text)) {
 				const textContent = result.content.find((c) => c.type === "text");
 				if (textContent?.type === "text" && textContent.text) {
@@ -167,7 +167,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// =========================================================================
-	// Edit Tool
+	// Edit 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.edit,
@@ -181,30 +181,30 @@ export default function (pi: ExtensionAPI) {
 		},
 
 		renderResult(result, { expanded }, theme, _context) {
-			// Minimal mode: show nothing in collapsed state
+			// 极简模式：折叠时不显示内容。
 			if (!expanded) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded mode: show diff or error
+			// 展开模式：显示差异或错误。
 			const textContent = result.content.find((c) => c.type === "text");
 			if (!textContent || textContent.type !== "text") {
 				return new Text("", 0, 0);
 			}
 
-			// For errors, show the error message
+			// 如果是错误，则显示错误消息。
 			const text = textContent.text;
 			if (text.includes("Error") || text.includes("error")) {
 				return new Text(`\n${theme.fg("error", text)}`, 0, 0);
 			}
 
-			// Otherwise show the text (would be nice to show actual diff here)
+			// 否则显示文本（后续可考虑在此处显示实际差异）。
 			return new Text(`\n${theme.fg("toolOutput", text)}`, 0, 0);
 		},
 	});
 
 	// =========================================================================
-	// Find Tool
+	// Find 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.find,
@@ -225,7 +225,7 @@ export default function (pi: ExtensionAPI) {
 
 		renderResult(result, { expanded }, theme, _context) {
 			if (!expanded) {
-				// Minimal: just show count
+				// 极简模式：只显示数量。
 				const textContent = result.content.find((c) => c.type === "text");
 				if (textContent?.type === "text") {
 					const count = textContent.text.trim().split("\n").filter(Boolean).length;
@@ -236,7 +236,7 @@ export default function (pi: ExtensionAPI) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded: show full results
+			// 展开模式：显示完整结果。
 			const textContent = result.content.find((c) => c.type === "text");
 			if (!textContent || textContent.type !== "text") {
 				return new Text("", 0, 0);
@@ -253,7 +253,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// =========================================================================
-	// Grep Tool
+	// Grep 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.grep,
@@ -278,7 +278,7 @@ export default function (pi: ExtensionAPI) {
 
 		renderResult(result, { expanded }, theme, _context) {
 			if (!expanded) {
-				// Minimal: just show match count
+				// 极简模式：只显示匹配数量。
 				const textContent = result.content.find((c) => c.type === "text");
 				if (textContent?.type === "text") {
 					const count = textContent.text.trim().split("\n").filter(Boolean).length;
@@ -289,7 +289,7 @@ export default function (pi: ExtensionAPI) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded: show full results
+			// 展开模式：显示完整结果。
 			const textContent = result.content.find((c) => c.type === "text");
 			if (!textContent || textContent.type !== "text") {
 				return new Text("", 0, 0);
@@ -306,7 +306,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// =========================================================================
-	// Ls Tool
+	// Ls 工具
 	// =========================================================================
 	pi.registerTool({
 		...tools.ls,
@@ -325,7 +325,7 @@ export default function (pi: ExtensionAPI) {
 
 		renderResult(result, { expanded }, theme, _context) {
 			if (!expanded) {
-				// Minimal: just show entry count
+				// 极简模式：只显示条目数量。
 				const textContent = result.content.find((c) => c.type === "text");
 				if (textContent?.type === "text") {
 					const count = textContent.text.trim().split("\n").filter(Boolean).length;
@@ -336,7 +336,7 @@ export default function (pi: ExtensionAPI) {
 				return new Text("", 0, 0);
 			}
 
-			// Expanded: show full listing
+			// 展开模式：显示完整列表。
 			const textContent = result.content.find((c) => c.type === "text");
 			if (!textContent || textContent.type !== "text") {
 				return new Text("", 0, 0);

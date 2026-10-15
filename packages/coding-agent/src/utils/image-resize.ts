@@ -10,8 +10,7 @@ import {
 export type { ImageResizeOptions, ResizedImage } from "./image-resize-core.ts";
 
 function toTransferableBytes(input: Uint8Array): Uint8Array<ArrayBuffer> {
-	// Transfer detaches the buffer, so transfer a worker-owned copy and leave the
-	// caller's bytes intact.
+	// 转移操作会分离缓冲区，因此转移工作线程持有的副本，保留调用方的原始字节。
 	return new Uint8Array(input);
 }
 
@@ -48,8 +47,8 @@ async function resizeImageInWorker(
 			};
 
 			worker.on("message", (message: unknown) => {
-				// Ignore messages Node posts on the worker channel itself, such as
-				// `{ "watch:require": [...] }` under `node --watch` (nodejs/node#65044).
+				// 忽略 Node 自身在工作线程通道上发送的消息，例如 `node --watch` 下的
+				// `{ "watch:require": [...] }`（nodejs/node#65044）。
 				if (!isResizeImageWorkerResponse(message)) return;
 				if ("error" in message) fail(new Error(message.error));
 				else settle(message.result);
@@ -75,11 +74,9 @@ async function resizeImageInWorker(
 }
 
 /**
- * Resize an image to fit within the specified max dimensions and encoded file size.
- * Runs Photon in a worker thread so WASM decoding, resizing, and encoding do not
- * block the TUI event loop. If the worker cannot be loaded (for example in some
- * Bun compiled executable layouts), fall back to in-process resizing so image
- * reads still work.
+ * 缩放图像，使其符合指定的最大尺寸和编码后文件大小限制。
+ * 在工作线程中运行 Photon，避免 WASM 解码、缩放和编码阻塞 TUI 事件循环。如果无法加载工作线程
+ *（例如某些 Bun 编译后的可执行文件布局），则回退到进程内缩放，确保仍可读取图像。
  */
 export async function resizeImage(
 	inputBytes: Uint8Array,
@@ -92,9 +89,8 @@ export async function resizeImage(
 		import.meta.url,
 	);
 
-	// Bun compiled executables resolve worker entrypoints by string path, not via
-	// new URL(..., import.meta.url). Try the string path first under Bun so the
-	// release binary uses the embedded worker instead of falling back in-process.
+	// Bun 编译后的可执行文件通过字符串路径解析工作线程入口，而不是通过
+	// new URL(..., import.meta.url) 解析。在 Bun 下优先尝试字符串路径，使发布版二进制使用内嵌工作线程，避免回退到进程内执行。
 	if (typeof process.versions.bun === "string") {
 		try {
 			return await resizeImageInWorker("./src/utils/image-resize-worker.ts", inputBytes, mimeType, options);
@@ -109,8 +105,8 @@ export async function resizeImage(
 }
 
 /**
- * Format a dimension note for resized images.
- * This helps the model understand the coordinate mapping.
+ * 为缩放后的图像生成尺寸说明。
+ * 帮助模型理解坐标映射关系。
  */
 export function formatDimensionNote(result: ResizedImage): string | undefined {
 	if (!result.wasResized) {

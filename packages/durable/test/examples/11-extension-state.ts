@@ -1,5 +1,5 @@
-// An extension that keeps its own per-conversation document.
-// Run from packages/durable:
+// 为每个对话维护独立文档的扩展。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/11-extension-state.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Type } from "@earendil-works/pi-ai";
@@ -17,8 +17,7 @@ import {
 
 const context = BACKGROUND_CONTEXT;
 
-// A todo list per conversation. Rewindable with `asOf`, so a fork starts with
-// the todos its parent had at the fork entry.
+// 每个对话各有一份待办列表。`asOf` 会保留历史值，因此分支从创建分支的条目对应的待办列表开始。
 const Todos = defineDoc<{ items: string[] }>({
 	kind: "example.todos",
 	version: 1,
@@ -28,9 +27,8 @@ const Todos = defineDoc<{ items: string[] }>({
 	initial: () => ({ items: [] }),
 });
 
-// The tool writes the document; the section shows it to the model before every
-// request. Nothing needs to create it up front: tx.doc() creates it on first
-// write, and the section treats a missing document as an empty list.
+// 工具负责写入文档；分节会在每次请求前将其展示给模型。无需预先创建文档：tx.doc() 首次写入时会创建它，
+// 而分节会将不存在的文档视为空列表。
 const Todo = defineExtension({
 	name: "todo",
 	tools: [
@@ -70,8 +68,7 @@ faux.setResponses([
 await (await root.submit({ type: "input", content: "Remember to fix the build." }, context)).wait(context);
 console.log("todos:", await harness.snapshot(Todos, root.id, context));
 
-// The next request's system prompt carries the list. The first system message
-// only announced the todo tool; no section had text yet.
+// 下一次请求的系统提示词会包含该列表。第一条系统消息只声明了 todo 工具，当时分节还没有文本内容。
 await (await root.submit({ type: "input", content: "What is next?" }, context)).wait(context);
 const { messages } = await root.context(context);
 console.log(

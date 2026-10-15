@@ -1,22 +1,21 @@
 /**
- * Gondolin Tool Routing Example
+ * Gondolin 工具路由示例。
  *
- * Runs pi's built-in tools inside a local Gondolin micro-VM. The host working
- * directory is mounted at /workspace in the guest. File changes under
- * /workspace write through to the host; other guest filesystem changes are
- * isolated to the VM.
+ * 在本地 Gondolin 微型虚拟机中运行 pi 内置工具。宿主机工作目录会挂载到
+ * 虚拟机内的 /workspace。该目录下的文件更改会同步到宿主机；其他虚拟机内的文件更改
+ * 仅影响虚拟机。
  *
- * Setup:
+ * 安装：
  *   cd packages/coding-agent/examples/extensions/gondolin
  *   npm install --ignore-scripts
  *
- * Usage:
+ * 用法：
  *   cd /path/to/project
  *   pi -e /path/to/pi/packages/coding-agent/examples/extensions/gondolin
  *
- * Requirements:
- *   - Node.js >= 23.6.0 for @earendil-works/gondolin
- *   - QEMU installed (for example, `brew install qemu` on macOS)
+ * 要求：
+ *   - 运行 @earendil-works/gondolin 需要 Node.js >= 23.6.0。
+ *   - 需要安装 QEMU（例如在 macOS 上运行 `brew install qemu`）。
  */
 
 import path from "node:path";

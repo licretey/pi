@@ -4,8 +4,8 @@ import { defineConfig } from "vitest/config";
 const src = (path: string): string => fileURLToPath(new URL(path, import.meta.url));
 
 /**
- * Exact matches for bare specifiers, plus one rule per package for subpath exports such as
- * `@earendil-works/pi-ai/utils/uuid`. A prefix alias would rewrite those onto `index.ts/utils/uuid`.
+ * 为裸模块说明符配置精确匹配，并为每个软件包的子路径导出单独配置规则，例如
+ * `@earendil-works/pi-ai/utils/uuid`。使用前缀别名会将其错误地改写为 `index.ts/utils/uuid`。
  */
 export default defineConfig({
 	test: {

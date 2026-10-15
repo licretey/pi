@@ -17,42 +17,42 @@ import { ARMIN_HEIGHT, ARMIN_WIDTH, isArminPixel } from "./armin.ts";
 import { formatKeyText } from "./keybinding-hints.ts";
 
 /**
- * Fullscreen 3D easter eggs: the pi logo (header logo click) and Armin (/arminsayshi). Both are bitmaps built from
- * one block per pixel. The current screen dissolves into braille dust while the model spins in the center and its
- * blocks play a sliding puzzle. Leaving plays the same timeline backwards, so the screen reassembles.
+ * 全屏 3D 彩蛋：pi logo（点击头部 logo）和 Armin（/arminsayshi）。两者都是由每个像素一个方块
+ * 构成的位图。当前屏幕化为盲文尘埃消散，同时模型在中央旋转，其方块玩滑动拼图。离开时按相同
+ * 时间线倒放，屏幕随之复原。
  *
- * The pi logo lifts off the header, flies to the center, and grows; the dust spreads out from the header logo.
- * Armin grows out of a speck at the center; the dust spreads out from the center.
+ * pi logo 从头部飞起、飞到中央并放大；尘埃从头部 logo 处扩散。
+ * Armin 从中央的一点长出来；尘埃从中心扩散。
  *
- * The blocks are ray cast per braille dot. A braille cell holds 2x4 roughly square dots, so one pixel of a
- * half-block bitmap is exactly 2x2 dots, and the header logo (4x2 cells) is 8x8 dots when it lifts off.
+ * 方块按盲文点做光线投射。一个盲文单元格容纳 2x4 个近似方形的点，因此半块位图的一个像素恰好是
+ * 2x2 个点，头部 logo（4x2 个单元格）飞起时是 8x8 个点。
  */
 
 type Rgb = readonly [number, number, number];
 
 interface ScreenCell {
 	text: string;
-	/** 1 or 2 for a grapheme, 0 for the second column of a wide grapheme. */
+	/** 字素（grapheme）为 1 或 2，宽字素的第二列为 0。 */
 	width: number;
 	fg: Rgb;
-	/** Undefined when the cell uses the terminal's default background. */
+	/** 单元格使用终端默认背景时为 undefined。 */
 	bg: Rgb | undefined;
-	/** Seconds until the cell turns into braille dust. */
+	/** 距该单元格化为盲文尘埃的秒数。 */
 	delay: number;
-	/** Number of braille dots the glyph turns into. */
+	/** 该字形变为的盲文点数量。 */
 	ink: number;
 	seed: number;
 }
 
 interface Star {
-	/** Braille character with the single dot the star occupies. */
+	/** 星星所占据的单个盲文点组成的盲文字符。 */
 	glyph: string;
-	/** Color the star leans toward; it only ever shows a small step from the background toward it. */
+	/** 星星偏向的颜色；它只会显示从背景色向该色的一小步过渡。 */
 	tint: Rgb;
-	/** Largest step from the background toward the tint, from 0 to 1. */
+	/** 从背景色偏向 tint 的最大幅度，取值 0 到 1。 */
 	strength: number;
 	phase: number;
-	/** Flicker speed in radians per second. */
+	/** 闪烁速度，单位为弧度每秒。 */
 	speed: number;
 }
 
@@ -65,7 +65,7 @@ interface Box {
 interface Pose {
 	centerX: number;
 	centerY: number;
-	/** Braille dots per model pixel at depth 0. */
+	/** 深度 0 处每个模型像素对应的盲文点数。 */
 	scale: number;
 	yaw: number;
 	pitch: number;
@@ -75,29 +75,29 @@ interface Pose {
 const DEPTH = 0.7;
 const FLY_START = 0.1;
 const FLY_DURATION = 1.3;
-/** Braille dots per pixel when a model without an origin appears, growing from a speck at the center. */
+/** 没有起点（origin）的模型出现时每个像素对应的盲文点数——模型从中央的一点长大。 */
 const START_SCALE = 0.1;
 
-/** Grid position of a block: column and row in the bitmap, and layer (-1, 0, 1) in depth. */
+/** 方块的网格位置：位图中的列与行，以及深度上的层（-1、0、1）。 */
 type Cell3 = readonly [number, number, number];
 
-/** A bitmap built from one block per foreground pixel. Each is a block that the puzzle slides around. */
+/** 由每个前景色像素一个方块构成的位图。每个方块都是拼图可滑动的一块。 */
 interface Model {
-	/** Bitmap size in pixels. */
+	/** 位图尺寸，单位为像素。 */
 	columns: number;
 	rows: number;
 	blocks: Array<{ home: Cell3; color: Rgb }>;
-	/** Camera distance from the model's center, in pixels. */
+	/** 相机距模型中心的距离，单位为像素。 */
 	cameraDistance: number;
-	/** Farthest distance of any block corner from the center, with blocks on the outer depth layers. */
+	/** 任一方块角落距中心的最远距离，含外层深度的方块。 */
 	radius: number;
-	/** Largest share of the screen width the spinning model covers. */
+	/** 旋转模型最多可覆盖的屏幕宽度比例。 */
 	widthShare: number;
-	/** Number of blocks the puzzle moves per step, given a random number from 0 to 1. */
+	/** 拼图每步移动的方块数，给定一个 0 到 1 的随机数。 */
 	puzzleMoves: (random: number) => number;
 	/**
-	 * Top-left cell of the model's half-block rendering on screen. The model lifts off from there and replaces it.
-	 * Undefined to grow out of the center.
+	 * 模型半块渲染在屏幕上的左上单元格。模型从这里飞起并取代它。
+	 * 为 undefined 时从中心长出。
 	 */
 	origin: { column: number; row: number } | undefined;
 }
@@ -146,7 +146,7 @@ function piLogoModel(origin: { column: number; row: number }): Model {
 
 function arminModel(color: Rgb): Model {
 	return createModel(ARMIN_WIDTH, ARMIN_HEIGHT, (column, row) => (isArminPixel(column, row) ? color : undefined), {
-		// Far enough that the perspective stays mild for a figure about 36 blocks tall.
+		// 距离足够远，使约 36 个方块高的图形仍保持平缓的透视。
 		cameraDistance: 80,
 		widthShare: 0.45,
 		puzzleMoves: (random, blockCount) => Math.round(blockCount * (0.03 + random * 0.04)),
@@ -154,8 +154,8 @@ function arminModel(color: Rgb): Model {
 	});
 }
 
-// The sliding puzzle: after the model spun for a while, blocks slide into free neighboring cells, a few at a time.
-// Each cycle shuffles, flies every block back home, and holds the model briefly.
+// 滑动拼图：模型旋转一段时间后，方块每次几块地滑入相邻的空闲单元格。
+// 每个循环会打乱一次、让每个方块飞回原位，并短暂保持完整模型。
 const PUZZLE_START = FLY_START + FLY_DURATION + 3;
 const PUZZLE_STEP = 0.3;
 const PUZZLE_STEPS = 12;
@@ -175,7 +175,7 @@ const PUZZLE_MOVES: Cell3[] = [
 	[0, 0, -1],
 ];
 
-/** Block positions after each step of one shuffle cycle, starting at home. Deterministic per cycle. */
+/** 一次打乱循环中每一步之后的方块位置，从原位开始。每个循环内确定。 */
 function shuffleSteps(model: Model, cycle: number): Cell3[][] {
 	const { columns, rows } = model;
 	let positions: Cell3[] = model.blocks.map((block) => block.home);
@@ -201,7 +201,7 @@ function shuffleSteps(model: Model, cycle: number): Cell3[][] {
 					candidates.push({ block, target });
 				}
 			}
-			// Prefer blocks that did not just move, so the puzzle does not look like one block jittering.
+			// 优先选择刚未移动过的方块，避免拼图看起来像一块方块在抖动。
 			const fresh = candidates.filter((candidate) => !lastMoved.has(candidate.block));
 			const pool = fresh.length > 0 ? fresh : candidates;
 			const choice = pool[Math.floor(next() * pool.length)];
@@ -225,11 +225,11 @@ const WAVE_JITTER = 0.12;
 const DISSOLVE_END = FLY_START + WAVE_SPREAD + WAVE_JITTER + DUST_DURATION;
 const BACKGROUND_FADE = 0.5;
 const EXIT_DURATION = 1.1;
-// A faint starfield fades in behind the logo once the screen has dissolved.
+// 屏幕消散后，logo 背后淡入一片暗淡的星空。
 const STARS_START = 2.5;
 const STARS_FADE = 2;
 const STAR_DENSITY = 0.018;
-// Star tints: neutral, pale blue, pale gold, and pale rose, each mixed half with the terminal's foreground.
+// 星星的着色：中性、淡蓝、淡金、淡玫瑰，各与终端前景色混合一半。
 const STAR_TINTS: Rgb[] = [
 	[255, 255, 255],
 	[170, 195, 255],
@@ -237,9 +237,9 @@ const STAR_TINTS: Rgb[] = [
 	[255, 190, 205],
 ];
 const LOGO_COLOR_STEP = 5;
-// On light backgrounds most of each braille cell shows the bright background, which washes the logo out. There,
-// the logo gets a halo: its colors and coverage blurred into the cell backgrounds, strongest under the logo and
-// fading out over HALO_RADIUS_X columns and HALO_RADIUS_Y rows (cells are about twice as tall as wide).
+// 在浅色背景上，盲文单元格的大部分面积显示明亮的背景，会把 logo 冲淡。此时 logo 会获得一圈
+// 光晕：它的颜色和覆盖被模糊到单元格背景中，logo 正下方最强，然后在 HALO_RADIUS_X 列和
+// HALO_RADIUS_Y 行范围内渐隐（单元格高度约为宽度的两倍）。
 const LIGHT_HALO_STRENGTH = 0.3;
 const HALO_RADIUS_X = 6;
 const HALO_RADIUS_Y = 3;
@@ -248,7 +248,7 @@ const STAR_ALPHA_LEVELS = 8;
 const STAR_FLICKER_LEVELS = 3;
 const HINT_FADE = 0.5;
 
-// Braille dot bits, indexed by row * 2 + column within the 2x4 cell.
+// 盲文点位，按 2x4 单元格内的 row * 2 + column 索引。
 const DOT_BITS = [0x01, 0x08, 0x02, 0x10, 0x04, 0x20, 0x40, 0x80];
 const BRAILLE = Array.from({ length: 256 }, (_, bits) => String.fromCharCode(0x2800 + bits));
 const LIGHT = normalize([-0.45, -0.6, 0.75]);
@@ -263,7 +263,7 @@ function clamp01(value: number): number {
 	return value < 0 ? 0 : value > 1 ? 1 : value;
 }
 
-/** Quintic smoothstep. */
+/** 五次 smoothstep。 */
 function smooth(value: number): number {
 	const t = clamp01(value);
 	return t * t * t * (t * (t * 6 - 15) + 10);
@@ -286,7 +286,7 @@ function hash(value: number): number {
 	return (x >>> 0) / 0x100000000;
 }
 
-/** Whether a background is light, by relative luminance. */
+/** 按相对亮度判断背景是否为浅色。 */
 function isLight([r, g, b]: Rgb): boolean {
 	return 0.2126 * r + 0.7152 * g + 0.0722 * b > 128;
 }
@@ -296,7 +296,7 @@ function toRgb(color: Color): Rgb {
 	return [r, g, b];
 }
 
-/** Braille dots a glyph turns into, a rough measure of how much ink it has. */
+/** 字形会变成的盲文点数，大致衡量它的墨量。 */
 function glyphInk(text: string, seed: number): number {
 	if (text.trim() === "") return 0;
 	if (/^[.,:;'`\-_·]$/.test(text)) return 2;
@@ -306,7 +306,7 @@ function glyphInk(text: string, seed: number): number {
 
 const segmenter = new Intl.Segmenter();
 
-/** Parse rendered lines into cells with resolved colors. Other escape sequences (OSC, APC, cursor) are skipped. */
+/** 把渲染后的行解析为带已解析颜色的单元格。其他转义序列（OSC、APC、光标）被跳过。 */
 function parseScreen(
 	lines: readonly string[],
 	width: number,
@@ -326,11 +326,11 @@ function parseScreen(
 				const parts = codes[i]!.split(":").map((part) => Number.parseInt(part, 10));
 				const code = parts[0] ?? 0;
 				if (code === 38 || code === 48) {
-					// Extended color, either as `38;5;n` / `38;2;r;g;b` or colon sub-parameters.
+					// 扩展颜色，形式为 `38;5;n` / `38;2;r;g;b` 或冒号子参数。
 					let args: number[];
 					if (parts.length > 1) {
 						args = parts.slice(1).filter((part) => !Number.isNaN(part));
-						// `38:2::r:g:b` has an empty color space id, dropped above.
+						// `38:2::r:g:b` 的色彩空间 id 为空，已在上面丢弃。
 					} else {
 						const kind = Number.parseInt(codes[i + 1] ?? "", 10);
 						const count = kind === 5 ? 2 : kind === 2 ? 4 : 1;
@@ -392,7 +392,7 @@ function parseScreen(
 				if (line[end] === "m") applySgr(line.slice(sequenceStart + 2, end));
 				i = end + 1;
 			} else if (kind === "]" || kind === "_" || kind === "P" || kind === "^") {
-				// String sequences end at BEL or ST (ESC \).
+				// 字符串序列以 BEL 或 ST（ESC \）结束。
 				const bell = line.indexOf("\x07", sequenceStart + 2);
 				const st = line.indexOf("\x1b\\", sequenceStart + 2);
 				if (bell === -1 && st === -1) break;
@@ -405,7 +405,7 @@ function parseScreen(
 	});
 }
 
-/** Row-major 3x3 rotation matrix for yaw (y), then pitch (x), then roll (z). */
+/** 行主序的 3x3 旋转矩阵：先 yaw（y），再 pitch（x），再 roll（z）。 */
 function rotation(yaw: number, pitch: number, roll: number): number[] {
 	const [sy, cy, sx, cx, sz, cz] = [
 		Math.sin(yaw),
@@ -433,32 +433,32 @@ function multiply(a: number[], b: number[]): number[] {
 	return result;
 }
 
-// The spin is locked to the puzzle: one turn per cycle, facing the camera in the middle of each hold.
+// 旋转与拼图锁定：每个循环转一圈，在每次保持阶段的中间正对相机。
 const SPIN_RAMP = 1.4;
 const SPIN_SPEED = (Math.PI * 2) / PUZZLE_CYCLE;
-// How much the spin slows down while facing the camera (and speeds up while facing away), from 0 to 1.
+// 正对相机时旋转减速（背对时加速）的程度，取值 0 到 1。
 const SPIN_LINGER = 0.6;
 const FIRST_FRONT_VIEW = PUZZLE_START + PUZZLE_STEP * PUZZLE_STEPS + PUZZLE_RETURN + PUZZLE_HOLD / 2;
 
-/** Uniform spin that accelerates from rest over SPIN_RAMP, then turns at SPIN_SPEED. */
+/** 从静止开始按 SPIN_RAMP 加速、随后以 SPIN_SPEED 匀速旋转的均匀旋转。 */
 function baseSpinPhase(time: number): number {
 	const elapsed = time - FLY_START;
 	if (elapsed <= 0) return 0;
 	const u = elapsed / SPIN_RAMP;
-	// Integral of the quintic smoothstep ramp.
+	// 五次 smoothstep 缓动曲线的积分。
 	if (u < 1) return SPIN_SPEED * SPIN_RAMP * (u ** 6 - 3 * u ** 5 + 2.5 * u ** 4);
 	return SPIN_SPEED * (SPIN_RAMP * 0.5 + elapsed - SPIN_RAMP);
 }
 
-// Extra rotation added during the flight, so the phase is a whole number of turns at every assembled front view.
+// 飞行期间附加的旋转，使每个组装完成的正面视角处的相位都是整圈数。
 const SPIN_ALIGNMENT = Math.PI * 2 - (baseSpinPhase(FIRST_FRONT_VIEW) % (Math.PI * 2));
 
-/** Spin phase: whole turns exactly when the reassembled logo faces the camera. */
+/** 旋转相位：恰好在重组完成的 logo 正对相机时为整圈。 */
 function spinPhase(time: number): number {
 	return baseSpinPhase(time) + SPIN_ALIGNMENT * smooth((time - FLY_START) / FLY_DURATION);
 }
 
-/** Yaw of the logo. It matches the phase at whole turns but lingers there, so the logo reads from the front. */
+/** logo 的 yaw。整圈处与相位一致，但会在那里停留，使 logo 从正面可读。 */
 function spinAngle(time: number): number {
 	const phase = spinPhase(time);
 	return phase - SPIN_LINGER * Math.sin(phase);
@@ -466,13 +466,13 @@ function spinAngle(time: number): number {
 
 interface Face {
 	axis: number;
-	/** Plane coordinate on `axis` in object space. */
+	/** `axis` 上对象空间的平面坐标。 */
 	plane: number;
 	uMin: number;
 	uMax: number;
 	vMin: number;
 	vMax: number;
-	/** Projected bounds in braille dots, inclusive. */
+	/** 以盲文点表示的投影边界（含端点）。 */
 	minX: number;
 	minY: number;
 	maxX: number;
@@ -483,30 +483,30 @@ interface Face {
 }
 
 /**
- * Renders the model's blocks into braille cells. Only faces that point at the camera and are not covered by a
- * touching block are drawn. Each face is rasterized over its projected bounds by intersecting each dot's ray
- * with the face's plane, with a depth buffer resolving overlaps. Buffers are reused between frames.
+ * 把模型的方块渲染进盲文单元格。只绘制正对相机且未被相邻方块遮挡的面。
+ * 每个面在其投影范围内光栅化——把每个点的射线与面的平面求交，用深度缓冲解决重叠。
+ * 缓冲区在帧之间复用。
  */
 class BlockRaster {
-	/** Braille dot bits per cell. */
+	/** 每个单元格的盲文点位。 */
 	bits = new Uint8Array(0);
-	/** Lit dots per cell. */
+	/** 每个单元格的点亮的点数。 */
 	counts = new Uint8Array(0);
-	/** Summed RGB of the lit dots per cell. */
+	/** 每个单元格点亮的点的 RGB 之和。 */
 	rgb = new Float32Array(0);
-	/** Halo tint strength per cell, from 0 to 1. Only set when a halo was requested. */
+	/** 每个单元格的光晕着色强度，取值 0 到 1。仅在请求了光晕时才写入。 */
 	haloAmount = new Float32Array(0);
-	/** Halo color per cell. */
+	/** 每个单元格的光晕颜色。 */
 	haloRgb = new Float32Array(0);
 	private width = 0;
 	private height = 0;
-	/** Ray parameter of the nearest hit per dot; smaller is nearer. */
+	/** 每个点最近命中的射线参数；越小越近。 */
 	private depth = new Float32Array(0);
-	/** Face index + 1 of the nearest hit per dot, 0 for none. */
+	/** 每个点最近命中的面索引 + 1，0 表示无命中。 */
 	private faceIds = new Uint16Array(0);
-	/** Cells written by the previous frame, cleared before the next one. */
+	/** 上一帧写入的单元格，下一帧之前清除。 */
 	private dirty: { minX: number; minY: number; maxX: number; maxY: number } | undefined;
-	/** Cells with a halo from the previous frame, cleared before the next one. */
+	/** 上一帧带光晕的单元格，下一帧之前清除。 */
 	private haloDirty: { minX: number; minY: number; maxX: number; maxY: number } | undefined;
 	private readonly cameraDistance: number;
 
@@ -557,7 +557,7 @@ class BlockRaster {
 		const m = rotation(pose.yaw, pose.pitch, pose.roll);
 		const { centerX, centerY, scale } = pose;
 		const cameraDistance = this.cameraDistance;
-		// The camera sits at (0, 0, cameraDistance) in camera space; object space is the transpose rotation.
+		// 相机位于相机空间中的 (0, 0, cameraDistance)；对象空间是其转置旋转。
 		const origin = [m[6]! * cameraDistance, m[7]! * cameraDistance, m[8]! * cameraDistance];
 		const light = isLight(background);
 		const faces = this.visibleFaces(m, origin, pose, boxes, dotWidth, dotHeight, light);
@@ -584,7 +584,7 @@ class BlockRaster {
 			const originA = origin[a]!;
 			const originU = origin[u]!;
 			const originV = origin[v]!;
-			// The ray direction in object space is linear in the dot position, so it is stepped per dot.
+			// 射线方向在对象空间中关于点的位置是线性的，因此按点逐步累加。
 			const stepA = m[a]! / scale;
 			const stepU = m[u]! / scale;
 			const stepV = m[v]! / scale;
@@ -612,7 +612,7 @@ class BlockRaster {
 			}
 		}
 
-		// Shade the hit dots, pack them into braille cells, and reset the dot buffers for the next frame.
+		// 对命中的点上色，把它们打包进盲文单元格，并重置点缓冲区以备下一帧。
 		const bits = this.bits;
 		const counts = this.counts;
 		const rgb = this.rgb;
@@ -626,7 +626,7 @@ class BlockRaster {
 				const id = faceIds[index]!;
 				if (id === 0) continue;
 				const face = faces[id - 1]!;
-				// Points farther from the camera fade slightly toward the background for depth.
+				// 距相机更远的点略微向背景色淡出，以表现深度。
 				const fog = clamp01(0.15 - cameraDistance * (1 - depth[index]!) * 0.12) * (light ? 0.5 : 1);
 				faceIds[index] = 0;
 				depth[index] = Infinity;
@@ -649,8 +649,8 @@ class BlockRaster {
 	}
 
 	/**
-	 * Blur the logo's coverage and color over neighboring cells with a separable tent filter, so the tint falls
-	 * off smoothly past the logo's edges.
+	 * 用可分离的 tent 滤波器把 logo 的覆盖和颜色模糊到相邻单元格，使着色在
+	 * logo 边缘之外平滑衰减。
 	 */
 	private renderHalo(strength: number): void {
 		const cells = this.dirty;
@@ -669,7 +669,7 @@ class BlockRaster {
 		const weightsX = tent(HALO_RADIUS_X);
 		const weightsY = tent(HALO_RADIUS_Y);
 
-		// Horizontal pass over the rows that contain the logo: coverage and premultiplied color per cell.
+		// 对包含 logo 的行做水平 pass：每个单元格的覆盖与预乘颜色。
 		const rows = cells.maxY - cells.minY + 1;
 		const horizontal = new Float32Array(rows * regionWidth * 4);
 		for (let y = cells.minY; y <= cells.maxY; y++) {
@@ -698,7 +698,7 @@ class BlockRaster {
 			}
 		}
 
-		// Vertical pass into the halo buffers.
+		// 垂直 pass 写入光晕缓冲。
 		for (let y = minY; y <= maxY; y++) {
 			for (let x = minX; x <= maxX; x++) {
 				let coverage = 0;
@@ -716,7 +716,7 @@ class BlockRaster {
 					blue += horizontal[source + 3]! * weight;
 				}
 				const target = y * width + x;
-				// Cells under the logo keep at least their own coverage, so faces stay solidly tinted.
+				// logo 下方的单元格至少保留自己的覆盖，使表面保持实色着色。
 				const count = counts[target]!;
 				if (count > 0 && count / 8 > coverage) {
 					coverage = count / 8;
@@ -725,7 +725,7 @@ class BlockRaster {
 					blue = (rgb[target * 3 + 2]! / count) * coverage;
 				}
 				if (coverage <= 0) continue;
-				// Quantized so neighboring cells usually share a background and its escape sequence.
+				// 做了量化，使相邻单元格通常共享同一个背景及其转义序列。
 				const amount = Math.round(strength * Math.min(1, coverage) ** 0.7 * HALO_LEVELS) / HALO_LEVELS;
 				if (amount <= 0) continue;
 				this.haloAmount[target] = amount;
@@ -754,9 +754,9 @@ class BlockRaster {
 				const v = (a + 2) % 3;
 				for (const side of [-1, 1]) {
 					const plane = side > 0 ? box.max[a]! : box.min[a]!;
-					// Back faces point away from the camera.
+					// 背面朝向相机，加以剔除。
 					if ((origin[a]! - plane) * side <= 0) continue;
-					// Faces pressed against a neighboring block are hidden. Positions are exact while blocks rest.
+					// 与相邻方块贴合的面被遮挡。方块静止时位置是精确的。
 					const covered = boxes.some(
 						(other) =>
 							other !== box &&
@@ -798,15 +798,15 @@ class BlockRaster {
 					};
 					if (face.maxX < face.minX || face.maxY < face.minY) continue;
 
-					// Faces are flat, so lighting is computed once per face. The normal in camera space is a
-					// column of the rotation matrix.
+					// 面是平的，因此光照按面只计算一次。相机空间中的法线
+					// 是旋转矩阵的一列。
 					const nx = m[a]! * side;
 					const ny = m[3 + a]! * side;
 					const nz = m[6 + a]! * side;
 					const diffuse = Math.max(0, nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2]);
 					const rim = Math.max(0, nx * 0.8 - nz * 0.3);
-					// On light backgrounds, highlights toward white would vanish, so faces only get darker than
-					// the brand colors there.
+					// 在浅色背景上，朝白色的高光会消失，因此那里的面只会比
+					// 品牌色更暗。
 					const specular = lightBackground
 						? 0
 						: Math.max(0, nx * HALF_VECTOR[0] + ny * HALF_VECTOR[1] + nz * HALF_VECTOR[2]) ** 24 * 0.6 * 255;
@@ -833,20 +833,20 @@ class BlockRaster {
 }
 
 /**
- * Which easter egg to play. The pi logo lifts off the header logo, whose top-left cell is at `column`, `row`.
+ * 要播放哪个彩蛋。pi logo 从头部 logo 处飞起，其左上单元格位于 `column`、`row`。
  */
 export type EasterEgg3d = { kind: "pi-logo"; column: number; row: number } | { kind: "armin" };
 
 let playing = false;
 
 /**
- * Show the animation as a fullscreen overlay until it is dismissed. The overlay takes focus and mouse input and
- * returns focus when hidden, so the rest of the UI keeps running underneath untouched.
+ * 以全屏覆盖层展示动画，直到它被关闭。覆盖层会取得焦点和鼠标输入，隐藏时归还焦点，
+ * 因此其余 UI 在其下不受影响地继续运行。
  */
 export async function playEasterEgg3d(tui: TUI, screen: readonly string[], egg: EasterEgg3d): Promise<void> {
 	if (playing) return;
 	playing = true;
-	// Fading needs the terminal's actual default colors; the theme only knows its own.
+	// 淡入淡出需要终端真实的默认颜色；主题只知道自己的颜色。
 	const reported = await tui.queryTerminalColors({ timeoutMs: 100 });
 	const dark = theme.appearance === "dark";
 	const toRgbTuple = (rgb: { r: number; g: number; b: number } | undefined, fallback: Rgb): Rgb =>
@@ -870,7 +870,7 @@ export async function playEasterEgg3d(tui: TUI, screen: readonly string[], egg: 
 
 export class EasterEgg3dAnimation implements Component {
 	private readonly tui: TUI;
-	/** The screen to dissolve, as rendered lines. */
+	/** 要消散的屏幕，以渲染后的行表示。 */
 	private readonly screen: readonly string[];
 	private readonly model: Model;
 	private readonly foreground: Rgb;
@@ -885,7 +885,7 @@ export class EasterEgg3dAnimation implements Component {
 	private shuffle: { cycle: number; steps: Cell3[][] } | undefined;
 	private screenWidth = -1;
 	private screenHeight = -1;
-	/** Star per cell index, or undefined. */
+	/** 每个单元格索引的星星，或 undefined。 */
 	private stars: Array<Star | undefined> = [];
 	private cells: ScreenCell[][] = [];
 	private readonly ansiCache = new Map<number, string>();
@@ -906,14 +906,14 @@ export class EasterEgg3dAnimation implements Component {
 		this.background = colors.background;
 		this.onDone = onDone;
 		this.timer = setInterval(() => {
-			// Also stop when no longer rendered, e.g. when pi hides all overlays on exit.
+			// 不再被渲染时也要停止，例如 pi 在退出时隐藏所有覆盖层。
 			if ((this.exit && this.exitProgress() >= 1) || performance.now() - this.lastRender > 1000) this.finish();
 			else this.tui.requestRender();
 		}, FRAME_MS);
 		this.timer.unref?.();
 	}
 
-	/** Play the exit animation. A second call skips it. */
+	/** 播放退出动画。再次调用则直接跳过。 */
 	close(): void {
 		if (this.exit) {
 			this.finish();
@@ -959,7 +959,7 @@ export class EasterEgg3dAnimation implements Component {
 			this.stars = this.prepareStars(width, height);
 		}
 
-		// Dissolve time runs forward on entry and backward on exit, so the screen reassembles in reverse order.
+		// 消散时间在进入时正向运行、退出时反向运行，因此屏幕以相反顺序复原。
 		let dissolveTime: number;
 		let pose: Pose;
 		let hintAlpha: number;
@@ -976,7 +976,7 @@ export class EasterEgg3dAnimation implements Component {
 			pose.roll *= settle;
 			hintAlpha = this.hintAlpha(this.exit.time) * (1 - smooth(progress / 0.2));
 			starAlpha = this.starAlpha(this.exit.time) * (1 - smooth(progress / 0.3));
-			// Blocks are home well before the logo lands.
+			// 在 logo 落回之前，方块早已各就各位。
 			const gather = 1 - smooth(progress / 0.5);
 			offsets = this.exit.offsets.map(([x, y, z]) => [x * gather, y * gather, z * gather]);
 		} else {
@@ -1005,13 +1005,13 @@ export class EasterEgg3dAnimation implements Component {
 		};
 		const backgroundFade = smooth(dissolveTime / BACKGROUND_FADE);
 		const textFade = smooth(dissolveTime / 0.6) * 0.3;
-		// Once the screen has fully dissolved, the text layer is empty and can be skipped.
+		// 屏幕完全消散后，文本层已为空，可以跳过。
 		const textActive = dissolveTime < DISSOLVE_END || backgroundFade < 1;
 		const hint = this.hint(width, height, hintAlpha, background);
 		const frame = Math.floor(dissolveTime * 14);
 		const now = this.elapsed();
-		// Star brightness is quantized, so a row only changes when one of its stars steps to another level
-		// instead of on every frame.
+		// 星星亮度做了量化，因此某一行只有在其中一颗星星跳到另一档时才会变化，
+		// 而不是每帧都变。
 		const starLevel = Math.round(starAlpha * STAR_ALPHA_LEVELS) / STAR_ALPHA_LEVELS;
 		const starfield = (index: number): { text: string; fg: Rgb } | undefined => {
 			if (starLevel <= 0) return undefined;
@@ -1058,7 +1058,7 @@ export class EasterEgg3dAnimation implements Component {
 				}
 				const dots = raster.bits[index]!;
 				if (dots) {
-					// Quantized so neighboring cells on one face usually share a color and its escape sequence.
+					// 做了量化，使同一个面上的相邻单元格通常共享一个颜色及其转义序列。
 					const step = LOGO_COLOR_STEP * raster.counts[index]!;
 					const rgb = raster.rgb;
 					const color: Rgb = [
@@ -1090,7 +1090,7 @@ export class EasterEgg3dAnimation implements Component {
 					emit(star?.text ?? " ", star?.fg, cellBg);
 					continue;
 				}
-				// Pick `dotCount` distinct dots; the choice changes a few times per second so the dust shimmers.
+				// 选取 `dotCount` 个互不相同的点；选择每秒变化几次，让尘埃闪烁。
 				let bits = 0;
 				let placed = 0;
 				for (let attempt = 0; placed < dotCount && attempt < 32; attempt++) {
@@ -1122,7 +1122,7 @@ export class EasterEgg3dAnimation implements Component {
 		this.onDone();
 	}
 
-	/** Each block's displacement from its place in the model at `time`, in grid units. */
+	/** 每个方块在 `time` 时刻相对其在模型中位置的位移，单位为网格。 */
 	private blockOffsets(time: number): Array<[number, number, number]> {
 		const blocks = this.model.blocks;
 		const home = (): Array<[number, number, number]> => blocks.map(() => [0, 0, 0]);
@@ -1146,7 +1146,7 @@ export class EasterEgg3dAnimation implements Component {
 			});
 		}
 		if (local < shuffleEnd + PUZZLE_RETURN) {
-			// All blocks fly home at once. Alternating arcs in depth keep them from passing through each other.
+			// 所有方块同时飞回原位。深度方向交替的弧线让它们互不穿过。
 			const u = (local - shuffleEnd) / PUZZLE_RETURN;
 			const remaining = 1 - smooth(u);
 			const arc = Math.sin(Math.PI * clamp01(u)) * 0.8;
@@ -1173,8 +1173,7 @@ export class EasterEgg3dAnimation implements Component {
 	private pose(width: number, height: number, progress: number, time: number): Pose {
 		const { columns, rows, cameraDistance, radius, widthShare, origin } = this.model;
 		const reach = radius * (cameraDistance / (cameraDistance - radius));
-		// Lifting off, the front face must cover exactly the half-block cells (2x2 dots per pixel) despite the
-		// perspective.
+		// 飞起时，正面必须精确覆盖半块单元格（每像素 2x2 个点），即使存在透视。
 		const startScale = origin ? (2 * (cameraDistance - DEPTH / 2)) / cameraDistance : START_SCALE;
 		const endScale = Math.max(startScale, Math.min(width * 2 * widthShare, (height * 4 - 8) * 0.48) / reach);
 		const endX = width;
@@ -1184,10 +1183,10 @@ export class EasterEgg3dAnimation implements Component {
 		return {
 			centerX: startX + (endX - startX) * progress,
 			centerY: startY + (endY - startY) * progress,
-			// Interpolate the zoom geometrically so it feels uniform.
+			// 缩放按几何方式插值，让感觉上均匀一致。
 			scale: startScale * (endScale / startScale) ** progress,
 			yaw: spinAngle(time),
-			// Tilts are zero at whole turns, so the camera looks straight at the front of the reassembled logo.
+			// 整圈处倾斜为零，因此相机正对重组完成的 logo 的正面。
 			pitch: 0.3 * Math.sin(spinPhase(time)) * progress,
 			roll: 0.06 * Math.sin(2 * spinPhase(time)) * progress,
 		};
@@ -1213,7 +1212,7 @@ export class EasterEgg3dAnimation implements Component {
 		};
 	}
 
-	/** A sparse, deterministic starfield: one braille dot in about STAR_DENSITY of all cells. */
+	/** 稀疏且确定的星空：约 STAR_DENSITY 比例的单元格中有一颗盲文点。 */
 	private prepareStars(width: number, height: number): Array<Star | undefined> {
 		const stars = new Array<Star | undefined>(width * height);
 		for (let index = 0; index < width * height; index++) {
@@ -1234,7 +1233,7 @@ export class EasterEgg3dAnimation implements Component {
 		const cells = parseScreen(this.screen, width, foreground, this.background);
 		const height = Math.max(1, this.tui.terminal.rows);
 		const { columns, rows, origin } = this.model;
-		// The dust spreads out from where the model starts.
+		// 尘埃从模型起始处向外扩散。
 		const centerX = origin ? origin.column + columns / 2 : width / 2;
 		const centerY = origin ? origin.row + rows / 4 : height / 2;
 		const farthest = Math.hypot(Math.max(centerX, width - centerX), Math.max(centerY, height - centerY) * 2);
@@ -1242,7 +1241,7 @@ export class EasterEgg3dAnimation implements Component {
 			const line = cells[row]!;
 			for (let column = 0; column < line.length; column++) {
 				const cell = line[column]!;
-				// Wide graphemes share their first column's timing so both halves change together.
+				// 宽字素与首列共用时间，让两半同时变化。
 				const owner = cell.width === 0 ? line[column - 1]! : cell;
 				const seed = hash(row * 65_537 + column);
 				if (cell.width !== 0) {
@@ -1255,7 +1254,7 @@ export class EasterEgg3dAnimation implements Component {
 				cell.ink = glyphInk(owner.text, seed);
 			}
 		}
-		// The 3D model replaces its half-block rendering on screen.
+		// 3D 模型会取代它在屏幕上的半块渲染。
 		if (origin) {
 			for (let row = origin.row; row < origin.row + Math.ceil(rows / 2); row++) {
 				const line = cells[row];

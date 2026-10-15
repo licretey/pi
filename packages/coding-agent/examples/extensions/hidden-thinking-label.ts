@@ -1,21 +1,20 @@
 /**
- * Hidden Thinking Label Extension
+ * 隐藏思考标签扩展。
  *
- * Demonstrates `ctx.ui.setHiddenThinkingLabel()` for customizing the label shown
- * when thinking blocks are hidden.
+ * 演示如何使用 `ctx.ui.setHiddenThinkingLabel()` 自定义隐藏思考块时显示的标签。
  *
- * Usage:
+ * 用法：
  *   pi --extension examples/extensions/hidden-thinking-label.ts
  *
- * Test:
- *   1. Load this extension
- *   2. Hide thinking blocks with Ctrl+T
- *   3. Ask for something that produces reasoning output
- *   4. The collapsed thinking block label will show the custom text
+ * 测试步骤：
+ *   1. 加载此扩展
+ *   2. 按 Ctrl+T 隐藏思考块
+ *   3. 提出一个会产生推理内容的问题
+ *   4. 折叠的思考块会显示自定义标签
  *
- * Commands:
- *   /thinking-label <text>   Set a custom hidden thinking label
- *   /thinking-label          Reset to the default label
+ * 命令：
+ *   /thinking-label <text>   设置隐藏思考块的自定义标签
+ *   /thinking-label          恢复默认标签
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";

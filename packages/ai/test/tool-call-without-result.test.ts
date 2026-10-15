@@ -10,7 +10,7 @@ import { hasBedrockCredentials } from "./bedrock-utils.ts";
 import { hasCloudflareAiGatewayCredentials, hasCloudflareWorkersAICredentials } from "./cloudflare-utils.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-// Resolve OAuth tokens at module level (async, runs before tests)
+// 在模块级别解析 OAuth 令牌（异步执行，先于测试运行）。
 const oauthTokens = await Promise.all([
 	resolveApiKey("anthropic"),
 	resolveApiKey("github-copilot"),
@@ -18,7 +18,7 @@ const oauthTokens = await Promise.all([
 ]);
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
 
-// Simple calculate tool
+// 简单的计算工具。
 const calculateSchema = Type.Object({
 	expression: Type.String({ description: "The mathematical expression to evaluate" }),
 });
@@ -30,27 +30,27 @@ const calculateTool: Tool = {
 };
 
 async function testToolCallWithoutResult<TApi extends Api>(model: Model<TApi>, options: StreamOptionsWithExtras = {}) {
-	// Step 1: Create context with the calculate tool
+	// 第一步：创建包含 calculate 工具的上下文。
 	const context: Context = {
 		systemPrompt: "You are a helpful assistant. Use the calculate tool when asked to perform calculations.",
 		messages: [],
 		tools: [calculateTool],
 	};
 
-	// Step 2: Ask the LLM to make a tool call
+	// 第二步：请求 LLM 调用工具。
 	context.messages.push({
 		role: "user",
 		content: "Please calculate 25 * 18 using the calculate tool.",
 		timestamp: Date.now(),
 	});
 
-	// Step 3: Get the assistant's response (should contain a tool call)
+	// 第三步：获取 assistant 响应（其中应包含工具调用）。
 	const firstResponse = await complete(model, context, options);
 	context.messages.push(firstResponse);
 
 	console.log("First response:", JSON.stringify(firstResponse, null, 2));
 
-	// Verify the response contains a tool call
+	// 验证响应中包含工具调用。
 	const hasToolCall = firstResponse.content.some((block) => block.type === "toolCall");
 	expect(hasToolCall).toBe(true);
 
@@ -58,26 +58,26 @@ async function testToolCallWithoutResult<TApi extends Api>(model: Model<TApi>, o
 		throw new Error("Expected assistant to make a tool call, but none was found");
 	}
 
-	// Step 4: Send a user message WITHOUT providing tool result
-	// This simulates the scenario where a tool call was aborted/cancelled
+	// 第四步：发送用户消息，但不提供工具结果。
+	// 这模拟工具调用被中止或取消的情况。
 	context.messages.push({
 		role: "user",
 		content: "Never mind, just tell me what is 2+2?",
 		timestamp: Date.now(),
 	});
 
-	// Step 5: The fix should filter out the orphaned tool call, and the request should succeed
+	// 第五步：修复应过滤孤立的工具调用，并使请求成功。
 	const secondResponse = await complete(model, context, options);
 	console.log("Second response:", JSON.stringify(secondResponse, null, 2));
 
-	// The request should succeed (not error) - that's the main thing we're testing
+	// 请求应成功而不是报错，这是本测试的主要验证目标。
 	expect(secondResponse.stopReason).not.toBe("error");
 
-	// Should have some content in the response
+	// 响应中应包含一些内容。
 	expect(secondResponse.content.length).toBeGreaterThan(0);
 
-	// The LLM may choose to answer directly or make a new tool call - either is fine
-	// The important thing is it didn't fail with the orphaned tool call error
+	// LLM 可以直接回答，也可以再次调用工具，两种情况都可以。
+	// 关键是不能因孤立工具调用而失败。
 	const textContent = secondResponse.content
 		.filter((block) => block.type === "text")
 		.map((block) => (block.type === "text" ? block.text : ""))
@@ -86,13 +86,13 @@ async function testToolCallWithoutResult<TApi extends Api>(model: Model<TApi>, o
 	expect(toolCalls || textContent.length).toBeGreaterThan(0);
 	console.log("Answer:", textContent);
 
-	// Verify the stop reason is either "stop" or "toolUse" (new tool call)
+	// 验证停止原因为 "stop" 或 "toolUse"（表示模型停止生成或发起了新的工具调用）。
 	expect(["stop", "toolUse"]).toContain(secondResponse.stopReason);
 }
 
 describe("Tool Call Without Result Tests", () => {
 	// =========================================================================
-	// API Key-based providers
+	// 使用 API 密钥的提供商。
 	// =========================================================================
 
 	describe.skipIf(!process.env.GEMINI_API_KEY)("Google Provider", () => {
@@ -311,7 +311,7 @@ describe("Tool Call Without Result Tests", () => {
 	});
 
 	// =========================================================================
-	// OAuth-based providers (credentials from ~/.pi/agent/oauth.json)
+	// 使用 OAuth 的提供商（凭据保存在 ~/.pi/agent/oauth.json）。
 	// =========================================================================
 
 	describe("Anthropic OAuth Provider", () => {

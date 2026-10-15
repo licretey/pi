@@ -1,13 +1,13 @@
 /**
- * Tool Call ID Normalization Tests
+ * 工具调用 ID 规范化测试。
  *
- * Tests that tool call IDs from OpenAI Responses API (github-copilot, openai-codex, opencode)
- * are properly normalized when sent to other providers.
+ * 测试来自 OpenAI Responses API（github-copilot、openai-codex、opencode）的工具调用 ID
+ * 在发送给其他提供方时是否经过正确规范化。
  *
- * OpenAI Responses API generates IDs in format: {call_id}|{id}
- * where {id} can be 400+ chars with special characters (+, /, =).
+ * OpenAI Responses API 生成的 ID 格式为：{call_id}|{id}，
+ * 其中 {id} 可能超过 400 个字符，并包含特殊字符（+、/、=）。
  *
- * Regression test for: https://github.com/earendil-works/pi/issues/1022
+ * https://github.com/earendil-works/pi/issues/1022 的回归测试。
  */
 
 import { Type } from "typebox";
@@ -16,12 +16,12 @@ import { completeSimple, getEnvApiKey, getModel } from "../src/compat.ts";
 import type { AssistantMessage, Message, Tool, ToolResultMessage } from "../src/types.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-// Resolve API keys
+// 解析 API 密钥。
 const copilotToken = await resolveApiKey("github-copilot");
 const openrouterKey = getEnvApiKey("openrouter");
 const codexToken = await resolveApiKey("openai-codex");
 
-// Simple echo tool for testing
+// 用于测试的简单回显工具。
 const echoToolSchema = Type.Object({
 	message: Type.String({ description: "Message to echo back" }),
 });
@@ -33,13 +33,13 @@ const echoTool: Tool<typeof echoToolSchema> = {
 };
 
 /**
- * Test 1: Live cross-provider handoff
+ * 测试 1：实时跨提供商交接。
  *
- * 1. Use github-copilot gpt-5.5 to generate a tool call
- * 2. Switch to openrouter openai/gpt-5.5 and complete
- * 3. Switch to openai-codex gpt-5.5 and complete
+ * 1. 使用 github-copilot gpt-5.5 生成工具调用。
+ * 2. 切换到 openrouter openai/gpt-5.5 并完成调用。
+ * 3. 切换到 openai-codex gpt-5.5 并完成调用。
  *
- * Both should succeed without "call_id too long" errors.
+ * 两者都应成功，且不出现 "call_id too long" 错误。
  */
 describe("Tool Call ID Normalization - Live Handoff", () => {
 	it.skipIf(!copilotToken || !openrouterKey)(
@@ -48,7 +48,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 			const copilotModel = getModel("github-copilot", "gpt-5.5");
 			const openrouterModel = getModel("openrouter", "openai/gpt-5.5");
 
-			// Step 1: Generate tool call with github-copilot
+			// 第 1 步：使用 github-copilot 生成工具调用。
 			const userMessage: Message = {
 				role: "user",
 				content: "Use the echo tool to echo 'hello world'",
@@ -71,13 +71,13 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 			expect(toolCall).toBeDefined();
 			expect(toolCall!.type).toBe("toolCall");
 
-			// Verify it's a pipe-separated ID (OpenAI Responses format)
+			// 验证这是以竖线分隔的 ID（OpenAI Responses 格式）。
 			if (toolCall?.type === "toolCall") {
 				expect(toolCall.id).toContain("|");
 				console.log(`Tool call ID from github-copilot: ${toolCall.id.slice(0, 80)}...`);
 			}
 
-			// Create tool result
+			// 创建工具结果。
 			const toolResult: ToolResultMessage = {
 				role: "toolResult",
 				toolCallId: (toolCall as any).id,
@@ -87,7 +87,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 				timestamp: Date.now(),
 			};
 
-			// Step 2: Complete with openrouter (uses openai-completions API)
+			// 第 2 步：通过 openrouter 完成请求（使用 openai-completions API）。
 			const openrouterResponse = await completeSimple(
 				openrouterModel,
 				{
@@ -103,7 +103,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 				{ apiKey: openrouterKey },
 			);
 
-			// Should NOT fail with "call_id too long" error
+			// 不应因 "call_id too long" 错误而失败。
 			expect(openrouterResponse.stopReason, `OpenRouter error: ${openrouterResponse.errorMessage}`).not.toBe(
 				"error",
 			);
@@ -118,7 +118,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 			const copilotModel = getModel("github-copilot", "gpt-5.5");
 			const codexModel = getModel("openai-codex", "gpt-5.5");
 
-			// Step 1: Generate tool call with github-copilot
+			// 第 1 步：使用 github-copilot 生成工具调用。
 			const userMessage: Message = {
 				role: "user",
 				content: "Use the echo tool to echo 'test message'",
@@ -140,7 +140,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 			const toolCall = assistantResponse.content.find((c) => c.type === "toolCall");
 			expect(toolCall).toBeDefined();
 
-			// Create tool result
+			// 创建工具结果。
 			const toolResult: ToolResultMessage = {
 				role: "toolResult",
 				toolCallId: (toolCall as any).id,
@@ -150,7 +150,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 				timestamp: Date.now(),
 			};
 
-			// Step 2: Complete with openai-codex (uses openai-codex-responses API)
+			// 第 2 步：通过 openai-codex 完成请求（使用 openai-codex-responses API）。
 			const codexResponse = await completeSimple(
 				codexModel,
 				{
@@ -166,7 +166,7 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 				{ apiKey: codexToken },
 			);
 
-			// Should NOT fail with ID validation error
+			// 不应因 ID 校验错误而失败。
 			expect(codexResponse.stopReason, `Codex error: ${codexResponse.errorMessage}`).not.toBe("error");
 			expect(codexResponse.errorMessage).toBeUndefined();
 		},
@@ -175,17 +175,17 @@ describe("Tool Call ID Normalization - Live Handoff", () => {
 });
 
 /**
- * Test 2: Prefilled context with exact failing IDs from issue #1022
+ * 测试 2：使用 issue #1022 中导致失败的原始 ID 预填上下文。
  *
- * Uses the exact tool call ID format that caused the error:
+ * 使用导致该错误的精确工具调用 ID 格式：
  * "call_xxx|very_long_base64_with_special_chars+/="
  */
 describe("Tool Call ID Normalization - Prefilled Context", () => {
-	// Exact tool call ID from issue #1022 JSONL
+	// issue #1022 的 JSONL 中记录的原始工具调用 ID。
 	const FAILING_TOOL_CALL_ID =
 		"call_pAYbIr76hXIjncD9UE4eGfnS|t5nnb2qYMFWGSsr13fhCd1CaCu3t3qONEPuOudu4HSVEtA8YJSL6FAZUxvoOoD792VIJWl91g87EdqsCWp9krVsdBysQoDaf9lMCLb8BS4EYi4gQd5kBQBYLlgD71PYwvf+TbMD9J9/5OMD42oxSRj8H+vRf78/l2Xla33LWz4nOgsddBlbvabICRs8GHt5C9PK5keFtzyi3lsyVKNlfduK3iphsZqs4MLv4zyGJnvZo/+QzShyk5xnMSQX/f98+aEoNflEApCdEOXipipgeiNWnpFSHbcwmMkZoJhURNu+JEz3xCh1mrXeYoN5o+trLL3IXJacSsLYXDrYTipZZbJFRPAucgbnjYBC+/ZzJOfkwCs+Gkw7EoZR7ZQgJ8ma+9586n4tT4cI8DEhBSZsWMjrCt8dxKg==";
 
-	// Build prefilled context with the failing ID
+	// 使用会触发错误的 ID 构造预填上下文。
 	function buildPrefilledMessages(): Message[] {
 		const userMessage: Message = {
 			role: "user",
@@ -252,7 +252,7 @@ describe("Tool Call ID Normalization - Prefilled Context", () => {
 				{ apiKey: openrouterKey },
 			);
 
-			// Should NOT fail with "call_id too long" error
+			// 不应因 "call_id too long" 错误而失败。
 			expect(response.stopReason, `OpenRouter error: ${response.errorMessage}`).not.toBe("error");
 			if (response.errorMessage) {
 				expect(response.errorMessage).not.toContain("call_id");
@@ -278,7 +278,7 @@ describe("Tool Call ID Normalization - Prefilled Context", () => {
 				{ apiKey: codexToken },
 			);
 
-			// Should NOT fail with ID validation error
+			// 不应因 ID 校验错误而失败。
 			expect(response.stopReason, `Codex error: ${response.errorMessage}`).not.toBe("error");
 			if (response.errorMessage) {
 				expect(response.errorMessage).not.toContain("id");

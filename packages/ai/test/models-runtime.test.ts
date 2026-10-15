@@ -46,7 +46,7 @@ interface ProviderCall {
 	options: StreamOptions | undefined;
 }
 
-/** Ambient auth for keyless test providers; reports "configured" with no auth values. */
+/** 为无需密钥的测试提供方提供环境认证；即使没有认证值，也报告为“已配置”。 */
 const ambientAuth: ApiKeyAuth = {
 	name: "Ambient",
 	resolve: async () => ({ auth: {} }),
@@ -188,7 +188,7 @@ describe("Models runtime", () => {
 		expect(models.getModel("p2", "m3")?.id).toBe("m3");
 		expect(models.getModel("p2", "missing")).toBeUndefined();
 
-		// hasApi() narrows dynamically looked-up models with a runtime check
+		// hasApi() 通过运行时检查缩小动态查找模型的类型范围
 		const found = models.getModel("p2", "m3");
 		expect(found && hasApi(found, "openai-completions")).toBe(false);
 		expect(found && hasApi(found, "test-api")).toBe(true);
@@ -226,7 +226,7 @@ describe("Models runtime", () => {
 
 		expect(models.getModels().map((m) => m.id)).toEqual(["m1"]);
 		expect(models.getModels("broken")).toEqual([]);
-		// precise failures come from the provider directly
+		// 具体错误由提供方直接返回
 		expect(() => models.getProvider("broken")?.getModels()).toThrow("boom");
 	});
 
@@ -777,7 +777,7 @@ describe("Models runtime", () => {
 		expect(await credentials.read("p1")).toEqual({ type: "api_key", key: "first" });
 	});
 
-	// Radius bug report 01a10855-43d8-7447-a710-2acf5ee0b2ee: refresh_token_invalidated after a cancelled refresh.
+	// Radius 问题报告 01a10855-43d8-7447-a710-2acf5ee0b2ee：取消刷新后 refresh_token_invalidated。
 	it("persists an OAuth refresh that started before the request was cancelled", async () => {
 		const credentials = new InMemoryCredentialStore();
 		await credentials.modify("p1", async () => ({
@@ -794,7 +794,7 @@ describe("Models runtime", () => {
 				auth: {
 					oauth: testOAuth({
 						refresh: async (credential) => {
-							// The provider has rotated old-refresh by the time the request is cancelled.
+							// 请求取消时，提供方已轮换旧的刷新令牌。
 							controller.abort();
 							return { ...credential, access: "new", refresh: "new-refresh", expires: Date.now() + 60_000 };
 						},
@@ -815,12 +815,12 @@ describe("Models runtime", () => {
 		models.setProvider(testProvider({ id: "p1", auth: { apiKey: envKeyAuth("env-key"), oauth: testOAuth() } }));
 		const model = testModel("p1", "model-a");
 
-		// model and provider-id overloads resolve the same provider-scoped auth
+		// model 和 provider-id 两种重载解析出的提供方级认证信息相同
 		expect((await models.getAuth(model))?.auth.apiKey).toBe("env-key");
 		expect((await models.getAuth(model.provider))?.auth.apiKey).toBe("env-key");
 		expect((await models.getAuth(model, { apiKey: "explicit-key" }))?.auth.apiKey).toBe("explicit-key");
 
-		// stored oauth credential (persisted via the single write path): beats ambient env
+		// 已存储的 OAuth 凭据（通过唯一写入路径持久化）优先于进程环境变量
 		await credentials.modify("p1", async () => ({
 			type: "oauth",
 			access: "oauth-token",
@@ -831,7 +831,7 @@ describe("Models runtime", () => {
 		expect(resolution?.auth.apiKey).toBe("oauth-token");
 		expect(resolution?.source).toBe("OAuth");
 
-		// stored api-key credential resolves through apiKey auth, beats env
+		// 已存储的 API 密钥凭据通过 apiKey 认证解析，优先级高于环境变量
 		await credentials.modify("p1", async () => ({ type: "api_key", key: "stored-key" }));
 		const apiKeyResolution = await models.getAuth(model.provider);
 		expect(apiKeyResolution?.auth.apiKey).toBe("stored-key");
@@ -893,7 +893,7 @@ describe("Models runtime", () => {
 	it("a stored credential without a matching handler blocks ambient fallback", async () => {
 		const credentials = new InMemoryCredentialStore();
 		const models = createModels({ credentials });
-		// provider has only apiKey auth, but an oauth credential is stored (stale config)
+		// 提供方仅支持 apiKey 认证，但仍存有 OAuth 凭据（配置已过期）
 		models.setProvider(testProvider({ id: "p1", auth: { apiKey: envKeyAuth("env-key") } }));
 		await credentials.modify("p1", async () => ({ type: "oauth", access: "a", refresh: "r", expires: 0 }));
 
@@ -971,7 +971,7 @@ describe("Models runtime", () => {
 		await credentials.modify("p1", async () => ({ type: "oauth", access: "old", refresh: "r", expires: 0 }));
 
 		await expect(models.getAuth("p1")).rejects.toMatchObject({ code: "oauth" });
-		// credential preserved for retry / re-login
+		// 凭据会保留，以供重试或重新登录
 		expect(((await credentials.read("p1")) as { access: string }).access).toBe("old");
 	});
 
@@ -1023,7 +1023,7 @@ describe("Models runtime", () => {
 	});
 
 	it("wraps credential store failures in ModelsError", async () => {
-		// read failure
+		// 读取失败。
 		const readFailing: CredentialStore = {
 			read: async () => {
 				throw new Error("disk on fire");
@@ -1036,7 +1036,7 @@ describe("Models runtime", () => {
 		models.setProvider(testProvider({ id: "p1", auth: { apiKey: envKeyAuth("env-key") } }));
 		await expect(models.getAuth("p1")).rejects.toMatchObject({ code: "auth" });
 
-		// modify failure during refresh
+		// 刷新期间发生修改失败
 		const modifyFailing: CredentialStore = {
 			read: async () => ({ type: "oauth", access: "old", refresh: "r", expires: 0 }),
 			list: async () => [{ providerId: "p1", type: "oauth" }],
@@ -1134,7 +1134,7 @@ describe("Models runtime", () => {
 		expect(calls[0].options?.headers).toEqual({ authorization: "Explicit token", "x-a": "auth", "x-b": "explicit" });
 		expect(calls[0].model.baseUrl).toBe("https://auth.test/v1");
 
-		// without explicit options, resolved auth applies
+		// 未提供显式选项时，使用解析出的认证信息
 		const result2 = await models.completeSimple(model, context);
 		expect(result2.stopReason).toBe("stop");
 		expect(calls[1].options?.apiKey).toBe("resolved-key");

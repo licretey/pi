@@ -1,8 +1,8 @@
 import type { ProviderEnv, ProviderHeaders } from "../types.ts";
 
 /**
- * Request auth for a single model request. If a value cannot be expressed as
- * `apiKey`, `headers`, or `baseUrl`, it is provider config, not auth.
+ * 单次模型请求使用的认证信息。如果某个值无法用 `apiKey`、`headers` 或 `baseUrl` 表示，
+ * 那它属于提供商配置，而不是认证信息。
  */
 export interface ModelAuth {
 	apiKey?: string;
@@ -11,8 +11,8 @@ export interface ModelAuth {
 }
 
 /**
- * Stored api-key credential. `env` holds provider-scoped environment/config
- * values such as Cloudflare account/gateway ids.
+ * 已存储的 API 密钥凭据。`env` 保存提供商范围内的环境或配置值，
+ * 例如 Cloudflare 账户 ID 或网关 ID。
  */
 export interface ApiKeyCredential {
 	type: "api_key";
@@ -20,7 +20,7 @@ export interface ApiKeyCredential {
 	env?: ProviderEnv;
 }
 
-/** OAuth token data returned by extension compatibility flows. */
+/** 扩展兼容流程返回的 OAuth 令牌数据。 */
 export interface OAuthCredentials {
 	refresh: string;
 	access: string;
@@ -28,60 +28,50 @@ export interface OAuthCredentials {
 	[key: string]: unknown;
 }
 
-/** Stored canonical OAuth credential. */
+/** 持久化的标准 OAuth 凭据。 */
 export interface OAuthCredential extends OAuthCredentials {
 	type: "oauth";
 }
 
-/** One type-tagged credential per provider — the shape of today's auth.json. */
+/** 每个提供商对应一个带类型标记的凭据，即当前 auth.json 使用的结构。 */
 export type Credential = ApiKeyCredential | OAuthCredential;
 
-/** Non-secret credential metadata for account/status enumeration. */
+/** 用于枚举账户或状态的非机密凭据元数据。 */
 export interface CredentialInfo {
 	providerId: string;
 	type: Credential["type"];
 }
 
-/** Optional cancellation for public auth and credential operations. */
+/** 为公开的认证和凭据操作提供可选的取消信号。 */
 export interface AuthOperationOptions {
 	signal?: AbortSignal;
 }
 
 /**
- * App-owned credential storage, keyed by `Provider.id`, one credential per
- * provider. `modify` is the only write path, so every mutation is a
- * serialized read-modify-write; `Models.getAuth()` runs OAuth refresh inside
- * `modify` so concurrent requests cannot double-refresh a rotated token. The
- * app persists a credential after login via
- * `modify(provider.id, async () => credential)`. Login/logout orchestration
- * is app-owned.
+ * 由应用管理的凭据存储，以 `Provider.id` 为键，每个提供商对应一份凭据。`modify` 是唯一写入入口，
+ * 因此所有变更都是串行的“读取-修改-写入”操作；`Models.getAuth()` 会在 `modify` 中刷新 OAuth，
+ * 避免并发请求重复刷新已轮换的令牌。应用在登录后通过 `modify(provider.id, async () => credential)`
+ * 保存凭据。登录和登出流程由应用负责协调。
  *
- * Error semantics: `read` resolves `undefined` for missing entries. Methods
- * reject only on storage failure; `Models` wraps such rejections in
- * `ModelsError` with code "auth". Best-effort stores that serve an in-memory
- * view and record persistence errors internally (like coding-agent's
- * AuthStorage) are valid implementations.
+ * 错误语义：条目不存在时，`read` 返回 `undefined`。方法仅在存储失败时拒绝；`Models` 会将此类拒绝
+ * 包装为错误码为 "auth" 的 `ModelsError`。尽力而为的存储实现也有效，例如提供内存视图，
+ * 并在内部记录持久化错误的 coding-agent `AuthStorage`。
  */
 export interface CredentialStore {
 	/**
-	 * Read the stored credential, possibly expired. Display/status use;
-	 * resolved request auth comes from `Models.getAuth()`.
+	 * 读取已存储的凭据，该凭据可能已过期。供界面显示或状态查询使用；请求认证信息由 `Models.getAuth()` 提供。
 	 */
 	read(providerId: string, options?: AuthOperationOptions): Promise<Credential | undefined>;
 
 	/**
-	 * List stored credential metadata without resolving or exposing secrets.
-	 * Implementations must not execute configured API-key commands while listing.
+	 * 列出已存储凭据的元数据，不解析或暴露机密信息。列出时不得执行已配置的 API 密钥命令。
 	 */
 	list(options?: AuthOperationOptions): Promise<readonly CredentialInfo[]>;
 
 	/**
-	 * Serialized write — the only write path. `fn` sees the current credential
-	 * because correct writes (refresh, login-during-refresh) depend on it;
-	 * return the new credential, or undefined to leave the entry unchanged.
-	 * Mutual exclusion per provider id, cross-process too where the backing
-	 * store supports it (e.g. a file lock). Resolves with the post-write
-	 * credential. Rejections from `fn` propagate.
+	 * 串行写入，也是唯一写入入口。`fn` 可以读取当前凭据，以支持正确写入（如令牌刷新或刷新期间重新登录）；
+	 * 返回新凭据以更新条目，返回 undefined 则保持条目不变。每个提供商 ID 都要互斥；底层存储支持时，
+	 * 还需跨进程互斥（例如使用文件锁）。成功后返回写入的凭据；`fn` 的拒绝会继续向上传递。
 	 */
 	modify(
 		providerId: string,
@@ -89,23 +79,23 @@ export interface CredentialStore {
 		options?: AuthOperationOptions,
 	): Promise<Credential | undefined>;
 
-	/** Remove a credential (logout). Implementations serialize this against `modify`. */
+	/** 删除凭据（登出）。实现应使此操作与 `modify` 串行执行。 */
 	delete(providerId: string, options?: AuthOperationOptions): Promise<void>;
 }
 
-/** Environment access for auth resolution. Injectable for tests and browsers. */
+/** 用于解析认证信息的环境访问接口，可注入测试或浏览器实现。 */
 export interface AuthContext {
 	env(name: string): Promise<string | undefined>;
-	/** Check whether a file exists. Supports a leading `~`. Always false in browsers. */
+	/** 检查文件是否存在。支持开头的 `~`。在浏览器中始终返回 false。 */
 	fileExists(path: string): Promise<boolean>;
 }
 
-/** Result of resolving auth for a model. */
+/** 模型认证信息的解析结果。 */
 export interface AuthResult {
 	auth: ModelAuth;
-	/** Provider-scoped environment/config values resolved from credentials and ambient context. */
+	/** 从凭据和当前运行环境中解析出的提供商级环境变量或配置值。 */
 	env?: ProviderEnv;
-	/** Human-readable label for status UI: "ANTHROPIC_API_KEY", "OAuth", "~/.aws/credentials". */
+	/** 状态界面中显示的易读来源标签，例如 "ANTHROPIC_API_KEY"、"OAuth"、"~/.aws/credentials"。 */
 	source?: string;
 }
 
@@ -117,10 +107,8 @@ export interface AuthCheck {
 export type AuthType = "api_key" | "oauth";
 
 /**
- * Prompt shown to the user during login. `signal` lets the flow cancel a
- * pending prompt when an out-of-band event resolves the step, e.g. a
- * `manual_code` prompt raced against a callback server, aborted when the
- * callback wins.
+ * 登录期间向用户显示的提示。带外事件完成当前步骤时，`signal` 可用于取消仍在等待的提示；
+ * 例如，`manual_code` 提示与回调服务器竞速，回调先完成时便取消该提示。
  */
 export type AuthPrompt = { signal?: AbortSignal } & (
 	| { type: "text"; message: string; placeholder?: string }
@@ -147,11 +135,10 @@ export type AuthEvent =
 	| { type: "progress"; message: string };
 
 /**
- * Login interaction callbacks serving both api-key and OAuth flows.
+ * 同时供 API 密钥和 OAuth 流程使用的登录交互回调。
  *
- * `prompt()` returns the entered/selected string (`select` returns the option
- * id). Rejects on cancel/abort. `signal` aborts the whole login flow;
- * per-prompt cancellation uses `AuthPrompt.signal`.
+ * `prompt()` 返回输入或选择的字符串（`select` 返回选项 ID）。取消或中止时会拒绝。
+ * `signal` 用于中止整个登录流程；单个提示使用 `AuthPrompt.signal` 取消。
  */
 export interface AuthInteraction {
 	signal?: AbortSignal;
@@ -160,24 +147,23 @@ export interface AuthInteraction {
 	notify(event: AuthEvent): void;
 }
 
-/** Normalized interaction passed to provider login implementations. */
+/** 传递给提供商登录实现的标准化交互接口。 */
 export type ProviderAuthInteraction = AuthInteraction & { signal: AbortSignal };
 
 /**
- * Api-key auth: stored key/provider env plus ambient sources (env vars, AWS
- * profiles, ADC files). Ambient-only providers omit `login`.
+ * API 密钥认证：已存储的密钥和提供商环境配置，以及环境变量、AWS 配置档、ADC 文件等外部来源。
+ * 仅使用外部来源的提供商不提供 `login`。
  */
 export interface ApiKeyAuth {
-	/** Display name, e.g. "Anthropic API key". */
+	/** 显示名称，例如 "Anthropic API key"。 */
 	name: string;
 
-	/** Interactive setup (prompt for key/provider env). Absent = ambient-only. */
+	/** 交互式设置（提示输入密钥或提供商环境信息）；缺省表示仅使用当前环境中的信息。 */
 	login?(interaction: ProviderAuthInteraction): Promise<ApiKeyCredential>;
 
 	/**
-	 * Optional side-effect-free availability check. Use this when `resolve()` may
-	 * execute commands or perform other request-time work. Missing means Models
-	 * checks availability by resolving auth.
+	 * 可选的无副作用可用性检查。如果 `resolve()` 可能执行命令或进行其他请求时操作，应使用此方法。
+	 * 未提供时，Models 会通过解析认证信息来检查可用性。
 	 */
 	check?(input: {
 		ctx: AuthContext;
@@ -186,10 +172,9 @@ export interface ApiKeyAuth {
 	}): Promise<AuthCheck | undefined>;
 
 	/**
-	 * Resolve auth from the stored credential and/or ambient sources, merging
-	 * per field (`credential.key ?? env("...")`, `credential.env?.NAME ?? env("...")`).
-	 * undefined = not configured. Resolution is provider-scoped; model-specific
-	 * endpoint preparation happens after auth has been resolved.
+	 * 根据已存储凭据和/或外部来源解析认证信息，并逐字段合并
+	 *（`credential.key ?? env("...")`、`credential.env?.NAME ?? env("...")`）。
+	 * 返回 undefined 表示尚未配置。解析按提供商进行；模型专属的端点准备会在认证解析后执行。
 	 */
 	resolve(input: {
 		ctx: AuthContext;
@@ -198,56 +183,52 @@ export interface ApiKeyAuth {
 	}): Promise<AuthResult | undefined>;
 }
 
-/** App-supplied context for `Models.login`. */
+/** 应用为 `Models.login` 提供的上下文。 */
 export interface LoginOptions {
 	/**
-	 * Returns the stable ID of this app installation, e.g. sent to OpenAI as its
-	 * agent host ID. Called only by login flows that need it, so apps can create
-	 * the ID on first use and must return the same ID on every later call.
+	 * 返回此应用安装实例的稳定 ID，例如作为 agent host ID 发送给 OpenAI。
+	 * 只有需要该 ID 的登录流程才会调用此方法，因此应用可以在首次使用时创建 ID，之后必须始终返回相同的 ID。
 	 */
 	getDeviceId?: () => string;
 	/**
-	 * Name this app introduces itself with during login, e.g. OpenAI's agent name hint and
-	 * Codex originator. Defaults to pi's own name.
+	 * 登录时此应用用于自我标识的名称，例如 OpenAI 的 agent 名称提示和 Codex originator。
+	 * 默认使用 pi 自身的名称。
 	 */
 	agentName?: string;
 }
 
 /**
- * OAuth auth. The `refresh`/`toAuth` split lets `Models` own the locked
- * refresh pattern: `refresh` produces a credential, `toAuth` derives request
- * auth from whatever credential ends up stored.
+ * OAuth 认证。拆分为 `refresh` 和 `toAuth` 后，`Models` 可以统一管理带锁的刷新流程：
+ * `refresh` 生成凭据，`toAuth` 根据最终存储的凭据生成请求认证信息。
  */
 export interface OAuthAuth {
-	/** Display name, e.g. "Anthropic (Claude Pro/Max)". */
+	/** 显示名称，例如 "Anthropic (Claude Pro/Max)"。 */
 	name: string;
 
-	/** Whether access through this auth method is backed by a provider subscription. */
+	/** 此认证方式是否由提供商订阅服务提供支持。 */
 	isSubscription?: boolean;
 
-	/** Selector label for the OAuth login option, e.g. "Sign in with SuperGrok or X Premium". */
+	/** OAuth 登录选项的选择器标签，例如 "Sign in with SuperGrok or X Premium"。 */
 	loginLabel?: string;
 
 	login(interaction: ProviderAuthInteraction, options?: LoginOptions): Promise<OAuthCredential>;
 
 	/**
-	 * Exchange the refresh token. Network call; throws on failure
-	 * (invalid_grant etc.). `Models` runs this under the store lock.
+	 * 兑换刷新令牌。这是网络调用；失败时会抛出异常（如 invalid_grant）。
+	 * `Models` 会在存储锁保护下调用此方法。
 	 */
 	refresh(credential: OAuthCredential, signal: AbortSignal): Promise<OAuthCredential>;
 
 	/**
-	 * Side-effect-free derivation of request auth from a valid credential.
-	 * Covers per-credential baseUrl (GitHub Copilot). Async so lazy wrappers
-	 * can load the implementation on first use.
+	 * 根据有效凭据生成请求认证信息，不产生副作用。
+	 * 支持凭据指定的 baseUrl（如 GitHub Copilot）。此方法为异步，以便延迟加载的包装器能在首次使用时加载实现。
 	 */
 	toAuth(credential: OAuthCredential): Promise<ModelAuth>;
 }
 
 /**
- * Provider auth. At least one of `apiKey`/`oauth` must be present: even
- * ambient-credential providers and keyless local servers provide `apiKey`
- * auth whose `resolve()` reports whether the provider is configured.
+ * 提供商认证。`apiKey` 和 `oauth` 至少要提供一个：即使提供商使用外部凭据，或者是无需密钥的本地服务器，
+ * 也会提供 `apiKey` 认证，其 `resolve()` 用于报告提供商是否已配置。
  */
 export interface ProviderAuth {
 	apiKey?: ApiKeyAuth;

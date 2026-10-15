@@ -8,7 +8,7 @@ interface UploadBugReportOptions {
 	gatewayUrl?: string;
 }
 
-/** Upload a report as multipart form data, anonymously or attributed to a Radius account. */
+/** 以 multipart/form-data 格式上传报告，可匿名上传，也可关联到 Radius 账户。 */
 export async function uploadBugReport(
 	bundle: BugReportBundle,
 	options: UploadBugReportOptions = {},

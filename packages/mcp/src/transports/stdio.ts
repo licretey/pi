@@ -6,11 +6,11 @@ import { DEFAULT_MAX_MESSAGE_BYTES, type McpTransport, TransportEvents } from ".
 
 const DEFAULT_MAX_STDERR_BYTES = 64 * 1024;
 const DEFAULT_CLOSE_TIMEOUT_MS = 2_000;
-/** How long a server gets to exit on its own after stdin closes, before it is sent SIGTERM. */
+/** 标准输入关闭后，等待服务器自行退出的时长；超时后发送 SIGTERM。 */
 const STDIN_CLOSE_GRACE_MS = 500;
 const USE_PROCESS_GROUPS = process.platform !== "win32";
 
-/** Process groups of running servers, killed if the host exits without closing them. */
+/** 正在运行的服务器进程组；宿主退出时若这些进程尚未关闭，则终止它们。 */
 const liveProcessGroups = new Set<number>();
 let exitHookInstalled = false;
 
@@ -18,8 +18,7 @@ function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
 	const pid = child.pid;
 	if (process.platform === "win32" && pid !== undefined) {
 		if (child.exitCode !== null) return;
-		// Windows has no graceful signals, and cross-spawn runs `.cmd` shims through cmd.exe; killing only
-		// that would leave the server running.
+		// Windows 没有可用于优雅退出的信号；cross-spawn 会通过 cmd.exe 运行 `.cmd` 包装脚本，只结束包装脚本会让服务器继续运行。
 		spawn("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true }).on(
 			"error",
 			() => {},
@@ -28,11 +27,11 @@ function killProcessTree(child: ChildProcess, signal: NodeJS.Signals): void {
 	}
 	if (USE_PROCESS_GROUPS && pid !== undefined) {
 		try {
-			// Negative pid: the whole group, so wrappers like `npx` or `uvx` do not leave the server behind.
+			// 使用负 PID 向整个进程组发送信号，避免 `npx` 或 `uvx` 等包装程序留下仍在运行的服务器。
 			process.kill(-pid, signal);
 			return;
 		} catch {
-			// The group is gone or was never created; fall back to the direct child.
+			// 进程组已不存在或从未创建，此时改为结束直接子进程。
 		}
 	}
 	try {
@@ -62,7 +61,7 @@ export interface StdioTransportOptions {
 	onStderr?: (chunk: string) => void;
 	maxMessageBytes?: number;
 	maxStderrBytes?: number;
-	/** Time to wait for the server to exit after SIGTERM before sending SIGKILL. Default: 2000. */
+	/** 发送 SIGTERM 后等待服务器退出的时长；超时后发送 SIGKILL。默认值：2000。 */
 	closeTimeoutMs?: number;
 }
 
@@ -97,7 +96,7 @@ export class StdioTransport extends TransportEvents implements McpTransport {
 			env,
 			stdio: ["pipe", "pipe", this.options.stderr === "inherit" ? "inherit" : "pipe"],
 			windowsHide: true,
-			// Own process group, so closing the transport can terminate the server's children too.
+			// 为服务器创建独立进程组，以便关闭传输时也能结束其子进程。
 			detached: USE_PROCESS_GROUPS,
 		});
 		this.child = child;
@@ -161,13 +160,13 @@ export class StdioTransport extends TransportEvents implements McpTransport {
 			child.stdin?.end();
 			return;
 		}
-		// Shutdown per the spec: close stdin and let the server exit, then SIGTERM, then SIGKILL.
+		// 按规范关闭：先关闭标准输入并等待服务器退出，再发送 SIGTERM，最后发送 SIGKILL。
 		const closeTimeoutMs = this.options.closeTimeoutMs ?? DEFAULT_CLOSE_TIMEOUT_MS;
 		await new Promise<void>((resolve) => {
 			const timers: ReturnType<typeof setTimeout>[] = [];
 			child.once("close", () => {
 				for (const timer of timers) clearTimeout(timer);
-				// Children of the server that ignored stdin closing would otherwise outlive it.
+				// 否则，忽略标准输入关闭操作的服务器子进程会继续运行。
 				killProcessTree(child, "SIGTERM");
 				resolve();
 			});

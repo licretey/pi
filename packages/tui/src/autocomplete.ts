@@ -7,7 +7,7 @@ import { autocompleteBoundaryRegex, autocompleteSeparatorRegex } from "./utils.t
 
 const PATH_DELIMITERS = new Set([" ", "\t", '"', "'", "="]);
 const tokenStartRegex = new RegExp(`${autocompleteBoundaryRegex.source}$`, "u");
-// Opening wrappers that may precede a path in prose, mapped to their closing counterpart.
+// 正文中出现在路径之前的开始型包裹符，映射到对应的结束符。
 const PATH_WRAPPERS: Record<string, string> = { "(": ")", "[": "]", "{": "}", "<": ">", "`": "`" };
 
 function toDisplayPath(value: string): string {
@@ -58,8 +58,8 @@ function findLastDelimiter(text: string): number {
 	return lastDelimiter;
 }
 
-// Strip opening wrappers before a path, e.g. "(~/Dev" -> "~/Dev" or "`src/ma" -> "src/ma".
-// Keep a wrapper if the token also contains its closer, e.g. "app/[slug]/pa" or "(group)/pa".
+// 去掉路径前面的开始型包裹符，例如 "(~/Dev" -> "~/Dev" 或 "`src/ma" -> "src/ma"。
+// 若 token 中同时含有对应的结束符则保留包裹符，例如 "app/[slug]/pa" 或 "(group)/pa"。
 function stripLeadingWrappers(token: string): string {
 	let result = token;
 	while (result.length > 0) {
@@ -145,7 +145,7 @@ function buildCompletionValue(
 	return `${openQuote}${path}${closeQuote}`;
 }
 
-// Use fd to walk directory tree (fast, respects .gitignore)
+// 用 fd 遍历目录树（快，且遵守 .gitignore）
 async function walkDirectoryWithFd(
 	baseDir: string,
 	fdPath: string,
@@ -258,22 +258,22 @@ export interface SlashCommand {
 	name: string;
 	description?: string;
 	argumentHint?: string;
-	// Function to get argument completions for this command
-	// Returns null if no argument completion is available
+	// 获取本命令的参数补全的函数
+	// 无可用参数补全时返回 null
 	getArgumentCompletions?(argumentPrefix: string): Awaitable<AutocompleteItem[] | null>;
 }
 
 export interface AutocompleteSuggestions {
 	items: AutocompleteItem[];
-	prefix: string; // What we're matching against (e.g., "/" or "src/")
+	prefix: string; // 我们正在匹配的对象（例如 "/" 或 "src/"）
 }
 
 export interface AutocompleteProvider {
-	/** Characters that should naturally trigger this provider at token boundaries. */
+	/** 在 token 边界自然触发本 provider 的字符。 */
 	triggerCharacters?: string[];
 
-	// Get autocomplete suggestions for current text/cursor position
-	// Returns null if no suggestions available
+	// 针对当前文本/光标位置获取自动补全建议
+	// 无可用建议时返回 null
 	getSuggestions(
 		lines: string[],
 		cursorLine: number,
@@ -281,8 +281,8 @@ export interface AutocompleteProvider {
 		options: { signal: AbortSignal; force?: boolean },
 	): Promise<AutocompleteSuggestions | null>;
 
-	// Apply the selected item
-	// Returns the new text and cursor position
+	// 应用选中的条目
+	// 返回新文本与光标位置
 	applyCompletion(
 		lines: string[],
 		cursorLine: number,
@@ -295,11 +295,11 @@ export interface AutocompleteProvider {
 		cursorCol: number;
 	};
 
-	// Check if file completion should trigger for explicit Tab completion
+	// 检查按 Tab 显式触发时是否应启动文件补全
 	shouldTriggerFileCompletion?(lines: string[], cursorLine: number, cursorCol: number): boolean;
 }
 
-// Combined provider that handles both slash commands and file paths
+// 同时处理 slash 命令与文件路径的组合 provider
 export class CombinedAutocompleteProvider implements AutocompleteProvider {
 	private commands: (SlashCommand | AutocompleteItem)[];
 	private basePath: string;
@@ -428,11 +428,11 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		const adjustedAfterCursor =
 			isQuotedPrefix && hasTrailingQuoteInItem && hasLeadingQuoteAfterCursor ? afterCursor.slice(1) : afterCursor;
 
-		// Check if we're completing a slash command (prefix starts with "/" but NOT a file path)
-		// Slash commands are at the start of the line and don't contain path separators after the first /
+		// 检查正在补全的是否为 slash 命令（prefix 以 "/" 开头，但不是文件路径）
+		// slash 命令位于行首，且第一个 / 之后不含路径分隔符
 		const isSlashCommand = prefix.startsWith("/") && beforePrefix.trim() === "" && !prefix.slice(1).includes("/");
 		if (isSlashCommand) {
-			// This is a command name completion
+			// 这是命令名补全
 			const newLine = `${beforePrefix}/${item.value} ${adjustedAfterCursor}`;
 			const newLines = [...lines];
 			newLines[cursorLine] = newLine;
@@ -440,14 +440,14 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			return {
 				lines: newLines,
 				cursorLine,
-				cursorCol: beforePrefix.length + item.value.length + 2, // +2 for "/" and space
+				cursorCol: beforePrefix.length + item.value.length + 2, // +2 对应 "/" 和空格
 			};
 		}
 
-		// Check if we're completing a file attachment (prefix starts with "@")
+		// 检查正在补全的是否为文件附件（prefix 以 "@" 开头）
 		if (prefix.startsWith("@")) {
-			// This is a file attachment completion
-			// Don't add space after directories so user can continue autocompleting
+			// 这是文件附件补全
+			// 目录后不加空格，让用户可以继续自动补全
 			const isDirectory = item.label.endsWith("/");
 			const suffix = isDirectory ? "" : " ";
 			const newLine = `${beforePrefix + item.value}${suffix}${adjustedAfterCursor}`;
@@ -464,10 +464,10 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			};
 		}
 
-		// Check if we're in a slash command context (beforePrefix contains "/command ")
+		// 检查是否处于 slash 命令上下文（beforePrefix 含 "/command "）
 		const textBeforeCursor = currentLine.slice(0, cursorCol);
 		if (textBeforeCursor.includes("/") && textBeforeCursor.includes(" ")) {
-			// This is likely a command argument completion
+			// 这大概率是命令参数补全
 			const newLine = beforePrefix + item.value + adjustedAfterCursor;
 			const newLines = [...lines];
 			newLines[cursorLine] = newLine;
@@ -483,7 +483,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			};
 		}
 
-		// For file paths, complete the path
+		// 文件路径：补全该路径
 		const newLine = beforePrefix + item.value + adjustedAfterCursor;
 		const newLines = [...lines];
 		newLines[cursorLine] = newLine;
@@ -499,7 +499,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		};
 	}
 
-	// Extract @ prefix for fuzzy file suggestions
+	// 为模糊文件建议提取 @ 前缀
 	private extractAtPrefix(text: string): string | null {
 		const quotedPrefix = extractQuotedPrefix(text);
 		if (quotedPrefix?.startsWith('@"')) {
@@ -516,7 +516,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		return null;
 	}
 
-	// Extract a path-like prefix from the text before cursor
+	// 从光标前的文本中提取类似路径的前缀
 	private extractPathPrefix(text: string, forceExtract: boolean = false): string | null {
 		const quotedPrefix = extractQuotedPrefix(text);
 		if (quotedPrefix) {
@@ -526,19 +526,19 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		const lastDelimiterIndex = findLastDelimiter(text);
 		const pathPrefix = stripLeadingWrappers(lastDelimiterIndex === -1 ? text : text.slice(lastDelimiterIndex + 1));
 
-		// For forced extraction (Tab key), always return something
+		// 强制提取时（Tab 键），总是返回结果
 		if (forceExtract) {
 			return pathPrefix;
 		}
 
-		// For natural triggers, return if it looks like a path, ends with /, starts with ~/, .
-		// Only return empty string if the text looks like it's starting a path context
+		// 自然触发时，只有看起来像路径、以 / 结尾或以 ~/、. 开头才返回。
+		// 只有当文本像是正要进入路径上下文时，才返回空字符串。
 		if (pathPrefix.includes("/") || pathPrefix.startsWith(".") || pathPrefix.startsWith("~/")) {
 			return pathPrefix;
 		}
 
-		// Return an empty prefix after whitespace or CJK punctuation, but not for empty text.
-		// Empty text should not trigger file suggestions - that's for forced Tab completion
+		// 在空白或 CJK 标点之后返回空前缀，但空文本除外。
+		// 空文本不应触发文件建议——那是强制 Tab 补全的职责。
 		if (pathPrefix === "" && text !== "" && tokenStartRegex.test(text)) {
 			return pathPrefix;
 		}
@@ -546,11 +546,11 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		return null;
 	}
 
-	// Expand home directory (~/) to actual home path
+	// 把主目录（~/）展开为实际的主目录路径
 	private expandHomePath(path: string): string {
 		if (path.startsWith("~/")) {
 			const expandedPath = join(homedir(), path.slice(2));
-			// Preserve trailing slash if original path had one
+			// 若原路径以 / 结尾，则保留该斜杠
 			return path.endsWith("/") && !expandedPath.endsWith("/") ? `${expandedPath}/` : expandedPath;
 		} else if (path === "~") {
 			return homedir();
@@ -596,7 +596,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		return `${toDisplayPath(displayBase)}${normalizedRelativePath}`;
 	}
 
-	// Get file/directory suggestions for a given path prefix
+	// 为给定路径前缀获取文件/目录建议
 	private getFileSuggestions(prefix: string): AutocompleteItem[] {
 		try {
 			let searchDir: string;
@@ -604,7 +604,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 			const { rawPrefix, isAtPrefix, isQuotedPrefix } = parsePathPrefix(prefix);
 			let expandedPrefix = rawPrefix;
 
-			// Handle home directory expansion
+			// 处理主目录展开
 			if (expandedPrefix.startsWith("~")) {
 				expandedPrefix = this.expandHomePath(expandedPrefix);
 			}
@@ -619,7 +619,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				(isAtPrefix && rawPrefix === "");
 
 			if (isRootPrefix) {
-				// Complete from specified position
+				// 从指定位置开始补全
 				if (rawPrefix.startsWith("~") || expandedPrefix.startsWith("/")) {
 					searchDir = expandedPrefix;
 				} else {
@@ -627,7 +627,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				}
 				searchPrefix = "";
 			} else if (rawPrefix.endsWith("/")) {
-				// If prefix ends with /, show contents of that directory
+				// 若 prefix 以 / 结尾，显示该目录的内容
 				if (rawPrefix.startsWith("~") || expandedPrefix.startsWith("/")) {
 					searchDir = expandedPrefix;
 				} else {
@@ -635,7 +635,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				}
 				searchPrefix = "";
 			} else {
-				// Split into directory and file prefix
+				// 拆分为目录部分与文件前缀
 				const dir = dirname(expandedPrefix);
 				const file = basename(expandedPrefix);
 				if (rawPrefix.startsWith("~") || expandedPrefix.startsWith("/")) {
@@ -654,14 +654,14 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 					continue;
 				}
 
-				// Check if entry is a directory (or a symlink pointing to a directory)
+				// 检查条目是否为目录（或指向目录的符号链接）
 				let isDirectory = entry.isDirectory();
 				if (!isDirectory && entry.isSymbolicLink()) {
 					try {
 						const fullPath = join(searchDir, entry.name);
 						isDirectory = statSync(fullPath).isDirectory();
 					} catch {
-						// Broken symlink or permission error - treat as file
+						// 符号链接断裂或权限错误——按文件处理
 					}
 				}
 
@@ -670,16 +670,16 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				const displayPrefix = rawPrefix;
 
 				if (displayPrefix.endsWith("/")) {
-					// If prefix ends with /, append entry to the prefix
+					// 若 prefix 以 / 结尾，把条目追加到 prefix 之后
 					relativePath = displayPrefix + name;
 				} else if (displayPrefix.includes("/") || displayPrefix.includes("\\")) {
-					// Preserve ~/ format for home directory paths
+					// 保留主目录路径的 ~/ 格式
 					if (displayPrefix.startsWith("~/")) {
-						const homeRelativeDir = displayPrefix.slice(2); // Remove ~/
+						const homeRelativeDir = displayPrefix.slice(2); // 去掉 ~/
 						const dir = dirname(homeRelativeDir);
 						relativePath = `~/${dir === "." ? name : join(dir, name)}`;
 					} else if (displayPrefix.startsWith("/")) {
-						// Absolute path - construct properly
+						// 绝对路径——正确构造
 						const dir = dirname(displayPrefix);
 						if (dir === "/") {
 							relativePath = `/${name}`;
@@ -688,13 +688,13 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 						}
 					} else {
 						relativePath = join(dirname(displayPrefix), name);
-						// path.join normalizes away ./ prefix, preserve it
+						// path.join 会把 ./ 前缀规范化掉，此处保留它
 						if (displayPrefix.startsWith("./") && !relativePath.startsWith("./")) {
 							relativePath = `./${relativePath}`;
 						}
 					}
 				} else {
-					// For standalone entries, preserve ~/ if original prefix was ~/
+					// 独立条目：若原 prefix 是 ~/，则保留 ~/
 					if (displayPrefix.startsWith("~")) {
 						relativePath = `~/${name}`;
 					} else {
@@ -716,7 +716,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 				});
 			}
 
-			// Sort directories first, then alphabetically
+			// 目录优先排序，其余按字母顺序
 			suggestions.sort((a, b) => {
 				const aIsDir = a.label.endsWith("/");
 				const bIsDir = b.label.endsWith("/");
@@ -727,13 +727,13 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 
 			return suggestions;
 		} catch (_e) {
-			// Directory doesn't exist or not accessible
+			// 目录不存在或不可访问
 			return [];
 		}
 	}
 
-	// Score an entry against the query (higher = better match)
-	// isDirectory adds bonus to prioritize folders
+	// 把条目与查询打分（越高 = 匹配越好）
+	// isDirectory 会加分，使文件夹更靠前
 	private scoreEntry(filePath: string, query: string, isDirectory: boolean): number {
 		const fileName = basename(filePath);
 		const lowerFileName = fileName.toLowerCase();
@@ -741,16 +741,16 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 
 		let score = 0;
 
-		// Exact filename match (highest)
+		// 文件名完全匹配（最高）
 		if (lowerFileName === lowerQuery) score = 100;
-		// Filename starts with query
+		// 文件名以查询开头
 		else if (lowerFileName.startsWith(lowerQuery)) score = 80;
-		// Substring match in filename
+		// 文件名中的子串匹配
 		else if (lowerFileName.includes(lowerQuery)) score = 50;
-		// Substring match in full path
+		// 完整路径中的子串匹配
 		else if (filePath.toLowerCase().includes(lowerQuery)) score = 30;
 
-		// Directories get a bonus to appear first
+		// 目录获得加分以排在前面
 		if (isDirectory && score > 0) score += 10;
 
 		return score;
@@ -768,7 +768,7 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		return await walkDirectoryWithFd(baseDir, this.fdPath, query, 100, signal, 1);
 	}
 
-	// Fuzzy file search using fd (fast, respects .gitignore)
+	// 用 fd 做模糊文件搜索（快，且遵守 .gitignore）
 	private async getFuzzyFileSuggestions(
 		query: string,
 		options: { isQuotedPrefix: boolean; signal: AbortSignal },
@@ -846,12 +846,12 @@ export class CombinedAutocompleteProvider implements AutocompleteProvider {
 		}
 	}
 
-	// Check if we should trigger file completion (called on Tab key)
+	// 检查是否应触发文件补全（按 Tab 键时调用）
 	shouldTriggerFileCompletion(lines: string[], cursorLine: number, cursorCol: number): boolean {
 		const currentLine = lines[cursorLine] || "";
 		const textBeforeCursor = currentLine.slice(0, cursorCol);
 
-		// Don't trigger if we're typing a slash command at the start of the line
+		// 正在行首输入 slash 命令时不触发
 		if (textBeforeCursor.trim().startsWith("/") && !textBeforeCursor.trim().includes(" ")) {
 			return false;
 		}

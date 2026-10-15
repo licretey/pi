@@ -21,10 +21,10 @@ registerEnvConformance(
 		try {
 			await use(new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd, watch: { pollIntervalMs: 100 } }));
 		} finally {
-			// On Windows a killed command's processes can hold the directory for a moment.
+			// 在 Windows 上，被结束命令的进程可能会短暂占用目录。
 			rmSync(cwd, { recursive: true, force: true, maxRetries: 50, retryDelay: 100 });
 		}
 	},
-	// Git Bash's `ln -s` copies instead of linking unless native symlinks are enabled.
+	// 除非启用了原生符号链接，否则 Git Bash 的 `ln -s` 会复制文件而不是创建链接。
 	windows ? { shell: [gitBash, "-c"], symlinks: false } : {},
 );

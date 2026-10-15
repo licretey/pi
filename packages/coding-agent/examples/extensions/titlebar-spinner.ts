@@ -1,10 +1,10 @@
 /**
- * Titlebar Spinner Extension
+ * 标题栏加载指示器扩展。
  *
- * Shows a braille spinner animation in the terminal title while the agent is working.
- * Uses `ctx.ui.setTitle()` to update the terminal title via the extension API.
+ * 智能体工作期间，在终端标题中显示盲文旋转动画。
+ * 通过扩展 API 的 `ctx.ui.setTitle()` 更新终端标题。
  *
- * Usage:
+ * 用法：
  *   pi --extension examples/extensions/titlebar-spinner.ts
  */
 

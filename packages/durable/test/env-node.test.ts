@@ -20,9 +20,8 @@ function createTempDir(): string {
 }
 
 /**
- * Remove a test directory. On Windows, `taskkill /T` runs asynchronously and can miss descendants such as Git Bash's
- * `sleep`, so a killed command's processes can hold the directory for a while after `exec` settles; retry until they
- * exit.
+ * 删除测试目录。在 Windows 上，`taskkill /T` 异步运行，可能漏掉 Git Bash 的 `sleep` 等子进程；
+ * 因此即使命令执行已结束，残留进程仍可能暂时占用目录。应持续重试，直到这些进程退出。
  */
 async function removeTempDir(dir: string): Promise<void> {
 	for (let attempt = 0; ; attempt++) {
@@ -382,7 +381,7 @@ describe("NodeExecutionEnv filesystem", () => {
 		const bytes = new Uint8Array([0x61, 0xc3, 0xa9, 0x0a, 0x62, 0x0a]);
 		getOrThrow(await env.writeFile("file.bin", bytes, BACKGROUND_CONTEXT));
 
-		// Truncation is byte-exact even when the boundary splits a UTF-8 sequence.
+		// 即使截断边界落在 UTF-8 字符序列中间，截断长度仍严格按字节计算。
 		getOrThrow(await env.truncateFile("file.bin", 2, BACKGROUND_CONTEXT));
 		expect([...getOrThrow(await env.readBinaryFile("file.bin", BACKGROUND_CONTEXT))]).toEqual([0x61, 0xc3]);
 
@@ -510,7 +509,7 @@ describe("NodeExecutionEnv text line reader", () => {
 	it("decodes multi-byte characters split across read chunks and lines longer than one chunk", async () => {
 		const root = createTempDir();
 		const env = new NodeExecutionEnv({ cwd: root });
-		// The reader uses 64 KiB chunks; place a four-byte character across the first boundary.
+		// 读取器以 64 KiB 为块读取；在第一个块边界处放置一个四字节字符。
 		const first = `${"a".repeat(64 * 1024 - 2)}😀tail`;
 		const second = "é".repeat(100_000);
 		getOrThrow(await env.writeFile("large.txt", `${first}\n${second}`, BACKGROUND_CONTEXT));
@@ -596,7 +595,7 @@ describe("NodeExecutionEnv shell", () => {
 		const result = getOrThrow(collected.result);
 		expect(result.exitCode).toBe(0);
 		expect(readFileSync(join(root, "cwd-marker.txt"), "utf8")).toBe("ok");
-		// Git Bash on Windows reports $PWD as an MSYS path (/tmp/...), not the Windows path.
+		// Windows 上的 Git Bash 会将 $PWD 报告为 MSYS 路径（/tmp/...），而不是 Windows 路径。
 		if (process.platform !== "win32") expect(collected.output).toBe(`${await realpath(root)}:ok`);
 	});
 
@@ -780,7 +779,7 @@ describe("NodeExecutionEnv shell", () => {
 		expect(result).toEqual({ exitCode: 7 });
 	});
 
-	// Regression test for https://github.com/earendil-works/pi/issues/8992
+	// https://github.com/earendil-works/pi/issues/8992 的回归测试。
 	it.skipIf(process.platform === "win32")("maps signal-killed processes to a non-zero exit code", async () => {
 		const root = createTempDir();
 		const env = new NodeExecutionEnv({ cwd: root });

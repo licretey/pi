@@ -5,19 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { waitForChildProcess } from "../../../src/utils/child-process.ts";
 
 /**
- * Regression test for https://github.com/earendil-works/pi/issues/5303
+ * https://github.com/earendil-works/pi/issues/5303 的回归测试。
  *
- * waitForChildProcess armed a fixed 100ms timer on `exit` and destroyed the
- * stdio streams when it fired. When a short-lived detached descendant kept the
- * stdout pipe open, `close` never fired, so that timer was the only thing that
- * resolved the wait, and any output written more than 100ms after exit was
- * binned. In practice every git commit whose pre-commit hook runs lint-staged
- * came back truncated mid-listr2 output, read by the model as a hang.
+ * waitForChildProcess 曾在 `exit` 事件发生时启动固定的 100 毫秒计时器，并在计时器触发时销毁
+ * 标准输入输出流。短暂存活的分离子进程若仍占用 stdout 管道，`close` 就不会触发，
+ * 此时只能由计时器结束等待；进程退出 100 毫秒后写入的输出都会丢失。实际表现为：
+ * 运行 lint-staged 的 git 提交钩子会在 listr2 输出中途被截断，模型则将其判断为卡住。
  *
- * The fix re-arms the grace on each chunk, so an actively writing pipe keeps us
- * reading while a genuinely idle held-open handle still releases after the
- * grace elapses. Both behaviours are covered below with virtual time so host
- * load cannot reorder a real subprocess's writes and the grace timer.
+ * 修复会在每个数据块到达时重新启动宽限期，因此持续写入的管道会让我们
+ * 读取；如果句柄确实处于空闲状态，即使仍被占用，也会在宽限期结束后释放。下方使用虚拟时间
+ * 覆盖这两种行为，避免主机负载改变真实子进程写入与宽限计时器之间的先后顺序。
  */
 describe("issue #5303 bash output truncation past exit", () => {
 	function createChild(): ChildProcessByStdio<null, PassThrough, PassThrough> {

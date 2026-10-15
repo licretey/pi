@@ -265,7 +265,7 @@ describe("experimental client TUI", () => {
 				expect(component.render(80).join("\n")).not.toContain("Experimental Sessions");
 				expect(component.render(80).join("\n")).not.toContain("Experimental Models");
 
-				// Startup selection is the only behavior specific to continue and plugin-selected Sessions.
+				// 启动时的选择是 continue 和通过插件选择的 Session 才具有的特殊行为。
 				if (kind !== "new") return;
 
 				component.handleInput("hello");

@@ -18,22 +18,21 @@ import {
 type ThemeResult = { success: boolean; error?: string };
 
 /**
- * How long the system theme stays grayscale before falling back to palette indices. Terminals answer
- * the trailing DA1 request right after the color replies, so this only matters for terminals that
- * answer neither. Replies arriving later still apply.
+ * 系统主题保持灰度显示、随后回退到调色板索引的等待时间。终端通常会在颜色响应后立即响应末尾的 DA1 请求，
+ * 因此此超时只影响两种请求都未响应的终端。之后到达的响应仍会生效。
  */
 const TERMINAL_QUERY_TIMEOUT_MS = 100;
 
 /**
- * Query the terminal's colors and pass them to `apply` when the query completes or times out, and again
- * if the terminal answers after the timeout. A failed query applies no colors. Settles after the first apply.
+ * 查询终端颜色，在查询完成或超时时将结果传给 `apply`；若终端在超时后响应，也会再次传递。
+ * 查询失败时传递空颜色。首次调用 `apply` 后 Promise 即完成。
  */
 export function requestTerminalColors(ui: TUI, apply: (colors: TerminalColors) => void): Promise<void> {
 	let query: Promise<TerminalColors>;
 	try {
 		query = ui.queryTerminalColors({ timeoutMs: TERMINAL_QUERY_TIMEOUT_MS, onLateReply: apply });
 	} catch {
-		// Treat a failed query like a terminal that does not report colors.
+		// 将查询失败视为终端未报告颜色。
 		query = Promise.resolve({});
 	}
 	return query.then(apply, () => apply({}));
@@ -51,9 +50,8 @@ function sameTerminalColors(a: TerminalColors, b: TerminalColors): boolean {
 }
 
 /**
- * Applies the theme setting and keeps it in sync with the terminal. The theme applies immediately, and the
- * terminal's colors update it when they arrive; the system theme renders in grayscale until then. Callers
- * that bake theme colors into content can wait for the colors with `waitForTerminalColors()`.
+ * 应用主题设置并使其与终端保持同步。主题会立即应用，终端颜色返回后再更新主题；在此之前，
+ * 系统主题以灰度显示。需要将主题颜色写入内容的调用方可以通过 `waitForTerminalColors()` 等待颜色。
  */
 export class InteractiveThemeController {
 	private readonly ui: TUI;
@@ -61,12 +59,12 @@ export class InteractiveThemeController {
 	private readonly showError: (message: string) => void;
 	private readonly onChanged: () => void;
 	private currentThemeSetting: string | undefined;
-	// Last reported colors; a query that times out keeps them instead of erasing them.
+	// 最近一次报告的颜色；查询超时时保留这些颜色，不清空。
 	private terminalColors: TerminalColors | undefined;
 	private activeThemeName: string | undefined;
 	private autoSyncEnabled = false;
 	private terminalColorSchemeUnsubscribe: (() => void) | undefined;
-	// Settles when the latest color query completed or timed out, and its colors applied.
+	// 最新颜色查询完成或超时且已应用其颜色后，此 Promise 才会完成。
 	private terminalColorQuery: Promise<void> = Promise.resolve();
 
 	constructor(
@@ -84,7 +82,7 @@ export class InteractiveThemeController {
 		this.onChanged = options.onChanged;
 		this.currentThemeSetting = options.initialThemeSetting;
 		this.activeThemeName = this.resolveThemeName();
-		// The system theme starts in grayscale; color follows once the terminal reports its colors.
+		// 系统主题初始以灰度显示；终端报告颜色后再应用颜色。
 		markTerminalColorsPending();
 		initTheme(this.activeThemeName, true);
 		this.bindTerminalColorSchemeListener();
@@ -97,8 +95,8 @@ export class InteractiveThemeController {
 	}
 
 	/**
-	 * Apply the theme setting now and query the terminal's colors, which update the theme when they arrive.
-	 * Theme pairs and the system theme follow terminal appearance changes.
+	 * 立即应用主题设置并查询终端颜色；颜色返回后会更新主题。
+	 * 成对主题和系统主题会跟随终端外观变化。
 	 */
 	applyFromSettings(): void {
 		const themeSetting = this.getThemeSetting();
@@ -109,9 +107,8 @@ export class InteractiveThemeController {
 	}
 
 	/**
-	 * Wait until the latest color query completed or timed out. Content that bakes theme colors into
-	 * strings, such as the startup header, should be built after this. Terminals answer the DA1 request
-	 * right after the color replies, so this only takes the full timeout when a terminal answers nothing.
+	 * 等待最新颜色查询完成或超时。将主题颜色写入字符串的内容（例如启动标题）应在此之后构建。
+	 * 终端通常会在颜色响应后立即响应 DA1 请求，因此只有完全没有响应时才会等待完整超时。
 	 */
 	waitForTerminalColors(): Promise<void> {
 		return this.terminalColorQuery;
@@ -170,7 +167,7 @@ export class InteractiveThemeController {
 		return this.currentThemeSetting ?? this.getSettingsManager().getThemeSetting();
 	}
 
-	/** The theme for the current setting and terminal appearance. Without a setting, pi uses the system theme. */
+	/** 当前设置和终端外观对应的主题。未设置主题时，pi 使用系统主题。 */
 	private resolveThemeName(): string {
 		return resolveThemeSetting(this.getThemeSetting(), getTerminalTheme()) ?? SYSTEM_THEME_NAME;
 	}
@@ -185,14 +182,14 @@ export class InteractiveThemeController {
 		return result;
 	}
 
-	/** Query the terminal's colors without waiting for them; `waitForTerminalColors()` waits for this query. */
+	/** 查询终端颜色但不等待；`waitForTerminalColors()` 会等待此查询完成。 */
 	private queryTerminalColors(): void {
 		this.terminalColorQuery = requestTerminalColors(this.ui, (colors) => this.applyTerminalColors(colors));
 	}
 
 	/**
-	 * Record reported colors: themes use the default colors for tokens set to "", the system theme is
-	 * generated from all of them, and light/dark detection uses them. Re-renders only when they changed.
+	 * 记录终端报告的颜色：值为 "" 的样式令牌使用终端默认颜色；系统主题根据这些颜色生成，
+	 * 明暗模式检测也会使用这些颜色。仅在颜色发生变化时重新渲染。
 	 */
 	private applyTerminalColors(reported: TerminalColors): void {
 		const previous = this.terminalColors;
@@ -201,7 +198,7 @@ export class InteractiveThemeController {
 			background: reported.background ?? previous?.background,
 			palette: reported.palette ?? previous?.palette,
 		};
-		// Re-rendering rebuilds every component, so skip it when nothing changed (including timeouts).
+		// 重新渲染会重建所有组件，因此没有变化时（包括查询超时）跳过渲染。
 		if (previous && sameTerminalColors(previous, next)) return;
 		this.terminalColors = next;
 		setTerminalColors(next);
@@ -211,8 +208,8 @@ export class InteractiveThemeController {
 	}
 
 	/**
-	 * Re-apply the setting after the terminal's colors or appearance changed: regenerate the system theme,
-	 * or switch the theme of a pair. Themes set through extensions or previews are left alone.
+	 * 终端颜色或外观变化后重新应用设置：重新生成系统主题，或切换主题对中的主题。
+	 * 通过扩展或预览设置的主题不受影响。
 	 */
 	private reapplyForTerminal(): void {
 		if (this.activeThemeName === "<in-memory>") return;
@@ -235,8 +232,8 @@ export class InteractiveThemeController {
 	}
 
 	/**
-	 * The terminal reported a light/dark switch. Its colors changed too, so query them again: they decide
-	 * the appearance. The reported scheme only matters for terminals that do not report their background.
+	 * 终端报告了明暗模式切换。由于终端颜色也随之变化，需要重新查询颜色，以此确定外观。
+	 * 只有不报告背景色的终端才使用其报告的明暗模式。
 	 */
 	private applyTerminalColorSchemeChange(terminalTheme: TerminalTheme): void {
 		if (!this.autoSyncEnabled) return;

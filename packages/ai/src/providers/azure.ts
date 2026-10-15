@@ -11,7 +11,7 @@ function resolveAzureModel(model: Model<Api>, options: StreamOptions | undefined
 	return { ...model, baseUrl: resolveAzureBaseUrl(model, options) };
 }
 
-/** Send the deployment name as the request's model, keeping `model.id` as the catalog id. */
+/** 将部署名作为请求的 model 发送，`model.id` 保持为目录 id。 */
 function withDeploymentName<T extends StreamOptions>(model: Model<Api>, options: T | undefined): T | undefined {
 	const deploymentName = resolveDeploymentName(model, options);
 	if (deploymentName === model.id) return options;
@@ -25,8 +25,8 @@ function withDeploymentName<T extends StreamOptions>(model: Model<Api>, options:
 }
 
 /**
- * Resolve the Azure endpoint and deployment before dispatch, inside `lazyStream` so an
- * unconfigured endpoint errors on the stream instead of throwing out of `stream()`.
+ * 在分发前解析 Azure 端点和部署名：放在 `lazyStream` 内，这样未配置端点时报错
+ * 发生在流上，而不是从 `stream()` 直接抛出。
  */
 function azureStreams(streams: ProviderStreams): ProviderStreams {
 	return {

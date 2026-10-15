@@ -180,7 +180,7 @@ export const SessionWorkerEventSchema = Type.Union([
 ]);
 export type SessionWorkerEvent = Static<typeof SessionWorkerEventSchema>;
 
-/** Worker-local reconciliation of server-generation demand and Harness activity. */
+/** 在工作进程内协调服务器进程需求与 Harness 活动状态。 */
 export class WorkerLifecycle {
 	readonly #initialDemandGraceMs: number;
 	readonly #orphanDemandGraceMs: number;
@@ -275,7 +275,7 @@ export class WorkerLifecycle {
 		this.#reconcile();
 	}
 
-	/** Live Harness tasks, such as runs and compactions, hold the worker until they end. */
+	/** 正在运行的 Harness 任务（例如代理运行和压缩）会使工作进程保持活动，直到任务结束。 */
 	setHarnessActive(active: boolean): void {
 		this.#harnessActive = active;
 		if (!active) this.#reconcile();
@@ -498,8 +498,8 @@ async function closeResources(resources: {
 }
 
 /**
- * Open the Session's Harness over `databasePath` and return it with its root conversation. Called while the worker
- * holds the Session lock; on failure it closes whatever it opened.
+ * 使用 `databasePath` 打开会话的 Harness，并连同根会话一起返回。调用时工作进程持有会话锁；
+ * 若打开失败，则关闭已打开的资源。
  */
 export type CreateSessionWorkerHarness = (
 	databasePath: string,
@@ -588,9 +588,9 @@ async function run(options: SessionWorkerOptions, createHarness: CreateSessionWo
 		orphanDemandGraceMs: lifecycleDelay(SESSION_WORKER_ORPHAN_DEMAND_GRACE_ENV, DEFAULT_ORPHAN_DEMAND_GRACE_MS),
 		onRetire: closeAndExit,
 	});
-	// Every live task, background work included, keeps the worker and its Session open.
+	// 所有活动任务（包括后台任务）都会使工作进程和会话保持打开状态。
 	stopActivity = activity.subscribe((graph) => lifecycle?.setHarnessActive(Object.keys(graph.tasks).length > 0));
-	// Recovered work from an interrupted turn continues now.
+	// 现在继续处理中断回合中恢复的工作。
 	harness.resume();
 
 	const handleOperation = async (request: WorkerOperationRequest): Promise<void> => {
@@ -792,7 +792,7 @@ async function createCodingAgentHarness(
 			},
 			TODO_CONTEXT,
 		);
-		// The initial model applies only when the root conversation is created; later starts keep its durable model.
+		// 初始模型只在创建根会话时生效；之后启动时继续使用会话中持久化的模型。
 		const created = (await harness.conversation(ROOT_CONVERSATION_ID, TODO_CONTEXT)) === undefined;
 		const initial = created
 			? await findInitialAgentModel(

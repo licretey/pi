@@ -1,6 +1,6 @@
 /**
- * Adapters that give a pi-agent-core `Agent` MCP tools and a codemode tool, using
- * `@earendil-works/pi-mcp` and `@earendil-works/pi-codemode`. See main.ts for how they fit together.
+ * 使用 `@earendil-works/pi-mcp` 和 `@earendil-works/pi-codemode`，为 pi-agent-core 的 `Agent`
+ * 提供 MCP 工具和 codemode 工具的适配器。它们的组合方式见 main.ts。
  */
 
 import {
@@ -20,7 +20,7 @@ import {
 import { type McpClient, toLlmContent } from "@earendil-works/pi-mcp";
 import { Type } from "typebox";
 
-/** Provider tool names are limited to 64 characters of `[A-Za-z0-9_-]`. */
+/** 提供商工具名称最多 64 个字符，且仅允许 `[A-Za-z0-9_-]` 中的字符。 */
 function toToolName(prefix: string, name: string): string {
 	return `${prefix}_${name}`.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 64);
 }
@@ -33,9 +33,9 @@ function textOf(result: AgentToolResult<unknown>): string {
 }
 
 /**
- * One `AgentTool` per tool of a connected MCP server, named `<prefix>_<tool>`. Tools with an MCP
- * output schema declare it as `outputSchema` and return `structuredContent`, which codemode scripts
- * receive instead of the text.
+ * 为已连接 MCP 服务器中的每个工具创建一个 `AgentTool`，名称为 `<prefix>_<tool>`。
+ * MCP 工具声明了输出 schema 时，会将其设为 `outputSchema` 并返回 `structuredContent`，
+ * codemode 脚本会收到该结构化内容，而不是文本。
  */
 export async function createMcpTools(client: McpClient, prefix: string): Promise<AgentTool[]> {
 	const tools = await client.listTools();
@@ -44,7 +44,7 @@ export async function createMcpTools(client: McpClient, prefix: string): Promise
 			name: toToolName(prefix, tool.name),
 			label: tool.title ?? tool.name,
 			description: tool.description ?? tool.title ?? `MCP tool ${tool.name}`,
-			// Providers require an object schema, and some reject one without `properties`.
+			// 提供商要求 schema 为对象类型，且有些提供商会拒绝缺少 `properties` 的 schema。
 			parameters: Type.Unsafe({
 				...tool.inputSchema,
 				type: "object",
@@ -67,7 +67,7 @@ export async function createMcpTools(client: McpClient, prefix: string): Promise
 					content,
 					details: undefined,
 					structuredContent: result.structuredContent as JsonValue | undefined,
-					// MCP reports tool failures in the result instead of as a protocol error.
+					// MCP 将工具失败信息放在结果中返回，而不是作为协议错误报告。
 					isError: result.isError === true,
 				};
 			},
@@ -76,9 +76,9 @@ export async function createMcpTools(client: McpClient, prefix: string): Promise
 }
 
 /**
- * Run a tool call on behalf of another tool through the agent's pipeline: argument validation and
- * the agent's `beforeToolCall`/`afterToolCall` hooks apply as for calls the model makes. Calling
- * `tool.execute()` directly also works when the agent has no hooks.
+ * 通过智能体的调用流水线代其他工具运行工具调用：参数验证以及智能体的
+ * `beforeToolCall`/`afterToolCall` 钩子，均与模型发起的调用相同。
+ * 智能体没有钩子时，也可以直接调用 `tool.execute()`。
  */
 export function createNestedToolRunner(
 	agent: Agent,
@@ -109,9 +109,8 @@ const codemodeParameters = Type.Object({
 });
 
 /**
- * A tool that runs model-written JavaScript in the codemode sandbox, where `tools.<name>(args)`
- * calls `tools`. Nested results stay out of the model context; only the script's output and
- * return value come back.
+ * 在 codemode 沙箱中运行模型编写的 JavaScript；其中 `tools.<name>(args)` 会调用对应工具。
+ * 嵌套调用结果不会进入模型上下文；只有脚本输出和返回值会传回。
  */
 export function createCodemodeTool(
 	tools: readonly AgentTool[],
@@ -121,9 +120,9 @@ export function createCodemodeTool(
 	const sandboxTools: CodemodeTool[] = callable.map((tool) => ({
 		name: tool.name,
 		description: tool.description,
-		// TypeBox schemas are JSON Schema.
+		// TypeBox schema 使用 JSON Schema 格式。
 		inputSchema: tool.parameters as CodemodeJsonSchema,
-		// What the script receives: the structured result if the tool declares one, else its text.
+		// 脚本接收的结果：工具声明了结构化输出时返回该结果，否则返回文本。
 		outputSchema: (tool.outputSchema as CodemodeJsonSchema | undefined) ?? { type: "string" },
 		execute: async (args, { signal }) => {
 			const outcome = await runTool(tool.name, args, signal);
@@ -154,7 +153,7 @@ export function createCodemodeTool(
 			const sandbox = new CodemodeSandbox({ tools: sandboxTools, timeoutMs: 120_000 });
 			try {
 				const result = await sandbox.execute(params.code, { signal });
-				// Items from text(), console.*, and image(), in order. They have pi-ai's content shapes.
+				// 按顺序收集 text()、console.* 和 image() 产生的内容项；其结构符合 pi-ai 的内容类型。
 				const content: (TextContent | ImageContent)[] = [...result.output];
 				if (result.ok && result.value !== undefined) {
 					const value = typeof result.value === "string" ? result.value : JSON.stringify(result.value);

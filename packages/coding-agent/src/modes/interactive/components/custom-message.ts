@@ -6,8 +6,8 @@ import type { CustomMessage } from "../../../core/messages.ts";
 import { getMarkdownTheme, theme } from "../theme/theme.ts";
 
 /**
- * Component that renders a custom message entry from extensions.
- * Uses distinct styling to differentiate from user messages.
+ * 渲染扩展自定义消息条目的组件。
+ * 使用不同样式与用户消息区分。
  */
 export class CustomMessageComponent extends Container {
 	private message: CustomMessage<unknown>;
@@ -32,7 +32,7 @@ export class CustomMessageComponent extends Container {
 
 		this.addChild(new Spacer(1));
 
-		// Create box with purple background (used for default rendering)
+		// 创建紫色背景的容器（用于默认渲染）。
 		this.box = new Box(1, 1, (t) => theme.bg("customMessageBg", t));
 
 		this.rebuild();
@@ -58,14 +58,14 @@ export class CustomMessageComponent extends Container {
 	}
 
 	private rebuild(): void {
-		// Remove previous content component
+		// 移除之前的内容组件。
 		if (this.customComponent) {
 			this.removeChild(this.customComponent);
 			this.customComponent = undefined;
 		}
 		this.removeChild(this.box);
 
-		// Try custom renderer first - it handles its own styling
+		// 优先尝试自定义渲染器；它会自行处理样式。
 		if (this.customRenderer) {
 			try {
 				const component = this.customRenderer(
@@ -74,27 +74,27 @@ export class CustomMessageComponent extends Container {
 					theme,
 				);
 				if (component) {
-					// Custom renderer provides its own styled component
+					// 自定义渲染器会提供已设置样式的组件。
 					this.customComponent = component;
 					this.addChild(component);
 					return;
 				}
 			} catch {
-				// Fall through to default rendering
+				// 继续使用默认渲染方式。
 			}
 		}
 
-		// Default rendering uses our box
+		// 默认渲染使用此容器。
 		this.addChild(this.box);
 		this.box.clear();
 		this.box.setPaddingX(this.outputPad);
 
-		// Default rendering: label + content
+		// 默认渲染内容：标签和正文。
 		const label = theme.fg("customMessageLabel", `\x1b[1m[${this.message.customType}]\x1b[22m`);
 		this.box.addChild(new Text(label, 0, 0));
 		this.box.addChild(new Spacer(1));
 
-		// Extract text content
+		// 提取文本内容。
 		let text: string;
 		if (typeof this.message.content === "string") {
 			text = this.message.content;

@@ -1,8 +1,8 @@
 /**
- * Example extension with its own npm dependencies.
- * Tests that jiti resolves modules from the extension's own node_modules.
+ * 使用独立 npm 依赖的扩展示例。
+ * 测试 jiti 是否从扩展自身的 node_modules 中解析模块。
  *
- * Requires: npm install in this directory
+ * 需要在此目录下运行 npm install。
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -10,7 +10,7 @@ import ms from "ms";
 import { Type } from "typebox";
 
 export default function (pi: ExtensionAPI) {
-	// Register a tool that uses ms
+	// 注册一个使用 ms 的工具。
 	pi.registerTool({
 		name: "parse_duration",
 		label: "Parse Duration",

@@ -6,8 +6,7 @@ import { stream as streamAnthropic } from "../src/api/anthropic-messages.ts";
 import type { Model } from "../src/types.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
-// Runs the real Anthropic SDK against a fake fetch to check how often the
-// workload identity federation token exchange happens.
+// 使用模拟的 fetch 运行真实 Anthropic SDK，以检查工作负载身份联合令牌交换的调用频率。
 // https://github.com/earendil-works/pi/issues/10177
 
 function sseResponse(): Response {

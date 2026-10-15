@@ -51,7 +51,7 @@ const MAX_TIMEOUT_MS = 2_147_483_647;
 const MAX_TIMEOUT_SECONDS = MAX_TIMEOUT_MS / 1000;
 const EXIT_STDIO_GRACE_MS = 100;
 const SPILL_HIGH_WATER_MARK = 1024 * 1024;
-/** Largest single read of a `BinaryReader`, so a huge `length` allocates only as much as the file yields. */
+/** `BinaryReader` 单次读取的上限，这样巨大的 `length` 也只会按文件实际可读的量来分配。 */
 const BINARY_READ_CHUNK = 1024 * 1024;
 
 type SpillChunk = string | Uint8Array;
@@ -79,7 +79,7 @@ function resolvePath(cwd: string, path: string): string {
 		try {
 			normalized = fileURLToPath(normalized);
 		} catch {
-			// Keep malformed URLs as ordinary paths so filesystem methods preserve their non-throwing contract.
+			// 把畸形的 URL 当作普通路径保留，使文件系统方法维持其不抛异常的契约。
 		}
 	}
 	return isAbsolute(normalized) ? resolve(normalized) : resolve(cwd, normalized);
@@ -283,10 +283,10 @@ function killProcessTree(pid: number): void {
 					windowsHide: true,
 				},
 			);
-			// A failed spawn emits "error" asynchronously; consume it to avoid crashing Node.
+			// spawn 失败时会异步发出 "error"；消费掉它以避免让 Node 崩溃。
 			child.once("error", () => {});
 		} catch {
-			// Ignore errors.
+			// 忽略错误。
 		}
 		return;
 	}
@@ -297,7 +297,7 @@ function killProcessTree(pid: number): void {
 		try {
 			process.kill(pid, "SIGKILL");
 		} catch {
-			// Process already dead.
+			// 进程已死。
 		}
 	}
 }
@@ -383,7 +383,7 @@ function waitForChildProcess(
 	});
 }
 
-/** Strict LF reader; Node readline does not report whether its final line was newline-terminated. */
+/** 严格的 LF 读取器；Node 的 readline 不会报告最后一行是否以换行符结尾。 */
 class NodeTextLineReader implements TextLineReader {
 	private readonly file: Awaited<ReturnType<typeof openFile>>;
 	private readonly path: string;
@@ -419,7 +419,7 @@ class NodeTextLineReader implements TextLineReader {
 					return ok({ text, terminated: false });
 				}
 
-				// Explicit positions allow an aborted read to be retried without skipping bytes.
+				// 显式指定位置，使被中止的读取可以重试而不跳过字节。
 				const { bytesRead } = await this.file.read(this.chunk, 0, this.chunk.length, this.byteOffset);
 				const afterReadAbort = abortResult<TextLine | undefined>(context.abortSignal, this.path);
 				if (afterReadAbort) return afterReadAbort;
@@ -443,7 +443,7 @@ class NodeTextLineReader implements TextLineReader {
 		try {
 			await this.file.close();
 		} catch {
-			// Closing is best-effort, including after cancellation or an earlier I/O failure.
+			// 关闭尽力而为，包括在取消或此前 I/O 已失败的情况下。
 		}
 	}
 }
@@ -576,7 +576,7 @@ class NodeDirReader implements DirReader {
 				try {
 					stats = await lstat(entryPath);
 				} catch (error) {
-					// Removed between enumeration and lstat: not part of the listing any more.
+					// 在枚举与 lstat 之间被删除：已不属于本次列取内容。
 					if (isNodeError(error) && error.code === "ENOENT") continue;
 					return err(toFileError(error, entryPath));
 				}
@@ -601,7 +601,7 @@ function symlinkRefused(path: string, cause?: Error): FileError {
 }
 
 export class NodeExecutionEnv implements ExecutionEnv {
-	/** Every local environment sees the same files. */
+	/** 所有本地环境看到的都是同样的文件。 */
 	readonly id: string = "node:local";
 	cwd: string;
 	private shellPath?: string;
@@ -661,7 +661,7 @@ export class NodeExecutionEnv implements ExecutionEnv {
 		const timeoutMs = timeoutMsResult.value;
 
 		const cwd = options?.cwd ? resolvePath(this.cwd, options.cwd) : this.cwd;
-		// A string runs through the shell; an argv array runs its program directly, without shell parsing.
+		// 字符串经由 shell 执行；argv 数组直接运行其程序，不经 shell 解析。
 		let program: string;
 		let args: readonly string[];
 		let stdinCommand: string | undefined;
@@ -714,10 +714,10 @@ export class NodeExecutionEnv implements ExecutionEnv {
 				callbackError = new ExecutionError("callback_error", cause.message, cause);
 				onAbort();
 			};
-			// One decoder per stream, so a character split across chunks of one stream survives interleaving.
+			// 每个流各用一个解码器，因此被同一流内各分块拆开的字符能在交错中完好保留。
 			const stdoutDecoder = new StreamDecoder();
 			const stderrDecoder = new StreamDecoder();
-			// No output reaches the caller after exec() settled, for example from a descendant holding stdio open.
+			// exec() 完成后不再有输出送达调用方，例如仍持有 stdio 的后代进程的输出。
 			const emit = (text: string, stream: ShellOutputInfo["stream"]): void => {
 				if (settled || text === "" || options?.onOutput === undefined || callbackError !== undefined) return;
 				try {
@@ -726,7 +726,7 @@ export class NodeExecutionEnv implements ExecutionEnv {
 					failCallback(error);
 				}
 			};
-			// Output seen before the spill starts: counted against the thresholds and kept for the spill's prefix.
+			// 溢写开始之前收到的输出：计入阈值，并保留作为溢写文件的前缀。
 			let seenBytes = 0;
 			let seenNewlines = 0;
 
@@ -882,9 +882,8 @@ export class NodeExecutionEnv implements ExecutionEnv {
 						settle(err(spillError));
 						return;
 					}
-					// A process killed by a signal (e.g. OOM killer) has no exit code; map it
-					// to the conventional 128 + signal number so callers do not mistake it
-					// for a successful exit.
+					// 被信号杀死的进程（如 OOM killer）没有退出码；把它映射为惯例的
+					// 128 + 信号编号，免得调用方误以为是成功退出。
 					const exitCode = code ?? (exitSignal ? 128 + (osConstants.signals[exitSignal] ?? 0) : 1);
 					settle(ok({ exitCode, ...(spillPath === undefined ? {} : { spillPath }) }));
 				},
@@ -969,10 +968,10 @@ export class NodeExecutionEnv implements ExecutionEnv {
 		try {
 			let flags = constants.O_RDONLY;
 			if (process.platform === "win32") {
-				// Windows has no O_NOFOLLOW; check the final component before opening (not race-free).
+				// Windows 没有 O_NOFOLLOW；在打开前检查最后一级分量（并非无竞态）。
 				if (noFollow && (await lstat(resolved)).isSymbolicLink()) return err(symlinkRefused(resolved));
 			} else {
-				// Nonblocking, so opening a FIFO does not wait for a writer.
+				// 非阻塞，因此打开 FIFO 不会等待写入方。
 				flags |= constants.O_NONBLOCK;
 				if (noFollow) flags |= constants.O_NOFOLLOW;
 			}
@@ -994,7 +993,7 @@ export class NodeExecutionEnv implements ExecutionEnv {
 			return ok(new NodeBinaryReader(file, resolved));
 		} catch (error) {
 			await file?.close().catch(() => undefined);
-			// O_NOFOLLOW reports a final-component symlink as ELOOP (EMLINK on some BSDs).
+			// O_NOFOLLOW 会把最后一级分量的符号链接报为 ELOOP（某些 BSD 上为 EMLINK）。
 			if (noFollow && isNodeError(error) && (error.code === "ELOOP" || error.code === "EMLINK")) {
 				return err(symlinkRefused(resolved, toError(error)));
 			}
@@ -1064,7 +1063,7 @@ export class NodeExecutionEnv implements ExecutionEnv {
 		let file: Awaited<ReturnType<typeof openFile>> | undefined;
 		try {
 			file = await openFile(resolved, "r+");
-			// POSIX refuses to open a directory for writing; Windows opens it, so check explicitly.
+			// POSIX 拒绝以写模式打开目录；Windows 却会打开，因此需显式检查。
 			if ((await file.stat()).isDirectory()) return err(new FileError("is_directory", "Is a directory", resolved));
 			await file.sync();
 			const afterSyncAbort = abortResult<void>(signal, resolved);

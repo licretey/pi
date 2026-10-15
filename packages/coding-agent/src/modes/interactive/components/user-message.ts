@@ -8,7 +8,7 @@ const OSC133_ZONE_END = "\x1b]133;B\x07";
 const OSC133_ZONE_FINAL = "\x1b]133;C\x07";
 
 /**
- * Component that renders a user message
+ * 用于渲染用户消息的组件。
  */
 export class UserMessageComponent extends Container {
 	private text: string;
@@ -37,8 +37,7 @@ export class UserMessageComponent extends Container {
 
 	private rebuild(): void {
 		this.clear();
-		// The Markdown pads and colors its own background: a Box around it would keep a second full-width copy of every
-		// line, with identical output.
+		// Markdown 会自行填充并着色背景；若再用 Box 包裹，每一行都会重复输出一份相同的全宽内容。
 		this.addChild(
 			new Markdown(
 				this.text,

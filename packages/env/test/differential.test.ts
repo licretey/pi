@@ -43,7 +43,7 @@ function random(seed: number): () => number {
 	};
 }
 
-/** A result with the environment's root replaced and only the error code of failures, for comparison. */
+/** 将环境根目录替换为统一占位符，并仅保留失败错误码，以便比较结果。 */
 function normalize(value: unknown, root: string): unknown {
 	const json = JSON.stringify(value, (key, field: unknown) => {
 		if (field instanceof Uint8Array) return { bytes: Buffer.from(field).toString("hex") };
@@ -54,8 +54,8 @@ function normalize(value: unknown, root: string): unknown {
 		return field;
 	});
 	if (json === undefined) return undefined;
-	// Roots appear JSON-escaped (backslashes doubled on Windows), and resolved paths spell them without Windows' 8.3
-	// short names (RUNNER~1).
+	// 根路径会以 JSON 转义形式出现（Windows 上反斜杠会加倍）；解析后的路径使用完整名称，而不是 Windows 的 8.3
+	// 短文件名（如 RUNNER~1）。
 	const escaped = (path: string) => JSON.stringify(path).slice(1, -1);
 	return JSON.parse(json.replaceAll(escaped(realpathSync.native(root)), "<root>").replaceAll(escaped(root), "<root>"));
 }
@@ -67,13 +67,13 @@ const CONTENTS: (string | Uint8Array)[] = [
 	"\ufeffbom\r\nline",
 	Uint8Array.from([0xe2, 0x82, 0x0a, 0xff, 0xef, 0xbb, 0xbf]),
 	"x".repeat(70_000),
-	// Crosses write chunks, read chunks and multi-byte characters split between them.
+	// 覆盖写入分块、读取分块，以及多字节字符跨分块的情况。
 	"é".repeat(300_001),
 ];
 
 type Operation = (env: ExecutionEnv) => Promise<unknown>;
 
-/** A random operation with its arguments fixed, and a label for failure messages. */
+/** 生成参数固定的随机操作，并附带用于错误信息的标签。 */
 function randomOperation(next: () => number): { label: string; run: Operation } {
 	const args: unknown[] = [];
 	const pick = <T>(value: T): T => {
@@ -247,7 +247,7 @@ describe("RemoteExecutionEnv against NodeExecutionEnv", () => {
 				const made = await env.exec(["mkfifo", fifo], undefined, context);
 				if (!made.ok || made.value.exitCode !== 0) throw new Error("mkfifo failed");
 				await env.createDir("dir", undefined, context);
-				// A writer for each blocking open of the FIFO.
+				// 为 FIFO 的每次阻塞式打开操作创建一个写入端。
 				const write = (text: string) => spawn("sh", ["-c", `printf '%s' "$1" > "$2"`, "sh", text, fifo]);
 				write("fifo text\n");
 				const fifoText = await env.readTextFile("fifo", context);
@@ -279,7 +279,7 @@ describe("RemoteExecutionEnv against NodeExecutionEnv", () => {
 		30_000,
 	);
 
-	// macOS file systems refuse names that are not UTF-8.
+	// macOS 文件系统会拒绝非 UTF-8 编码的文件名。
 	it.skipIf(process.platform !== "linux" && process.platform !== "android")(
 		"lists names that are not UTF-8 like Node",
 		async () => {

@@ -190,7 +190,7 @@ describe("delta tracker transactional overlay lifecycle", () => {
 		const prepared = change.prepare();
 		const operations = prepared.ops;
 		tracker.adopt(prepared);
-		// Matches services/state.ts: adopt first, then inspect ops and publish prepared.value.
+		// 与 services/state.ts 的行为一致：先接管，再检查操作并发布 prepared.value。
 		expect(prepared.ops).toBe(operations);
 		const published = prepared.ops.length === 0 ? undefined : prepared.value;
 		expect(operations).toHaveLength(2);
@@ -202,7 +202,7 @@ describe("delta tracker transactional overlay lifecycle", () => {
 		next.state.value = 2;
 		const nextPrepared = next.prepare();
 		tracker.adopt(nextPrepared);
-		// Retained immutable publications remain at their original revision.
+		// 被保留的不可变发布内容仍保持其原始修订版本。
 		expect(published).not.toBe(tracker.value);
 		expect(prepared.value).toEqual({ value: 1, nested: { count: 1 } });
 		expect(tracker.value).toEqual({ value: 2, nested: { count: 1 } });
@@ -280,8 +280,7 @@ describe("delta tracker transactional overlay lifecycle", () => {
 			expect(change.state.trackerInherited).toBeUndefined();
 			const prepared = change.prepare();
 			expect(prepared.value.value).toBeUndefined();
-			// Plain committed values expose inherited properties through ordinary
-			// JavaScript reads; strict-JSON membership remains own-properties only.
+			// 普通 JavaScript 读取已提交值时可以访问继承属性；严格 JSON 的成员检查仍只包含自有属性。
 			expect(prepared.value.trackerInherited).toBe(7);
 			tracker.adopt(prepared);
 			expect(Object.keys(tracker.value)).toEqual([]);

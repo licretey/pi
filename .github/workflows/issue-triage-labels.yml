@@ -19,7 +19,7 @@ jobs:
             const LAST_READ_LABEL = 'last-read';
             const TO_DISCUSS_LABEL = 'to-discuss';
             const INPROGRESS_LABEL = 'inprogress';
-            // Applying one of these labels assigns the user and reopens the issue if it is closed.
+            // 添加这些标签之一会将议题分配给对应用户；若议题已关闭，也会重新打开。
             const LABEL_ASSIGNEES = new Map([
               ['mcp', 'mitsuhiko'],
               ['codemode', 'mitsuhiko'],
@@ -88,7 +88,7 @@ jobs:
                   state: 'open',
                 });
                 console.log(`Reopened #${issueNumber}`);
-                // Reopening with the workflow token does not trigger the reopened handler above.
+                // 使用工作流令牌重新打开议题不会触发上方的 reopened 处理逻辑。
                 await removeClosedStateLabels(issueNumber, context.payload.issue);
               }
               return;

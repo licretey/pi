@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { ExtensionFactory } from "../../../src/index.ts";
 import { createHarness, type Harness } from "../harness.ts";
 
-/** Compaction supplied by an extension hook, as in the reported sessions. */
+/** 由扩展钩子提供压缩结果，模拟问题报告中的会话。 */
 const compactViaHook: ExtensionFactory = (pi) => {
 	pi.on("session_before_compact", async (event) => ({
 		compaction: {
@@ -55,7 +55,7 @@ describe("context handlers and system messages", () => {
 		while (harnesses.length > 0) harnesses.pop()?.cleanup();
 	});
 
-	// Regression #9789, #9822: pruning from the compaction summary dropped the prompt and tool checkpoint.
+	// #9789、#9822 回归测试：从压缩摘要中裁剪内容时曾丢失提示和工具检查点。
 	it("keeps the prompt and tools when a handler slices from the compaction summary", async () => {
 		const seen: AgentMessage[][] = [];
 		const harness = await createHarness({
@@ -178,7 +178,7 @@ describe("context_with_system handlers", () => {
 							),
 						};
 					});
-					// Registered after, but runs first: context handlers precede context_with_system.
+					// 虽然后注册，但会先运行：context 处理器先于 context_with_system。
 					pi.on("context", async (event) => {
 						const summary = event.messages.findIndex((message) => message.role === "compactionSummary");
 						return { messages: event.messages.slice(summary) };

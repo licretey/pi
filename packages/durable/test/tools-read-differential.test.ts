@@ -11,8 +11,8 @@ import { createReadTool } from "../src/tools/read.ts";
 import { DEFAULT_MAX_BYTES, formatSize, truncateHead } from "../src/truncate.ts";
 
 /**
- * The `read` tool before bounded reads, kept as the reference: it decodes the whole file, splits it into lines, and
- * truncates the selection. The tool must give the same result while reading only a bounded part of the file.
+ * 这是有界读取改造前的 `read` 工具，作为对照基准：它会解码整个文件、按行拆分并截断所选内容。
+ * 新工具只读取文件的有限部分，但必须产生相同结果。
  */
 function referenceRead(bytes: Uint8Array, path: string, offset: number | undefined, limit: number | undefined) {
 	const mimeType = detectSupportedImageMimeType(bytes);
@@ -103,7 +103,7 @@ const PIECES = [
 	[0x0d, 0x0a],
 ];
 
-/** Mostly small files, some over the line limit, some over the byte limit, some with one huge line. */
+/** 文件大多较小，另包含超过行数限制、超过字节数限制以及仅有一行但该行极长的文件。 */
 function randomFile(next: () => number): Uint8Array {
 	const kind = next();
 	if (kind < 0.1) return Uint8Array.from([0xef, 0xbb, 0xbf, ...new TextEncoder().encode("x\n".repeat(2100))]);

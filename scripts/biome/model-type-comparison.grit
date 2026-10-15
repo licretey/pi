@@ -1,6 +1,6 @@
 language js
 
-// Chat models may omit `type`, so a direct comparison with "chat" misses them.
+// 聊天模型可能省略 `type`，因此直接与 "chat" 比较会漏掉这些模型。
 or {
 	`$model.type === "chat"`,
 	`$model.type !== "chat"`,

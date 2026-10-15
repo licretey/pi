@@ -58,7 +58,7 @@ if ($noEnv) {
 	Write-Host "Running without API keys..."
 }
 
-# --import takes a module specifier, so pass the resolver as a file URL (Windows paths are not specifiers).
+# --import 接受模块说明符，因此要将解析器作为文件 URL 传入（Windows 文件路径不是模块说明符）。
 $resolverUrl = ([System.Uri](Join-Path $scriptDir "packages/coding-agent/src/experimental/source-resolver.ts")).AbsoluteUri
 $cliPath = Join-Path $scriptDir "packages/coding-agent/src/cli.ts"
 & node --import $resolverUrl $cliPath @forwardArgs

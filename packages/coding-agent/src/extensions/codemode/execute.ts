@@ -1,6 +1,6 @@
 /**
- * Runs one codemode script in the sandbox. Split from tool.ts and loaded through
- * execute.lazy.ts so the sandbox runtime only loads when a script runs.
+ * 在沙箱中运行单个 codemode 脚本。此逻辑从 tool.ts 拆出，并通过 execute.lazy.ts 加载，
+ * 使沙箱运行时仅在脚本运行时才加载。
  */
 
 import type { AgentTool, AgentToolCallOutcome, AgentToolResult } from "@earendil-works/pi-agent-core";
@@ -46,12 +46,11 @@ import {
 
 const ARGS_PREVIEW_CHARS = 200;
 const ERROR_PREVIEW_CHARS = 500;
-/** `models.classify()` and `models.generateImages()` calls one script may have in flight; `Promise.all` over many items queues the rest. */
+/** 单个脚本可同时执行的 `models.classify()` 和 `models.generateImages()` 调用数；超过上限的调用（例如 `Promise.all` 中的其余项）会排队等待。 */
 const MAX_CONCURRENT_MODEL_CALLS = 4;
 /**
- * Heap limit for the QuickJS VM. The worker shares pi's process, so without a limit a runaway
- * script can grow to wasm32's 4 GiB and take the session down. Overruns throw
- * `InternalError: out of memory` inside the script.
+ * QuickJS 虚拟机的堆内存上限。工作线程与 pi 共享进程，因此不设上限时，失控脚本可能占满 wasm32 的
+ * 4 GiB 地址空间并导致会话退出。超出限制时，脚本内部会抛出 `InternalError: out of memory`。
  */
 const CODEMODE_MEMORY_LIMIT_BYTES = 256 * 1024 * 1024;
 const MODEL_TYPES: ReadonlySet<string> = new Set<ModelType>(["chat", "image", "classifier"]);
@@ -87,14 +86,14 @@ function toProvider(value: unknown): string | undefined {
 	return value;
 }
 
-/** Catalog entry for scripts. `headers` is dropped because models.json headers can carry credentials. */
+/** 提供给脚本的目录条目。会移除 `headers`，因为 models.json 的标头可能包含凭据。 */
 function toModelInfo(model: AnyModel): Record<string, unknown> {
 	const info: Record<string, unknown> = { ...model };
 	delete info.headers;
 	return info;
 }
 
-/** `an image`, `a classifier`. */
+/** 生成英文不定冠词，例如 `an image`、`a classifier`。 */
 function withArticle(word: string): string {
 	return `${/^[aeiou]/.test(word) ? "an" : "a"} ${word}`;
 }
@@ -103,7 +102,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** A script value in an error message: `undefined`, `a string`, `an array`, or its keys (`{ prompt }`). */
+/** 错误消息中的脚本值描述：`undefined`、`a string`、`an array`，或对象键（`{ prompt }`）。 */
 function describeValue(value: unknown): string {
 	if (value === undefined || value === null) return String(value);
 	if (Array.isArray(value)) return value.length === 0 ? "an empty array" : "an array";
@@ -118,7 +117,7 @@ function describeValue(value: unknown): string {
 const CLASSIFIER_CONTEXT_SHAPE =
 	'{ state: { ... }, images?: [{ type: "image", data: <base64>, mimeType }], questions: { <id>: { type: "choice", instructions, criteria: { <label>: <meaning> } } | { type: "score", instructions, criteria: [<lowest level>, ..., <highest level>] } | { type: "bool", instructions, criteria: { true: <meaning>, false: <meaning> } } } }';
 
-/** Check a script's classifier context, so mistakes fail with the expected shape instead of a provider error. */
+/** 检查脚本传入的分类器上下文，使格式错误时能报告预期结构，而不是返回提供商错误。 */
 function checkClassifierContext(context: unknown): ClassifierContext {
 	const fail = (problem: string) =>
 		new Error(
@@ -169,7 +168,7 @@ function checkClassifierContext(context: unknown): ClassifierContext {
 	return context as unknown as ClassifierContext;
 }
 
-/** Check a script's image context, so mistakes such as `{ prompt }` fail with the expected shape. */
+/** 检查脚本传入的图像上下文；例如 `{ prompt }` 这类错误格式会收到预期结构说明。 */
 function checkImagesContext(context: unknown): ImagesContext {
 	const fail = (problem: string) =>
 		new Error(
@@ -195,14 +194,14 @@ function checkImagesContext(context: unknown): ImagesContext {
 	return context as unknown as ImagesContext;
 }
 
-/** The fields of `ClassifierResult` and `AssistantImages` that a nested call row reports. */
+/** 嵌套调用行会报告的 `ClassifierResult` 和 `AssistantImages` 字段。 */
 interface ModelCallResult {
 	stopReason: "stop" | "error" | "aborted";
 	errorMessage?: string;
 	usage?: Usage;
 }
 
-/** Runs at most `limit` calls at once, in call order. */
+/** 按调用顺序执行任务，同时运行的调用数不超过 `limit`。 */
 function createLimiter(limit: number): <T>(run: () => Promise<T>) => Promise<T> {
 	let active = 0;
 	const waiting: (() => void)[] = [];
@@ -229,7 +228,7 @@ function isStoreEntryData(data: unknown): data is CodemodeStoreEntryData {
 	);
 }
 
-/** Values of `load()`: the `codemode-store` entries on the branch, applied from the root. */
+/** `load()` 可读取的值：从根节点开始应用当前分支中的 `codemode-store` 条目后得到的结果。 */
 export function readCodemodeStore(branch: readonly SessionEntry[]): Record<string, unknown> {
 	const store = new Map<string, unknown>();
 	for (const entry of branch) {
@@ -242,22 +241,21 @@ export function readCodemodeStore(branch: readonly SessionEntry[]): Record<strin
 	return Object.fromEntries(store);
 }
 
-/** Default token budget for script output. */
+/** 脚本输出的默认 token 预算。 */
 const DEFAULT_MAX_OUTPUT_TOKENS = 10_000;
-/** Characters per token when estimating. */
+/** 估算时每个 token 对应的字符数。 */
 const CHARS_PER_TOKEN = 4;
 
-/** Like the script's `text()`: strings as is, other values as compact JSON. */
+/** 与脚本的 `text()` 一样：字符串原样返回，其他值转换为紧凑 JSON。 */
 function valueText(value: unknown): string {
 	if (typeof value === "string") return value;
 	return JSON.stringify(value) ?? String(value);
 }
 
 /**
- * Lay out the script's output so the model can tell items apart: providers join adjacent text
- * blocks with a newline or with nothing. With more than one text item (`text()` or the returned
- * value), each starts with a `==> text N/M <==` line. `console.*` lines follow all other output in
- * one `<console_output>` block.
+ * 格式化脚本输出，便于模型区分各项：提供商可能会用换行符连接相邻文本块，也可能直接拼接。
+ * 存在多个文本项（`text()` 或返回值）时，每项前面都会添加 `==> text N/M <==` 行。
+ * `console.*` 输出会统一放在其他输出之后的一个 `<console_output>` 块中。
  */
 function formatOutput(output: readonly CodemodeOutputItem[]): (TextContent | ImageContent)[] {
 	const total = output.filter((item) => item.type === "text" && !item.console).length;
@@ -280,7 +278,7 @@ function formatOutput(output: readonly CodemodeOutputItem[]): (TextContent | Ima
 	return items;
 }
 
-/** Join adjacent text items into one, each part starting on its own line. */
+/** 将相邻文本项合并为一项，每部分各占一行。 */
 function joinAdjacentText(items: (TextContent | ImageContent)[]): (TextContent | ImageContent)[] {
 	const joined: (TextContent | ImageContent)[] = [];
 	for (const item of items) {
@@ -313,7 +311,7 @@ function formatError(result: Extract<CodemodeResult, { ok: false }>, calls: read
 	return `${head}\n\n${formatCallSummary(calls)}`;
 }
 
-/** Write the full text output to a temp file, like bash does for truncated output. */
+/** 与 bash 处理截断输出的方式类似，将完整文本输出写入临时文件。 */
 async function spillOutput(text: string): Promise<{ path: string } | { error: string }> {
 	try {
 		return { path: await writeOutputFile("pi-codemode", ".txt", text) };
@@ -322,7 +320,7 @@ async function spillOutput(text: string): Promise<{ path: string } | { error: st
 	}
 }
 
-/** File extensions of the image types `image()` accepts. Must list every type the sandbox's `image()` detects. */
+/** `image()` 接受的图像类型对应的文件扩展名。必须列出沙箱 `image()` 能识别的所有类型。 */
 const IMAGE_EXTENSIONS: Record<string, string> = {
 	"image/png": ".png",
 	"image/jpeg": ".jpg",
@@ -331,9 +329,8 @@ const IMAGE_EXTENSIONS: Record<string, string> = {
 };
 
 /**
- * Save each image to a temp file and put a text item with its path before it. The model sees the
- * image but has no other way to reach its bytes: scripts cannot write files, and `write` only takes
- * text. Images shown more than once are saved once.
+ * 将每张图像保存到临时文件，并在图像前添加包含文件路径的文本项。模型可以看到图像，但无法通过其他方式
+ * 访问其字节数据：脚本不能写文件，`write` 也只接受文本。重复显示的同一张图像只保存一次。
  */
 async function saveImages(items: (TextContent | ImageContent)[]): Promise<(TextContent | ImageContent)[]> {
 	const labels = new Map<string, Promise<string>>();
@@ -342,8 +339,8 @@ async function saveImages(items: (TextContent | ImageContent)[]): Promise<(TextC
 		const kind = `${mimeType}, ${formatSize(bytes.length)}`;
 		const extension = IMAGE_EXTENSIONS[mimeType];
 		if (!extension) throw new Error(`No file extension for image type ${mimeType}`);
-		// A failed write (disk full, unwritable temp dir) must not discard the result of a script whose
-		// tool calls already ran, so it becomes part of the label.
+		// 写入失败（例如磁盘已满或临时目录不可写）时，不能丢弃已执行工具调用的脚本结果，
+		// 因此会将失败信息加入图像说明。
 		try {
 			const path = await writeOutputFile("pi-codemode", extension, bytes);
 			return `[Image saved to ${path} (${kind})]`;
@@ -366,9 +363,8 @@ async function saveImages(items: (TextContent | ImageContent)[]): Promise<(TextC
 }
 
 /**
- * Apply the token budget: when the combined text exceeds it, the text items become one
- * item that keeps the start and end of the text, and images follow it. The full text is written to
- * a temp file.
+ * 应用 token 预算：合并文本超出预算时，将所有文本项合并为一项，只保留文本首尾部分，图像放在其后。
+ * 完整文本会写入临时文件。
  */
 async function truncateOutput(
 	items: (TextContent | ImageContent)[],
@@ -396,10 +392,8 @@ async function truncateOutput(
 }
 
 /**
- * The value a script receives for a nested call: a tool that declares
- * `outputSchema` resolves to its `structuredContent`, also for error results that carry one (such
- * as MCP results with `isError`); any other tool resolves to its text content. Other failures
- * reject with the tool's error text.
+ * 脚本收到的嵌套调用结果：声明了 `outputSchema` 的工具返回其 `structuredContent`，包括包含该字段的
+ * 错误结果（例如带有 `isError` 的 MCP 结果）；其他工具返回文本内容。其他失败会以工具错误文本拒绝。
  */
 function toScriptValue(tool: AgentTool<any>, outcome: AgentToolCallOutcome): unknown {
 	const { result } = outcome;
@@ -410,8 +404,8 @@ function toScriptValue(tool: AgentTool<any>, outcome: AgentToolCallOutcome): unk
 }
 
 /**
- * Run one script. Without a session context (a plain Agent or a direct call) scripts cannot call
- * tools, `store()` starts empty, and writes are dropped.
+ * 运行单个脚本。没有会话上下文时（例如普通 Agent 或直接调用），脚本不能调用工具，
+ * `store()` 初始为空，写入也会被丢弃。
  */
 export async function executeCodemode(
 	toolCallId: string,
@@ -424,9 +418,9 @@ export async function executeCodemode(
 	const startedAt = performance.now();
 	const { code, options: sourceOptions } = parseCodemodeSource(input.code);
 	const calls: CodemodeNestedCall[] = [];
-	// Usage of the script's `models.*` calls. Nested tool calls report theirs through the session.
+	// 脚本 `models.*` 调用的用量。嵌套工具调用的用量由会话报告。
 	let modelUsage: Usage | undefined;
-	// Images returned by `models.generateImages()`, to notice a script that never shows them.
+	// `models.generateImages()` 返回的图像数，用于发现脚本生成了图像却从未展示的情况。
 	let generatedImages = 0;
 	const addGeneratedImages = (count: number) => {
 		generatedImages += count;
@@ -439,7 +433,7 @@ export async function executeCodemode(
 	const publish = () => onUpdate?.({ content: [], details: snapshot() });
 
 	const callable = ctx ? getCodemodeCallableTools(ctx.tools) : [];
-	// ALL_TOOLS entries carry the declaration.
+	// ALL_TOOLS 条目包含工具声明。
 	const guidelines = options.getToolGuidelines?.();
 	const samples = new Map(
 		callable.map((tool) => [tool.name, renderToolSample(toCodemodeDeclaration(tool, guidelines?.get(tool.name)))]),
@@ -457,7 +451,7 @@ export async function executeCodemode(
 			calls.push(record);
 			publish();
 			const callStartedAt = performance.now();
-			// Only tools from ctx.tools are callable, so ctx is set here.
+			// 只有 ctx.tools 中的工具可调用，因此此处 ctx 必定已设置。
 			if (!ctx) throw new Error("Tool calls need a session");
 			const outcome = await ctx.executeTool(tool.name, args, { signal: callSignal });
 			record.id = outcome.toolCall.id;
@@ -494,7 +488,7 @@ export async function executeCodemode(
 	} finally {
 		await sandbox.close();
 	}
-	// Calls still marked running were cut off by the script ending, a timeout, or an abort.
+	// 仍标记为运行中的调用，是因脚本结束、超时或中止而被截断的。
 	for (const call of calls) {
 		if (call.status === "running") call.status = "cancelled";
 	}
@@ -505,7 +499,7 @@ export async function executeCodemode(
 		if (Object.keys(set).length > 0 || deleted.length > 0) {
 			options.appendEntry?.(CODEMODE_STORE_ENTRY_TYPE, { set, delete: deleted });
 		}
-		// pi extension: a returned value is appended like text().
+		// pi 扩展：脚本返回值会像 text() 一样追加到输出中。
 		if (result.value !== undefined) scriptOutput.push({ type: "text", text: valueText(result.value) });
 	}
 	const items = formatOutput(scriptOutput);
@@ -521,8 +515,7 @@ export async function executeCodemode(
 		joinAdjacentText(items),
 		sourceOptions.maxOutputTokens ?? DEFAULT_MAX_OUTPUT_TOKENS,
 	);
-	// After truncation, which joins the text items and moves images after them, so each path stays
-	// next to its image and is never cut.
+	// 截断操作会合并文本项并将图像移到文本之后，因此每个路径都会紧邻对应图像，且不会被截断。
 	const output = joinAdjacentText(await saveImages(truncated.items));
 	const wallTime = ((performance.now() - startedAt) / 1000).toFixed(1);
 	const header = `${result.ok ? "Script completed" : "Script failed"}\nWall time ${wallTime} seconds\nOutput:\n`;
@@ -537,8 +530,8 @@ export async function executeCodemode(
 }
 
 /**
- * Whether `query` names the namespace: its name, its script identifier (`mcp__dev-radius` is
- * `mcp__dev_radius`), or the part after its last `__` in either form (`dev-radius`, `dev_radius`).
+ * 判断 `query` 是否指向该命名空间：可以是命名空间名称、脚本标识符（`mcp__dev-radius` 会变为
+ * `mcp__dev_radius`），也可以是两种形式中最后一个 `__` 后面的部分（`dev-radius`、`dev_radius`）。
  */
 function isNamespaceName(namespace: string, query: string): boolean {
 	const id = toCodemodeIdentifier(namespace);
@@ -548,8 +541,8 @@ function isNamespaceName(namespace: string, query: string): boolean {
 }
 
 /**
- * `searchTools()`, `describeTool()`, and `describeNamespace()`: ranked search and lookup over the
- * script's nested tools and their namespaces.
+ * 为 `searchTools()`、`describeTool()` 和 `describeNamespace()` 提供功能：对脚本的嵌套工具及其命名空间
+ * 进行排序搜索和查找。
  */
 function createDiscoveryGlobals(
 	tools: readonly AgentTool<any>[],
@@ -620,9 +613,9 @@ function createDiscoveryGlobals(
 }
 
 /**
- * `models.*` for scripts: the model registry methods documented in docs/codemode.md.
- * Classifier and image calls appear as nested call rows so the renderer shows them, and their usage
- * goes to `addUsage`. Rows show only the model, never prompts or image data.
+ * 为脚本提供 `models.*`：即 docs/codemode.md 中记录的模型注册表方法。
+ * 分类器和图像调用会显示为嵌套调用行，以便渲染器展示；其用量会传给 `addUsage`。
+ * 调用行只显示模型信息，不显示提示内容或图像数据。
  */
 function createModelGlobals(
 	models: CodemodeModelRuntime,
@@ -636,8 +629,8 @@ function createModelGlobals(
 	let callCount = 0;
 
 	/**
-	 * Resolve the script's model by provider and id only, check the context, then run the call as a
-	 * nested call row. A script-supplied baseUrl or headers must never receive the credentials.
+	 * 仅根据提供商和 ID 解析脚本请求的模型，检查上下文，然后将调用作为嵌套调用行执行。
+	 * 绝不能将凭据发送到脚本指定的 baseUrl 或 headers。
 	 */
 	const runModelCall = async <TType extends "classifier" | "image", TContext, TResult extends ModelCallResult>(
 		name: string,
@@ -648,7 +641,7 @@ function createModelGlobals(
 	): Promise<TResult> => {
 		const listHint = `List the ${type} models you can use with models.getAvailableOfType("${type}").`;
 		if (!isRecord(model) || typeof model.provider !== "string" || typeof model.id !== "string") {
-			// undefined arrives as null: spread arguments cross the sandbox as a JSON array.
+			// undefined 到达此处时会变成 null：展开参数以 JSON 数组形式跨越沙箱边界。
 			const undefinedHint =
 				model === undefined || model === null
 					? " models.getModelOfType() returns undefined for an unknown provider or id."

@@ -54,15 +54,15 @@ it("brands numeric IDs by record kind and carries task result types", () => {
 
 	const compileTimeFailures = () => {
 		const widenedTask: TaskId = idFromNumber<TaskId<{ ok: boolean }>>(7);
-		// @ts-expect-error an erased task result cannot be narrowed without a typed source
+		// @ts-expect-error 没有带类型的来源时，已擦除的任务结果类型不能再收窄
 		const narrowedTask: TaskId<string> = widenedTask;
-		// @ts-expect-error conversation IDs are not task IDs
+		// @ts-expect-error conversation ID 不能赋值给 task ID
 		const wrongTask: TaskId = conversationId;
-		// @ts-expect-error task IDs are not conversation IDs
+		// @ts-expect-error task ID 不能赋值给 conversation ID
 		const wrongConversation: ConversationId = taskId;
-		// @ts-expect-error entry IDs are not document IDs
+		// @ts-expect-error entry ID 不能赋值给 document ID
 		const wrongDocument: DocumentId = entryId;
-		// @ts-expect-error entity IDs are not commit sequences
+		// @ts-expect-error 实体 ID 不能赋值给提交序号
 		const wrongSequence: typeof seq = entryId;
 		void [narrowedTask, wrongTask, wrongConversation, wrongDocument, wrongSequence];
 	};
@@ -122,23 +122,23 @@ it("encodes discriminator-dependent fields", () => {
 	expectTypeOf(conversationDocument.fork).toEqualTypeOf<"asOf">();
 
 	const compileTimeFailures = () => {
-		// @ts-expect-error replacement edits require replacement messages
+		// @ts-expect-error replace 操作必须提供替换消息
 		const missingReplacement: ContextEdit = { target: entryId, action: "replace" };
-		// @ts-expect-error omission edits cannot carry replacement messages
+		// @ts-expect-error omit 操作不能携带替换消息
 		const omissionWithMessages: ContextEdit = { target: entryId, action: "omit", messages: [] };
 		const pendingWithOutcome: TaskState<{ phase: string }, number> = {
 			status: "pending",
 			checkpoint: { phase: "ready" },
-			// @ts-expect-error live task state cannot carry a terminal outcome
+			// @ts-expect-error 运行中的任务状态不能携带终止结果
 			outcome: { status: "completed", result: 1 },
 		};
-		// @ts-expect-error terminal task state cannot retain a live checkpoint
+		// @ts-expect-error 已终止的任务状态不能保留运行中的检查点
 		const terminalWithCheckpoint: TaskState<{ phase: string }, number> = {
 			status: "terminal",
 			checkpoint: { phase: "ready" },
 			outcome: { status: "completed", result: 1 },
 		};
-		// @ts-expect-error terminal task records cannot retain live memos
+		// @ts-expect-error 已终止的任务记录不能保留运行中的备忘数据
 		const terminalWithMemos: TaskRecord<null, { phase: string }, number> = {
 			id: taskId,
 			conversationId,
@@ -150,7 +150,7 @@ it("encodes discriminator-dependent fields", () => {
 			abortRequested: false,
 			memos: { retained: true },
 		};
-		// @ts-expect-error session documents do not declare conversation history behavior
+		// @ts-expect-error session 文档不能声明会话历史行为
 		const sessionWithHistory: DocumentRecord = {
 			id: documentId,
 			kind: "test",
@@ -159,7 +159,7 @@ it("encodes discriminator-dependent fields", () => {
 			history: "latest",
 			fork: "current",
 		};
-		// @ts-expect-error conversation document creation requires history and fork policies
+		// @ts-expect-error 创建 conversation 文档时必须指定历史和分支策略
 		const conversationWithoutPolicy: DocumentCreate = {
 			id: documentId,
 			kind: "test",
@@ -172,32 +172,32 @@ it("encodes discriminator-dependent fields", () => {
 			history: "latest",
 			fork: "initial",
 		} as const;
-		// @ts-expect-error task document creation cannot declare conversation policies
+		// @ts-expect-error 创建 task 文档时不能声明 conversation 策略
 		const taskCreateWithPolicy: DocumentCreate = taskWithPolicy;
 		const createWithSequence: DocumentCreate = {
 			id: documentId,
 			kind: "test",
 			scope: { kind: "session" },
-			// @ts-expect-error storage, not the create command, supplies createdAt
+			// @ts-expect-error createdAt 由存储层提供，而非由创建命令指定
 			createdAt: seq,
 		};
-		// @ts-expect-error document bases cannot carry operation batches
+		// @ts-expect-error 文档基准内容不能携带操作批次
 		const baseWithOps: DocumentContent = { kind: "base", version: 1, value: {}, ops: [] };
-		// @ts-expect-error document deltas cannot carry materialized values
+		// @ts-expect-error 文档增量不能携带已物化的值
 		const deltaWithValue: DocumentContent = { kind: "delta", version: 1, ops: [], value: {} };
 		const createWithDelta: StorageWrite = {
 			type: "document.create",
 			record: { id: documentId, kind: "test", scope: { kind: "session" } },
-			// @ts-expect-error document creation always starts from a complete base
+			// @ts-expect-error 创建文档时必须从完整的基准内容开始
 			content: { kind: "delta", version: 1, ops: [] },
 		};
-		// @ts-expect-error completed outcomes cannot carry errors
+		// @ts-expect-error 已完成的结果不能携带错误
 		const completedWithError: TaskOutcome<number> = {
 			status: "completed",
 			result: 1,
 			error: { message: "impossible" },
 		};
-		// @ts-expect-error queued submissions cannot reference transcript entries
+		// @ts-expect-error 排队中的提交不能引用会话记录条目
 		const queuedWithEntry: SubmissionRecord = {
 			id: submissionId,
 			conversationId,
@@ -205,7 +205,7 @@ it("encodes discriminator-dependent fields", () => {
 			status: "queued",
 			entry: entryId,
 		};
-		// @ts-expect-error successful input submissions require an answer entry
+		// @ts-expect-error 成功的输入提交必须包含回答条目
 		const inputWithoutAnswer: SubmissionRecord = {
 			id: submissionId,
 			conversationId,
@@ -213,7 +213,7 @@ it("encodes discriminator-dependent fields", () => {
 			status: "done",
 			entry: entryId,
 		};
-		// @ts-expect-error passive write submissions never carry an answer
+		// @ts-expect-error 被动写入提交不能携带回答
 		const writeWithAnswer: SubmissionRecord = {
 			id: submissionId,
 			conversationId,
@@ -223,7 +223,7 @@ it("encodes discriminator-dependent fields", () => {
 			answer: answerId,
 		};
 		const submissionCreateWithId: SubmissionCreate = {
-			// @ts-expect-error Session, not the submission create value, assigns its ID
+			// @ts-expect-error ID 由 Session 分配，不能在提交创建值中指定
 			id: submissionId,
 			conversationId,
 			type: "write",
@@ -259,7 +259,7 @@ it("types submissions, task waits, compaction, and tasks erased into extensions"
 	expectTypeOf(input.type).toEqualTypeOf<"input">();
 	expectTypeOf(write.type).toEqualTypeOf<"write">();
 
-	// A task with narrowed input, several phases, and custom hooks.
+	// 输入类型已收窄、包含多个阶段和自定义钩子的任务。
 	type Hooks = {
 		beforeStep(step: number, api: HookApi, context: Context): { readonly skip: boolean } | undefined;
 	};
@@ -289,7 +289,7 @@ it("types submissions, task waits, compaction, and tasks erased into extensions"
 	});
 	expectTypeOf<HooksOf<typeof Stepper>>().toEqualTypeOf<Hooks>();
 	const registration = hook(Stepper, { beforeStep: (step) => (step > 1 ? { skip: true } : undefined) });
-	// Erased into an extension, whatever its input, phases, and hooks.
+	// 转换为扩展后，其输入、阶段和钩子类型都会被擦除。
 	const erased: AnyTask = Stepper;
 	const extension: Extension = defineExtension({ name: "stepper", tasks: [Stepper], hooks: [registration] });
 	void [erased, extension];
@@ -317,18 +317,18 @@ it("types submissions, task waits, compaction, and tasks erased into extensions"
 	expectTypeOf(typedWaits).toBeFunction();
 
 	const compileTimeFailures = (conversation: Conversation) => {
-		// @ts-expect-error an input submission carries no entry
+		// @ts-expect-error input 提交不携带 entry
 		const inputWithEntry: SubmissionDraft = { type: "input", content: "hi", entry: { kind: "note" } };
-		// @ts-expect-error a write submission carries no content
+		// @ts-expect-error write 提交不携带内容
 		const writeWithContent: SubmissionDraft = { type: "write", entry: { kind: "note" }, content: "hi" };
-		// @ts-expect-error a write submission never generates, so it has no busy policy
+		// @ts-expect-error write 提交不会触发生成，因此没有 busy 策略
 		const writeWhenBusy: SubmissionDraft = { type: "write", entry: { kind: "note" }, whenBusy: "steer" };
-		// @ts-expect-error hook handlers are typed by the task's hooks
+		// @ts-expect-error 钩子处理器的类型由任务定义的钩子决定
 		const wrongHook = hook(Stepper, { beforeStep: (_step: string) => undefined });
-		// @ts-expect-error hook names come from the task's hooks
+		// @ts-expect-error 钩子名称必须来自任务定义的钩子
 		const unknownHook = hook(Stepper, { afterStep: () => undefined });
 		const wrongInput = conversation.commit(
-			// @ts-expect-error task input is typed by the definition
+			// @ts-expect-error 任务输入类型由任务定义指定
 			(tx) => tx.createTask(Stepper, { steps: "two" }, { ownership: { kind: "conversation" } }),
 			callContext,
 		);
@@ -336,7 +336,7 @@ it("types submissions, task waits, compaction, and tasks erased into extensions"
 			name: "test.missing-phase",
 			version: 1,
 			initial: () => ({ phase: "plan", steps: 1 }),
-			// @ts-expect-error the phase map is exhaustive
+			// @ts-expect-error 阶段映射必须覆盖所有阶段
 			phases: { plan: async () => {} },
 			abort: async () => {},
 		});

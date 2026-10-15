@@ -12,7 +12,7 @@ import {
 } from "@earendil-works/pi-tui";
 import type { ToolDefinition, ToolRenderContext, ToolRenderers } from "../../../core/extensions/types.ts";
 
-/** What this component needs from a tool: how to draw it, without executing it. */
+/** 此组件从工具定义中读取渲染信息，不会执行工具。 */
 export type { ToolRenderers };
 
 import { formatToolCallWithArgs, getTextOutput as getRenderedTextOutput } from "../../../core/tools/render-utils.ts";
@@ -38,7 +38,7 @@ export class ToolExecutionComponent extends Container {
 	private resultRendererComponent?: Component;
 	private rendererState: any = {};
 	private imageComponents: Image[] = [];
-	/** Inputs of imageComponents, so updateDisplay can reuse images and keep their converted PNG data. */
+	/** imageComponents 对应的输入数据，供 updateDisplay 复用图像及其转换后的 PNG 数据。 */
 	private imageSources: Array<{ data: string; mimeType: string; widthCells: number }> = [];
 	private imageSpacers: Spacer[] = [];
 	private toolName: string;
@@ -84,9 +84,9 @@ export class ToolExecutionComponent extends Container {
 
 		this.addChild(new Spacer(1));
 
-		// Always create all shell variants. contentBox is used for default renderer-based composition.
-		// selfRenderContainer is used when the tool renders its own framing.
-		// contentText is reserved for generic fallback rendering when no tool definition exists.
+		// 始终创建所有 Shell 变体。contentBox 用于默认的渲染器组合方式。
+		// 工具自行绘制边框时使用 selfRenderContainer。
+		// 没有工具定义、需要通用回退渲染时使用 contentText。
 		this.contentBox = new Box(1, 1, (text: string) => theme.bg("toolPendingBg", text));
 		this.contentText = new Text("", 1, 1, (text: string) => theme.bg("toolPendingBg", text));
 		this.contentTextRegion = this.createResultRegion(this.contentText);
@@ -189,7 +189,7 @@ export class ToolExecutionComponent extends Container {
 			content: Array<{ type: string; text?: string; data?: string; mimeType?: string }>;
 			details?: any;
 			isError: boolean;
-			/** Execution time of a final result. */
+			/** 最终结果的执行耗时。 */
 			durationMs?: number;
 		},
 		isPartial = false,

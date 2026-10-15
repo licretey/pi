@@ -16,13 +16,13 @@ const SCAN_PAGE_SIZE = 256;
 
 type ForkPolicy = "asOf" | "current";
 
-/** One definition-free document copy to create with a forked conversation. */
+/** 随分叉会话创建的一份无定义文档副本。 */
 export type ForkDocumentCopy = {
 	readonly record: DocumentCreate;
 	readonly source: DocumentCopySource;
 };
 
-/** Select every persisted conversation document copied by one fork. */
+/** 选出分叉操作需要复制的所有持久化对话文档。 */
 export async function prepareForkDocumentCopies(
 	storage: Storage,
 	parentConversationId: ConversationId,

@@ -1,13 +1,13 @@
 import { spawn } from "node:child_process";
 
-/** Undefined means the command failed; an empty buffer is a successful result. */
+/** 返回 undefined 表示命令失败；空缓冲区表示命令成功但没有输出。 */
 export function runClipboardCommand(
 	command: string,
 	args: readonly string[],
 	options?: { input?: string; timeoutMs?: number; maxBufferBytes?: number },
 ): Promise<Buffer | undefined> {
 	return new Promise((resolve) => {
-		// Clipboard writers can daemonize. Do not give them output pipes to retain.
+		// 剪贴板写入程序可能会转为守护进程运行，不要向其提供可能被持续占用的输出管道。
 		const child = spawn(command, args, {
 			stdio: ["pipe", options?.input === undefined ? "pipe" : "ignore", "ignore"],
 			windowsHide: true,
@@ -38,7 +38,7 @@ export function runClipboardCommand(
 			if (length > (options?.maxBufferBytes ?? 50 * 1024 * 1024)) abort();
 			else chunks.push(chunk);
 		});
-		child.stdin?.on("error", () => {}); // A writer may exit before consuming all input.
+		child.stdin?.on("error", () => {}); // 写入程序可能会在读取完所有输入前退出。
 		child.stdin?.end(options?.input);
 	});
 }

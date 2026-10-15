@@ -268,8 +268,7 @@ class TrackerImpl<T extends object> implements Tracker<T> {
 			context.status.value = "stale";
 			throw new Error("Prepared change is stale");
 		}
-		// Materialization happened during prepare. Adoption is an infallible pointer
-		// swap so storage failure can discard the candidate without touching authority.
+		// 物化操作已在 prepare 阶段完成。接管只需交换指针，不会失败，因此存储失败时可以丢弃候选值而不影响权威状态。
 		this.#value = prepared.value;
 		context.status.value = "consumed";
 		this.#revision += 1;
@@ -303,9 +302,8 @@ class TrackerImpl<T extends object> implements Tracker<T> {
 			const context = reference.deref();
 			if (context === undefined || context === winner) continue;
 			if (context.status.value === "open" || context.status.value === "prepared") context.status.value = "stale";
-			// Adoption must not walk every node touched by a competing draft. Drop the
-			// context's strong overlay references in O(1); externally retained proxies
-			// still see the stale status and are reclaimed with their holders.
+			// 接管时不能遍历竞争草稿触及的每个节点。以 O(1) 时间释放上下文对覆盖层的强引用；
+			// 外部保留的代理仍会检测到过期状态，并在持有它们的对象释放时一并回收。
 			releaseOverlayReferences(context);
 		}
 		this.#contexts.clear();
@@ -317,7 +315,7 @@ class TrackerImpl<T extends object> implements Tracker<T> {
 	}
 }
 
-/** Take immutable ownership of an alias-free strict-JSON root in O(1). */
+/** 以 O(1) 的复杂度取得无别名严格 JSON 根值的不可变所有权。 */
 export function track<T extends object>(initial: T): Tracker<T> {
 	return new TrackerImpl(initial);
 }
@@ -325,9 +323,7 @@ export function track<T extends object>(initial: T): Tracker<T> {
 function materializePrepared<T extends object>(context: OverlayContext): PreparedImpl<T> {
 	const operations = ensureOperations(context);
 	const base = context.baseValue as T;
-	// Operation payloads are already detached from the mutable overlay. The
-	// resulting revision and public batch intentionally share those payloads under
-	// the trusted immutable-transfer contract.
+	// 操作负载已与可变覆盖层分离。根据可信的不可变移交约定，生成的修订版本和公开批次会有意共用这些负载。
 	const value =
 		operations.length === 0
 			? base
@@ -342,7 +338,7 @@ function materializePrepared<T extends object>(context: OverlayContext): Prepare
 
 function materializeOperations<T extends object>(base: T, operations: readonly Op[]): T {
 	for (const operation of operations) {
-		// Native splice/permutation remains faster for large structural batches.
+		// 对于大型结构批次，原生 splice/permutation 操作仍然更快。
 		if (operation[0] === "p" || operation[0] === "m") return applyImmutable(base, operations);
 	}
 	return applyImmutableTrusted(base, operations);
@@ -1688,8 +1684,7 @@ function emitSimpleObjectOperations(context: OverlayContext): Op[] | undefined {
 		nodes.push(node);
 		if (nodes.length > MAX_SIMPLE_OBJECT_NODES) return undefined;
 	}
-	// Stable insertion sort avoids comparator/bucket allocations for the usual
-	// handful of dirty object nodes.
+	// 对通常只有少数脏对象节点的情况，稳定插入排序可以避免分配比较器或桶。
 	for (let index = 1; index < nodes.length; index++) {
 		const node = nodes[index]!;
 		const depth = node.preparedPath!.length;
@@ -1848,8 +1843,7 @@ function emitObjectWrite(node: OverlayNode, path: Path, operations: Op[], key: s
 }
 
 function emitObjectOperations(node: OverlayNode, path: Path, operations: Op[]): boolean {
-	// Immutable replay must encode delete-and-readd explicitly so string-key
-	// insertion order matches the draft.
+	// 不可变重放必须显式编码删除后重加的操作，才能使字符串键的插入顺序与草稿一致。
 	if (node.readded !== undefined) {
 		for (const key of node.readded) {
 			if (Object.hasOwn(nodeBase(node), key)) operations.push(["d", [...path, key] as unknown as NonEmptyPath]);
@@ -2011,8 +2005,7 @@ function emitChangedValue(
 	if (!isContainer(after) && before === after) return false;
 	if (isContainer(before) && isContainer(after) && equalTrustedJson(before, after)) return false;
 	if (typeof before === "string" && typeof after === "string") {
-		// Slice/equality stays on V8's rope fast path; startsWith scans the entire
-		// accumulated prefix on every append.
+		// slice 和相等性比较可使用 V8 的 rope 快速路径；startsWith 则会在每次追加时扫描整个累积前缀。
 		if (after.length > before.length && after.slice(0, before.length) === before) {
 			operations.push(["a", path, after.slice(before.length)]);
 			return true;

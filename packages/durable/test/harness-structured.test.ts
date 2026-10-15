@@ -41,26 +41,26 @@ import { addHooks, addTask, addTool } from "./harness-support.ts";
 import { ControlledStorage, context } from "./session-support.ts";
 import { aborted, type Deferred, deferred, openTasks, settled } from "./task-support.ts";
 
-// ─── A scriptable task ──────────────────────────────────────────────────────
+// ─── 可脚本化的任务 ──────────────────────────────────────────────────────
 
 type NodeInput = { name: string };
 type NodeCheckpoint = { phase: "run" } | { phase: "resume"; round: number };
 type NodeRuntime = TaskRuntime<NodeInput, NodeCheckpoint, string, object>;
 type Next = NextTaskState<NodeCheckpoint, string>;
 
-/** Per-name behavior of `Node`; unscripted parts use the defaults below. */
+/** 为每个 `Node` 名称指定的行为；未单独设置的部分使用下方默认值。 */
 type Behavior = {
 	run?(runtime: NodeRuntime, ctx: Context): Promise<void>;
 	resume?(runtime: NodeRuntime, ctx: Context, round: number): Promise<void>;
 	abort?(runtime: NodeRuntime, ctx: Context): Promise<void>;
 };
 
-/** How a default run ends once its gate opens: its outcome, or a throw that faults it. */
+/** 默认运行的门闩打开后如何结束：返回指定结果，或抛出异常并使任务失败。 */
 type Ending = "completed" | "failed" | "throw";
 
 const behaviors = new Map<string, Behavior>();
 const gates = new Map<string, Deferred<Ending>>();
-/** Handler starts and ends in order, such as `run:a`, `abort:a`. */
+/** 按顺序记录处理器的开始和结束事件，例如 `run:a`、`abort:a`。 */
 const log: string[] = [];
 
 function gate(name: string): Deferred<Ending> {
@@ -80,7 +80,7 @@ function script(name: string, behavior: Behavior): void {
 	behaviors.set(name, behavior);
 }
 
-/** Wait for the gate or the abort signal, then end as the gate says. */
+/** 等待门闩打开或收到中止信号，然后按门闩指定的方式结束。 */
 async function defaultRun(runtime: NodeRuntime, ctx: Context, name: string): Promise<void> {
 	const ending = await Promise.race([gate(name).promise, aborted(runtime.signal)]);
 	if (ending === "throw") throw new Error(`${name} threw`);
@@ -93,7 +93,7 @@ function end(ending: "completed" | "failed", name: string): Next {
 		: { status: "terminal", outcome: { status: "failed", error: { message: `${name} failed` } } };
 }
 
-/** A task that runs its name's behavior. */
+/** 执行与自身名称对应行为的任务。 */
 const Node = defineTask<NodeInput, NodeCheckpoint, string>({
 	name: "test.node",
 	version: 1,
@@ -122,7 +122,7 @@ const Node = defineTask<NodeInput, NodeCheckpoint, string>({
 	},
 });
 
-/** Never registered: aborting it can only orphan it. */
+/** 从未注册的任务；中止它只会使其成为孤儿任务。 */
 const Unregistered = defineTask<NodeInput, { phase: "run" }, string>({
 	name: "test.unregistered",
 	version: 1,
@@ -144,12 +144,12 @@ function owned(owner: TaskId): TaskOptions {
 	return { ownership: { kind: "task", taskId: owner } };
 }
 
-/** A child task named `name`, owned by `owner`. */
+/** 名为 `name`、由 `owner` 持有的子任务。 */
 function spawn(tx: Tx, owner: TaskId, name: string): Promise<TaskId<string>> {
 	return tx.createTask(Node, { name }, owned(owner));
 }
 
-/** Wait on `on`, resuming in round `round`. */
+/** 等待 `on` 中的任务，并在第 `round` 轮恢复。 */
 function waitOn(on: readonly TaskId[], policy: JoinPolicy, round = 1): Next {
 	return { status: "waiting", checkpoint: { phase: "resume", round }, on, policy };
 }
@@ -195,7 +195,7 @@ afterEach(async () => {
 	directories.clear();
 });
 
-// ─── Ownership ──────────────────────────────────────────────────────────────
+// ─── 所有权 ────────────────────────────────────────────────────────────────
 
 describe("task ownership", () => {
 	it("creates a child in its owner's conversation with its owner recorded", async () => {
@@ -228,7 +228,7 @@ describe("task ownership", () => {
 		await expect(create(owned(999_999 as TaskId))).rejects.toThrow("does not exist");
 		await expect(create({ ...owned(parent), conversationId: other.id })).rejects.toThrow("owner's conversation");
 		await expect(create({ ...owned(parent), background: true })).rejects.toThrow("cannot be background");
-		// The owner's conversation is the default, even from a commit bound to another conversation.
+		// 即使提交关联到另一个 conversation，也默认使用所有者的 conversation。
 		const child = await other.commit((tx) => spawn(tx, parent, "child"), context);
 		expect((await harness.getTask(child, context))!.conversationId).toBe(root.id);
 		open("parent");
@@ -288,7 +288,7 @@ describe("task ownership", () => {
 			status: "faulted",
 			error: { message: expect.stringContaining("is completing") },
 		});
-		// The rejected commit wrote nothing.
+		// 被拒绝的提交没有写入任何内容。
 		const nodes = await harness.commit((tx) => tx.scanTasks({ kind: "test.node" }, 20), context);
 		expect(nodes.items.map((task) => (task.input as NodeInput).name)).toEqual(["eager"]);
 
@@ -314,9 +314,9 @@ describe("task ownership", () => {
 	});
 });
 
-// ─── Waiting ────────────────────────────────────────────────────────────────
+// ─── 等待 ──────────────────────────────────────────────────────────────────
 
-/** Script `parent` to spawn `children` in one commit and wait on them with `policy`; it records their outcomes. */
+/** 设置 `parent` 的行为：在一次提交中创建 `children` 并按 `policy` 等待，同时记录各子任务的结果。 */
 function parentOf(parent: string, children: readonly string[], policy: JoinPolicy) {
 	const found = { ids: [] as TaskId<string>[], outcomes: [] as string[] };
 	script(parent, {
@@ -360,7 +360,7 @@ describe("waiting", () => {
 		expect(await harness.abortTask(found.ids[4]!, context)).toBe("marked");
 		expect(await outcomeOf(harness, parent)).toBe("completed");
 		expect(found.outcomes).toEqual(["completed", "failed", "faulted", "aborted", "orphaned"]);
-		// allSettled never marks siblings.
+		// allSettled 不会将其他同级任务标记为失败。
 		expect(log.filter((line) => line.startsWith("abort:"))).toEqual(["abort:aborted"]);
 		await harness.close(context);
 	});
@@ -409,7 +409,7 @@ describe("waiting", () => {
 		});
 		const parent = await start(root, "parent");
 		await until(() => found.ids.length === 2);
-		// p1 holds `failed` while its grandchild's abort handler runs; p2 is already aborted.
+		// p1 会在其孙任务运行中止处理器期间保持为 `failed`；p2 此时已经中止。
 		expect(await outcomeOf(harness, found.ids[1]!)).toBe("aborted");
 		expect(await state(harness, found.ids[0]!)).toMatchObject({
 			status: "completing",
@@ -418,7 +418,7 @@ describe("waiting", () => {
 		expect((await state(harness, parent)).status).toBe("waiting");
 		open("abort.grandchild");
 		await until(() => log.includes("resume:parent"));
-		// Only the other tasks in `on` are marked: not the failed one, not the parent, not a child outside `on`.
+		// 只有 `on` 中的其他任务会被标记：失败任务、父任务以及 `on` 之外的子任务均不会被标记。
 		const marked = async (id: TaskId) => (await harness.getTask(id, context))!.abortRequested;
 		expect(await outcomeOf(harness, found.ids[0]!)).toBe("failed");
 		expect([await marked(found.ids[0]!), await marked(found.ids[1]!), await marked(outside!)]).toEqual([
@@ -428,7 +428,7 @@ describe("waiting", () => {
 		]);
 		expect(await marked(parent)).toBe(false);
 		expect((await state(harness, outside!)).status).toBe("running");
-		// Finished, the parent holds for the child outside `on`.
+		// 任务完成后，父任务仍会等待 `on` 之外的子任务。
 		await until(async () => (await state(harness, parent)).status === "completing");
 		open("outside");
 		expect(await outcomeOf(harness, parent)).toBe("completed");
@@ -451,7 +451,7 @@ describe("waiting", () => {
 		});
 		const parent = await start(root, "parent");
 		await until(async () => (await state(harness, parent)).status === "waiting");
-		// A task it does not own is not its work: the parent may finish while it lives, but here it waits for it.
+		// 父任务不拥有的任务不属于其工作：父任务可以在该任务仍运行时结束，但此处会等待它完成。
 		open("live", "failed");
 		expect(await outcomeOf(harness, parent)).toBe("completed");
 		expect(outcomes).toEqual(["completed", "failed"]);
@@ -474,7 +474,7 @@ describe("waiting", () => {
 				error: { message: expect.stringContaining(message) },
 			});
 		}
-		// A child waiting on its owner could never resume.
+		// 子任务若等待其所有者，便永远无法恢复执行。
 		let child: TaskId | undefined;
 		let parent: TaskId | undefined;
 		script("child", { run: (runtime, ctx) => runtime.commit(() => waitOn([parent!], "allSettled"), ctx) });
@@ -535,7 +535,7 @@ describe("waiting", () => {
 	});
 });
 
-// ─── Completing ─────────────────────────────────────────────────────────────
+// ─── 完成任务 ──────────────────────────────────────────────────────────────
 
 describe("completing", () => {
 	it("holds a finished task until its owned work drains; waiters and task documents wait for the final commit", async () => {
@@ -646,10 +646,10 @@ describe("completing", () => {
 	});
 });
 
-// ─── Abort order ────────────────────────────────────────────────────────────
+// ─── 中止顺序 ──────────────────────────────────────────────────────────────
 
 describe("abort order", () => {
-	/** Script `name` to spawn `child` and wait on it; its abort handler records the child's status first. */
+	/** 设置 `name` 的行为：创建并等待 `child`；中止处理器会先记录子任务状态。 */
 	function chain(harness: () => Harness, name: string, child: string): { id?: TaskId } {
 		const found: { id?: TaskId } = {};
 		script(name, {
@@ -792,7 +792,7 @@ describe("abort order", () => {
 	});
 });
 
-// ─── Background and terminal owners ─────────────────────────────────────────
+// ─── 后台任务与终止状态所有者 ───────────────────────────────────────────────
 
 describe("boundaries", () => {
 	it("keeps background work through Conversation.abort(); { background: true } aborts it and waits", async () => {
@@ -852,13 +852,13 @@ describe("boundaries", () => {
 	});
 });
 
-// ─── Recovery ───────────────────────────────────────────────────────────────
+// ─── 恢复 ──────────────────────────────────────────────────────────────────
 
 type Seeded = { parent: TaskId; children: TaskId[] };
 
 /**
- * Write records a crash could leave, without a Harness: `parent` with children named `children`, then `edit` replaces
- * states through the internal task write.
+ * 写入崩溃后可能遗留的记录，无需创建 Harness：先创建包含名为 `children` 的子任务的 `parent`，
+ * 再通过内部任务写入操作使用 `edit` 替换状态。
  */
 async function seed(
 	path: string,
@@ -982,7 +982,7 @@ describe("recovery", () => {
 	});
 });
 
-// ─── Built-in tool rounds ───────────────────────────────────────────────────
+// ─── 内置工具轮次 ───────────────────────────────────────────────────────────
 
 function blockingTool(name: string): { started: Promise<void>; registration: ToolRegistration } {
 	const started = deferred();
@@ -1099,7 +1099,7 @@ describe("tool rounds", () => {
 				execute: async () => ({ output: [] }),
 			}),
 		);
-		// An extension's hook starts work owned by the generation, which holds it while the next turn runs.
+		// 扩展钩子会启动由本轮生成过程持有的工作；该工作会在下一轮运行期间保持有效。
 		let opened: Harness | undefined;
 		addHooks(setup.registry, GenerationTask, {
 			afterTools: async (_assistant, _results, api, callContext) => {
@@ -1180,15 +1180,15 @@ describe("tool rounds", () => {
 		expect(await state(harness, generation)).toMatchObject({ status: "completing", outcome: { status: "faulted" } });
 		expect(await settled(submission.wait(context))).toBe(false);
 		expect((await harness.snapshot(LiveDoc, root.id, context))!.run?.taskId).toBe(generation);
-		// The faulted outcome is cancellation intent: the hooked work is aborted, then the run settles.
+		// 失败结果表示取消意图：先中止钩子启动的工作，再结束本轮运行。
 		await waitFor(() => log.includes("abort:hooked"));
 		reject = generation;
 		open("abort.hooked");
-		// The final commit, with the run's cleanup, fails: nothing of the cleanup lands, and the Harness fails.
+		// 包含本轮清理操作的最终提交失败：清理内容不会写入，Harness 也会失败。
 		expect(await harness.closed).toEqual({ reason: "failed", error: failure });
 		await expect(submission.wait(context)).rejects.toMatchObject({ name: "SessionFailed", cause: failure });
 		await harness.close(context);
-		// Reopening finalizes the run; the partial becomes one aborted entry.
+		// 重新打开后会完成本轮收尾；部分记录会变为一条已中止的条目。
 		const reopened = await openChat(storage.reopen(), setup);
 		opened = reopened.harness;
 		const again = (await reopened.harness.submission(submission.id, context))!;
@@ -1199,7 +1199,7 @@ describe("tool rounds", () => {
 	});
 });
 
-/** A stream whose final message is not strict JSON, so the classification commit throws and the task faults. */
+/** 最后一条消息不是严格 JSON 的数据流，因此分类提交会抛出异常并使任务失败。 */
 function invalidFinalStream(): ReturnType<Models["streamSimple"]> {
 	const events = async function* () {
 		yield { type: "start", partial: fauxAssistantMessage("partial", { stopReason: "pending" }) };
@@ -1211,9 +1211,9 @@ function invalidFinalStream(): ReturnType<Models["streamSimple"]> {
 	>;
 }
 
-// ─── Review follow-ups ──────────────────────────────────────────────────────
+// ─── 审查后的后续事项 ───────────────────────────────────────────────────────
 
-/** A waiter of its own kind, so its definition can be removed or replaced. */
+/** 具有独立类型的等待任务，因此可以移除或替换其定义。 */
 function versioned(version: 1 | 2) {
 	return defineTask<{ on: TaskId[] }, { phase: "wait" } | { phase: "resume" } | { phase: "migrated" }, string>({
 		name: "test.versioned",
@@ -1243,7 +1243,7 @@ function versioned(version: 1 | 2) {
 	});
 }
 
-/** Script `name` to spawn `child` and then complete, holding while the child lives. */
+/** 设置 `name` 的行为：创建 `child` 后完成，并在子任务仍运行时保持等待。 */
 function spawnAndFinish(name: string, child: string): { id?: TaskId } {
 	const found: { id?: TaskId } = {};
 	script(name, {
@@ -1318,7 +1318,7 @@ describe("definitions and waits", () => {
 		addTask(registry, holder(1));
 		const parent = await root.commit((tx) => tx.createTask(holder(1), null, OWN_CONVERSATION), context);
 		await until(async () => (await state(harness, parent)).status === "completing");
-		// The same extension name replaces the old one in place.
+		// 同名扩展会在原位置替换旧扩展。
 		addTask(registry, holder(2));
 		open("child");
 		const settledParent = await harness.waitForTask(parent, context);
@@ -1409,7 +1409,7 @@ describe("conversation abort and boundaries", () => {
 			return { owner, outer: outer.id, background, inner: inner.id };
 		}, context);
 		await until(() => log.includes("run:owner") && log.includes("run:background"));
-		// The owner's abort handler starts at once: background work is not its ordinary owned work.
+		// 所有者的中止处理器会立即启动：后台工作不属于它通常持有的工作。
 		await harness.abortTask(tree.owner, context);
 		await until(() => log.includes("abort:owner"));
 		const inner = (await harness.conversation(tree.inner, context))!;
@@ -1418,7 +1418,7 @@ describe("conversation abort and boundaries", () => {
 		const exposed = await start(outer, "exposed");
 		expect(await outcomeOf(harness, exposed)).toBe("aborted");
 		expect((await harness.getTask(shielded, context))!.abortRequested).toBe(false);
-		// Marked directly, the background task cascades into its own subtree.
+		// 直接标记后台任务后，中止会沿其自身子树级联传播。
 		await harness.abortTask(tree.background, context);
 		expect(await outcomeOf(harness, shielded)).toBe("aborted");
 		expect(await outcomeOf(harness, tree.background)).toBe("aborted");
@@ -1563,7 +1563,7 @@ describe("tool rounds and events", () => {
 		return { stream, events };
 	}
 
-	/** Event types, with tool ends and message ends labelled by call ID and whether an entry came along. */
+	/** 事件类型；工具结束和消息结束事件会标注调用 ID，以及是否附带记录条目。 */
 	function labels(events: readonly AgentEvent[]): string[] {
 		return events.flatMap((event) => {
 			if (event.type === "tool_execution_end") return [`end:${event.toolCallId}:${event.entry !== undefined}`];

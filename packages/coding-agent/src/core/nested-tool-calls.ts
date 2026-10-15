@@ -1,11 +1,9 @@
 /**
- * Tool calls that a tool makes while it runs (`ctx.executeTool()`), for example from codemode
- * scripts. The agent loop does not know about them: the session runs each one through the agent's
- * tool pipeline (`runToolCall`) with its own hooks, emits `tool_execution_*` events with
- * `parentToolCallId`, and records the calls and their usage on the model-issued call's tool result
- * message.
+ * 工具运行期间发起的嵌套工具调用（通过 `ctx.executeTool()`），例如 codemode 脚本中的调用。
+ * agent 循环本身并不知道这些调用：会话会让每次调用都经过 agent 的工具处理流程（`runToolCall`）并执行各自的钩子，
+ * 发出带有 `parentToolCallId` 的 `tool_execution_*` 事件，并将调用记录及其用量写入模型发起的工具调用结果消息。
  *
- * Nothing here runs until a tool calls `ctx.executeTool()`.
+ * 只有工具调用 `ctx.executeTool()` 后，这里的逻辑才会运行。
  */
 
 import type {
@@ -19,9 +17,8 @@ import type { JsonObject, NestedToolCallRecord, NestedToolCalls, TextContent, Us
 import { combineUsage } from "./usage-totals.ts";
 
 /**
- * Limits of the nested-call record on a tool result: arguments
- * over the per-call or total size are omitted, calls beyond the count are dropped, and the record
- * is marked incomplete when any of that happens.
+ * 工具结果中嵌套调用记录的限制：超出单次或总大小限制的参数会被省略，超出数量限制的调用会被丢弃；
+ * 发生上述任一情况时，记录会标记为不完整。
  */
 export const NESTED_CALL_LIMITS = {
 	maxCalls: 256,
@@ -32,27 +29,27 @@ export const NESTED_CALL_LIMITS = {
 
 const encoder = new TextEncoder();
 
-/** What the nested calls of one model-issued tool call leave on its tool result message. */
+/** 一次模型发起的工具调用所产生的嵌套调用信息，最终写入其工具结果消息。 */
 export interface NestedCallSummary {
-	/** Becomes `nestedCalls`. Undefined when no nested call was made. */
+	/** 作为 `nestedCalls` 保存；未发生嵌套调用时为 undefined。 */
 	calls: NestedToolCalls | undefined;
-	/** Summed `usage` of the nested results, added to the message's `usage`. */
+	/** 嵌套调用结果的 `usage` 总和，会累加到消息的 `usage` 中。 */
 	usage: Usage | undefined;
 }
 
 /**
- * Collects the nested calls of one model-issued tool call, including calls made by nested tools.
- * The snapshot becomes `nestedCalls` on the tool result message.
+ * 收集模型发起的一次工具调用中的所有嵌套调用，也包括嵌套工具发起的调用。
+ * 收集结果会作为 `nestedCalls` 写入工具结果消息。
  */
 export class NestedCallRecorder {
 	private readonly calls: NestedToolCallRecord[] = [];
 	private readonly startedAt = new Map<NestedToolCallRecord, number>();
 	private complete = true;
 	private argumentBytes = 0;
-	/** Summed usage of every nested result, including calls dropped from the record. */
+	/** 所有嵌套调用结果的用量总和，包括未写入记录的调用。 */
 	private usage: Usage | undefined;
 
-	/** Record a call as it starts. Returns undefined when the call is dropped. */
+	/** 在调用开始时记录它；调用被丢弃时返回 undefined。 */
 	start(toolCall: AgentToolCall): NestedToolCallRecord | undefined {
 		if (this.calls.length >= NESTED_CALL_LIMITS.maxCalls) {
 			this.complete = false;
@@ -92,7 +89,7 @@ export class NestedCallRecorder {
 		return this.usage;
 	}
 
-	/** Copy of the record so far, or undefined when no nested call was made. */
+	/** 当前记录的副本；未发生嵌套调用时返回 undefined。 */
 	snapshot(): NestedToolCalls | undefined {
 		if (this.calls.length === 0 && this.complete) return undefined;
 		const calls = this.calls.map((call) => ({ ...call }));
@@ -101,13 +98,13 @@ export class NestedCallRecorder {
 }
 
 export interface NestedToolCallOptions {
-	/** Defaults to the calling tool's signal. */
+	/** 默认使用发起调用的工具所传入的 signal。 */
 	signal?: AbortSignal;
-	/** Receives partial results of the nested tool, in addition to `tool_execution_update` events. */
+	/** 接收嵌套工具的部分结果；此外还会发出 `tool_execution_update` 事件。 */
 	onUpdate?: AgentToolUpdateCallback;
 }
 
-/** `tool_execution_*` events of nested calls. */
+/** 嵌套调用对应的 `tool_execution_*` 事件。 */
 export type NestedToolExecutionEvent =
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown; parentToolCallId: string }
 	| {
@@ -129,11 +126,11 @@ export type NestedToolExecutionEvent =
 	  };
 
 export interface NestedToolCallHost {
-	/** Tools nested calls resolve against. */
+	/** 嵌套调用可解析到的工具列表。 */
 	getTools(): readonly AgentTool[];
-	/** Whether every nested call runs exclusively, as when the agent executes tool calls sequentially. */
+	/** 是否要求所有嵌套调用独占执行，例如 agent 顺序执行工具调用时。 */
 	isSequential(): boolean;
-	/** Run the call through the tool pipeline, with hooks that report `parentToolCallId`. */
+	/** 通过工具处理流程运行调用，并执行上报 `parentToolCallId` 的钩子。 */
 	runToolCall(
 		toolCall: AgentToolCall,
 		parentToolCallId: string,
@@ -143,11 +140,11 @@ export interface NestedToolCallHost {
 	emit(event: NestedToolExecutionEvent): Promise<void>;
 }
 
-/** Calls below one model-issued call share its recorder. */
+/** 同一次模型发起的调用所产生的嵌套调用共用一个记录器。 */
 interface CallScope {
 	recorder: NestedCallRecorder;
 	nextId: number;
-	/** Set inside a call that holds the exclusive queue, so its own nested calls do not wait on it. */
+	/** 当前调用持有独占队列时设为 true，避免它自己的嵌套调用等待该队列。 */
 	holdsQueue: boolean;
 }
 
@@ -160,9 +157,9 @@ function textOf(result: AgentToolResult<unknown>): string {
 
 export class NestedToolCallRunner {
 	private readonly host: NestedToolCallHost;
-	/** Scopes by the id of the calling tool call. */
+	/** 以发起工具调用的 ID 为键保存作用域。 */
 	private readonly scopes = new Map<string, CallScope>();
-	/** Serializes nested calls that must not run concurrently. */
+	/** 对不得并发运行的嵌套调用进行串行化。 */
 	private queueTail: Promise<void> = Promise.resolve();
 
 	constructor(host: NestedToolCallHost) {
@@ -170,8 +167,8 @@ export class NestedToolCallRunner {
 	}
 
 	/**
-	 * Run `name` on behalf of the call `callerId`. The nested call gets the id `<callerId>/<n>`.
-	 * Never rejects for tool failures: they come back as `isError: true`.
+	 * 代表 ID 为 `callerId` 的调用运行 `name` 工具。嵌套调用的 ID 为 `<callerId>/<n>`。
+	 * 工具调用失败时不会使 Promise 拒绝，而是通过 `isError: true` 返回错误结果。
 	 */
 	async execute(
 		callerId: string,
@@ -235,7 +232,7 @@ export class NestedToolCallRunner {
 		}
 
 		scope.recorder.finish(record, outcome.isError, textOf(outcome.result));
-		// Nested results are not persisted, so their usage is only counted through the recorder.
+		// 嵌套结果不会持久化，因此只通过记录器统计其用量。
 		if (outcome.result.usage) scope.recorder.addUsage(outcome.result.usage);
 		await this.host.emit({
 			type: "tool_execution_end",
@@ -249,7 +246,7 @@ export class NestedToolCallRunner {
 		return outcome;
 	}
 
-	/** Remove and return the record of the nested calls a model-issued call made. */
+	/** 移除并返回某次模型发起的调用所产生的嵌套调用记录。 */
 	takeRecord(toolCallId: string): NestedCallSummary | undefined {
 		const scope = this.scopes.get(toolCallId);
 		this.scopes.delete(toolCallId);

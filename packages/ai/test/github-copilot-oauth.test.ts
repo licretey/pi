@@ -475,9 +475,8 @@ describe("GitHub Copilot OAuth device flow", () => {
 	});
 
 	it("rejects a non-http(s) verification_uri before it reaches onDeviceCode", async () => {
-		// A malicious enterprise OAuth server could return a verification_uri that
-		// the browser launcher would otherwise hand to the OS. Ensure such values
-		// are rejected at the deserialization boundary.
+		// 恶意企业 OAuth 服务器可能返回一个 verification_uri，
+		// 否则浏览器启动器会将这些值交给操作系统。确保在反序列化边界拒绝此类值。
 		const fetchMock = vi.fn(async (input: unknown): Promise<Response> => {
 			const url = getUrl(input);
 			if (url.endsWith("/login/device/code")) {
@@ -659,7 +658,7 @@ describe("GitHub Copilot OAuth device flow", () => {
 		await vi.advanceTimersByTimeAsync(1);
 		expect(accessTokenPollTimes).toHaveLength(2);
 
-		// slow_down carried a server-provided interval of 7 seconds.
+		// slow_down 响应携带了服务器指定的 7 秒轮询间隔。
 		await vi.advanceTimersByTimeAsync(6999);
 		expect(accessTokenPollTimes).toHaveLength(2);
 

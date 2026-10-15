@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 #
-# Build pi binaries for all platforms locally.
-# Mirrors .github/workflows/build-binaries.yml
+# 在本地为所有平台构建 pi 可执行文件。
+# 此脚本与 .github/workflows/build-binaries.yml 的流程一致。
 #
-# Usage:
+# 用法：
 #   ./scripts/build-binaries.sh [--skip-install] [--skip-build] [--offline-model-data] [--platform <platform>] [--out <dir>]
 #
-# Options:
-#   --skip-install       Skip npm ci
-#   --skip-build         Skip the package build
-#   --offline-model-data Build with bundled model data instead of refreshing it
-#   --platform <name>    Build only for specified platform (darwin-arm64, darwin-x64, linux-x64, linux-arm64, windows-x64, windows-arm64)
-#   --out <dir>          Output directory (default: packages/coding-agent/binaries)
+# 选项：
+#   --skip-install       跳过 npm ci
+#   --skip-build         跳过软件包构建
+#   --offline-model-data 使用内置模型数据构建，不在线刷新
+#   --platform <name>    仅构建指定平台（darwin-arm64、darwin-x64、linux-x64、linux-arm64、windows-x64、windows-arm64）
+#   --out <dir>          输出目录（默认为 packages/coding-agent/binaries）
 #
-# Output:
+# 输出文件：
 #   packages/coding-agent/binaries/
 #     pi-darwin-arm64.tar.gz
 #     pi-darwin-x64.tar.gz
@@ -61,7 +61,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Validate platform if specified
+# 如果指定了平台，则验证其名称。
 if [[ -n "$PLATFORM" ]]; then
     case "$PLATFORM" in
         darwin-arm64|darwin-x64|linux-x64|linux-arm64|windows-x64|windows-arm64)
@@ -103,11 +103,11 @@ fi
 echo "==> Building binaries..."
 cd packages/coding-agent
 
-# Clean previous builds
+# 清理之前的构建产物。
 rm -rf "$OUTPUT_DIR"
 mkdir -p "$OUTPUT_DIR"/{darwin-arm64,darwin-x64,linux-x64,linux-arm64,windows-x64,windows-arm64}
 
-# Determine which platforms to build
+# 确定要构建的平台。
 if [[ -n "$PLATFORM" ]]; then
     PLATFORMS=("$PLATFORM")
 else
@@ -121,14 +121,12 @@ for platform in "${PLATFORMS[@]}"; do
         bun_target="${bun_target}-baseline"
     fi
 
-    # Bun compiled executables only embed worker scripts when they are passed as
-    # explicit build entrypoints. Bun places them at their path relative to the
-    # common directory of all entrypoints, so the main entry must stay in dist/
-    # for the worker specifiers in the runtime to resolve.
+    # 只有将 worker 脚本作为显式构建入口传入时，Bun 才会把它们嵌入编译后的可执行文件。
+    # Bun 会按照这些入口共同目录的相对路径放置脚本，因此主入口必须保留在 dist/ 中，
+    # 运行时才能正确解析 worker 的路径。
     #
-    # Disable cwd bunfig.toml autoload so project preload scripts cannot crash the
-    # standalone binary before pi starts (see #7684). Disable cwd .env autoload so
-    # project env files do not leak into pi's environment (see #10473).
+    # 禁用从当前工作目录自动加载 bunfig.toml，避免项目预加载脚本在 pi 启动前导致独立可执行文件崩溃（见 #7684）。
+    # 同时禁用从当前工作目录自动加载 .env，避免项目环境变量泄漏到 pi 的运行环境中（见 #10473）。
     if [[ "$platform" == windows-* ]]; then
         bun build --compile --no-compile-autoload-bunfig --no-compile-autoload-dotenv --target="$bun_target" ./dist/bun/cli.js ./src/utils/image-resize-worker.ts ./src/extensions/codemode/worker.ts --outfile "$OUTPUT_DIR/$platform/pi.exe"
     else
@@ -138,7 +136,7 @@ done
 
 echo "==> Creating release archives..."
 
-# Copy shared files to each platform directory
+# 将共用文件复制到各平台目录。
 for platform in "${PLATFORMS[@]}"; do
     cp package.json "$OUTPUT_DIR/$platform/"
     cp README.md "$OUTPUT_DIR/$platform/"
@@ -152,29 +150,29 @@ for platform in "${PLATFORMS[@]}"; do
     cp -r docs "$OUTPUT_DIR/$platform/"
     cp -r examples "$OUTPUT_DIR/$platform/"
 
-    # Copy the selected architecture's native platform helpers next to the executable.
+    # 将所选架构的原生平台辅助文件复制到可执行文件旁边。
     native_platform="${platform/windows-/win32-}"
     native_path="native/${native_platform%-*}/prebuilds"
     mkdir -p "$OUTPUT_DIR/$platform/$native_path"
     cp -R "../tui/$native_path/$native_platform" "$OUTPUT_DIR/$platform/$native_path/"
 done
 
-# Create archives
+# 创建归档文件。
 cd "$OUTPUT_DIR"
 
 for platform in "${PLATFORMS[@]}"; do
     if [[ "$platform" == windows-* ]]; then
-        # Windows (zip)
+        # Windows 平台使用 zip 格式。
         echo "Creating pi-$platform.zip..."
         (cd "$platform" && zip -r ../pi-$platform.zip .)
     else
-        # Unix platforms (tar.gz) - use wrapper directory for mise compatibility
+        # Unix 平台使用 tar.gz 格式，并添加包装目录以兼容 mise。
         echo "Creating pi-$platform.tar.gz..."
         mv "$platform" pi && tar -czf pi-$platform.tar.gz pi && mv pi "$platform"
     fi
 done
 
-# Extract archives for easy local testing
+# 解压归档文件，便于在本地测试。
 echo "==> Extracting archives for testing..."
 for platform in "${PLATFORMS[@]}"; do
     rm -rf "$platform"

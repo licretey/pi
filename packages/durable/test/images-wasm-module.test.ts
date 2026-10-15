@@ -1,4 +1,4 @@
-// Its own file, so Photon is not yet initialized: vitest gives each file fresh modules, and Photon loads only once.
+// 单独放在此文件中，确保 Photon 尚未初始化：Vitest 为每个文件创建独立模块环境，而 Photon 只加载一次。
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { createPhotonImages } from "@earendil-works/pi-durable/images";
@@ -10,7 +10,7 @@ it("createPhotonImages takes a compiled WebAssembly module, as Cloudflare Worker
 	const { WebAssembly } = globalThis as unknown as { WebAssembly: { compile(bytes: Uint8Array): Promise<object> } };
 	const module = (await WebAssembly.compile(await readFile(path))) as Parameters<typeof createPhotonImages>[0];
 	const images = createPhotonImages(module);
-	// A 1x1 GIF; returned as it is only once it decodes, which fails without an initialized Photon.
+	// 1×1 GIF；只有成功解码后才会原样返回，因此未初始化 Photon 时该操作会失败。
 	const data = "R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
 	const prepared = await images.prepare(Buffer.from(data, "base64"), "image/gif", DEFAULT_IMAGE_LIMITS);
 	expect(prepared).toEqual({ data, mimeType: "image/gif" });

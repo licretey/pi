@@ -295,7 +295,7 @@ describe("ModelRuntime auth options", () => {
 		expect(refreshSignal).toBeInstanceOf(AbortSignal);
 		const reason = new Error("cancelled");
 		controller.abort(reason);
-		// A started refresh may already have rotated the refresh token and must be persisted.
+		// 已启动的刷新可能已经轮换 refresh token，因此必须持久化。
 		expect(refreshSignal?.aborted).toBe(false);
 	});
 

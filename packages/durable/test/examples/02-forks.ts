@@ -1,5 +1,5 @@
-// Fork a conversation.
-// Run from packages/durable:
+// 为对话创建分支。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/02-forks.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createSession, defineDoc, MemoryStorage } from "../../src/index.ts";
@@ -27,17 +27,15 @@ await session.commit(async (tx) => {
 	(await tx.doc(Notes, chat.id)).text = "after goodbye";
 }, context);
 
-// A fork is a new conversation that continues from one entry of another. It
-// sees the parent's transcript up to that entry, and each document follows its
-// own `fork` setting. Notes uses "asOf", so the fork starts with the notes
-// value from the fork entry.
+// 分支是一个从另一个对话的指定条目继续的新对话。它可以看到父对话截至该条目的记录，
+// 每份文档则遵循自己的 `fork` 设置。Notes 使用 "asOf"，因此分支会从分支条目对应的笔记值开始。
 const branch = await session.commit(
 	(tx) => tx.forkConversation(chat.id, firstEntry.id, { ownership: { kind: "ownerless" } }),
 	context,
 );
 
-// scanEntries() pages through visible entries, newest first. The fork sees
-// "hello" (inherited from the parent) but not "goodbye", which came later.
+// scanEntries() 会分页读取可见条目，并按时间倒序排列。分支能看到从父对话继承的 "hello"，
+// 但看不到之后才添加的 "goodbye"。
 const branchEntries = await session.commit((tx) => tx.scanEntries({ conversationId: branch.id }, 10), context);
 console.log(
 	"fork transcript:",
@@ -45,7 +43,7 @@ console.log(
 );
 console.log("fork notes:", await session.snapshot(Notes, branch.id, context));
 
-// The fork's copy is independent: editing it leaves the parent unchanged.
+// 分支中的副本相互独立：修改分支不会影响父对话。
 await session.commit(async (tx) => {
 	(await tx.doc(Notes, branch.id)).text = "changed only in the fork";
 }, context);

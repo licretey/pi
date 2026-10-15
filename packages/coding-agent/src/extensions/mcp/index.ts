@@ -1,29 +1,24 @@
 /**
- * Built-in MCP integration.
+ * 内置 MCP 集成。
  *
- * Connects the servers from `mcp.json` and the servers extensions register with
- * `pi.registerMcpServer()` when a session starts, and servers registered later right away. A server
- * in `mcp.json` takes precedence over a registered server of the same name. Connections run in the
- * background: the first prompt waits only for servers with `direct` tools, and codemode scripts,
- * `tool_search`, and the resource tools wait for the servers they need when they run. Tools are
- * registered as `mcp__<server>__<tool>`. By default (`"exposure": "codemode"`) the tools are only
- * callable from codemode scripts, which keeps MCP tools out of the model's tool declarations and
- * the codemode description: scripts find the tools with `searchTools()` and the server instructions
- * with `describeNamespace()`. The codemode tool is activated for that unless `autoEnableCodemode` is
- * false. `"deferred"` declares the tools to the model once the `tool_search` tool loads them, and
- * activates `tool_search` instead of codemode.
- * `"exposure": "direct"` declares them to the model right away, and `"hidden"` makes them
- * unreachable. `toolExposure` overrides the exposure of single tools. Servers with resources are
- * reached through Codex's `list_mcp_resources`, `list_mcp_resource_templates`, and
- * `read_mcp_resource` tools (resources.ts).
+ * 在会话启动时连接 `mcp.json` 中的服务器以及 extension 通过 `pi.registerMcpServer()` 注册的服务器，
+ * 之后注册的服务器则立即连接。`mcp.json` 中的服务器优先于同名注册服务器。连接在后台运行：第一个
+ * 提示只等待带 `direct` 工具的服务器，而 codemode 脚本、`tool_search` 和资源工具在运行时等待它们
+ * 需要的服务器。工具以 `mcp__<server>__<tool>` 的形式注册。默认情况下（`"exposure": "codemode"`）
+ * 工具只能从 codemode 脚本调用，这让 MCP 工具不进入模型的 tool declaration 和 codemode 描述：
+ * 脚本用 `searchTools()` 查找工具，用 `describeNamespace()` 查看服务器说明。codemode 工具会据此
+ * 自动激活，除非 `autoEnableCodemode` 为 false。`"deferred"` 在 `tool_search` 工具加载它们之后
+ * 才向模型声明，并激活 `tool_search` 而非 codemode。
+ * `"exposure": "direct"` 立即向模型声明工具，`"hidden"` 则让它们不可达。`toolExposure` 可覆盖
+ * 单个工具的 exposure。带资源的服务器通过 Codex 的 `list_mcp_resources`、
+ * `list_mcp_resource_templates` 和 `read_mcp_resource` 工具访问（resources.ts）。
  *
- * Every call runs through pi's tool pipeline, so `tool_call`/`tool_result` hooks and permission
- * extensions apply to MCP tools the same way they do to built-in tools.
+ * 每次调用都会经过 pi 的 tool pipeline，因此 `tool_call`/`tool_result` 钩子和权限 extension
+ * 对 MCP 工具的作用方式与对内置工具完全相同。
  *
- * Problems found at startup (config errors, failed connections, servers that need a sign-in) are
- * reported once. `/mcp` opens a manager to sign in, reconnect, enable or disable servers, and change
- * their exposure; the last two are saved to the `mcp.json` that defines the server, or apply to the
- * current session for registered servers.
+ * 启动时发现的问题（配置错误、连接失败、需要登录的服务器）只报告一次。`/mcp` 打开一个管理器，
+ * 可用于登录、重连、启用或禁用服务器以及修改 exposure；后两者会保存到定义该服务器的 `mcp.json`，
+ * 对注册服务器则只作用于当前会话。
  */
 
 import { join, resolve } from "node:path";
@@ -67,25 +62,25 @@ import { type McpMenu, type McpUi, showMcpManager } from "./ui.ts";
 export type { McpTransportFactory } from "./runtime.ts";
 
 export interface McpExtensionOptions {
-	/** Defaults to reading `mcp.json` from the agent directory and the trusted project. */
+	/** 默认从 agent 目录和受信任项目读取 `mcp.json`。 */
 	loadConfig?: (ctx: ExtensionContext) => LoadedMcpConfig;
-	/** Defaults to stdio and streamable HTTP transports built from the server config. */
+	/** 默认使用由服务器配置构建的 stdio 和 streamable HTTP 传输。 */
 	createTransport?: McpTransportFactory;
-	/** Defaults to `mcp-auth.json` in the agent directory. */
+	/** 默认使用 agent 目录下的 `mcp-auth.json`。 */
 	credentials?: McpOAuthCredentialStore;
-	/** File server log messages are appended to. Defaults to `mcp.log` in the agent directory. */
+	/** 服务器日志消息追加到的文件。默认为 agent 目录下的 `mcp.log`。 */
 	logPath?: string;
-	/** Opens the OAuth authorization URL. Defaults to the platform browser. */
+	/** 打开 OAuth 授权 URL。默认使用平台浏览器。 */
 	openUrl?: (url: string) => void;
 	/**
-	 * Saves `/mcp` changes to the server's config file: its project `override` when set, else its
-	 * `source`. Defaults to editing that `mcp.json`.
+	 * 把 `/mcp` 的修改保存到服务器的配置文件：若设置了项目的 `override` 则存那里，否则存其
+	 * `source`。默认编辑对应的 `mcp.json`。
 	 */
 	updateConfig?: (entry: McpServerEntry, patch: McpServerConfigPatch) => void;
 	/**
-	 * How long the first prompt waits for servers with `direct` tools that are still connecting at
-	 * startup, in milliseconds. Their tools become available when they connect. Other servers are
-	 * waited for when a script or search needs them. Default: 10000.
+	 * 第一个提示等待启动时仍在连接中的 `direct` 工具服务器的时长，单位毫秒。
+	 * 它们的工具在连接完成后变得可用。其他服务器则在脚本或搜索需要时等待。
+	 * 默认：10000。
 	 */
 	startupWaitMs?: number;
 }
@@ -98,19 +93,19 @@ const RESOURCE_TOOL_NAMES: ReadonlySet<string> = new Set([
 	READ_MCP_RESOURCE_TOOL,
 ]);
 
-/** A configured server. Disabled servers have no connection. */
+/** 一个已配置的服务器。禁用的服务器没有连接。 */
 interface McpServer {
 	entry: McpServerEntry;
 	connection?: McpServerConnection;
-	/** For servers extensions registered: the config as registered, to detect re-registrations. */
+	/** 对 extension 注册的服务器：注册时的配置，用于检测重复注册。 */
 	registeredConfig?: string;
-	/** Result of the last `/mcp` action that failed, shown in the manager. */
+	/** 最近一次失败的 `/mcp` 操作的结果，显示在管理器中。 */
 	message?: string;
-	/** Identifies the current connection attempt; disabling or replacing it invalidates earlier work. */
+	/** 标识当前的连接尝试；禁用或替换服务器会使早先的工作失效。 */
 	attempt?: symbol;
-	/** Settles when the connection started for the server connected or failed. */
+	/** 当为该服务器启动的连接完成（成功或失败）时 settle。 */
 	ready?: Promise<void>;
-	/** Cleanup of a detached connection; a replacement waits for it before opening a transport. */
+	/** 已脱离连接的清理；替代连接在打开传输之前会等待它。 */
 	closing?: Promise<void>;
 }
 
@@ -136,33 +131,33 @@ function exposureOf(entry: McpServerEntry): McpExposure {
 	return entry.config.exposure ?? "codemode";
 }
 
-/** Exposures the server's tools can have, known from its config before it connects. */
+/** 服务器工具可以处于的 exposure，在连接之前即可从其配置得知。 */
 function configuredExposures(entry: McpServerEntry): Set<McpExposure> {
 	return new Set([exposureOf(entry), ...Object.values(entry.config.toolExposure ?? {})]);
 }
 
-/** Whether some of the server's tools are declared to the model, so the first prompt waits for them. */
+/** 服务器的部分工具是否向模型声明，第一个提示是否需要等待它们。 */
 function hasDirectTools(entry: McpServerEntry): boolean {
 	return configuredExposures(entry).has("direct");
 }
 
-/** Whether some of the server's tools are reached through codemode or tool_search. */
+/** 服务器的部分工具是否通过 codemode 或 tool_search 访问。 */
 function hasIndirectTools(entry: McpServerEntry): boolean {
 	const exposures = configuredExposures(entry);
 	return exposures.has("codemode") || exposures.has("deferred");
 }
 
-/** Name of the system prompt section that lists the servers whose tools are not declared. */
+/** 系统提示中列出其工具未声明的服务器的分区名称。 */
 export const MCP_SERVERS_SECTION = "mcp_servers";
-/** Characters of a server description in the section, as Codex allows for deferred namespaces. */
+/** 分区中每个服务器描述的字符数上限，与 Codex 对 deferred namespace 的限制一致。 */
 const MAX_SERVER_DESCRIPTION_CHARS = 250;
 /**
- * Characters of the whole section. Descriptions shrink to fit; when the server lines alone do not
- * fit, the last servers are left out and counted in a closing line.
+ * 整个分区的字符数上限。描述会被压缩以适配；当只算服务器行就已放不下时，
+ * 排在最后的服务器会被省略并在结尾一行中计数。
  */
 export const MAX_SERVERS_SECTION_CHARS = 4096;
 
-/** The section's first line. It explains only the ways of reaching tools that the listed servers use. */
+/** 分区的第一行。它只解释所列服务器实际使用的工具访问方式。 */
 function serversSectionIntro(reaches: ReadonlySet<string>): string {
 	let intro = "MCP servers whose tools are not declared to you.";
 	if (reaches.has("codemode")) intro += " Call the tools of `codemode` servers from codemode scripts.";
@@ -175,22 +170,22 @@ function truncate(text: string, max: number): string {
 	return max <= 1 ? "" : `${text.slice(0, max - 1).trimEnd()}…`;
 }
 
-/** What the `mcp_servers` section needs of a server. */
+/** `mcp_servers` 分区对一台服务器的所需信息。 */
 export interface McpServerListing {
 	entry: McpServerEntry;
 	connection?: { instructions?: string };
 }
 
-/** First line of the configured description, or of the server instructions once connected. */
+/** 配置描述的第一行；已连接后则取服务器说明的第一行。 */
 function serverSummary(server: McpServerListing): string {
 	const text = server.entry.config.description?.trim() || server.connection?.instructions || "";
 	return (text.split("\n", 1)[0] ?? "").trim();
 }
 
 /**
- * The `mcp_servers` section: every enabled server with codemode or deferred tools, with how its
- * tools are reached and a one-line summary. The model learns of the servers from it, since neither
- * codemode nor tool_search lists them. Undefined when there are no such servers.
+ * `mcp_servers` 分区：每个带 codemode 或 deferred 工具的已启用服务器，附其工具的访问方式
+ * 与一行摘要。模型由此得知这些服务器的存在，因为 codemode 和 tool_search 都不会列出它们。
+ * 没有这类服务器时为 undefined。
  */
 export function renderServersSection(servers: readonly McpServerListing[]): string | undefined {
 	const listed = servers
@@ -204,11 +199,11 @@ export function renderServersSection(servers: readonly McpServerListing[]): stri
 	const heads = listed.map((server, index) => `- ${mcpNamespace(server.entry.name)} (${reaches[index]})`);
 	const omitted = (count: number) =>
 		count > 0 ? [`- … ${count} more server${count === 1 ? "" : "s"}; find their tools with searchTools()`] : [];
-	// Characters of the intro, the first `kept` server lines without descriptions, and the omission line.
+	// intro、前 `kept` 行不带描述的服务器行、以及省略行的字符总数。
 	const size = (kept: number) => [intro, ...heads.slice(0, kept), ...omitted(listed.length - kept)].join("\n").length;
 	let kept = listed.length;
 	while (kept > 0 && size(kept) > MAX_SERVERS_SECTION_CHARS) kept--;
-	// Each description also takes a ": " separator.
+	// 每条描述还要占一个 ": " 分隔符。
 	const perServer =
 		kept === 0
 			? 0
@@ -221,15 +216,15 @@ export function renderServersSection(servers: readonly McpServerListing[]): stri
 }
 
 /**
- * Whether a codemode script needs the server: it names the server's namespace, or searches,
- * enumerates, or describes tools or namespaces, which may name the server in other forms.
+ * codemode 脚本是否需要该服务器：脚本点名了该服务器的 namespace，或者进行了搜索、
+ * 枚举或描述工具/namespace 的操作——这些可能以其他形式提到该服务器。
  */
 function scriptNeedsServer(code: string, server: string): boolean {
 	if (/\b(searchTools|describeNamespace|describeTool|ALL_TOOLS)\b/.test(code)) return true;
 	return code.includes(mcpNamespace(server));
 }
 
-/** Short state for lists and the startup report. `withError` appends the first line of a failure. */
+/** 供列表和启动报告使用的简短状态。`withError` 会附加失败信息的第一行。 */
 function describeState(server: McpServer, withError = true): string {
 	if (!isEnabled(server)) return "disabled";
 	const connection = server.connection;
@@ -252,7 +247,7 @@ function describeState(server: McpServer, withError = true): string {
 	}
 }
 
-/** Servers that need the user first. */
+/** 需要用户先处理的服务器。 */
 function attentionRank(server: McpServer): number {
 	if (!isEnabled(server)) return 5;
 	switch (server.connection?.state) {
@@ -280,24 +275,24 @@ const MCP_USAGE = "Usage: /mcp, /mcp login [server], /mcp logout [server], /mcp 
 export function createMcpExtension(options: McpExtensionOptions = {}): ExtensionFactory {
 	return (pi: ExtensionAPI) => {
 		let servers: McpServer[] = [];
-		/** Servers from `mcp.json`, which take precedence over registered servers of the same name. */
+		/** 来自 `mcp.json` 的服务器，优先于同名的注册服务器。 */
 		let configuredEntries: McpServerEntry[] = [];
 		let configErrors: string[] = [];
-		/** The trusted project's `mcp.json`, where `/mcp` saves project overrides of global servers. */
+		/** 受信任项目的 `mcp.json`，`/mcp` 把全局服务器的项目级覆盖保存在此。 */
 		let projectConfig: string | undefined;
-		/** Registered servers that `mcp.json` overrides, shown in `/mcp`. */
+		/** 被 `mcp.json` 覆盖的注册服务器，显示在 `/mcp` 中。 */
 		let overridden: string[] = [];
 		let autoEnableCodemode = true;
-		/** Whether the "codemode tools unreachable" warning was shown since the session started. */
+		/** 自会话开始以来是否已显示过 "codemode 工具不可达" 的警告。 */
 		let warnedUnreachable = false;
 		let pending: Promise<unknown> | undefined;
-		/** Whether a prompt already waited for the startup connections since the session started. */
+		/** 自会话开始以来是否已有提示等待过启动中的连接。 */
 		let waitedForStartup = false;
 		const startupWaitMs = options.startupWaitMs ?? DEFAULT_STARTUP_WAIT_MS;
-		/** Working directory of the session, for stdio servers. */
+		/** 会话的工作目录，供 stdio 服务器使用。 */
 		let sessionCwd = process.cwd();
 		let credentials = options.credentials;
-		/** The session's model registry, which resolves `auth.provider` tokens. */
+		/** 会话的模型注册表，用于解析 `auth.provider` token。 */
 		let modelRegistry: ModelRegistry | undefined;
 		let serverLog: McpServerLog | undefined;
 		const openUrl = options.openUrl ?? openBrowser;
@@ -309,15 +304,15 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 				}));
 
 		/**
-		 * Lifetime of the current session: aborted on session_shutdown, and before the first session_start
-		 * (registrations before that are read on session_start). Work captures `session.signal` when it
-		 * starts and drops late results once it aborted, for example a runtime load that resolves after
-		 * shutdown. Work that outlives the command that started it also stops on the signal and is
-		 * registered with `track`, so shutdown can wait for its cleanup.
+		 * 当前会话的生命周期：在 session_shutdown 时中止，且在第一个 session_start 之前
+		 * （此前的注册会在 session_start 时读取）就处于中止态。工作在启动时会捕获
+		 * `session.signal`，一旦该 signal 已中止就丢弃迟到结果，例如在关机后才 resolve 的
+		 * runtime 加载。比启动它的命令存续更久的工作同样会随 signal 停止，并用 `track`
+		 * 注册，让关机能够等待其清理完成。
 		 */
 		let session = new AbortController();
 		session.abort();
-		/** Work registered with `track`: manager actions opening or closing connections, and sign-ins. */
+		/** 用 `track` 注册的工作：管理器操作打开或关闭连接，以及登录。 */
 		const backgroundActions = new Set<Promise<void>>();
 		const track = <T>(work: Promise<T>): Promise<T> => {
 			const task = work.then(
@@ -342,7 +337,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		const connections = () => servers.flatMap((server) => (server.connection ? [server.connection] : []));
 		const findServer = (name: string) => servers.find((server) => server.entry.name === name);
 
-		/** Servers extensions registered, except names `mcp.json` defines, which take precedence. */
+		/** extension 注册的服务器，不含 `mcp.json` 定义的名字（后者优先）。 */
 		const registeredServers = (): { servers: McpServer[]; overridden: string[] } => {
 			const registered: McpServer[] = [];
 			const overriddenNames: string[] = [];
@@ -372,14 +367,14 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			return serverLog;
 		};
 
-		/** pi tool name to the `<server>\0<tool>` it was assigned to, so names stay unique and stable. */
+		/** pi 工具名到它被分配的 `<server>\0<tool>` 的映射，保证名字唯一且稳定。 */
 		const toolOwners = new Map<string, string>();
-		/** Tool names currently offered by each server. */
+		/** 每个服务器当前提供的工具名。 */
 		const serverTools = new Map<string, Set<string>>();
-		/** Last definition registered under each tool name, to re-register withdrawn tools as hidden. */
+		/** 每个工具名最近注册的定义，用于把被撤回的工具重新注册为 hidden。 */
 		const definitions = new Map<string, ToolDefinition<TSchema, McpToolDetails>>();
 
-		// A resumed session renders calls to MCP tools before their server connected, if it ever does.
+		// 恢复的会话可能在其服务器连上之前（甚至永远连不上）就要渲染对 MCP 工具的调用。
 		pi.registerToolRenderer((toolName, next) => {
 			const match = /^mcp__(.+?)__(.+)$/.exec(toolName);
 			return next() ?? (match ? createMcpToolRenderers(`${match[1]}/${match[2]}`) : undefined);
@@ -396,8 +391,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			};
 			const previous = serverTools.get(server) ?? new Set<string>();
 			const current = new Set<string>();
-			// Like Codex, all tools whose names sanitize to the same name get the hash suffix, so which
-			// one would keep the plain name does not depend on the order of the list.
+			// 与 Codex 一样，所有 sanitize 后同名的工具都会加上 hash 后缀，这样哪个工具
+			// 保留原名就不取决于列表的顺序。
 			const plain = [...new Set(connection.tools.map((tool) => tool.name))].map((tool) =>
 				createMcpToolName(server, tool),
 			);
@@ -423,8 +418,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					namespace,
 					timeoutMs: connection.timeoutMs,
 					getClient: async () => {
-						// A prepared call can outlive this definition's connection while the readiness
-						// hook waits for a disable/re-enable. Resolve the replacement at execution time.
+						// 已准备好的调用可能比该定义所属的连接活得久，因为就绪钩子还在等待
+						// 禁用/重新启用。在执行时才解析替代连接。
 						const current = findServer(server);
 						if (!current || !isEnabled(current)) throw new Error(`MCP server "${server}" is disabled.`);
 						const client = current.connection;
@@ -443,8 +438,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 				pi.registerTool(definition);
 			}
 			serverTools.set(server, current);
-			// Tools cannot be unregistered, so tools the server dropped are re-registered as hidden. When
-			// the server offers them again they are registered with their configured exposure above.
+			// 工具无法注销，因此服务器撤回的工具会被重新注册为 hidden。当服务器再次
+			// 提供它们时，会在上方按其配置的 exposure 注册。
 			for (const name of previous) {
 				const definition = definitions.get(name);
 				if (!current.has(name) && definition) pi.registerTool({ ...definition, exposure: "hidden" });
@@ -452,7 +447,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			syncResourceTools();
 		};
 
-		/** Make a disabled server's tools unreachable. */
+		/** 让已禁用服务器的工具不可达。 */
 		const hideTools = (server: string) => {
 			for (const name of serverTools.get(server) ?? []) {
 				const definition = definitions.get(name);
@@ -462,7 +457,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			syncResourceTools();
 		};
 
-		/** Enabled servers with resources whose exposure is not `hidden`, which the resource tools reach. */
+		/** 启用的、带资源且 exposure 不是 `hidden` 的服务器，由资源工具访问。 */
 		const serversWithResources = (): McpServer[] =>
 			servers.filter(
 				(server) => server.connection?.hasResources && isEnabled(server) && exposureOf(server.entry) !== "hidden",
@@ -470,11 +465,11 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		const resourceServers = (): McpServerConnection[] =>
 			serversWithResources().flatMap((server) => (server.connection ? [server.connection] : []));
 
-		/** Exposure the resource tools were last registered with; undefined until a server has resources. */
+		/** 资源工具最近一次注册时的 exposure；在任何服务器有资源之前为 undefined。 */
 		let resourceToolsExposure: McpExposure | undefined;
 		/**
-		 * Register the resource tools with the widest exposure of the servers they reach: `direct` when
-		 * one of them is direct, and so on. They are hidden when no server has resources.
+		 * 以资源工具所能访问的服务器中最宽的 exposure 注册资源工具：其中一台是 `direct`
+		 * 时就用 `direct`，依此类推。没有任何服务器有资源时保持 hidden。
 		 */
 		const syncResourceTools = () => {
 			const exposures = new Set(serversWithResources().map((server) => exposureOf(server.entry)));
@@ -492,14 +487,13 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		/**
-		 * Tools that are not declared to the model are reached through the codemode tool (scripts call
-		 * them) or the tool_search tool (it declares them). Either reaches every such tool. Activate the
-		 * one the tools' exposure asks for: codemode for `codemode` unless `autoEnableCodemode` is false,
-		 * tool_search for `deferred`.
+		 * 未向模型声明的工具通过 codemode 工具（脚本调用它们）或 tool_search 工具（它声明
+		 * 它们）访问。两者都能访问每一个此类工具。按工具的 exposure 激活对应的工具：
+		 * `codemode` 的用 codemode，除非 `autoEnableCodemode` 为 false；`deferred` 的用
+		 * tool_search。
 		 */
 		const ensureDiscoveryActive = (ctx: ExtensionContext) => {
-			// From the config, so the tool is active before the servers connect. Resource tools share
-			// their server's exposure.
+			// 来自配置，因此在服务器连接之前该工具就已激活。资源工具共享其服务器的 exposure。
 			const exposures = new Set<McpExposure>();
 			for (const server of servers) {
 				if (isEnabled(server)) for (const exposure of configuredExposures(server.entry)) exposures.add(exposure);
@@ -507,7 +501,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			const needsCodemode = exposures.has("codemode");
 			const needsToolSearch = exposures.has("deferred");
 			if (!needsCodemode && !needsToolSearch) return;
-			// Other extensions' tools of the same names cannot reach MCP tools, so never activate them.
+			// 其他 extension 的同名工具无法访问 MCP 工具，因此绝不激活它们。
 			const tools = pi.getAllTools();
 			const hasCodemode = tools.some(isCodemodeTool);
 			const hasToolSearch = tools.some(isToolSearchTool);
@@ -533,8 +527,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		/**
-		 * Stored tokens of servers waiting for a sign-in, as they were when the sign-in was needed.
-		 * `pi mcp login` in another process (for example run by the agent) changes them.
+		 * 等待登录的服务器的已存储 token，即需要登录那一刻的状态。
+		 * 其他进程（例如 agent 执行的 `pi mcp login`）中的登录会改变它们。
 		 */
 		const tokensAtSignIn = new Map<McpServerConnection, string>();
 		const storedTokens = (connection: McpServerConnection): string => {
@@ -546,7 +540,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			else if (!tokensAtSignIn.has(connection)) tokensAtSignIn.set(connection, storedTokens(connection));
 			emitChange();
 		};
-		/** Reconnect servers that need a sign-in when their credentials were stored since. */
+		/** 自凭证被保存以来，重连那些需要登录的服务器。 */
 		const reconnectSignedIn = async (ctx: ExtensionContext) => {
 			const signedIn = [...tokensAtSignIn].filter(([connection, tokens]) => storedTokens(connection) !== tokens);
 			if (signedIn.length === 0) return;
@@ -555,7 +549,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			ensureDiscoveryActive(ctx);
 		};
 
-		/** Create the server's connection, loading the MCP runtime on first use. */
+		/** 创建服务器连接，首次使用时加载 MCP runtime。 */
 		const createConnection = async (
 			server: McpServer,
 			isCurrent: () => boolean,
@@ -583,9 +577,9 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		/**
-		 * Connect the server in the background. `server.ready` settles when it connected or failed;
-		 * failures show in its state. It starts after `after`, unless disabled, replaced, or shut down
-		 * meanwhile. The returned promise rejects when the MCP runtime cannot be loaded.
+		 * 在后台连接服务器。`server.ready` 在其连接成功或失败时 settle；失败会显示在状态中。
+		 * 除非期间被禁用、替换或关机，它在 `after` 之后启动。当 MCP runtime 无法加载时，
+		 * 返回的 promise 会 reject。
 		 */
 		const startConnection = (server: McpServer, after?: Promise<unknown>): Promise<void> => {
 			const { signal } = session;
@@ -604,7 +598,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			return ready;
 		};
 
-		/** Wait for the latest connection attempts, including ones queued while waiting, or an abort. */
+		/** 等待最新的连接尝试（包括等待期间排队的），或等待中止。 */
 		const waitForServers = async (waiting: readonly McpServer[], signal: AbortSignal | undefined) => {
 			for (;;) {
 				const ready = waiting.flatMap((server) =>
@@ -634,8 +628,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		/**
-		 * One message for everything that needs the user after startup, or only for `only`, servers
-		 * that connected later.
+		 * 一条汇总启动后所有需要用户关注事项的消息；传入 `only` 时只报告稍后才连接完成
+		 * 的服务器。
 		 */
 		const reportProblems = (ctx: ExtensionContext, only?: readonly McpServer[]) => {
 			const lines = only ? [] : configErrors.map((error) => `config: ${error}`);
@@ -652,8 +646,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		/**
-		 * Save a config change; returns an error message when the file could not be updated. Changes to
-		 * registered servers only apply to the current session. `inProject` adds a project override.
+		 * 保存配置修改；文件无法更新时返回一条错误消息。对注册服务器的修改只作用于
+		 * 当前会话。`inProject` 会添加一个项目级覆盖。
 		 */
 		const saveConfig = (server: McpServer, patch: McpServerConfigPatch, inProject = false): string | undefined => {
 			const override = inProject ? projectConfig : server.entry.override;
@@ -669,7 +663,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			return undefined;
 		};
 
-		/** Sign in, then reconnect. Returns an error message on failure. `cancel` or the session's end stops the sign-in. */
+		/** 登录后重连。失败时返回错误消息。`cancel` 或会话结束会终止登录。 */
 		const signIn = async (
 			server: McpServer,
 			prompt: McpSignInPrompt,
@@ -695,7 +689,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 				if (error instanceof runtime.McpSignInCancelledError) return "Sign-in cancelled.";
 				return `Sign-in failed: ${errorMessage(error)}`;
 			}
-			// The challenge that asked for this sign-in (for example for more scope) is answered.
+			// 请求本次登录的 challenge（例如要求更多 scope）已得到响应。
 			connection.challenge = undefined;
 			try {
 				await connection.reconnect();
@@ -731,7 +725,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			}
 		};
 
-		/** Returns an error message when the config could not be saved; connection errors show in the state. */
+		/** 配置无法保存时返回错误消息；连接错误显示在状态中。 */
 		const setEnabled = async (
 			server: McpServer,
 			enabled: boolean,
@@ -744,8 +738,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 				server.attempt = undefined;
 				server.connection = undefined;
 				if (connection) {
-					// A reconnect may already have detached its old client while awaiting transport
-					// shutdown. Closing the connection alone does not wait for that reconnect.
+					// 重连可能已在等待传输关闭时分离了旧客户端。仅关闭连接并不会
+					// 等待那个重连完成。
 					server.closing = Promise.all([connection.close(), server.ready]).then(() => undefined);
 				}
 				const closing = server.closing;
@@ -767,7 +761,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			if (failed) return failed;
 			if (server.connection?.state === "connected") registerTools(server.connection);
 			syncResourceTools();
-			// Tools no longer exposed directly leave the declared set; direct tools are activated on registration.
+			// 不再以 direct 暴露的工具移出已声明集合；direct 工具在注册时激活。
 			const indirect = new Set(
 				pi
 					.getAllTools()
@@ -781,7 +775,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		// ---------------------------------------------------------------------------------------
-		// Manager (`/mcp` in the TUI)
+		// 管理器（TUI 中的 `/mcp`）
 		// ---------------------------------------------------------------------------------------
 
 		const notices = () => [
@@ -824,7 +818,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 						: entry.scope
 							? `saved to the ${entry.scope} mcp.json`
 							: "saved to mcp.json";
-			// Global servers without an override can be turned on or off for the trusted project alone.
+			// 不带覆盖的全局服务器可以单独为受信任项目开启或关闭。
 			const inProject = entry.scope === "global" && !entry.override && projectConfig !== undefined;
 			const inProjectSaved = "saved to the project mcp.json";
 			const items: SelectItem[] = [];
@@ -914,7 +908,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			return setExposure(server, choice as McpExposure);
 		};
 
-		/** Sign in with the manager view's sign-in screen, which shows the URL with a copy key and cancels with Esc. */
+		/** 使用管理器视图的登录界面登录，它会展示 URL 并提供复制键，Esc 取消。 */
 		const signInWithUi = (ui: McpUi, server: McpServer): Promise<string | undefined> => {
 			const title = `Sign in to ${server.entry.name}`;
 			const cancel = new AbortController();
@@ -938,7 +932,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			);
 		};
 
-		/** Keep the subscribed menu usable while a connection opens or closes. */
+		/** 在连接打开或关闭期间保持已订阅的菜单可用。 */
 		const runInBackground = (
 			ctx: ExtensionContext,
 			server: McpServer,
@@ -964,7 +958,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					message = await signInWithUi(ui, server);
 					break;
 				case "reconnect":
-					// Connection state and error already report failures, including required sign-ins.
+					// 连接状态和错误信息已经报告了失败，包括需要登录的情况。
 					runInBackground(ctx, server, async () => {
 						await reconnect(server);
 						return undefined;
@@ -988,7 +982,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					break;
 				}
 			}
-			// The session ended meanwhile (for example during a sign-in), which made ctx stale.
+			// 会话在此期间已结束（例如登录过程中），这使 ctx 已过期。
 			if (signal.aborted) return;
 			server.message = message;
 			ensureDiscoveryActive(ctx);
@@ -1008,7 +1002,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		};
 
 		// ---------------------------------------------------------------------------------------
-		// Subcommands and plain status (no TUI)
+		// 子命令与纯状态输出（无 TUI）
 		// ---------------------------------------------------------------------------------------
 
 		const formatStatus = (): string => {
@@ -1038,7 +1032,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			return lines.join("\n");
 		};
 
-		/** Resolve the server for a subcommand, asking when the name is omitted and ambiguous. */
+		/** 为子命令解析服务器；省略名字且有歧义时询问用户。 */
 		const pickServer = async (
 			name: string | undefined,
 			ctx: ExtensionCommandContext,
@@ -1098,7 +1092,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 						),
 				});
 			}
-			// The session ended meanwhile, which cancelled the sign-in and made ctx stale.
+			// 会话在此期间已结束，登录被取消且 ctx 已过期。
 			if (signal.aborted) return;
 			if (failure) {
 				ctx.ui.notify(failure, failure === "Sign-in cancelled." ? "info" : "error");
@@ -1124,32 +1118,32 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			overridden = registered.overridden;
 			servers = [...loaded.servers.map((entry) => ({ entry })), ...registered.servers];
 			emitChange();
-			// Codemode or tool_search is activated from the config: the first prompt does not wait for
-			// servers whose tools are not declared to the model, and scripts or searches wait for them.
+			// codemode 或 tool_search 依据配置激活：第一个提示不等待工具未向模型声明的
+			// 服务器，脚本或搜索需要时再等待。
 			ensureDiscoveryActive(ctx);
 			const enabled = servers.filter(isEnabled);
 			if (enabled.length === 0) {
 				reportProblems(ctx);
 				return;
 			}
-			// The MCP client loads only now, so sessions without servers never pay for it. Waiting one
-			// event loop turn lets the first render happen before loading and connecting.
+			// MCP 客户端此刻才加载，因此没有服务器的会话永远不需要为它买单。等待一个
+			// 事件循环轮次让首次渲染发生在加载和连接之前。
 			const runtime = new Promise((resolve) => setImmediate(resolve)).then(() => loadMcpRuntime());
 			pending = Promise.all(enabled.map((server) => startConnection(server, runtime)))
 				.then(() => {
 					if (!signal.aborted) reportProblems(ctx);
 				})
 				.catch((error: unknown) => {
-					// The session may have been disposed meanwhile, which makes ctx stale.
+					// 会话可能在此期间已被销毁，这使 ctx 已过期。
 					try {
 						ctx.ui.notify(`MCP failed to load: ${errorMessage(error)}`, "error");
 					} catch {}
 				});
 		});
 
-		// The first prompt waits for servers whose tools are declared to the model, so they are declared
-		// in its first request, but not indefinitely: a slow or hanging server must not hold up the
-		// prompt. Other servers are waited for when a script or search needs them (below).
+		// 第一个提示等待工具已向模型声明的服务器，这样它们能在第一个请求中声明，
+		// 但不会无限等待：缓慢或挂起的服务器不得拖住提示。其他服务器则在脚本或
+		// 搜索需要时等待（见下）。
 		const waitForDirectServers = async (ctx: ExtensionContext) => {
 			if (waitedForStartup) return;
 			waitedForStartup = true;
@@ -1170,8 +1164,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			}
 		};
 
-		// Every prompt lists the servers in the `mcp_servers` section as they are when it starts. Pi
-		// appends the section to the conversation when it changed, for example after a server connected.
+		// 每次提示启动时把服务器按当前状态列进 `mcp_servers` 分区。Pi 在分区内容变化时
+		// 把它追加到对话中，例如某台服务器连接完成之后。
 		pi.on("before_agent_start", async (event, ctx) => {
 			await waitForDirectServers(ctx);
 			const { sections } = event.systemPromptOptions;
@@ -1180,15 +1174,14 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			else delete sections[MCP_SERVERS_SECTION];
 		});
 
-		// A codemode script waits for the servers it names, or for every server when it searches or
-		// enumerates tools, so their tools are registered before the script runs. tool_search and the
-		// resource tools reach every server, so they wait for all of them. Direct MCP calls wait only
-		// for their own server, including a reconnect still closing its old transport.
+		// codemode 脚本会等待它点名服务器，或在其搜索/枚举工具时等待所有服务器，
+		// 这样它们的工具会在脚本运行前注册好。tool_search 和资源工具能访问每台服务器，
+		// 因此等待所有服务器。直接 MCP 调用只等自己的服务器，包括仍在关闭旧传输的重连。
 		pi.on("tool_call", async (event, ctx) => {
 			const tool = pi.getAllTools().find((candidate) => candidate.name === event.toolName);
 			if (!tool) return;
-			// Readiness can be pending while the display state is still connected: reconnect first
-			// closes the old transport, then opens a new one. Settled promises return immediately.
+			// 显示状态仍是 connected 时，就绪可能尚未完成：重连会先关闭旧传输，再打开
+			// 新传输。已 settle 的 promise 会立即返回。
 			const readyServers = servers.filter((server) => isEnabled(server) && server.ready);
 			if (readyServers.length === 0) return;
 			let waiting: McpServer[] = [];
@@ -1205,19 +1198,19 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			await waitForServers(waiting, ctx.signal);
 		});
 
-		// Pick up sign-ins done outside the session, such as `pi mcp login` run by the agent.
+		// 接收会话之外完成的登录，例如 agent 执行的 `pi mcp login`。
 		pi.on("turn_start", async (_event, ctx) => {
 			if (tokensAtSignIn.size > 0) await reconnectSignedIn(ctx);
 		});
 
-		// Servers registered or unregistered during the session connect or disconnect right away.
+		// 会话期间注册或注销的服务器立即连接或断开。
 		pi.on("mcp_servers_change", async (_event, ctx) => {
 			const { signal } = session;
 			if (signal.aborted) return;
 			const registered = registeredServers();
 			overridden = registered.overridden;
 			const next = new Map(registered.servers.map((server) => [server.entry.name, server]));
-			// Unregistered servers and re-registered ones with a new config are dropped; the latter come back below.
+			// 已注销的服务器和配置有变化的重注册服务器会被丢弃；后者在下方重新加入。
 			const removed = servers.filter(
 				(server) =>
 					server.entry.scope === "extension" &&

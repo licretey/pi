@@ -102,8 +102,7 @@ describe("transcript system messages", () => {
 		expect(payload.system?.map((block) => block.text)).toEqual([
 			"base prompt\n\n<rules>\nold rules\n</rules>\n\n<docs>\nread docs\n</docs>",
 		]);
-		// The top-level list holds only the initial tools (with the cache breakpoint) and the
-		// deferred placeholder; later tools never appear there.
+		// 顶层列表只包含初始工具（带缓存断点）和延迟占位工具；后续工具不会出现在这里。
 		expect(payload.tools).toMatchObject([
 			{ name: "base_tool", cache_control: { type: "ephemeral" } },
 			{ name: "__pi_deferred_placeholder__", defer_loading: true },
@@ -124,7 +123,7 @@ describe("transcript system messages", () => {
 				},
 			],
 		});
-		// Cache control goes on the block, never on the inline definition; nothing is deferred.
+		// 缓存控制只放在内容块上，不放在内联定义中；没有工具被延迟发送。
 		const definition = update?.content[2]?.tool?.definition;
 		expect(definition?.cache_control).toBeUndefined();
 		expect(definition?.defer_loading).toBeUndefined();
@@ -132,7 +131,7 @@ describe("transcript system messages", () => {
 		expect(update?.content[0]?.text).toContain("<rules>\nnew rules\n</rules>");
 		expect(update?.content[0]?.text).toContain('Removed system prompt section "docs"');
 
-		// The placeholder is declared before any change so its scaffolding is cached from request one.
+		// 占位工具在任何变更之前声明，因此从首次请求起其框架就会被缓存。
 		const initial = await capturePayload<AnthropicPayload>(anthropicNativeModel, {
 			messages: context.messages.slice(0, 2),
 		});
@@ -156,12 +155,12 @@ describe("transcript system messages", () => {
 		});
 
 		expect(payload.betas).toContain("inline-tools-2026-09-15");
-		// The top-level declaration keeps the original definition, so the cached prefix survives.
+		// 顶层声明保留原始定义，因此缓存前缀仍然有效。
 		expect(payload.tools).toMatchObject([
 			{ name: "base_tool", description: "base_tool tool" },
 			{ name: "__pi_deferred_placeholder__" },
 		]);
-		// The new definition replaces the old one in place; no removal block is sent for it.
+		// 新定义会原位替换旧定义，不会为其发送移除块。
 		expect(payload.messages.at(-1)).toMatchObject({
 			role: "system",
 			content: [
@@ -175,7 +174,7 @@ describe("transcript system messages", () => {
 	});
 
 	test("sends the current Anthropic tool list without an initial tool", async () => {
-		// Anthropic rejects a tool list where every tool (here: the placeholder) is deferred.
+		// Anthropic 会拒绝所有工具都被延迟发送的工具列表（此处只有占位工具）。
 		const payload = await capturePayload<AnthropicPayload>(anthropicNativeModel, {
 			messages: [
 				{ role: "system", content: "base prompt", timestamp: 0 },

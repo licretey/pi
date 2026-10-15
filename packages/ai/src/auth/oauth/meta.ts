@@ -1,22 +1,18 @@
 /**
- * Meta Model API OAuth flow
+ * Meta Model API OAuth 授权流程。
  *
- * RFC 8628 device authorization grant against https://auth.meta.com (JSON
- * responses). Meta splits identity from API access: the resulting identity
- * token is not accepted for inference, so it is exchanged for a Model API
- * key via the Muse Code key-mint endpoint (minted keys live about a day).
- * The identity token is stored as `refresh` and the minted key as `access`,
- * so the standard OAuth scheduler re-mints the key when it expires with no
- * bespoke renewal machinery. The identity token itself is not renewable
- * (auth.meta.com answers grant_type=refresh_token with 404 and issues no
- * refresh_token), so a 401/403 from mint means the session is dead and the
- * user must sign in again.
+ * 使用 RFC 8628 设备授权许可向 https://auth.meta.com 请求授权（返回 JSON）。Meta 将身份认证与 API 访问分开：
+ * 获得的身份 token 不能用于推理，因此需要通过 Muse Code 密钥签发端点将其兑换为 Model API 密钥
+ *（签发的密钥约一天后过期）。身份 token 存储在 `refresh` 字段，签发的密钥存储在 `access` 字段，
+ * 因此标准 OAuth 调度器会在密钥过期时重新签发，无需额外的续期逻辑。身份 token 本身不可续期
+ *（auth.meta.com 会对 grant_type=refresh_token 返回 404，且不会签发 refresh_token），所以密钥签发请求返回 401/403
+ * 表示会话已失效，用户必须重新登录。
  */
 
 import type { OAuthAuth, OAuthCredential, ProviderAuthInteraction } from "../types.ts";
 import { pollOAuthDeviceCodeFlow } from "./device-code.ts";
 
-// Muse Code CLI client id.
+// Muse Code CLI 客户端 ID。
 const CLIENT_ID = "1031625952748946";
 const AUTH_HOST = "https://auth.meta.com";
 const DEVICE_AUTHORIZATION_URL = `${AUTH_HOST}/oidc/device/authorization/`;
@@ -54,7 +50,7 @@ function errorDetail(json: Record<string, unknown> | null): string {
 	return "";
 }
 
-/** The verification URI is opened in the user's browser; only http(s) URLs are trusted. */
+/** 验证 URI 会在用户的浏览器中打开；仅信任 http(s) URL。 */
 function trustedHttpUrl(value: unknown): string | null {
 	if (typeof value !== "string" || !value) return null;
 	try {
@@ -142,7 +138,7 @@ async function pollForIdentityToken(device: DeviceAuthorization, signal: AbortSi
 	});
 }
 
-/** Exchange an identity token for a Model API key. Keys are valid for about a day. */
+/** 使用身份令牌换取模型 API 密钥。密钥有效期约为一天。 */
 async function mintApiKey(identityToken: string, signal: AbortSignal): Promise<OAuthCredential> {
 	const response = await fetch(API_KEY_MINT_URL, {
 		method: "POST",
@@ -157,7 +153,7 @@ async function mintApiKey(identityToken: string, signal: AbortSignal): Promise<O
 	});
 	const json = await readJson(response);
 	if (response.status === 401 || response.status === 403) {
-		// Identity token is not renewable (see file header); only a fresh device flow helps.
+		// 身份 token 不可续期（参见文件头部说明）；只能重新执行设备授权流程。
 		throw new Error(
 			`Meta session expired (status ${response.status}). Run \`/login meta\` to sign in again.${errorDetail(json)}`,
 		);
@@ -187,7 +183,7 @@ async function loginMeta(interaction: ProviderAuthInteraction): Promise<OAuthCre
 		interaction.notify({ type: "progress", message: "Enabling Meta Model API access..." });
 		return await mintApiKey(identityToken, interaction.signal);
 	} catch (e) {
-		// An in-flight fetch rejects with a DOMException on abort; the login UI matches on this message.
+		// 正在执行的 fetch 中止时会以 DOMException 拒绝；登录界面会根据此消息进行识别。
 		if (interaction.signal.aborted) throw new Error("Login cancelled");
 		throw e;
 	}

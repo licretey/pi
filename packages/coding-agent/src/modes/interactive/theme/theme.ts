@@ -41,18 +41,18 @@ import {
 export { SYSTEM_THEME_NAME } from "./system-theme.ts";
 
 // ============================================================================
-// Types & Schema
+// 类型与 Schema
 // ============================================================================
 
-/** The schema that validates this shape lives in `theme-schema.ts`; importing the type is free. */
+/** 校验此结构的 schema 位于 `theme-schema.ts`；导入类型本身是零成本的。 */
 import type { ThemeColorValue as ColorValue, ValidatedThemeJson as ThemeJson } from "./theme-schema.ts";
 
 export type { ValidatedThemeJson as ThemeJson } from "./theme-schema.ts";
 export type { ThemeBg, ThemeColor, ThemeToken } from "./theme-tokens.ts";
 
 /**
- * Tokens are only accepted in their own slot, because "" (terminal default) means the default foreground
- * or background depending on the slot. Use `theme.colors[token]` to use a token's color in the other slot.
+ * token 只能出现在其专属的槽位中，因为 ""（终端默认色）的含义取决于槽位——可能是默认前景色或默认背景色。
+ * 若要在另一个槽位中使用某个 token 的颜色，请使用 `theme.colors[token]`。
  */
 export interface ThemeStyle extends TextAttributes {
 	fg?: ThemeColor | Color;
@@ -64,16 +64,15 @@ export type ThemeJsonValidator = (label: string, json: unknown) => ThemeJson;
 let themeJsonValidator: ThemeJsonValidator | undefined;
 
 /**
- * Install full theme validation. Without it, documents are accepted as-is, which is what built-in
- * themes already do: validating user-authored JSON needs typebox, and a presentation that only uses
- * built-in themes should not pay ~17 MB of module graph for it.
+ * 安装完整的主题校验。未安装时，JSON 文档会被原样接受——内置主题正是如此：校验用户编写的 JSON 需要
+ * typebox，而只使用内置主题的演示场景不应为此付出约 17 MB 的模块图开销。
  */
 export function setThemeJsonValidator(validator: ThemeJsonValidator): void {
 	themeJsonValidator = validator;
 }
 
 // ============================================================================
-// Color Utilities
+// 颜色工具
 // ============================================================================
 
 function resolveVarRefs(
@@ -122,53 +121,53 @@ function withThemeTokenFallbacks<Value>(values: ThemeColorValues<Value>): Resolv
 }
 
 // ============================================================================
-// Appearance & Terminal Default Colors
+// 外观与终端默认颜色
 // ============================================================================
 
-/** The background a theme is designed for. */
+/** 主题所针对设计的背景类型。 */
 export type ThemeAppearance = TerminalTheme;
 
-// The terminal's reported colors. Replaced (never mutated) on update, so themes can cache resolved colors
-// by identity.
+// 终端上报的颜色。更新时整体替换（绝不原地修改），因此主题可以按对象身份
+// 缓存已解析的颜色。
 let terminalColors: TerminalColors = {};
-// While the terminal color query is in flight, the system theme renders in grayscale.
+// 当终端颜色查询尚未完成时，系统主题以灰度渲染。
 let terminalColorsPending = false;
-// The terminal's last light/dark report (mode 2031). Only used while it has not reported a background.
+// 终端最近一次的明/暗上报（mode 2031）。仅在它尚未上报背景色时使用。
 let terminalColorScheme: TerminalTheme | undefined;
 
 /**
- * Record the terminal's reported colors. Themes use the default colors for tokens set to "" (terminal
- * default); the system theme is generated from all of them. Ends the pending state.
+ * 记录终端上报的颜色。主题会把设为 ""（终端默认色）的 token 用这些默认颜色渲染；系统主题则完全由
+ * 它们生成。会结束 pending 状态。
  */
 export function setTerminalColors(colors: TerminalColors): void {
 	terminalColors = { ...colors };
 	terminalColorsPending = false;
 }
 
-/** Record the terminal's light/dark report, the fallback for terminals that do not report their background. */
+/** 记录终端的明/暗上报，作为不报背景色的终端的兜底。 */
 export function setTerminalColorScheme(scheme: TerminalTheme | undefined): void {
 	terminalColorScheme = scheme;
 }
 
-/** Render the system theme in grayscale until `setTerminalColors()` reports the terminal's colors. */
+/** 在 `setTerminalColors()` 上报终端颜色之前，让系统主题以灰度渲染。 */
 export function markTerminalColorsPending(): void {
 	terminalColorsPending = true;
 }
 
-/** Assumed terminal default colors when the terminal does not report them. */
+/** 终端未上报时的推测默认颜色。 */
 const GUESSED_DEFAULT_COLORS: Record<ThemeAppearance, { foreground: Color; background: Color }> = {
 	dark: { foreground: parseColor("#e5e5e7"), background: parseColor("#000000") },
 	light: { foreground: parseColor("#000000"), background: parseColor("#ffffff") },
 };
 
 function averageLightness(colors: Color[]): number | undefined {
-	// Palette colors 0-15 follow the user's terminal palette, so they say nothing about the theme.
+	// 调色板 0-15 号颜色跟随用户终端的调色板，因此它们说明不了主题本身。
 	const fixed = colors.filter((color) => color.kind !== "indexed" || color.index >= 16);
 	if (fixed.length === 0) return undefined;
 	return fixed.reduce((sum, color) => sum + colorToOklch(color).l, 0) / fixed.length;
 }
 
-/** Detect the background a theme is designed for from the lightness of its own colors. */
+/** 根据主题自身颜色的明度，检测该主题是针对深色还是浅色背景设计的。 */
 function detectAppearance(foregrounds: Color[], backgrounds: Color[]): ThemeAppearance | undefined {
 	const fg = averageLightness(foregrounds);
 	const bg = averageLightness(backgrounds);
@@ -179,7 +178,7 @@ function detectAppearance(foregrounds: Color[], backgrounds: Color[]): ThemeAppe
 }
 
 // ============================================================================
-// Theme Class
+// Theme 类
 // ============================================================================
 
 export class Theme {
@@ -187,14 +186,14 @@ export class Theme {
 	readonly sourcePath?: string;
 	sourceInfo?: SourceInfo;
 	private mode: TerminalColorMode;
-	// Precomputed escape sequences keep fg()/bg() on the render hot path to a lookup and concat.
+	// 预先计算好的转义序列让渲染热路径上的 fg()/bg() 只需查表加拼接。
 	private readonly fgAnsi = new Map<ThemeColor, string>();
 	private readonly bgAnsi = new Map<ThemeBg, string>();
-	// Tokens set to "" have no color of their own; `colors` fills them from the terminal defaults.
+	// 设为 "" 的 token 自身没有颜色；`colors` 会用终端默认色填充它们。
 	private readonly concreteColors: Partial<Record<ThemeToken, Color>> = {};
 	private readonly defaultForegroundTokens: ThemeToken[] = [];
 	private readonly defaultBackgroundTokens: ThemeToken[] = [];
-	// Foreground tokens rendered faint (SGR 2) on top of their color.
+	// 在自身颜色之上再以暗淡（SGR 2）渲染的前景 token。
 	private readonly dimTokens: ReadonlySet<ThemeColor>;
 	private readonly ownAppearance: ThemeAppearance | undefined;
 	private resolvedColors: { terminal: TerminalColors; colors: Readonly<Record<ThemeToken, Color>> } | undefined;
@@ -208,7 +207,7 @@ export class Theme {
 			sourcePath?: string;
 			sourceInfo?: SourceInfo;
 			appearance?: ThemeAppearance;
-			/** Foreground tokens to render faint (SGR 2). */
+			/** 以暗淡（SGR 2）渲染的前景 token。 */
 			dim?: readonly ThemeColor[];
 		} = {},
 	) {
@@ -222,7 +221,7 @@ export class Theme {
 		);
 		const concreteForegrounds: Color[] = [];
 		const concreteBackgrounds: Color[] = [];
-		// Returns the escape sequence for the token's own slot.
+		// 返回该 token 自身槽位对应的转义序列。
 		const addToken = (token: ThemeToken, value: string | number, isBackground: boolean): string => {
 			if (value === "") {
 				(isBackground ? this.defaultBackgroundTokens : this.defaultForegroundTokens).push(token);
@@ -243,17 +242,16 @@ export class Theme {
 	}
 
 	/**
-	 * The background the theme is designed for: declared in the theme JSON, detected from its colors,
-	 * or, for themes without usable colors, the terminal's appearance.
+	 * 主题所针对设计的背景类型：由主题 JSON 声明，或根据其颜色检测得出；
+	 * 对于没有可用颜色的主题，则取终端的外观。
 	 */
 	get appearance(): ThemeAppearance {
 		return this.ownAppearance ?? getTerminalTheme();
 	}
 
 	/**
-	 * Concrete colors for all tokens. Tokens set to "" (terminal default) use the terminal's reported
-	 * default colors, or a guess based on `appearance` when the terminal did not report them. Faint
-	 * tokens are approximated by mixing their color toward the background.
+	 * 所有 token 的具体颜色。设为 ""（终端默认色）的 token 使用终端上报的默认色；若终端未上报，
+	 * 则基于 `appearance` 推测。暗淡（faint）token 的颜色以向背景色混合来近似。
 	 */
 	get colors(): Readonly<Record<ThemeToken, Color>> {
 		const terminal = terminalColors;
@@ -331,7 +329,7 @@ export class Theme {
 		return chalk.strikethrough(text);
 	}
 
-	/** Opening escape sequence for a foreground token. Faint tokens include SGR 2, which `\x1b[22m` closes. */
+	/** 前景色 token 的起始转义序列。暗淡 token 额外包含 SGR 2，由 `\x1b[22m` 结束。 */
 	getFgAnsi(color: ThemeColor): string {
 		const ansi = this.tokenAnsi(this.fgAnsi, color);
 		return this.dimTokens.has(color) ? `${ansi}\x1b[2m` : ansi;
@@ -346,7 +344,7 @@ export class Theme {
 	}
 
 	getThinkingBorderColor(level: ThinkingLevel): (str: string) => string {
-		// Map thinking levels to dedicated theme colors
+		// 将 thinking 级别映射到专用的主题颜色
 		switch (level) {
 			case "off":
 				return (str: string) => this.fg("thinkingOff", str);
@@ -373,7 +371,7 @@ export class Theme {
 }
 
 // ============================================================================
-// Theme Loading
+// 主题加载
 // ============================================================================
 
 let BUILTIN_THEMES: Record<string, ThemeJson> | undefined;
@@ -412,13 +410,13 @@ export function getAvailableThemesWithPaths(): ThemeInfo[] {
 		result.push(themeInfo);
 	};
 
-	// Built-in themes. The system theme is generated, so it has no file.
+	// 内置主题。系统主题是生成的，因此没有对应文件。
 	addTheme({ name: SYSTEM_THEME_NAME, path: undefined });
 	for (const name of Object.keys(getBuiltinThemes())) {
 		addTheme({ name, path: path.join(themesDir, `${name}.json`) });
 	}
 
-	// Custom themes
+	// 自定义主题
 	for (const themeInfo of getCustomThemeInfos()) {
 		addTheme(themeInfo);
 	}
@@ -427,7 +425,7 @@ export function getAvailableThemesWithPaths(): ThemeInfo[] {
 		addTheme({ name, path: theme.sourcePath });
 	}
 
-	// The system theme comes first: it is the default and adapts to every terminal.
+	// 系统主题排在最前：它是默认主题，且能适配每一种终端。
 	return result.sort((a, b) =>
 		a.name === SYSTEM_THEME_NAME ? -1 : b.name === SYSTEM_THEME_NAME ? 1 : a.name.localeCompare(b.name),
 	);
@@ -451,8 +449,7 @@ function getCustomThemeInfos(): ThemeInfo[] {
 				result.push({ name: customTheme.name, path: themePath });
 			}
 		} catch {
-			// Invalid themes are ignored here; the resource loader reports them
-			// during normal startup/reload.
+			// 无效主题在这里被忽略；资源加载器会在正常启动/重载时报告它们
 		}
 	}
 	return result;
@@ -533,7 +530,7 @@ function createTheme(themeJson: ThemeJson, mode?: TerminalColorMode, sourcePath?
 	});
 }
 
-/** Generate the system theme from the terminal's reported colors (grayscale while they are pending). */
+/** 根据终端上报的颜色生成系统主题（颜色未就绪时以灰度生成）。 */
 function createSystemTheme(mode?: TerminalColorMode): Theme {
 	const generated = generateSystemThemeColors({
 		...terminalColors,
@@ -555,7 +552,7 @@ export function loadThemeFromPath(themePath: string, mode?: TerminalColorMode): 
 }
 
 function loadTheme(name: string, mode?: TerminalColorMode): Theme {
-	// The system theme name is reserved: it takes precedence over custom themes of the same name.
+	// 系统主题名是保留名：它优先于同名的自定义主题。
 	if (name === SYSTEM_THEME_NAME) return createSystemTheme(mode);
 	const registeredTheme = registeredThemes.get(name);
 	if (registeredTheme) {
@@ -606,11 +603,10 @@ export function resolveThemeSetting(
 }
 
 /**
- * Dark or light from the `COLORFGBG` environment variable some terminals set, or undefined without a
- * usable background index. The value is `fg;bg` or `fg;xpm;bg` (rxvt), where a field is an ANSI color
- * index or `default` when the color is not in the palette. The index refers to the terminal's own palette,
- * whose colors are unknown here, so it is classified by index like Vim does: 0-6 and 8 (bright black, e.g.
- * Solarized Dark's background) are dark, 7 and 9-15 are light.
+ * 从部分终端会设置的 `COLORFGBG` 环境变量中判断深色或浅色；没有可用的背景索引时返回 undefined。
+ * 其值为 `fg;bg` 或 `fg;xpm;bg`（rxvt），各字段是 ANSI 颜色索引，或在该颜色不在调色板中时为
+ * `default`。索引指向终端自身的调色板，而其具体颜色在这里无从得知，因此像 Vim 那样按索引分类：
+ * 0-6 和 8（亮黑色，例如 Solarized Dark 的背景）为深色，7 和 9-15 为浅色。
  */
 export function detectColorFgBgTheme(env: NodeJS.ProcessEnv = process.env): TerminalTheme | undefined {
 	const bg = env.COLORFGBG?.split(";").at(-1)?.trim();
@@ -621,9 +617,8 @@ export function detectColorFgBgTheme(env: NodeJS.ProcessEnv = process.env): Term
 }
 
 /**
- * Whether the terminal is dark or light. The background it renders decides, classified the same way the
- * system theme does. Without a reported background: the terminal's light/dark report, then COLORFGBG,
- * then dark.
+ * 终端是深色还是浅色。由它实际渲染的背景决定，分类方式与系统主题一致。
+ * 没有上报的背景色时：先看终端的明/暗上报，再看 COLORFGBG，最后默认深色。
  */
 export function detectTerminalTheme(
 	colors: TerminalColors = {},
@@ -635,21 +630,21 @@ export function detectTerminalTheme(
 	return reportedScheme ?? detectColorFgBgTheme(env) ?? "dark";
 }
 
-/** Whether the terminal is dark or light, from everything it reported so far. See `detectTerminalTheme()`. */
+/** 终端是深色还是浅色，基于它到目前为止上报的所有信息。见 `detectTerminalTheme()`。 */
 export function getTerminalTheme(): TerminalTheme {
 	return detectTerminalTheme(terminalColors, terminalColorScheme);
 }
 
 // ============================================================================
-// Global Theme Instance
+// 全局主题实例
 // ============================================================================
 
-// Use globalThis to share theme across module loaders (node + jiti in dev mode)
+// 通过 globalThis 在不同模块加载器（node + 开发模式下的 jiti）之间共享主题
 const THEME_KEY = Symbol.for("@earendil-works/pi-coding-agent:theme");
 const THEME_KEY_OLD = Symbol.for("@mariozechner/pi-coding-agent:theme");
 
-// Export theme as a getter that reads from globalThis
-// This ensures all module instances (node, jiti) see the same theme
+// 以 getter 的形式导出 theme，从 globalThis 读取，
+// 确保所有模块实例（node、jiti）看到的是同一个主题
 export const theme: Theme = new Proxy({} as Theme, {
 	get(_target, prop) {
 		const t = (globalThis as Record<symbol, Theme>)[THEME_KEY];
@@ -688,10 +683,10 @@ export function initTheme(themeName?: string, enableWatcher: boolean = false): v
 			startThemeWatcher();
 		}
 	} catch (_error) {
-		// Theme is invalid - fall back to the system theme silently
+		// 主题无效——静默回退到系统主题
 		currentThemeName = SYSTEM_THEME_NAME;
 		setGlobalTheme(loadTheme(SYSTEM_THEME_NAME));
-		// Don't start watcher for fallback theme
+		// 不要为回退主题启动 watcher
 	}
 }
 
@@ -707,10 +702,10 @@ export function setTheme(name: string, enableWatcher: boolean = false): { succes
 		}
 		return { success: true };
 	} catch (error) {
-		// Theme is invalid - fall back to the system theme
+		// 主题无效——回退到系统主题
 		currentThemeName = SYSTEM_THEME_NAME;
 		setGlobalTheme(loadTheme(SYSTEM_THEME_NAME));
-		// Don't start watcher for fallback theme
+		// 不要为回退主题启动 watcher
 		return {
 			success: false,
 			error: error instanceof Error ? error.message : String(error),
@@ -721,7 +716,7 @@ export function setTheme(name: string, enableWatcher: boolean = false): { succes
 export function setThemeInstance(themeInstance: Theme): void {
 	setGlobalTheme(themeInstance);
 	currentThemeName = "<in-memory>";
-	stopThemeWatcher(); // Can't watch a direct instance
+	stopThemeWatcher(); // 无法监视直接传入的实例
 	if (onThemeChangeCallback) {
 		onThemeChangeCallback();
 	}
@@ -734,7 +729,7 @@ export function onThemeChange(callback: () => void): void {
 function startThemeWatcher(): void {
 	stopThemeWatcher();
 
-	// Only watch if it's a custom theme (not built-in)
+	// 只监视自定义主题（内置主题不监视）
 	if (
 		!currentThemeName ||
 		currentThemeName === "dark" ||
@@ -749,7 +744,7 @@ function startThemeWatcher(): void {
 	const watchedFileName = `${watchedThemeName}.json`;
 	const themeFile = path.join(customThemesDir, watchedFileName);
 
-	// Only watch if the file exists
+	// 仅在文件存在时才监视
 	if (!fs.existsSync(themeFile)) {
 		return;
 	}
@@ -761,27 +756,27 @@ function startThemeWatcher(): void {
 		themeReloadTimer = setTimeout(() => {
 			themeReloadTimer = undefined;
 
-			// Ignore stale timers after switching themes or stopping the watcher
+			// 切换主题或停止 watcher 之后，忽略过期的定时器
 			if (currentThemeName !== watchedThemeName) {
 				return;
 			}
 
-			// Keep the last successfully loaded theme active if the file is temporarily missing
+			// 文件暂时缺失时，保持上一个成功加载的主题生效
 			if (!fs.existsSync(themeFile)) {
 				return;
 			}
 
 			try {
-				// Reload the theme from disk and refresh the registry cache
+				// 从磁盘重新加载主题并刷新注册表缓存
 				const reloadedTheme = loadThemeFromPath(themeFile);
 				registeredThemes.set(watchedThemeName, reloadedTheme);
 				setGlobalTheme(reloadedTheme);
-				// Notify callback (to invalidate UI)
+				// 通知回调（使 UI 失效重建）
 				if (onThemeChangeCallback) {
 					onThemeChangeCallback();
 				}
 			} catch (_error) {
-				// Ignore errors (file might be in invalid state while being edited)
+				// 忽略错误（文件在被编辑期间可能处于无效状态）
 			}
 		}, 100);
 	};
@@ -819,12 +814,12 @@ export function stopThemeWatcher(): void {
 }
 
 // ============================================================================
-// HTML Export Helpers
+// HTML 导出辅助
 // ============================================================================
 
 /**
- * Get resolved theme colors as CSS-compatible hex strings.
- * Used by HTML export to generate CSS custom properties.
+ * 以 CSS 兼容的 hex 字符串获取解析后的主题颜色。
+ * 供 HTML 导出生成 CSS 自定义属性时使用。
  */
 export function getResolvedThemeColors(themeName?: string): Record<string, string> {
 	const colors = loadTheme(themeName ?? currentThemeName ?? SYSTEM_THEME_NAME).colors;
@@ -832,15 +827,15 @@ export function getResolvedThemeColors(themeName?: string): Record<string, strin
 }
 
 /**
- * Check if a theme is a "light" theme (for CSS that needs light/dark variants).
+ * 检查主题是否是"浅色"主题（供需要明/暗变体的 CSS 使用）。
  */
 export function isLightTheme(themeName?: string): boolean {
 	return loadTheme(themeName ?? currentThemeName ?? SYSTEM_THEME_NAME).appearance === "light";
 }
 
 /**
- * Get explicit export colors from theme JSON, if specified.
- * Returns undefined for each color that isn't explicitly set.
+ * 获取主题 JSON 中显式指定的导出颜色（如有）。
+ * 未显式设置的颜色返回 undefined。
  */
 export function getThemeExportColors(themeName?: string): {
 	pageBg?: string;
@@ -855,7 +850,7 @@ export function getThemeExportColors(themeName?: string): {
 		if (!exportSection) return {};
 
 		const vars = themeJson.vars ?? {};
-		// Export colors end up in CSS, which understands hex and oklch() values directly but not okhsl().
+		// 导出颜色最终会进入 CSS，而 CSS 能直接理解 hex 和 oklch() 值，但不理解 okhsl()。
 		const resolve = (value: ColorValue | undefined): string | undefined => {
 			if (value === undefined) return undefined;
 			const resolved = resolveVarRefs(value, vars);
@@ -876,7 +871,7 @@ export function getThemeExportColors(themeName?: string): {
 }
 
 // ============================================================================
-// TUI Helpers
+// TUI 辅助
 // ============================================================================
 
 type CliHighlightTheme = Record<string, (s: string) => string>;
@@ -924,15 +919,15 @@ function getCliHighlightTheme(t: Theme): CliHighlightTheme {
 }
 
 /**
- * Highlight code with syntax coloring based on file extension or language.
- * Returns array of highlighted lines.
+ * 根据文件扩展名或语言，为代码添加语法着色。
+ * 返回着色后的行数组。
  */
 export function highlightCode(code: string, lang?: string): string[] {
-	// Validate language before highlighting to avoid stderr spam from cli-highlight
+	// 在高亮前先校验语言，避免 cli-highlight 向 stderr 刷屏
 	const validLang = lang && supportsLanguage(lang) ? lang : undefined;
-	// Skip highlighting when no valid language is specified. cli-highlight's
-	// auto-detection is unreliable and can misidentify prose as AppleScript,
-	// LiveCodeServer, etc., coloring random English words as keywords.
+	// 未指定有效语言时跳过高亮。cli-highlight 的自动检测不可靠，
+	// 可能把普通散文误判成 AppleScript、LiveCodeServer 等，
+	// 导致随机的英文单词被当作关键字着色。
 	if (!validLang) {
 		return code.split("\n").map((line) => theme.fg("mdCodeBlock", line));
 	}
@@ -949,7 +944,7 @@ export function highlightCode(code: string, lang?: string): string[] {
 }
 
 /**
- * Get language identifier from file path extension.
+ * 从文件路径的扩展名获取语言标识。
  */
 export function getLanguageFromPath(filePath: string): string | undefined {
 	const ext = filePath.split(".").pop()?.toLowerCase();
@@ -1036,11 +1031,11 @@ export function getMarkdownTheme(): MarkdownTheme {
 		underline: (text: string) => theme.underline(text),
 		strikethrough: (text: string) => theme.strikethrough(text),
 		highlightCode: (code: string, lang?: string): string[] => {
-			// Validate language before highlighting to avoid stderr spam from cli-highlight
+			// 在高亮前先校验语言，避免 cli-highlight 向 stderr 刷屏
 			const validLang = lang && supportsLanguage(lang) ? lang : undefined;
-			// Skip highlighting when no valid language is specified. cli-highlight's
-			// auto-detection is unreliable and can misidentify prose as AppleScript,
-			// LiveCodeServer, etc., coloring random English words as keywords.
+			// 未指定有效语言时跳过高亮。cli-highlight 的自动检测不可靠，
+			// 可能把普通散文误判成 AppleScript、LiveCodeServer 等，
+			// 导致随机的英文单词被当作关键字着色。
 			if (!validLang) {
 				return code.split("\n").map((line) => theme.fg("mdCodeBlock", line));
 			}

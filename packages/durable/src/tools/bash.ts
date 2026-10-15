@@ -17,7 +17,7 @@ const powershellSchema = Type.Object({
 	timeout: Type.Optional(Type.Number({ description: "Timeout in seconds (optional, no default timeout)" })),
 });
 
-/** What a program that calls `bash` or `powershell` receives. */
+/** 调用 `bash` 或 `powershell` 的程序会收到什么。 */
 const shellStructuredOutputSchema = Type.Object({
 	output: Type.String({ description: "Combined stdout and stderr: the retained tail, as the model sees it" }),
 	truncated: Type.Boolean({ description: "Whether earlier output was dropped" }),
@@ -29,7 +29,7 @@ export type BashToolInput = Static<typeof bashSchema>;
 export type PowerShellToolInput = Static<typeof powershellSchema>;
 export type ShellStructuredOutput = Static<typeof shellStructuredOutputSchema>;
 
-/** A command about to run, which `prepare` may change: the script, its working directory and environment. */
+/** 即将运行的一条命令，`prepare` 可以修改它：脚本、工作目录和环境。 */
 export interface BashExecution {
 	command: string;
 	cwd: string;
@@ -45,10 +45,10 @@ export interface BashToolOptions {
 }
 
 export interface PowerShellToolOptions {
-	/** Lines run before each command. */
+	/** 每条命令之前先运行的若干行。 */
 	commandPrefix?: string;
 	prepare?: BashPrepare;
-	/** PowerShell programs to try in order; default `pwsh`, then `powershell`. A program that cannot start is skipped. */
+	/** 依次尝试的 PowerShell 程序；默认先 `pwsh` 再 `powershell`。无法启动的程序会被跳过。 */
 	programs?: readonly string[];
 }
 
@@ -62,7 +62,7 @@ function validateTimeout(timeout: number | undefined): void {
 	}
 }
 
-/** The execution of one call: the command with its prefix, in the environment's working directory, then `prepare`. */
+/** 一次调用的执行过程：带前缀的命令、环境的工作目录，然后交给 `prepare`。 */
 async function prepareExecution(
 	command: string,
 	options: { commandPrefix?: string; prepare?: BashPrepare } | undefined,
@@ -80,9 +80,8 @@ async function prepareExecution(
 }
 
 /**
- * Run each command form in turn until one starts, streaming output to `api.output()` within the retained window, and
- * turn the result into the tool's result: a spill diagnostic, an error result for a nonzero exit, and a thrown error for
- * a failure such as a timeout. The structured output repeats the retained output with the exit code.
+ * 依次运行每种命令形态，直到某一个能启动；把输出流入保留窗口内的 `api.output()`，并把结果转换为工具结果：
+ * 溢出（spill）诊断、非零退出的错误结果，以及超时等失败时抛出的错误。结构化输出在保留输出之外附上退出码。
  */
 async function runCommand(
 	commands: readonly (string | readonly string[])[],
@@ -103,12 +102,12 @@ async function runCommand(
 				...(timeout === undefined ? {} : { timeout }),
 				onOutput: (text, _context, info) => api.output(text, info.skipped),
 				spill: { afterBytes: DEFAULT_MAX_BYTES, afterLines: DEFAULT_MAX_LINES },
-				// An environment may then omit output outside the retained tail and report the omission.
+				// 环境随后可以省略保留尾窗之外的输出，并上报省略量。
 				...(api.outputWindow === undefined ? {} : { window: api.outputWindow }),
 			},
 			context,
 		);
-		// A program that could not start produced no output; the next form may.
+		// 无法启动的程序不会产生任何输出；下一种形态可以。
 		if (result.ok || result.error.code !== "spawn_error") break;
 	}
 	if (result === undefined) throw new Error("No command to run");
@@ -136,11 +135,10 @@ async function runCommand(
 }
 
 /**
- * Runs a command through the environment's shell. Its output streams to `api.output()`, where the Harness keeps the
- * tail within the default limits; the result content is that retained output. The retained window goes to the
- * environment, which may omit output outside it and report how much it omitted, so dropped counts stay exact. Output
- * beyond the limits is spilled to a file whose path is reported as a diagnostic. A nonzero exit is an error result with
- * the exit code; a timeout throws, which makes an error result that still carries the output and diagnostics.
+ * 通过环境的 shell 运行命令。输出流入 `api.output()`，由执行架（Harness）在默认限度内保留尾窗；结果内容即
+ * 该保留输出。保留窗口会传给环境，环境可以省略窗口之外的输出并报告省略了多少，使被丢弃的计数保持精确。
+ * 超出限度的输出溢出到文件，其路径作为诊断上报。非零退出是带退出码的错误结果；超时则抛出错误，产生的
+ * 错误结果仍携带输出与诊断。
  */
 export function createBashTool(options?: BashToolOptions): ToolRegistration<typeof bashSchema> {
 	return defineTool({
@@ -157,13 +155,13 @@ export function createBashTool(options?: BashToolOptions): ToolRegistration<type
 	});
 }
 
-/** Output in UTF-8 whatever the console's code page, as the coding agent's `powershell` tool does. */
+/** 无论控制台代码页是什么，都以 UTF-8 输出——与 coding agent 的 `powershell` 工具一致。 */
 const UTF8_OUTPUT = "try { [Console]::OutputEncoding=[System.Text.Encoding]::UTF8 } catch {}";
 const POWERSHELL_ARGS = ["-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-Command"] as const;
 
 /**
- * Runs a PowerShell command, like `bash` but through PowerShell instead of the environment's shell: `pwsh` (PowerShell
- * 7), else Windows PowerShell, started directly with the command as an argument, so no other shell parses it.
+ * 运行 PowerShell 命令，与 `bash` 类似，但用的是 PowerShell 而非环境的 shell：优先 `pwsh`（PowerShell 7），
+ * 否则 Windows PowerShell。程序以命令作为参数直接启动，因此没有别的 shell 参与解析。
  */
 export function createPowerShellTool(options?: PowerShellToolOptions): ToolRegistration<typeof powershellSchema> {
 	const programs = options?.programs ?? ["pwsh", "powershell"];

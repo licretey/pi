@@ -1,18 +1,18 @@
 /**
- * Tools Configuration
+ * 工具配置
  *
- * Use tool names to choose which built-in tools are enabled.
+ * 通过工具名称选择要启用的内置工具。
  *
- * Tool names are matched against all available tools. If you use a custom `cwd`,
- * createAgentSession() applies that cwd when it builds the actual built-in tools.
+ * 工具名称会与所有可用工具进行匹配。使用自定义 `cwd` 时，
+ * createAgentSession() 会在创建实际的内置工具时应用该目录。
  *
- * For custom tools, see 06-extensions.ts - custom tools are registered via the
- * extensions system using pi.registerTool().
+ * 有关自定义工具，请参见 06-extensions.ts；自定义工具通过扩展系统中的
+ * pi.registerTool() 注册。
  */
 
 import { createAgentSession, SessionManager } from "@earendil-works/pi-coding-agent";
 
-// Read-only mode (no edit/write)
+// 只读模式（不启用 edit/write）
 const { session: readOnlySession } = await createAgentSession({
 	tools: ["read", "grep", "find", "ls"],
 	sessionManager: SessionManager.inMemory(),
@@ -20,7 +20,7 @@ const { session: readOnlySession } = await createAgentSession({
 console.log("Read-only session created");
 readOnlySession.dispose();
 
-// Custom tool selection
+// 自定义工具选择
 const { session: customToolsSession } = await createAgentSession({
 	tools: ["read", "bash", "grep"],
 	sessionManager: SessionManager.inMemory(),
@@ -28,7 +28,7 @@ const { session: customToolsSession } = await createAgentSession({
 console.log("Custom tools session created");
 customToolsSession.dispose();
 
-// With custom cwd
+// 使用自定义 cwd
 const customCwd = "/path/to/project";
 const { session: customCwdSession } = await createAgentSession({
 	cwd: customCwd,
@@ -38,7 +38,7 @@ const { session: customCwdSession } = await createAgentSession({
 console.log("Custom cwd session created");
 customCwdSession.dispose();
 
-// Or pick specific tools for custom cwd
+// 也可以为自定义 cwd 指定具体工具
 const { session: specificToolsSession } = await createAgentSession({
 	cwd: customCwd,
 	tools: ["read", "bash", "grep"],

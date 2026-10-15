@@ -30,16 +30,16 @@ import { recordUsage } from "./usage.ts";
 
 export type CompactionInput = { reason: CompactionReason; instructions?: string };
 
-/** The pinned summarization request. */
+/** 固定不变的摘要请求参数。 */
 export type SummaryRequest = {
 	attempt: number;
 	model: ModelRef;
 	thinkingLevel: ModelThinkingLevel;
 	streamOptions: ConversationStreamOptions;
 	maxTokens: number;
-	/** Newest entry of the context the range was selected from. */
+	/** 选取该范围时所依据上下文中的最新条目。 */
 	tail: EntryId;
-	/** First entry kept verbatim; the summary's `head`. */
+	/** 保留原文的首个条目，即摘要的 `head`。 */
 	firstKept: EntryId;
 };
 
@@ -51,7 +51,7 @@ export type CompactionCheckpoint =
 type Runtime = TaskRuntime<CompactionInput, CompactionCheckpoint, CompactionResult, CompactionHooks>;
 type Next = NextTaskState<CompactionCheckpoint, CompactionResult>;
 
-/** Longest tool result text a serialized summary source keeps. */
+/** 序列化摘要来源中保留的工具结果文本最大长度。 */
 const TOOL_RESULT_MAX_CHARS = 2000;
 
 const SUMMARY_PREFIX =
@@ -96,9 +96,8 @@ Use this EXACT format:
 Keep each section concise. Preserve exact file paths, function names, and error messages.`;
 
 /**
- * Built-in compaction task (spec §8.7): select an old prefix of the model context, summarize it, and place a summary
- * entry whose `head` is the first kept entry. A compaction the generation owns blocks it and appends directly; a
- * conversation-owned one places its summary through a write submission.
+ * 内置压缩任务（规范 §8.7）：选择模型上下文中较早的一段内容并生成摘要，然后放置一条 `head` 指向首个保留条目的摘要记录。
+ * 由生成任务拥有的压缩会阻塞该生成任务，并直接追加摘要；由对话拥有的压缩则通过写入提交放置摘要。
  */
 export const CompactionTask = defineTask<CompactionInput, CompactionCheckpoint, CompactionResult, CompactionHooks>({
 	name: "pi.compaction",
@@ -150,7 +149,7 @@ export const CompactionTask = defineTask<CompactionInput, CompactionCheckpoint, 
 			const { model: ref, thinkingLevel, streamOptions, maxTokens, tail, firstKept, attempt } = request;
 			const model = runtime.models.getModel(ref.provider, ref.modelId);
 			if (model === undefined) return failNoModel(runtime, ref, context);
-			// The context at `tail` is immutable, so this is the range `select` chose.
+			// `tail` 处的上下文不可变，因此这里取得的就是 `select` 选定的范围。
 			const view = await runtime.context(runtime.conversationId, context, { at: tail });
 			const cut = view.entries.findIndex((entry) => entry.id === firstKept);
 			const now = runtime.now();
@@ -172,7 +171,7 @@ export const CompactionTask = defineTask<CompactionInput, CompactionCheckpoint, 
 				...(thinkingLevel === "off" ? {} : { reasoning: thinkingLevel }),
 			};
 			const message = await runtime.models.completeSimple(model, { messages }, options);
-			// An abort mark or close: the abort invocation or the reopened task handles the committed state.
+			// 遇到中止标记或关闭：由中止调用或重新打开的任务处理已提交状态。
 			runtime.signal.throwIfAborted();
 			const summary = summaryText(message);
 			const policy = runtime.settings.retry;
@@ -228,8 +227,8 @@ export const CompactionTask = defineTask<CompactionInput, CompactionCheckpoint, 
 });
 
 /**
- * Create a compaction task with its status in this commit. `owner` is the generation that waits for it (a blocking
- * compaction); without one it is conversation-owned, and `background` unless it is manual.
+ * 在本次提交中创建压缩任务并记录其状态。`owner` 是等待该任务的生成任务（即阻塞式压缩）；未指定时任务归对话所有，
+ * 除手动压缩外均作为后台任务运行。
  */
 export async function createCompaction(
 	tx: Tx,
@@ -247,10 +246,9 @@ export async function createCompaction(
 }
 
 /**
- * Index in `view.entries` of the first entry a summary keeps, or `undefined` when there is nothing to compact
- * (spec §8.7). Walks back from the tail until `keepRecentTokens` are kept, then cuts at the first candidate at or after
- * that entry: an entry whose contribution starts with a user or assistant message, never a tool result, and never a
- * user entry that a result of the preceding assistant's calls still follows.
+ * 返回摘要保留的第一条记录在 `view.entries` 中的索引；没有可压缩内容时返回 `undefined`（规范 §8.7）。
+ * 从末尾向前遍历，直到保留 `keepRecentTokens` 个 token，然后从该位置或其后的首个候选记录处截断：
+ * 候选记录的贡献必须以 user 或 assistant 消息开头，不能是工具结果，也不能是后面仍跟着前一条 assistant 调用结果的 user 记录。
  */
 export function selectCut(view: ContextView, keepRecentTokens: number): number | undefined {
 	const { contributions } = view;
@@ -276,7 +274,7 @@ function isCandidate(contributions: ContextView["contributions"], index: number)
 	const first = contributions[index]![0];
 	if (first?.role === "assistant") return true;
 	if (first?.role !== "user") return false;
-	// A result of the preceding assistant's calls that follows this entry, before the next assistant, belongs before it.
+	// 如果此记录之后、下一条 assistant 消息之前仍有前一条 assistant 调用的结果，则该结果必须与调用一起保留在此记录之前。
 	let calls: ReadonlySet<string> = new Set();
 	for (let before = index - 1; before >= 0; before--) {
 		const assistant = contributions[before]!.findLast((message) => message.role === "assistant");
@@ -294,15 +292,14 @@ function isCandidate(contributions: ContextView["contributions"], index: number)
 	return true;
 }
 
-/** Model messages of the entries before `cut`: the head marker first, ordered like model context (spec §2.1). */
+/** `cut` 之前各条记录对应的模型消息：先放头部标记，并按模型上下文的顺序排列（规范 §2.1）。 */
 export function summarizedMessages(view: ContextView, cut: number): Message[] {
 	return orderToolResults(view.contributions.slice(0, cut).flat());
 }
 
 /**
- * Size of a request over `view` followed by `extra` (spec §8.3): the usage of the newest assistant appended after the
- * head marker, whose request included the marker, plus estimates of the messages after it; without one, estimates of
- * every message.
+ * 估算 `view` 后接 `extra` 所构成请求的大小（规范 §8.3）：使用追加在头部标记之后、且请求中包含该标记的最新 assistant 消息
+ * 所报告的用量，再加上其后消息的估算值；如果没有此类消息，则估算所有消息。
  */
 export function estimateContext(view: ContextView, extra: readonly Message[]): number {
 	let measured: AssistantMessage | undefined;
@@ -321,7 +318,7 @@ export function estimateContext(view: ContextView, extra: readonly Message[]): n
 	return tokens;
 }
 
-/** The summary of a clean `stop` with text and no tool call; anything else is not a summary. */
+/** 只有正常以 `stop` 结束、包含文本且没有工具调用的内容才是摘要；其他情况均不算摘要。 */
 function summaryText(message: AssistantMessage): string | undefined {
 	if (message.stopReason !== "stop" || message.content.some((content) => content.type === "toolCall"))
 		return undefined;
@@ -341,13 +338,13 @@ function summaryFailure(message: AssistantMessage): string {
 	return "Summarization produced no text";
 }
 
-/** The summarizer's user message: the serialized conversation, the prompt, and any instructions. */
+/** 提交给摘要模型的 user 消息：序列化后的对话、提示词和可选指示。 */
 function summaryPrompt(messages: readonly Message[], instructions: string | undefined): string {
 	const focus = instructions === undefined ? "" : `\n\nAdditional focus: ${instructions}`;
 	return `<conversation>\n${serializeConversation(messages)}\n</conversation>\n\n${SUMMARIZATION_PROMPT}${focus}`;
 }
 
-/** Messages as plain text, so the summarizer reads a transcript instead of continuing it. System messages are omitted. */
+/** 将消息转换为纯文本，使摘要模型读取对话记录而不是继续对话。system 消息会省略。 */
 export function serializeConversation(messages: readonly Message[]): string {
 	const parts: string[] = [];
 	for (const message of messages) {
@@ -389,7 +386,7 @@ function truncate(text: string, maxChars: number): string {
 	return `${text.slice(0, maxChars)}\n\n[... ${text.length - maxChars} more characters truncated]`;
 }
 
-/** Place a summary supplied by a hook in its own commit. */
+/** 将钩子提供的摘要单独提交。 */
 async function place(runtime: Runtime, firstKept: EntryId, summary: string, context: Context): Promise<void> {
 	await runtime.commit(
 		async (tx, current) =>
@@ -399,10 +396,10 @@ async function place(runtime: Runtime, firstKept: EntryId, summary: string, cont
 }
 
 /**
- * Place the summary entry and complete (spec §8.7). A blocking compaction, owned by its generation, appends it: the
- * generation holds the run and waits. A conversation-owned one admits it as a write submission, placed at once when
- * idle, otherwise at the next boundary, or settled `stale`.
- * REMINDER: nothing else may append to a busy conversation, so every non-blocking summary goes through admission.
+ * 放置摘要条目并完成操作（规范 §8.7）。由某一代任务拥有的阻塞式压缩会追加摘要条目，
+ * 并由该代任务保持运行状态等待完成。由对话拥有的压缩会将摘要作为写入提交接纳：
+ * 对话空闲时立即放置，否则在下一个边界放置，或将其结算为 `stale`。
+ * 提醒：忙碌中的对话不得被其他操作追加内容，因此所有非阻塞摘要都必须经过接纳流程。
  */
 async function placeSummary(
 	tx: Tx,
@@ -435,7 +432,7 @@ async function placeSummary(
 	return { status: "terminal", outcome: { status: "completed", result } };
 }
 
-/** Remove the status and complete without a summary. */
+/** 移除任务状态并结束，不生成摘要。 */
 async function complete(runtime: Runtime, context: Context): Promise<void> {
 	await runtime.commit(async (tx) => {
 		removeCompactionStatus(await tx.doc(LiveDoc, runtime.conversationId), runtime.taskId);

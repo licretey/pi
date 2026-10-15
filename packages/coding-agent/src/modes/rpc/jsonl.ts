@@ -2,21 +2,20 @@ import type { Readable } from "node:stream";
 import { StringDecoder } from "node:string_decoder";
 
 /**
- * Serialize a single strict JSONL record.
+ * 序列化一条严格格式的 JSONL 记录。
  *
- * Framing is LF-only. Payload strings may contain other Unicode separators such as
- * U+2028 and U+2029. Clients must split records on `\n` only.
+ * 记录仅使用 LF 分隔。负载字符串可以包含 U+2028、U+2029 等其他 Unicode 分隔符。
+ * 客户端必须仅按 `\n` 拆分记录。
  */
 export function serializeJsonLine(value: unknown): string {
 	return `${JSON.stringify(value)}\n`;
 }
 
 /**
- * Attach an LF-only JSONL reader to a stream.
+ * 为流附加一个仅按 LF 分隔记录的 JSONL 读取器。
  *
- * This intentionally does not use Node readline. Readline splits on additional
- * Unicode separators that are valid inside JSON strings and therefore does not
- * implement strict JSONL framing.
+ * 此处刻意不使用 Node readline。readline 还会按其他 Unicode 分隔符拆分，
+ * 而这些分隔符在 JSON 字符串中是合法内容，因此无法实现严格的 JSONL 分帧。
  */
 export function attachJsonlLineReader(stream: Readable, onLine: (line: string) => void): () => void {
 	const decoder = new StringDecoder("utf8");

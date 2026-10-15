@@ -13,7 +13,7 @@ interface ServiceBindingOptions extends ServiceSourceOptions {
 	readonly services: readonly { readonly id: string }[];
 }
 
-/** Test helper for binding server services without a facet host. */
+/** 在没有 facet host 的情况下绑定服务器服务的测试辅助函数。 */
 export function createServerServiceBinding(
 	client: Client,
 	options: ServiceBindingOptions,
@@ -45,7 +45,7 @@ export function createServerServiceBinding(
 	};
 }
 
-/** Test helper for binding selected-Session services without a facet host. */
+/** 在没有 facet host 的情况下绑定选定 Session 服务的测试辅助函数。 */
 export function createSessionServiceBinding(
 	client: Client,
 	options: ServiceBindingOptions,

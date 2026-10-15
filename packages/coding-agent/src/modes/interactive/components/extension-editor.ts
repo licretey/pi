@@ -1,6 +1,6 @@
 /**
- * Multi-line editor component for extensions.
- * Supports Ctrl+G for external editor.
+ * 扩展使用的多行编辑器组件。
+ * 支持按 Ctrl+G 打开外部编辑器。
  */
 
 import {
@@ -63,11 +63,11 @@ export class ExtensionEditorComponent extends Container implements Focusable {
 		this.onCancelCallback = onCancel;
 		const { description, ...editorOptions } = options ?? {};
 
-		// Add top border
+		// 添加上边框。
 		this.addChild(new DynamicBorder());
 		this.addChild(new Spacer(1));
 
-		// Add title and optional description
+		// 添加标题和可选说明。
 		this.addChild(new Text(theme.fg("accent", title), 1, 0));
 		if (description) {
 			this.addChild(new Spacer(1));
@@ -75,12 +75,12 @@ export class ExtensionEditorComponent extends Container implements Focusable {
 		}
 		this.addChild(new Spacer(1));
 
-		// Create editor
+		// 创建编辑器。
 		this.editor = new Editor(tui, getEditorTheme(), editorOptions);
 		if (prefill) {
 			this.editor.setText(prefill);
 		}
-		// Wire up Enter to submit (Shift+Enter for newlines, like the main editor)
+		// 将 Enter 绑定为提交；与主编辑器一样，Shift+Enter 用于换行。
 		this.editor.onSubmit = (text: string) => {
 			this.onSubmitCallback(text);
 		};
@@ -88,7 +88,7 @@ export class ExtensionEditorComponent extends Container implements Focusable {
 
 		this.addChild(new Spacer(1));
 
-		// Add hint
+		// 添加提示。
 		const hint =
 			keyHint("tui.select.confirm", "submit") +
 			"  " +
@@ -100,25 +100,25 @@ export class ExtensionEditorComponent extends Container implements Focusable {
 
 		this.addChild(new Spacer(1));
 
-		// Add bottom border
+		// 添加下边框。
 		this.addChild(new DynamicBorder());
 	}
 
 	handleInput(keyData: string): void {
 		const kb = getKeybindings();
-		// Escape or Ctrl+C to cancel
+		// 按 Escape 或 Ctrl+C 取消。
 		if (kb.matches(keyData, "tui.select.cancel")) {
 			this.onCancelCallback();
 			return;
 		}
 
-		// External editor (app keybinding)
+		// 外部编辑器（应用快捷键）。
 		if (this.keybindings.matches(keyData, "app.editor.external")) {
 			void this.handleOpenExternalEditor();
 			return;
 		}
 
-		// Forward to editor
+		// 转交给编辑器处理。
 		this.editor.handleInput(keyData);
 	}
 

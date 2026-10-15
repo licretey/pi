@@ -2,7 +2,7 @@ import type { Context } from "@earendil-works/chord";
 import { NodeExecutionEnv } from "../../env/node.ts";
 import { JsonlStorage, type JsonlStorageOptions } from "./storage.ts";
 
-/** Open or create a JSONL storage directory using the local Node filesystem. */
+/** 使用本地 Node 文件系统打开或创建一个 JSONL 存储目录。 */
 export async function openNodeJsonlStorage(
 	directory: string,
 	context: Context,

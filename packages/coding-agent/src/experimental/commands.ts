@@ -81,7 +81,7 @@ async function runClientCommand(command: ClientCommand): Promise<void> {
 	for (const session of result.sessions) console.log(`${session.serverId}\t${session.sessionId}`);
 }
 
-/** Development-only command dispatch. Published entrypoints must not import this module. */
+/** 仅供开发使用的命令分发模块。已发布的入口不得导入此模块。 */
 export async function runExperimentalCommand(args: string[]): Promise<boolean> {
 	if (!areExperimentalFeaturesEnabled() || (args[0] !== "server" && args[0] !== "client")) return false;
 	try {

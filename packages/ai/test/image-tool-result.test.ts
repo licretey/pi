@@ -12,7 +12,7 @@ import { hasAzureOpenAICredentials, resolveAzureDeploymentName } from "./azure-u
 import { hasBedrockCredentials } from "./bedrock-utils.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-// Resolve OAuth tokens at module level (async, runs before tests)
+// 在模块级解析 OAuth 令牌（异步执行，在测试开始前完成）
 const oauthTokens = await Promise.all([
 	resolveApiKey("anthropic"),
 	resolveApiKey("github-copilot"),
@@ -21,25 +21,25 @@ const oauthTokens = await Promise.all([
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
 
 /**
- * Test that tool results containing only images work correctly across all providers.
- * This verifies that:
- * 1. Tool results can contain image content blocks
- * 2. Providers correctly pass images from tool results to the LLM
- * 3. The LLM can see and describe images returned by tools
+ * 测试仅包含图片的工具结果能否在所有提供方中正常工作。
+ * 此测试用于验证：
+ * 1. 工具结果可以包含图片内容块
+ * 2. 提供方能将工具结果中的图片正确传递给大语言模型
+ * 3. 大语言模型能够识别并描述工具返回的图片
  */
 async function handleToolWithImageResult<TApi extends Api>(model: Model<TApi>, options?: StreamOptionsWithExtras) {
-	// Check if the model supports images
+	// 检查模型是否支持图片
 	if (!model.input.includes("image")) {
 		console.log(`Skipping tool image result test - model ${model.id} doesn't support images`);
 		return;
 	}
 
-	// Read the test image
+	// 读取测试图片
 	const imagePath = join(__dirname, "data", "red-circle.png");
 	const imageBuffer = readFileSync(imagePath);
 	const base64Image = imageBuffer.toString("base64");
 
-	// Define a tool that returns only an image (no text)
+	// 定义一个仅返回图片（不含文本）的工具
 	const getImageSchema = Type.Object({});
 	const getImageTool: Tool<typeof getImageSchema> = {
 		name: "get_circle",
@@ -59,11 +59,11 @@ async function handleToolWithImageResult<TApi extends Api>(model: Model<TApi>, o
 		tools: [getImageTool],
 	};
 
-	// First request - LLM should call the tool
+	// 第一次请求：大语言模型应调用该工具
 	const firstResponse = await complete(model, context, options);
 	expect(firstResponse.stopReason).toBe("toolUse");
 
-	// Find the tool call
+	// 查找工具调用
 	const toolCall = firstResponse.content.find((b) => b.type === "toolCall");
 	expect(toolCall).toBeTruthy();
 	if (!toolCall || toolCall.type !== "toolCall") {
@@ -71,10 +71,10 @@ async function handleToolWithImageResult<TApi extends Api>(model: Model<TApi>, o
 	}
 	expect(toolCall.name).toBe("get_circle");
 
-	// Add the tool call to context
+	// 将工具调用添加到上下文
 	context.messages.push(firstResponse);
 
-	// Create tool result with ONLY an image (no text)
+	// 创建仅包含图片（不含文本）的工具结果
 	const toolResult: ToolResultMessage = {
 		role: "toolResult",
 		toolCallId: toolCall.id,
@@ -92,45 +92,45 @@ async function handleToolWithImageResult<TApi extends Api>(model: Model<TApi>, o
 
 	context.messages.push(toolResult);
 
-	// Second request - LLM should describe the image from the tool result
+	// 第二次请求：要求大语言模型描述工具结果中的图片
 	const secondResponse = await complete(model, context, options);
 	expect(secondResponse.stopReason).toBe("stop");
 	expect(secondResponse.errorMessage).toBeFalsy();
 
-	// Verify the LLM can see and describe the image
+	// 验证大语言模型能够识别并描述图片
 	const textContent = secondResponse.content.find((b) => b.type === "text");
 	expect(textContent).toBeTruthy();
 	if (textContent && textContent.type === "text") {
 		const lowerContent = textContent.text.toLowerCase();
-		// Should mention red and circle since that's what the image shows
+		// 图片显示红色圆形，因此回答应提及红色和圆形
 		expect(lowerContent).toContain("red");
 		expect(lowerContent).toContain("circle");
 	}
 }
 
 /**
- * Test that tool results containing both text and images work correctly across all providers.
- * This verifies that:
- * 1. Tool results can contain mixed content blocks (text + images)
- * 2. Providers correctly pass both text and images from tool results to the LLM
- * 3. The LLM can see both the text and images in tool results
+ * 测试同时包含文本和图片的工具结果能否在所有提供方中正常工作。
+ * 此测试用于验证：
+ * 1. 工具结果可以包含混合内容块（文本和图片）
+ * 2. 提供方能将工具结果中的文本和图片都正确传递给大语言模型
+ * 3. 大语言模型能够读取工具结果中的文本并识别图片
  */
 async function handleToolWithTextAndImageResult<TApi extends Api>(
 	model: Model<TApi>,
 	options?: StreamOptionsWithExtras,
 ) {
-	// Check if the model supports images
+	// 检查模型是否支持图片
 	if (!model.input.includes("image")) {
 		console.log(`Skipping tool text+image result test - model ${model.id} doesn't support images`);
 		return;
 	}
 
-	// Read the test image
+	// 读取测试图片
 	const imagePath = join(__dirname, "data", "red-circle.png");
 	const imageBuffer = readFileSync(imagePath);
 	const base64Image = imageBuffer.toString("base64");
 
-	// Define a tool that returns both text and an image
+	// 定义一个同时返回文本和图片的工具
 	const getImageSchema = Type.Object({});
 	const getImageTool: Tool<typeof getImageSchema> = {
 		name: "get_circle_with_description",
@@ -151,11 +151,11 @@ async function handleToolWithTextAndImageResult<TApi extends Api>(
 		tools: [getImageTool],
 	};
 
-	// First request - LLM should call the tool
+	// 第一次请求：大语言模型应调用该工具
 	const firstResponse = await complete(model, context, options);
 	expect(firstResponse.stopReason).toBe("toolUse");
 
-	// Find the tool call
+	// 查找工具调用
 	const toolCall = firstResponse.content.find((b) => b.type === "toolCall");
 	expect(toolCall).toBeTruthy();
 	if (!toolCall || toolCall.type !== "toolCall") {
@@ -163,10 +163,10 @@ async function handleToolWithTextAndImageResult<TApi extends Api>(
 	}
 	expect(toolCall.name).toBe("get_circle_with_description");
 
-	// Add the tool call to context
+	// 将工具调用添加到上下文
 	context.messages.push(firstResponse);
 
-	// Create tool result with BOTH text and image
+	// 创建同时包含文本和图片的工具结果
 	const toolResult: ToolResultMessage = {
 		role: "toolResult",
 		toolCallId: toolCall.id,
@@ -188,19 +188,19 @@ async function handleToolWithTextAndImageResult<TApi extends Api>(
 
 	context.messages.push(toolResult);
 
-	// Second request - LLM should describe both the text and image from the tool result
+	// 第二次请求：要求大语言模型描述工具结果中的文本和图片
 	const secondResponse = await complete(model, context, options);
 	expect(secondResponse.stopReason).toBe("stop");
 	expect(secondResponse.errorMessage).toBeFalsy();
 
-	// Verify the LLM can see both text and image
+	// 验证大语言模型能够读取文本并识别图片
 	const textContent = secondResponse.content.find((b) => b.type === "text");
 	expect(textContent).toBeTruthy();
 	if (textContent && textContent.type === "text") {
 		const lowerContent = textContent.text.toLowerCase();
-		// Should mention details from the text (diameter/pixels)
+		// 回答应提及文本中的信息（直径和像素数）
 		expect(lowerContent.match(/diameter|100|pixel/)).toBeTruthy();
-		// Should also mention the visual properties (red and circle)
+		// 回答还应提及视觉特征（红色和圆形）
 		expect(lowerContent).toContain("red");
 		expect(lowerContent).toContain("circle");
 	}
@@ -331,13 +331,10 @@ describe("Tool Results with Images", () => {
 			await handleToolWithImageResult(llm);
 		});
 
-		// FIXME(xiaomi): when a tool_result contains both a descriptive text block
-		// and an image block, MiMo locks onto the text and ignores the image (it
-		// reports the text-derived diameter but never mentions the image's color).
-		// The image-only case above proves the image reaches the model, and the
-		// text-only path obviously works, so this is a multimodal-fusion quality
-		// issue in the model, not a transport bug. Re-enable when upstream model
-		// quality improves.
+		// FIXME(xiaomi)：当 tool_result 同时包含描述性文本块和图片块时，MiMo 会只关注文本而忽略图片
+		// （它会报告从文本得出的直径，却不提及图片颜色）。上面的纯图片用例证明图片已传到模型，
+		// 纯文本路径也能正常工作，因此这是模型的多模态融合质量问题，而非传输故障。
+		// 等上游模型质量改善后再启用。
 		it.skip("should handle tool result with text and image", { retry: 3, timeout: 30000 }, async () => {
 			await handleToolWithTextAndImageResult(llm);
 		});
@@ -352,8 +349,8 @@ describe("Tool Results with Images", () => {
 				await handleToolWithImageResult(llm);
 			});
 
-			// FIXME(xiaomi): see the API-billing block above — same multimodal-fusion
-			// limitation applies to Token Plan endpoints (same model behind both).
+			// FIXME(xiaomi)：参见上面的 API 计费测试块；Token Plan 端点也有相同的多模态融合限制
+			// （两个端点使用的是同一模型）。
 			it.skip("should handle tool result with text and image", { retry: 3, timeout: 30000 }, async () => {
 				await handleToolWithTextAndImageResult(llm);
 			});
@@ -369,8 +366,8 @@ describe("Tool Results with Images", () => {
 				await handleToolWithImageResult(llm);
 			});
 
-			// FIXME(xiaomi): see the API-billing block above — same multimodal-fusion
-			// limitation applies to Token Plan endpoints (same model behind both).
+			// FIXME(xiaomi)：参见上面的 API 计费测试块；Token Plan 端点也有相同的多模态融合限制
+			// （两个端点使用的是同一模型）。
 			it.skip("should handle tool result with text and image", { retry: 3, timeout: 30000 }, async () => {
 				await handleToolWithTextAndImageResult(llm);
 			});
@@ -386,8 +383,8 @@ describe("Tool Results with Images", () => {
 				await handleToolWithImageResult(llm);
 			});
 
-			// FIXME(xiaomi): see the API-billing block above — same multimodal-fusion
-			// limitation applies to Token Plan endpoints (same model behind both).
+			// FIXME(xiaomi)：参见上面的 API 计费测试块；Token Plan 端点也有相同的多模态融合限制
+			// （两个端点使用的是同一模型）。
 			it.skip("should handle tool result with text and image", { retry: 3, timeout: 30000 }, async () => {
 				await handleToolWithTextAndImageResult(llm);
 			});
@@ -467,7 +464,7 @@ describe("Tool Results with Images", () => {
 	});
 
 	// =========================================================================
-	// OAuth-based providers (credentials from ~/.pi/agent/oauth.json)
+	// 基于 OAuth 的提供方（凭据来自 ~/.pi/agent/oauth.json）
 	// =========================================================================
 
 	describe("Anthropic OAuth Provider (claude-sonnet-4-5)", () => {

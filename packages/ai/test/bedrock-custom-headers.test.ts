@@ -67,9 +67,9 @@ function getModelFixture(): Model<"bedrock-converse-stream"> {
 }
 
 /**
- * Drive a stream to completion so the middleware (registered before `client.send`)
- * is captured even though the mocked `send()` rejects. Errors are swallowed because
- * the rejecting mock is expected — we only care about the recorded registrations.
+ * 将流运行至结束，以便捕获在 `client.send` 前注册的中间件，
+ * 即使模拟的 `send()` 会拒绝也不受影响。这里会忽略错误，因为模拟调用预期会拒绝；
+ * 测试只关心记录到的中间件注册信息。
  */
 async function driveBedrock(options: BedrockOptions): Promise<void> {
 	await streamBedrock(getModelFixture(), context, options)
@@ -139,9 +139,8 @@ describe("bedrock custom headers middleware", () => {
 		expect(fakeArgs.request.headers["x-amz-date"]).toBe("real-date");
 		expect(fakeArgs.request.headers.host).toBe("real-host");
 		expect(fakeArgs.request.headers["x-allowed"]).toBe("ok");
-		// Mixed-case reserved keys must be skipped too: a case-sensitive guard would
-		// add them back as distinct capitalised keys. Assert no such leak occurred and
-		// that the only new key beyond the three pre-existing ones is `x-allowed`.
+		// 混合大小写的保留键也必须跳过：区分大小写的检查会将它们作为不同的大写键重新添加。
+		// 断言没有此类泄漏，并且除原有的三个键外，唯一新增的键是 `x-allowed`。
 		expect(fakeArgs.request.headers.Authorization).toBeUndefined();
 		expect(fakeArgs.request.headers["X-Amz-Date"]).toBeUndefined();
 		expect(fakeArgs.request.headers.HOST).toBeUndefined();

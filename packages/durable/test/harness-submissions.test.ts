@@ -88,7 +88,7 @@ describe("submissions", () => {
 		const first = await root.submit({ type: "input", content: "hi", requestId: "r1" }, context);
 		await busy.reached;
 		const commits = storage.commits.length;
-		// Deduplication runs before the busy check.
+		// 去重检查先于忙碌状态检查。
 		const again = await root.submit({ type: "input", content: "different", requestId: "r1" }, context);
 		expect(again.id).toBe(first.id);
 		expect(storage.commits.length).toBe(commits);
@@ -178,7 +178,7 @@ describe("submissions", () => {
 	it("reacquires a submission after reopen and settles it durably", async () => {
 		const path = await sqlitePath();
 		const setup = chatSetup();
-		// The first process never answers; the reopened one does.
+		// 第一个进程始终不返回结果；重新打开后由新进程返回结果。
 		const busy = unanswered();
 		setup.faux.setResponses([busy.step, fauxAssistantMessage("after reopen")]);
 		let opened = await openChat(await openNodeSqliteStorage(path), setup);
@@ -205,7 +205,7 @@ describe("submissions", () => {
 		const setup = chatSetup();
 		setup.faux.setResponses([fauxAssistantMessage("answer")]);
 		const { harness, root } = await openChat(new ControlledStorage(), setup);
-		// No resume(): submitting asks for progress.
+		// 无需调用 resume()：提交操作会触发任务推进。
 		expect((await (await root.submit({ type: "input", content: "hi" }, context)).wait(context)).status).toBe("done");
 		await harness.close(context);
 
@@ -214,7 +214,7 @@ describe("submissions", () => {
 			(tx) => tx.createTask(GenerationTask, {}, { ownership: { kind: "conversation" } }),
 			context,
 		);
-		// A committed task alone does not start scheduling; waiting for it does.
+		// 仅提交任务不会启动调度；等待任务才会启动调度。
 		expect((await passive.harness.getTask(taskId, context))?.state.status).toBe("pending");
 		expect((await passive.harness.waitForTask(taskId, context)).state.status).toBe("terminal");
 		await passive.harness.close(context);
@@ -242,7 +242,7 @@ describe("submissions", () => {
 			),
 		).rejects.toThrow("does not exist");
 
-		// A submission created earlier in the same commit settles; a second settlement leaves the first.
+		// 同一提交中较早创建的提交项可以结算；第二次结算不会覆盖首次结果。
 		const placed = await session.commitWith(async (tx) => {
 			const { id } = await tx.createSubmission({ conversationId: root.id, type: "input", status: "placed", entry });
 			tx.settleSubmission(id, answer);

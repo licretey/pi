@@ -1,5 +1,5 @@
-// Compaction: a long trip-planning chat whose older messages are summarized so the model context stays small.
-// Run from packages/durable:
+// 上下文压缩示例：在长篇旅行规划对话中概括较早的消息，以控制模型上下文大小。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/25-compaction.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AssistantMessage, Message, TranscriptContext } from "@earendil-works/pi-ai";
@@ -16,11 +16,11 @@ import {
 
 const context = BACKGROUND_CONTEXT;
 
-// A fake model with a tiny 3000-token window. It answers chat messages, writes summaries when asked to summarize,
-// and once rejects a request as too long, the way real providers report a context overflow.
+// 模拟模型的上下文窗口只有 3000 个令牌。它会回答聊天消息、按要求生成摘要，
+// 并模拟真实提供商报告上下文溢出：有一次会以请求过长为由拒绝请求。
 let overflowOnce = false;
 let summaries = 0;
-// While set, the next chat answer waits for it, which keeps the conversation busy.
+// 设置此门闩后，下一条聊天回答会等待放行，使会话保持忙碌状态。
 let hold: Promise<void> | undefined;
 async function respond(transcript: TranscriptContext): Promise<AssistantMessage> {
 	const first = transcript.messages[0];
@@ -43,8 +43,8 @@ faux.setResponses(Array.from({ length: 100 }, () => respond));
 const models = createModels();
 models.setProvider(faux.provider);
 
-// Generation blocks to compact above 3000 - 1000 = 2000 tokens and starts a background compaction above 2000 - 800.
-// Settings are read at every use, so the getter makes `backgroundTokens` live.
+// generation 会在超过 3000 - 1000 = 2000 个令牌时阻塞并启动压缩；超过 2000 - 800 时启动后台压缩。
+// 设置项在每次使用时读取，因此 getter 可让 `backgroundTokens` 的更改立即生效。
 let backgroundTokens = 800;
 const settings = {
 	get compaction() {
@@ -57,14 +57,14 @@ const root = await harness.root(context, { agent: { model: { provider: "faux", m
 async function ask(question: string): Promise<void> {
 	const submission = await root.submit({ type: "input", content: question }, context);
 	const record = await submission.wait(context);
-	// Let a background compaction started by this turn finish, so its summary shows below.
+	// 等待本轮启动的后台压缩完成，以便在下方显示其摘要。
 	const running = (await harness.snapshot(LiveDoc, root.id, context))?.compactions ?? [];
 	for (const { taskId } of running) await harness.waitForTask(taskId, context);
 	await show(root, `after "${question}" (${record.status === "done" ? "answered" : record.reason})`);
 }
 
-// 1. A long chat: once the context crosses the background threshold, a compaction runs while the chat goes on, and
-// its summary lands at once when the conversation is idle, otherwise at the next turn boundary.
+// 1. 长对话：上下文超过后台阈值后，压缩会与对话并行运行；会话空闲时立即放置摘要，
+// 否则等到下一轮边界再放置。
 for (const question of [
 	"Where should we stay?",
 	"What should we eat?",
@@ -75,8 +75,7 @@ for (const question of [
 	await ask(question);
 }
 
-// 2. A manual compaction while an answer is still being written. The summary is ready first, waits in the inbox,
-// and is placed right after the answer.
+// 2. 在回答仍在生成时手动压缩。摘要会先准备好并等待在收件箱中，随后紧接回答放置。
 let finishAnswer!: () => void;
 hold = new Promise((resolve) => {
 	finishAnswer = resolve;
@@ -92,8 +91,8 @@ await busy.wait(context);
 console.log("after the answer, the summary is", (await summary.wait(context)).status);
 await show(root, "after compact()");
 
-// 3. The provider rejects a request as too long: generation compacts and retries it once. Background compaction is
-// turned off so the summary below is the overflow one.
+// 3. 提供商因请求过长而拒绝请求时，generation 会先压缩上下文，再重试一次。此处关闭后台压缩，
+// 因此下方的摘要是由溢出触发的。
 backgroundTokens = 0;
 await ask("What should we pack?");
 overflowOnce = true;
@@ -101,7 +100,7 @@ await ask("Summarize the plan for my partner");
 
 await harness.close(context);
 
-/** Print the model context: one line per message, and the number of stored entries behind it. */
+/** 打印模型上下文：每条消息占一行，并显示其对应的已存储条目数。 */
 async function show(conversation: Conversation, label: string): Promise<void> {
 	const view = await conversation.context(context);
 	const stored = (await conversation.entries({}, 1000, undefined, context)).items.length;

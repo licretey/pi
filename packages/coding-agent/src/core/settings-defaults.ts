@@ -1,6 +1,6 @@
 import { DEFAULT_MAX_AGENT_RETRY_DELAY_MS } from "@earendil-works/pi-ai/utils/retry";
 
-/** Runtime defaults shared by settings accessors and the published JSON Schema. */
+/** 设置访问器与公开 JSON Schema 共用的运行时默认值。 */
 export const SETTINGS_DEFAULTS = {
 	transport: "auto",
 	steeringMode: "one-at-a-time",

@@ -1,19 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Developer wrapper that runs pi from this checkout's latest `npm run build`.
-# Development invocations use PI_EXPERIMENTAL=1 by default. Pass --stable to use
-# the next pi executable on PATH; `pi update` also uses stable so self-update
-# works.
+# 开发辅助包装脚本：运行此检出版本最近一次 `npm run build` 生成的 pi。
+# 默认以 PI_EXPERIMENTAL=1 启动开发版本。传入 --stable 可使用 PATH 中下一个 pi 可执行文件；
+# `pi update` 也会使用稳定版本，以便自更新正常工作。
 #
-# From the repository root, install with:
+# 在仓库根目录运行以下命令进行安装：
 #   mkdir -p "$HOME/.local/bin"
 #   ln -s "$PWD/scripts/auto-pi.sh" "$HOME/.local/bin/pi"
 #
-# ~/.local/bin must appear before the stable pi installation on PATH.
+# PATH 中 ~/.local/bin 的位置必须先于稳定版 pi 的安装目录。
 
-# Resolve this script through symlinks so repo_dir points at the development
-# checkout rather than the directory containing the `pi` symlink.
+# 沿符号链接解析此脚本，使 repo_dir 指向开发检出目录，
+# 而不是包含 `pi` 符号链接的目录。
 script_path="${BASH_SOURCE[0]}"
 while [[ -L "$script_path" ]]; do
 	script_dir="$(cd -P "$(dirname "$script_path")" && pwd)"

@@ -15,7 +15,7 @@ export interface InteractiveTuiOptions {
 	readonly fullscreenWheelScrollLines?: WheelScrollLines;
 }
 
-/** Composition root shared by coding-agent presentations. */
+/** coding-agent 各种呈现方式共用的组合根。 */
 export function createInteractiveTui(options: InteractiveTuiOptions & { readonly tuiMode: "fullscreen" }): TuiAltScreen;
 export function createInteractiveTui(options: InteractiveTuiOptions & { readonly tuiMode: "regular" }): TuiMainScreen;
 export function createInteractiveTui(options: InteractiveTuiOptions): TuiMainScreen | TuiAltScreen;
@@ -49,7 +49,7 @@ export function createInteractiveTui(options: InteractiveTuiOptions): TuiMainScr
 	return new TuiMainScreen(terminal, options.showHardwareCursor, options.logDirectory);
 }
 
-/** Stable reference for components while InteractiveMode replaces the active renderer. */
+/** InteractiveMode 替换当前渲染器期间，供组件使用的稳定引用。 */
 export function createInteractiveTuiReference(getTui: () => TUI): TUI {
 	return new Proxy({} as TUI, {
 		get: (_target, property) => {

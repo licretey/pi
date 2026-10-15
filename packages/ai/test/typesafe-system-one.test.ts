@@ -57,7 +57,7 @@ describe("TypeSafe System One", () => {
 			expect(payload.questions.category?.type).toBe("choice");
 			expect(payload.questions.satisfaction?.type).toBe("score");
 			expect(payload.questions.approved?.type).toBe("noul");
-			// System One has no temperature field; the option is ignored.
+			// System One 没有 temperature 字段，因此会忽略此选项。
 			expect(payload).not.toHaveProperty("temperature");
 			expect(new Headers(init?.headers).get("authorization")).toBe("Bearer secret");
 			return Response.json({ answers: wireAnswers });
@@ -83,7 +83,7 @@ describe("TypeSafe System One", () => {
 	it("posts OpenRouter System One requests to its TypeSafe-compatible endpoint", async () => {
 		const fetch = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
 			expect(JSON.parse(String(init?.body))).toMatchObject({ model: "typesafe/jev-1.13", state: context.state });
-			// Response shape observed from the live OpenRouter endpoint.
+			// 此响应结构来自对 OpenRouter 在线端点的实际观察。
 			return Response.json({
 				id: "gen-dec-1",
 				provider: "TypeSafe",
@@ -104,7 +104,7 @@ describe("TypeSafe System One", () => {
 		expect(String(fetch.mock.calls[0]?.[0])).toBe("https://openrouter.ai/api/v1/systemone");
 		expect(result.stopReason).toBe("stop");
 		expect(result.answers.approved).toEqual({ type: "bool", probability: 0.95 });
-		// Priced from the catalog like chat usage; matches OpenRouter's reported cost.
+		// 与聊天用量一样，按目录中的价格计费；结果与 OpenRouter 报告的费用一致。
 		expect(result.usage?.cost.total).toBeCloseTo(0.000012936, 12);
 	});
 
@@ -229,7 +229,7 @@ describe("TypeSafe System One", () => {
 		expect(result.stopReason).toBe("error");
 		expect(result.answers).toEqual({});
 		expect(result.errorMessage).toContain("did not return an answer for category");
-		// The request was billed, so its usage is kept.
+		// 该请求已计费，因此保留其用量信息。
 		expect(result.usage).toMatchObject({ input: 10, output: 2 });
 	});
 

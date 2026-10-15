@@ -2,15 +2,15 @@ import type { Component } from "../tui.ts";
 import { applyBackgroundToLine, flattenLines, visibleWidth, wrapTextWithAnsi } from "../utils.ts";
 
 /**
- * Text component - displays multi-line text with word wrapping
+ * 显示多行文本并自动换行的文本组件。
  */
 export class Text implements Component {
 	private text: string;
-	private paddingX: number; // Left/right padding
-	private paddingY: number; // Top/bottom padding
+	private paddingX: number; // 左右内边距。
+	private paddingY: number; // 上下内边距。
 	private customBgFn?: (text: string) => string;
 
-	// Cache for rendered output
+	// 渲染结果缓存。
 	private cachedText?: string;
 	private cachedWidth?: number;
 	private cachedLines?: string[];
@@ -48,12 +48,12 @@ export class Text implements Component {
 	}
 
 	render(width: number): string[] {
-		// Check cache
+		// 检查缓存。
 		if (this.cachedLines && this.cachedText === this.text && this.cachedWidth === width) {
 			return this.cachedLines;
 		}
 
-		// Don't render anything if there's no actual text
+		// 文本为空或仅包含空白时不渲染任何内容。
 		if (!this.text || this.text.trim() === "") {
 			const result: string[] = [];
 			this.cachedText = this.text;
@@ -62,37 +62,37 @@ export class Text implements Component {
 			return result;
 		}
 
-		// Replace tabs with 3 spaces
+		// 将制表符替换为 3 个空格。
 		const normalizedText = this.text.replace(/\t/g, "   ");
 
-		// Reduce margins when necessary so content and padding fit within the available width.
+		// 必要时缩小边距，确保内容和内边距适配可用宽度。
 		const paddingX = Math.min(this.paddingX, Math.max(0, Math.floor((width - 1) / 2)));
 		const contentWidth = Math.max(1, width - paddingX * 2);
 
-		// Wrap text (this preserves ANSI codes but does NOT pad)
+		// 对文本换行（保留 ANSI 转义码，但不补齐宽度）。
 		const wrappedLines = wrapTextWithAnsi(normalizedText, contentWidth);
 
-		// Add margins and background to each line
+		// 为每一行添加边距和背景色。
 		const leftMargin = " ".repeat(paddingX);
 		const rightMargin = " ".repeat(paddingX);
 		const contentLines: string[] = [];
 
 		for (const line of wrappedLines) {
-			// Add margins
+			// 添加边距。
 			const lineWithMargins = leftMargin + line + rightMargin;
 
-			// Apply background if specified (this also pads to full width)
+			// 指定了背景色时应用背景（同时补齐至完整宽度）。
 			if (this.customBgFn) {
 				contentLines.push(applyBackgroundToLine(lineWithMargins, width, this.customBgFn));
 			} else {
-				// No background - just pad to width with spaces
+				// 没有背景色时，仅使用空格补齐宽度。
 				const visibleLen = visibleWidth(lineWithMargins);
 				const paddingNeeded = Math.max(0, width - visibleLen);
 				contentLines.push(lineWithMargins + " ".repeat(paddingNeeded));
 			}
 		}
 
-		// Add top/bottom padding (empty lines)
+		// 添加顶部和底部内边距（空行）。
 		const emptyLine = " ".repeat(width);
 		const emptyLines: string[] = [];
 		for (let i = 0; i < this.paddingY; i++) {
@@ -103,7 +103,7 @@ export class Text implements Component {
 		const result = [...emptyLines, ...contentLines, ...emptyLines];
 		flattenLines(result);
 
-		// Update cache
+		// 更新缓存。
 		this.cachedText = this.text;
 		this.cachedWidth = width;
 		this.cachedLines = result;

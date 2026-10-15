@@ -26,9 +26,9 @@ export interface SseEvent {
 export interface ConsumeSseOptions {
 	maxEventBytes?: number;
 	onEvent(event: SseEvent): void;
-	/** Called for every `id` field, including events without data (for example resumption priming events). */
+	/** 每次遇到 `id` 字段时调用，包括没有数据的事件（例如用于启动恢复流程的事件）。 */
 	onId?(id: string): void;
-	/** Called for every valid `retry` field, in milliseconds. */
+	/** 每次遇到有效的 `retry` 字段时调用，参数单位为毫秒。 */
 	onRetry?(delayMs: number): void;
 }
 
@@ -39,8 +39,7 @@ export async function consumeSseStream(stream: ReadableStream<Uint8Array>, optio
 	let eventName: string | undefined;
 	let eventId: string | undefined;
 	let dataLines: string[] = [];
-	// Bytes of the pending event's data, including the "\n" joins, so events streamed as many
-	// short `data:` lines without a terminating blank line cannot grow without bound.
+	// 统计待处理事件数据的字节数，包括各行之间的 "\n"，避免没有结束空行且包含大量短 `data:` 行的事件无限增长。
 	let dataBytes = 0;
 	const maxEventBytes = options.maxEventBytes ?? DEFAULT_MAX_MESSAGE_BYTES;
 
@@ -103,11 +102,11 @@ export async function consumeSseStream(stream: ReadableStream<Uint8Array>, optio
 }
 
 export interface StreamableHttpReconnectOptions {
-	/** Delay before the first reconnection attempt, unless the server sent a `retry` field. Default: 1000. */
+	/** 首次尝试重新连接前的等待时间；若服务器发送了 `retry` 字段，则以该字段为准。默认值：1000。 */
 	initialDelayMs?: number;
-	/** Upper bound for the exponential backoff. Default: 30000. */
+	/** 指数退避等待时间的上限。默认值：30000。 */
 	maxDelayMs?: number;
-	/** Consecutive failed attempts before giving up on a stream. Default: 5. */
+	/** 放弃数据流前允许连续失败的次数。默认值：5。 */
 	maxRetries?: number;
 }
 
@@ -115,11 +114,11 @@ export interface StreamableHttpTransportOptions {
 	url: string | URL;
 	headers?: Record<string, string>;
 	fetch?: McpFetch;
-	/** Open the server-to-client GET stream after initialization. Default: true. */
+	/** 初始化后是否打开服务器到客户端的 GET 数据流。默认值：true。 */
 	openGetStream?: boolean;
 	maxMessageBytes?: number;
 	authProvider?: AuthProvider;
-	/** Reconnection of dropped SSE streams (the GET stream, and response streams that carry event IDs). */
+	/** 是否重新连接意外断开的 SSE 数据流（GET 数据流，以及携带事件 ID 的响应数据流）。 */
 	reconnect?: StreamableHttpReconnectOptions;
 }
 
@@ -156,14 +155,14 @@ function contentType(response: Response): string | undefined {
 	return response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
 }
 
-/** 401, or 403 with an `insufficient_scope` bearer challenge (step-up authorization). */
+/** 状态码为 401，或状态码为 403 且 Bearer challenge 为 `insufficient_scope`（需要提升授权范围）。 */
 function needsAuthorization(response: Response): boolean {
 	if (response.status === 401) return true;
 	if (response.status !== 403) return false;
 	return /(?:^|[\s,])error="?insufficient_scope"?/i.test(response.headers.get("www-authenticate") ?? "");
 }
 
-/** Statuses worth retrying when a stream fails to (re)open. */
+/** 数据流无法打开或重新打开时值得重试的状态码。 */
 function isTransientStatus(status: number): boolean {
 	return status === 408 || status === 429 || status >= 500;
 }
@@ -181,7 +180,7 @@ function describeHttpFailure(status: number, body: string): string {
 interface StreamCursor {
 	lastEventId: string | undefined;
 	retryMs: number | undefined;
-	/** Whether the stream delivered any event since it was (re)opened. */
+	/** 数据流打开或重新打开后，是否已传递过事件。 */
 	received: boolean;
 }
 
@@ -195,7 +194,7 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 	private sessionIdValue: string | undefined;
 	private protocolVersion: string | undefined;
 	private getStreamStarted = false;
-	/** Access token of the latest request, which `close()` reuses instead of asking the auth provider. */
+	/** 最近一次请求使用的访问令牌；`close()` 会复用此令牌，而不会再次向身份验证提供程序请求令牌。 */
 	private lastToken: string | undefined;
 
 	constructor(options: StreamableHttpTransportOptions) {
@@ -203,8 +202,8 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 		this.options = Object.freeze({ ...options, headers: options.headers ? { ...options.headers } : undefined });
 		this.url = new URL(options.url);
 		const fetch = options.fetch ?? globalThis.fetch;
-		// Call fetch without a receiver. `this.fetch(...)` and `context.fetch(...)` would pass the transport or
-		// the auth context as `this`, which Cloudflare Workers reject for the platform fetch ("Illegal invocation").
+		// 调用 fetch 时不绑定接收对象。`this.fetch(...)` 和 `context.fetch(...)` 会将传输对象或认证上下文作为 `this`，
+		// Cloudflare Workers 的平台 fetch 会因此拒绝调用（"Illegal invocation"）。
 		this.fetch = (input, init) => fetch(input, init);
 	}
 
@@ -232,9 +231,9 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 		this.captureSession(response);
 
 		if (!isJsonRpcRequest(message)) {
-			// Notifications and responses are acknowledged with 202 and carry no reply; ignore any body.
+			// 通知和响应以 202 确认且不携带回复，因此忽略响应正文。
 			await discard(response);
-			// The server-to-client stream may only open once the session is initialized.
+			// 只有会话初始化完成后，服务器到客户端的数据流才能打开。
 			if ("method" in message && message.method === "notifications/initialized") this.startGetStream();
 			return;
 		}
@@ -260,8 +259,8 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 		this.closed = true;
 		this.controller.abort();
 		if (this.started && this.sessionIdValue) {
-			// Best effort: the session expires on the server anyway. The auth provider may refresh tokens
-			// over the network, so it is not asked here and closing never waits for a refresh.
+			// 尽力关闭即可：会话最终会在服务器端过期。认证提供方可能通过网络刷新令牌，
+			// 因此关闭时不调用它，也不会等待令牌刷新完成。
 			try {
 				const response = await this.fetch(this.url, {
 					method: "DELETE",
@@ -275,8 +274,8 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 	}
 
 	/**
-	 * Fetch with auth headers. A 401 (or a 403 asking for more scope) is handed to the auth provider
-	 * once, and the request is retried with whatever credentials it left behind.
+	 * 添加认证标头后发起 fetch。遇到 401（或要求更多 scope 的 403）时，会将响应交给认证提供方处理一次，
+	 * 然后使用更新后的凭据重试请求。
 	 */
 	private async authorizedFetch(
 		method: "GET" | "POST",
@@ -343,7 +342,7 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 			},
 			onEvent: (event) => {
 				cursor.received = true;
-				// Events without data prime resumption; other event types are not JSON-RPC.
+				// 无数据事件用于初始化恢复机制；其他事件类型不属于 JSON-RPC。
 				if (!event.data.trim() || (event.event !== undefined && event.event !== "message")) return;
 				let message: JsonRpcMessage;
 				try {
@@ -359,9 +358,8 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 	}
 
 	/**
-	 * Read the SSE stream answering one request. When the stream ends or breaks before the response
-	 * arrives and the server assigned event IDs, resume it with GET and `Last-Event-ID`, as the
-	 * server may close response streams at will. Otherwise only this request fails.
+	 * 读取用于响应单个请求的 SSE 数据流。如果响应到达前数据流结束或中断，且服务器分配了事件 ID，
+	 * 则使用 GET 和 `Last-Event-ID` 恢复读取，因为服务器可以随时关闭响应流。否则仅当前请求失败。
 	 */
 	private async consumeResponseStream(body: ReadableStream<Uint8Array>, requestId: JsonRpcId): Promise<void> {
 		const cursor: StreamCursor = { lastEventId: undefined, retryMs: undefined, received: false };
@@ -409,17 +407,17 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 		void this.runGetStream();
 	}
 
-	/** Keep the server-to-client stream open, reconnecting with backoff when it drops. */
+	/** 保持服务器到客户端的数据流开启；连接中断时按退避策略重连。 */
 	private async runGetStream(): Promise<void> {
 		const cursor: StreamCursor = { lastEventId: undefined, retryMs: undefined, received: false };
 		for (let attempt = 0; !this.closed; ) {
 			try {
 				const stream = await this.openSseStream(cursor.lastEventId);
-				// The server does not offer a GET stream.
+				// 服务器不支持 GET 数据流。
 				if (!stream) return;
 				const openedAt = Date.now();
 				await this.consumeSse(stream, cursor);
-				// A stream that stayed up for a while counts as healthy, even if it was idle.
+				// 数据流保持一段时间后即视为健康，即使期间没有活动也一样。
 				if (cursor.received || Date.now() - openedAt > this.maxDelay()) attempt = 0;
 			} catch (error) {
 				if (this.closed) return;
@@ -437,7 +435,7 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 		}
 	}
 
-	/** Open a GET SSE stream. Resolves to undefined when the server answers 405 (no GET stream). */
+	/** 打开 GET SSE 数据流。服务器返回 405（不支持 GET 数据流）时，解析结果为 undefined。 */
 	private async openSseStream(lastEventId: string | undefined): Promise<ReadableStream<Uint8Array> | undefined> {
 		const response = await this.authorizedFetch("GET", {
 			headers: {
@@ -460,8 +458,8 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 	}
 
 	/**
-	 * Network failures and transient statuses are retried; auth, session, and protocol errors are not.
-	 * `fetch` reports network failures, including a connection dropped mid-body, as `TypeError`.
+	 * 网络故障和临时状态码会触发重试；认证、会话和协议错误不会重试。
+	 * `fetch` 会将网络故障（包括响应正文传输中连接断开）报告为 `TypeError`。
 	 */
 	private isRetryable(error: unknown): boolean {
 		if (error instanceof McpHttpError) return isTransientStatus(error.status);
@@ -484,7 +482,7 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 		return this.options.reconnect?.maxRetries ?? DEFAULT_RECONNECT_MAX_RETRIES;
 	}
 
-	/** Resolves false when the transport closed while waiting. */
+	/** 等待期间传输已关闭时，解析结果为 false。 */
 	private sleep(ms: number): Promise<boolean> {
 		const signal = this.controller.signal;
 		if (signal.aborted) return Promise.resolve(false);
@@ -497,7 +495,7 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 				signal.removeEventListener("abort", onAbort);
 				resolve(true);
 			}, ms);
-			// A reconnect wait alone does not keep the process alive.
+			// 仅等待重连不会阻止进程退出。
 			timer.unref?.();
 			signal.addEventListener("abort", onAbort, { once: true });
 		});

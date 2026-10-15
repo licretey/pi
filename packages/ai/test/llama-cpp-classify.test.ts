@@ -11,7 +11,7 @@ import type { ClassifierContext, ClassifierModel, ClassifierOptions } from "../s
 
 let serverCount = 0;
 
-/** A fresh server URL per test: label tokens are cached per server and model. */
+/** 每个测试使用独立的服务器 URL：标签 token 会按服务器和模型分别缓存。 */
 function model(): ClassifierModel<"llama-cpp-classify"> {
 	serverCount++;
 	return {
@@ -34,13 +34,13 @@ interface RecordedRequest {
 }
 
 interface FakeServerOptions {
-	/** Log-probabilities of the next token by token text, in rank order. */
+	/** 按排名顺序记录下一个 token 各候选文本的对数概率。 */
 	next?: (prompt: string, depth: number) => Record<string, number>;
 	template?: (messages: Array<{ role: string; content: string }>) => string;
 	tokenize?: (content: string) => number[];
 }
 
-/** Token IDs: one per character, the character code. */
+/** Token ID 按字符分配，每个 ID 即该字符的码点值。 */
 function charTokens(content: string): number[] {
 	return [...content].map((char) => char.codePointAt(0)!);
 }
@@ -78,7 +78,7 @@ function fakeServer(options: FakeServerOptions = {}) {
 	return { fetch, requests };
 }
 
-/** Completion log-probabilities for bool (Yes/No) and letter labels; the fake tokenizer maps a label to its first character. */
+/** bool（Yes/No）和字母标签的补全对数概率；模拟分词器会将标签映射为首字符。 */
 function answerByPrompt(prompt: string): Record<string, number> {
 	if (prompt.includes("Answer Yes or No.")) return { Y: -0.05, N: -3 };
 	if (prompt.includes("Answer with one level number.")) return { "2": -0.2, "1": -1.8, "0": -4 };
@@ -102,7 +102,7 @@ const context: ClassifierContext = {
 	},
 };
 
-/** Maps multi-character labels to single tokens, as a real vocabulary would. */
+/** 将多个字符的标签映射为单个 token，模拟真实词表的行为。 */
 function wordTokens(content: string): number[] {
 	const words: Record<string, number> = { Yes: 89, No: 78 };
 	const tokens: number[] = [];
@@ -267,7 +267,7 @@ describe("llama.cpp classifier", () => {
 	});
 
 	it("reads labels in reply position and rejects labels that are not one token", async () => {
-		// A tokenizer that merges a newline with a following letter falls back to the label alone.
+		// 如果分词器将换行符与后续字母合并，则回退为仅使用标签。
 		const merging = fakeServer({
 			tokenize: (content) => (content.startsWith("\n") && content.length > 1 ? [1000] : charTokens(content)),
 		});
@@ -278,7 +278,7 @@ describe("llama.cpp classifier", () => {
 		);
 		expect(merged.stopReason).toBe("stop");
 
-		// The default fake tokenizer splits "Yes" into three tokens.
+		// 默认的模拟分词器会将 "Yes" 拆分为三个令牌。
 		const split = fakeServer();
 		const result = await classify(
 			model(),

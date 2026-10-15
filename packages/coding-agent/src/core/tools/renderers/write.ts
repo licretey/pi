@@ -1,9 +1,8 @@
 /**
- * Presentation for the write tool.
+ * write 工具的展示层。
  *
- * Renderers live apart from the implementation so a process that only displays tool output does not
- * load the execution path or its typebox parameter schema. `write.ts` spreads these into its
- * definition, so the tool's public shape is unchanged.
+ * 将渲染器与实现分开，避免只展示工具输出的进程加载执行逻辑及其 typebox 参数模式。
+ * `write.ts` 会将这些渲染器展开到工具定义中，因此工具的公开结构保持不变。
  */
 
 import { Container, Text } from "@earendil-works/pi-tui";

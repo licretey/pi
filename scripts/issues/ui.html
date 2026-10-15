@@ -190,7 +190,7 @@ document.querySelectorAll(".tab").forEach((t) => t.onclick = () => {
 });
 $("sync").onclick = () => post("/api/sync", {});
 
-// Keyboard: j/k select, 0/1/n decide, o open on GitHub.
+// 键盘操作：j/k 选择，0/1/n 做出决定，o 在 GitHub 上打开。
 document.addEventListener("keydown", (e) => {
 	if (!data || e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey) return;
 	const list = flat(), it = list[sel];

@@ -1,19 +1,18 @@
-/** Lines moved per mouse-wheel event, or `"auto"` to accelerate fast wheel spins. */
+/** 每次鼠标滚轮事件移动的行数；设为 `"auto"` 时会加速快速滚动。 */
 export type WheelScrollLines = number | "auto";
 
-// Several events closer than this belong to one physical notch (Ghostty emits them ~4 ms apart)
-// or come from a high-resolution source. They move one line each and do not accelerate.
+// 间隔小于此值的多个事件属于同一个物理滚轮刻度（Ghostty 发出的事件间隔约为 4 毫秒），
+// 或来自高分辨率滚轮；每个事件只移动一行，不进行加速。
 const BURST_GAP_MS = 5;
-// A pause longer than this ends a scroll gesture.
+// 暂停时间超过此值时，视为本次滚动手势结束。
 const GESTURE_GAP_MS = 200;
-// Average event gap that maps to one line per event. Faster events scale up proportionally.
+// 每个事件移动一行所对应的平均事件间隔；事件越快，移动行数按比例增加。
 const REFERENCE_GAP_MS = 100;
 const MAX_AUTO_LINES = 6;
 
 /**
- * Local macOS terminals receive wheel and trackpad deltas that the OS has already accelerated,
- * and they emit one event per line. Other platforms, and SSH sessions where the client platform
- * is unknown, usually send one event per wheel notch.
+ * macOS 本地终端收到的滚轮和触控板增量已由操作系统加速，因此每行会产生一个事件。
+ * 其他平台以及无法确定客户端平台的 SSH 会话，通常每个滚轮刻度只发送一个事件。
  */
 function terminalAcceleratesWheel(): boolean {
 	const env = process.env;
@@ -26,11 +25,11 @@ function terminalAcceleratesWheel(): boolean {
 }
 
 /**
- * Converts wheel events into line counts.
+ * 将滚轮事件转换为移动行数。
  *
- * In `"auto"` mode on terminals that do not accelerate wheel input, the count follows event
- * velocity: an isolated notch moves one line, while a fast spin moves up to six lines per event.
- * For example, notches 100 ms apart move 1 line each, 50 ms apart move 2, and 20 ms apart move 5.
+ * 在不会加速滚轮输入的终端中使用 `"auto"` 模式时，移动行数取决于事件速度：单独一次刻度移动一行，
+ * 快速滚动时每个事件最多移动六行。例如，刻度间隔为 100 毫秒时每次移动一行，间隔为 50 毫秒时移动两行，
+ * 间隔为 20 毫秒时移动五行。
  */
 export class WheelScrollAccelerator {
 	private lines: WheelScrollLines;
@@ -50,7 +49,7 @@ export class WheelScrollAccelerator {
 		this.reset();
 	}
 
-	/** Return the positive line count for a wheel event in `direction` at time `now` (milliseconds). */
+	/** 返回 `now`（毫秒）时 `direction` 方向的滚轮事件对应的正数行数。 */
 	next(direction: -1 | 1, now: number): number {
 		if (this.lines !== "auto") return Number.isFinite(this.lines) ? Math.max(1, Math.floor(this.lines)) : 1;
 		if (!this.accelerate) return 1;

@@ -1,15 +1,15 @@
 /**
- * Subagent Tool - Delegate tasks to specialized agents
+ * 子智能体工具：将任务委托给专用智能体。
  *
- * Spawns a separate `pi` process for each subagent invocation,
- * giving it an isolated context window.
+ * 每次调用子智能体时都会启动独立的 `pi` 进程，
+ * 并为其提供隔离的上下文窗口。
  *
- * Supports three modes:
+ * 支持三种模式：
  *   - Single: { agent: "name", task: "..." }
  *   - Parallel: { tasks: [{ agent: "name", task: "..." }, ...] }
  *   - Chain: { chain: [{ agent: "name", task: "... {previous} ..." }, ...] }
  *
- * Uses JSON mode to capture structured output from subagents.
+ * 使用 JSON 模式获取子智能体的结构化输出。
  */
 
 import { spawn } from "node:child_process";
@@ -555,10 +555,10 @@ export default function (pi: ExtensionAPI) {
 					const step = params.chain[i];
 					const taskWithContext = step.task.replace(/\{previous\}/g, previousOutput);
 
-					// Create update callback that includes all previous results
+					// 创建更新回调，并纳入此前的所有结果。
 					const chainUpdate: OnUpdateCallback | undefined = onUpdate
 						? (partial) => {
-								// Combine completed results with current streaming result
+								// 将已完成的结果与当前流式结果合并。
 								const currentResult = partial.details?.results[0];
 								if (currentResult) {
 									const allResults = [...results, currentResult];
@@ -613,10 +613,10 @@ export default function (pi: ExtensionAPI) {
 						details: makeDetails("parallel")([]),
 					};
 
-				// Track all results for streaming updates
+				// 跟踪所有结果，以便持续更新流式输出。
 				const allResults: SingleResult[] = new Array(params.tasks.length);
 
-				// Initialize placeholder results
+				// 初始化占位结果。
 				for (let i = 0; i < params.tasks.length; i++) {
 					allResults[i] = {
 						agent: params.tasks[i].agent,
@@ -652,7 +652,7 @@ export default function (pi: ExtensionAPI) {
 						t.cwd,
 						undefined,
 						signal,
-						// Per-task update callback
+						// 每个任务的更新回调。
 						(partial) => {
 							if (partial.details?.results[0]) {
 								allResults[index] = partial.details.results[0];
@@ -729,7 +729,7 @@ export default function (pi: ExtensionAPI) {
 					theme.fg("muted", ` [${scope}]`);
 				for (let i = 0; i < Math.min(args.chain.length, 3); i++) {
 					const step = args.chain[i];
-					// Clean up {previous} placeholder for display
+					// 清理用于显示的 {previous} 占位符。
 					const cleanTask = step.task.replace(/\{previous\}/g, "").trim();
 					const preview = cleanTask.length > 40 ? `${cleanTask.slice(0, 40)}...` : cleanTask;
 					text +=
@@ -892,7 +892,7 @@ export default function (pi: ExtensionAPI) {
 						);
 						container.addChild(new Text(theme.fg("muted", "Task: ") + theme.fg("dim", r.task), 0, 0));
 
-						// Show tool calls
+						// 显示工具调用。
 						for (const item of displayItems) {
 							if (item.type === "toolCall") {
 								container.addChild(
@@ -905,7 +905,7 @@ export default function (pi: ExtensionAPI) {
 							}
 						}
 
-						// Show final output as markdown
+						// 以 Markdown 格式显示最终输出。
 						if (finalOutput) {
 							container.addChild(new Spacer(1));
 							container.addChild(new Markdown(finalOutput.trim(), 0, 0, mdTheme));
@@ -923,7 +923,7 @@ export default function (pi: ExtensionAPI) {
 					return container;
 				}
 
-				// Collapsed view
+				// 折叠视图。
 				let text =
 					icon +
 					" " +
@@ -977,7 +977,7 @@ export default function (pi: ExtensionAPI) {
 						);
 						container.addChild(new Text(theme.fg("muted", "Task: ") + theme.fg("dim", r.task), 0, 0));
 
-						// Show tool calls
+						// 显示工具调用。
 						for (const item of displayItems) {
 							if (item.type === "toolCall") {
 								container.addChild(
@@ -990,7 +990,7 @@ export default function (pi: ExtensionAPI) {
 							}
 						}
 
-						// Show final output as markdown
+						// 以 Markdown 格式显示最终输出。
 						if (finalOutput) {
 							container.addChild(new Spacer(1));
 							container.addChild(new Markdown(finalOutput.trim(), 0, 0, mdTheme));
@@ -1008,7 +1008,7 @@ export default function (pi: ExtensionAPI) {
 					return container;
 				}
 
-				// Collapsed view (or still running)
+				// 折叠视图（或任务仍在运行时）。
 				let text = `${icon} ${theme.fg("toolTitle", theme.bold("parallel "))}${theme.fg("accent", status)}`;
 				for (const r of details.results) {
 					const rIcon =

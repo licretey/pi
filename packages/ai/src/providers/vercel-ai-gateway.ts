@@ -12,7 +12,7 @@ export function vercelAIGatewayProvider(): Provider<"anthropic-messages"> {
 		auth: { apiKey: envApiKeyAuth("Vercel AI Gateway API key", ["AI_GATEWAY_API_KEY"]) },
 		models: [...Object.values(VERCEL_AI_GATEWAY_MODELS), ...Object.values(VERCEL_AI_GATEWAY_CLASSIFIER_MODELS)],
 		api: anthropicMessagesApi(),
-		// AI Gateway serves TypeSafe's System One protocol at /typesafe/v1/systemone.
+		// AI Gateway 在 /typesafe/v1/systemone 提供 TypeSafe 的 System One 协议。
 		classifiers: { "typesafe-system-one": typesafeSystemOneApi() },
 	});
 }

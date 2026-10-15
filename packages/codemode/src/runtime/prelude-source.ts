@@ -1,41 +1,40 @@
 /**
- * JavaScript evaluated inside the QuickJS VM before the script runs.
+ * 在脚本运行之前、于 QuickJS VM 内求值的 JavaScript。
  *
- * The VM is its own wasm instance, so nothing here guards a realm boundary.
- * The prelude keeps the host bridge in a closure so the script cannot call it
- * directly, and builds `tools`, `ALL_TOOLS`, the output helpers (`text`, `image`,
- * `exit`, `console`), and globals on top of it. Tool arguments and results cross
- * as JSON strings and are parsed on this side.
+ * 该 VM 是独立的 wasm 实例，因此这里的一切都不需要守护 realm 边界。
+ * prelude 将 host bridge 封装在闭包里，让脚本无法直接调用它，并以此为基础
+ * 构建 `tools`、`ALL_TOOLS`、输出辅助函数（`text`、`image`、
+ * `exit`、`console`）和 globals。工具参数与结果以 JSON 字符串的形式跨越
+ * 边界，并在这一侧解析。
  *
- * Output helpers: `text(value)` appends a text item (non-strings are
- * JSON-stringified), `image(urlOrItem)` appends an image from a base64 `data:` URL, an
- * `{ image_url }` object, or an MCP `ImageContent` block, and `exit()` ends the script
- * successfully. `console.*` appends text items marked as console output.
+ * 输出辅助函数：`text(value)` 追加一个文本项（非字符串会做
+ * JSON 序列化），`image(urlOrItem)` 从 base64 `data:` URL、
+ * `{ image_url }` 对象或 MCP `ImageContent` block 追加一张图片，`exit()` 成功结束
+ * 脚本。`console.*` 追加标记为 console 输出的文本项。
  *
- * `store(key, value)` and `load(key)` are synchronous: they work on a snapshot of
- * JSON text passed in as `storeJson`, and the keys the script wrote are reported
- * with a successful "done".
+ * `store(key, value)` 与 `load(key)` 是同步的：它们作用于以 `storeJson` 传入的
+ * JSON 文本快照，脚本写入的键会随一次成功的 "done" 一并上报。
  *
- * Evaluates to a function `(bridge, toolsJson, globalsJson, storeJson) => { settle, run, stalled }`.
- * `toolsJson` lists `{ name, jsName, description }`: `tools[jsName]` and `tools[name]` call the
- * tool, and `ALL_TOOLS` lists `{ name: jsName, description }`.
- * `stalled()` reports a script that has not finished while no host call is pending: with no timers
- * or I/O in the VM, nothing can ever resume it.
- * `globalsJson` lists `{ name, spread }`; `a.b` names are grouped into a frozen `a` object.
- * `bridge(kind, a, b, c)` with kind "call" or "global" (id, name, argsJson),
- * "output" ("text" or "console", text) or ("image", data, mimeType), or "done" (ok, valueJsonOrErrorJson, writesJson).
+ * 求值结果是一个函数 `(bridge, toolsJson, globalsJson, storeJson) => { settle, run, stalled }`。
+ * `toolsJson` 列出 `{ name, jsName, description }`：`tools[jsName]` 与 `tools[name]` 调用
+ * 工具，`ALL_TOOLS` 列出 `{ name: jsName, description }`。
+ * `stalled()` 上报一个未结束且没有 host 调用挂起的脚本：VM 内没有 timer 或 I/O，
+ * 什么都不可能再唤醒它。
+ * `globalsJson` 列出 `{ name, spread }`；`a.b` 形式的名称会被归组到一个冻结的 `a` 对象中。
+ * `bridge(kind, a, b, c)` 的 kind 为 "call" 或 "global"（id, name, argsJson），
+ * "output"（"text" 或 "console"，text）或（"image"，data，mimeType），或 "done"（ok，valueJsonOrErrorJson，writesJson）。
  *
- * Before anything else the prelude freezes the built-ins and makes the built-in globals read-only.
- * The prelude shares them with the script, so a script that patched one (for example
- * `Array.prototype.toJSON`) could otherwise corrupt what the prelude reports to the host.
+ * 在其他一切之前，prelude 会冻结 built-in 并把内置 globals 变为只读。
+ * prelude 与脚本共享它们，否则修补了某个内置对象的脚本（例如
+ * `Array.prototype.toJSON`）可能破坏 prelude 上报给 host 的内容。
  */
 export const MAX_STORE_VALUE_CHARS = 256 * 1024;
 export const MAX_STORE_TOTAL_CHARS = 1024 * 1024;
 /**
- * Output one script may produce with `text()`, `image()`, and `console.*`: characters of text and
- * base64 image data, and items. The host keeps all output until the script ends, so without a
- * limit a script that prints in a loop grows the host's memory until it crashes. The item limit
- * covers loops that print empty strings.
+ * 一个脚本通过 `text()`、`image()` 和 `console.*` 能产生的输出上限：文本与 base64
+ * 图片数据的字符数，以及条目数。host 会保留全部输出直到脚本结束，因此若不加
+ * 限制，循环打印的脚本会把 host 内存撑到崩溃。条目数上限
+ * 覆盖了打印空字符串的循环。
  */
 export const MAX_OUTPUT_CHARS = 16 * 1024 * 1024;
 export const MAX_OUTPUT_ITEMS = 100_000;
@@ -46,13 +45,12 @@ const IMAGE_HELPER_EXPECTS =
 export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson, storeJson) {
 	"use strict";
 
-	// Freeze every object reachable from the built-in globals, plus the intrinsics that are only
-	// reachable from instances (iterator and generator prototypes, %TypedArray%).
+	// 冻结从内置 globals 可达的每个对象，外加只能从实例
+	// 可达的 intrinsic（iterator 与 generator 原型、%TypedArray%）。
 	//
-	// Freezing alone breaks ordinary code through the "override mistake": a data property that is
-	// read-only on a prototype cannot be assigned on an instance either, so
-	// this.name = "MyError" in an Error subclass would throw. Commonly overridden properties
-	// become accessors whose setter defines an own property on the instance instead.
+	// 只靠冻结会通过 "override mistake" 破坏普通代码：原型上一个只读的数据属性在
+	// 实例上同样不可赋值，因此 Error 子类中的 this.name = "MyError" 会抛错。常见的
+	// 被覆盖属性会改用 accessor——其 setter 在实例上定义自有属性。
 	(function lockdown() {
 		const OVERRIDABLE = new Set(["constructor", "name", "message", "toString", "toLocaleString", "valueOf", "toJSON"]);
 		const seen = new Set([globalThis]);
@@ -66,8 +64,8 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 			}
 		};
 
-		// Accessors from an object literal have no own prototype object, unlike function expressions,
-		// whose prototype.constructor would be converted again without end.
+		// 对象字面量的 accessor 没有自己的 prototype 对象，函数表达式则不然——
+		// 否则后者的 prototype.constructor 会被无休止地再次转换。
 		function allowOverride(object, key, value, enumerable) {
 			const { get, set } = Object.getOwnPropertyDescriptor(
 				{
@@ -144,7 +142,7 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 	const pending = new Map();
 	let nextId = 1;
 	let finished = false;
-	// Thrown by exit() to unwind the script after it already reported success.
+	// 由 exit() 抛出，用于在脚本已报告成功之后展开（unwind）脚本。
 	const EXIT = Object.freeze({});
 
 	function done(ok, payload, writes) {
@@ -157,8 +155,8 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 		return value === undefined ? undefined : stringify(value);
 	}
 
-	// QuickJS stacks list frames only. Prefix "Name: message" like V8 so the
-	// text reads the same as a Node error, and drop this prelude's frames.
+	// QuickJS 的栈只列出帧。像 V8 一样加上 "Name: message" 前缀，让
+	// 文本读起来与 Node 错误一致，并丢掉 prelude 自己的帧。
 	function errorText(error) {
 		const head = error.message ? error.name + ": " + error.message : String(error.name);
 		const frames =
@@ -179,8 +177,8 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 		}
 	}
 
-	// The host requires string fields. A script can set an error's name or message to anything, so
-	// they are coerced, and a value whose coercion throws gets a placeholder.
+	// host 需要字符串字段。脚本可以把错误的 name 或 message 设为任何值，因此这里
+	// 做了强制转换；转换时抛错的值会得到占位符。
 	function describeError(error) {
 		try {
 			if (error instanceof ErrorCtor) {
@@ -212,7 +210,7 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 	const allTools = [];
 	for (const { name, jsName, description } of parse(toolsJson)) {
 		const fn = caller("call", name);
-		// The first tool wins when two names normalize to the same identifier.
+		// 两个名称规范化为同一标识符时，先出现的工具胜出。
 		if (!(jsName in tools)) {
 			tools[jsName] = fn;
 			allTools.push(Object.freeze({ name: jsName, description }));
@@ -222,8 +220,8 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 	Object.freeze(tools);
 	Object.freeze(allTools);
 
-	// Reading a member that does not exist throws an error that names the close matches, instead of
-	// a later "not a function". \`in\` checks still work.
+	// 读取不存在的成员时，抛出的错误会列出相近项，而不是稍后
+	// 的 "not a function"。\`in\` 检查仍然可用。
 	const comparable = (name) => name.toLowerCase().replace(/[^a-z0-9]/g, "");
 	function guard(target, label, names, hint) {
 		return new Proxy(target, {
@@ -268,7 +266,7 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 		Object.defineProperty(globalThis, namespace, { value, enumerable: true });
 	}
 
-	// key -> JSON text. Sizes count key and JSON characters.
+	// key -> JSON 文本。大小统计 key 与 JSON 字符数。
 	const stored = new Map(Object.entries(parse(storeJson)));
 	const writes = new Map();
 	let storedChars = 0;
@@ -335,8 +333,8 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 	let outputChars = 0;
 	let outputItems = 0;
 
-	// Past the output limits the script fails: done() reports the error, so catching it does not
-	// resume output, and the host ends the script.
+	// 超出输出上限后脚本失败：done() 会报告错误，因此捕获它也无法
+	// 恢复输出，host 会结束脚本。
 	function output(kind, data, mimeType) {
 		if (finished) return;
 		outputChars += data.length;
@@ -352,7 +350,7 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 		bridge("output", kind, data, mimeType);
 	}
 
-	// Primitives become their string form, everything else JSON.
+	// 基本类型转为其字符串形式，其余转 JSON。
 	function outputText(value) {
 		if (value === undefined || value === null || typeof value !== "object" && typeof value !== "function") {
 			return String(value);
@@ -389,8 +387,8 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 		return "data:;base64," + value.data;
 	}
 
-	// Base64 of the signatures of the formats providers accept inline (PNG, JPEG except
-	// JPEG-LS, GIF, "RIFF....WEBP"). Signatures start at byte 0, so their encodings are prefixes.
+	// 提供商支持内联的图片格式的签名 base64（PNG、JPEG（除
+	// JPEG-LS 外）、GIF、"RIFF....WEBP"）。签名从字节 0 开始，因此它们的编码是前缀。
 	const IMAGE_SIGNATURES = [
 		["image/png", /^iVBORw0KGg/],
 		["image/jpeg", /^[/]9j[/](?!9)/],
@@ -411,9 +409,9 @@ export const PRELUDE_SOURCE: string = `(function (bridge, toolsJson, globalsJson
 		if (scheme !== "data" || comma === -1 || header.slice(1).every((part) => part.toLowerCase() !== "base64")) {
 			throw new TypeErrorCtor("invalid image output. Pass a base64 data URI instead");
 		}
-		// Providers reject the whole request on a bad image, and a persisted image block would be
-		// resent on every later turn. Line breaks from wrapped base64 are dropped. The declared type
-		// is ignored in favor of the detected one, as providers also reject mismatches.
+		// 遇到坏图片时提供商会拒绝整个请求，而持久化的 image block 会在之后的每一轮
+		// 重复发送。从换行包装的 base64 中删掉换行符。声明的类型被忽略，
+		// 以检测出的类型为准——提供商同样拒绝不匹配的情况。
 		const data = url.slice(comma + 1).replace(/\\s+/g, "");
 		if (data.length % 4 !== 0 || !/^[A-Za-z0-9+/]+={0,2}$/.test(data)) {
 			throw new TypeErrorCtor("invalid image output. The image data is not valid base64 (truncated or corrupted?)");

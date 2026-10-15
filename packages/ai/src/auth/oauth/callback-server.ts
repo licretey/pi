@@ -1,8 +1,7 @@
 /**
- * Loopback OAuth redirect handler shared by the browser sign-in flows.
+ * 浏览器登录流程共用的 loopback OAuth 重定向处理器。
  *
- * NOTE: This module uses node:http. It is only reachable through the lazily
- * loaded OAuth flow modules, never from browser-facing entry points.
+ * 注意：此模块使用 node:http。它只会通过延迟加载的 OAuth 流程模块访问，不会从面向浏览器的入口加载。
  */
 
 import { createServer, type ServerResponse } from "node:http";
@@ -10,20 +9,20 @@ import { oauthErrorHtml, oauthSuccessHtml } from "../../utils/oauth-page.ts";
 import type { ProviderAuthInteraction } from "../types.ts";
 
 export interface OAuthCallbackServerOptions<T> {
-	/** Provider name used on the browser page, for example `OpenAI`. */
+	/** 在浏览器页面中显示的提供商名称，例如 `OpenAI`。 */
 	providerName: string;
-	/** Address to listen on. */
+	/** 要监听的地址。 */
 	host: string;
-	/** Port to listen on; `0` picks a free port. */
+	/** 监听端口；设为 `0` 时由系统分配可用端口。 */
 	port: number;
 	path: string;
-	/** Host in `redirectUri` when it differs from `host`, for example `localhost`. */
+	/** 当 `redirectUri` 中的主机名与 `host` 不同时使用，例如 `localhost`。 */
 	redirectHost?: string;
-	/** Expected `state` parameter. Omit when the provider does not send one. */
+	/** 预期的 `state` 参数；提供商不会发送该参数时省略。 */
 	state?: string;
 	/**
-	 * Finishes the sign-in with the received code before the browser page is sent, so the page can
-	 * show exchange failures. Pass `async (code) => code` to exchange the code later.
+	 * 在发送浏览器页面前，使用收到的 code 完成登录，使页面能够显示兑换失败信息。
+	 * 如果要延后兑换 code，请传入 `async (code) => code`。
 	 */
 	complete: (code: string) => Promise<T>;
 	signal?: AbortSignal;
@@ -33,11 +32,11 @@ export interface OAuthCallbackServerOptions<T> {
 export interface OAuthCallbackServer<T> {
 	redirectUri: string;
 	/**
-	 * Resolves with the result of `complete`, or `undefined` after `cancel()`. Rejects when the provider
-	 * redirects with an error, `complete` fails, the signal aborts, or the timeout elapses.
+	 * 成功时返回 `complete` 的结果；调用 `cancel()` 后返回 `undefined`。提供商重定向包含错误、`complete` 失败、
+	 * signal 中止或等待超时都会导致 Promise 拒绝。
 	 */
 	wait(): Promise<T | undefined>;
-	/** Stop waiting for the browser unless a callback is already being completed. */
+	/** 停止等待浏览器回调，但已开始处理的回调会继续完成。 */
 	cancel(): void;
 	close(): void;
 }
@@ -59,7 +58,7 @@ export async function startOAuthCallbackServer<T>(
 		resolveWait = resolve;
 		rejectWait = reject;
 	});
-	// A cancelled or closed wait may never be observed.
+	// 已取消或已关闭的等待操作可能永远不会被观察到。
 	waitPromise.catch(() => undefined);
 
 	let claimed = false;
@@ -148,9 +147,8 @@ export async function startOAuthCallbackServer<T>(
 }
 
 /**
- * Wait for the browser callback, or for the user to paste the code or redirect URL when the browser
- * cannot reach the loopback server (for example over SSH). Without a callback server only the manual
- * prompt is used.
+ * 等待浏览器回调；如果浏览器无法访问 loopback 服务器（例如通过 SSH 远程使用），则等待用户粘贴 code 或重定向 URL。
+ * 不使用回调服务器时，只支持手动输入。
  */
 export async function waitForCallbackOrManualInput<T>(
 	interaction: ProviderAuthInteraction,

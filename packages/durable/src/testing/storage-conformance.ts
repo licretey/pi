@@ -91,7 +91,7 @@ function createCase(options: StorageConformanceOptions, name: string, test: Conf
 	return { name, run: () => options.withStorage(test) };
 }
 
-/** Creates runner-independent cases. `withStorage` must call and await its callback exactly once per case. */
+/** 创建与运行器无关的用例。`withStorage` 必须对每个用例恰好调用并 await 其回调一次。 */
 export function createStorageConformance(options: StorageConformanceOptions): readonly StorageConformanceCase[] {
 	const expect = assertionFacade(options.assertions);
 	return [
@@ -434,7 +434,7 @@ export function createStorageConformance(options: StorageConformanceOptions): re
 			expect(third.items.map(({ id }) => id)).toEqual([rootFirst]);
 			expect(third.next).toBeUndefined();
 
-			// Oldest first: the root's segment, then each fork's, each capped at the next fork point.
+			// 最旧优先：先根会话的段，再依次是每个分叉的段，各以下一个分叉点为上界。
 			const ascending = { conversationId: grandchildId, order: "ascending" } as const;
 			const firstUp = await storage.scanEntries(ascending, 2, undefined, context);
 			expect(firstUp.items.map(({ id }) => id)).toEqual([rootFirst, rootForkPoint]);
@@ -561,7 +561,7 @@ export function createStorageConformance(options: StorageConformanceOptions): re
 				let page = await scan(order, undefined);
 				found.push(...page.items.map(({ id }) => id));
 				while (page.next !== undefined) {
-					// A cursor carries its order; the query may omit it.
+					// 游标自带排序方向；查询可以省略它。
 					page = await scan(undefined, JSON.parse(JSON.stringify(page.next)) as Cursor);
 					found.push(...page.items.map(({ id }) => id));
 				}
@@ -728,7 +728,7 @@ export function createStorageConformance(options: StorageConformanceOptions): re
 				};
 				expect(await ids({})).toEqual([firstId, secondId, otherConversationId]);
 				expect(await ids({ conversationId: rootId })).toEqual([firstId, secondId]);
-				// A status change moves the record between status scans.
+				// 状态变更会把记录在状态扫描之间移动。
 				expect(await ids({ status: "queued" })).toEqual([firstId, otherConversationId]);
 				expect(await ids({ status: "placed" })).toEqual([secondId]);
 				expect(await ids({ conversationId: secondConversationId, status: "queued" })).toEqual([
@@ -1179,7 +1179,7 @@ export function createStorageConformance(options: StorageConformanceOptions): re
 				} catch (error) {
 					conflictError = error;
 				}
-				// Rejected without effect: the copy and the retirement in the same batch are both absent.
+				// 原样拒绝且无副作用：同一批次中的复制与退役都不生效。
 				expect(conflictError instanceof Error).toBe(true);
 				expect(await storage.document(conflictId, "current", context)).toBeUndefined();
 				expect((await storage.document(currentCopyId, "current", context))?.value).toEqual({

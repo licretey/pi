@@ -1,7 +1,7 @@
 /**
- * Full Control
+ * 完全自定义
  *
- * Replace everything - no discovery, explicit configuration.
+ * 完全接管配置：不自动发现资源，所有配置均显式提供。
  */
 
 import { getModel } from "@earendil-works/pi-ai/compat";
@@ -25,7 +25,7 @@ if (process.env.MY_ANTHROPIC_KEY) {
 const model = getModel("anthropic", "claude-sonnet-4-5");
 if (!model) throw new Error("Model not found");
 
-// In-memory settings with overrides
+// 使用带覆盖项的内存设置
 const settingsManager = SettingsManager.inMemory({
 	compaction: { enabled: false },
 	retry: { enabled: true, maxRetries: 2 },

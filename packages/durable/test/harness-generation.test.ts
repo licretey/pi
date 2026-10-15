@@ -47,7 +47,7 @@ async function runTask(harness: Harness, conversation: Conversation): Promise<Ta
 	return taskId!;
 }
 
-/** `models` with `streamSimple` replaced. */
+/** 将 `streamSimple` 替换后的 `models`。 */
 function withStream(models: Models, streamSimple: Models["streamSimple"]): Models {
 	return new Proxy(models, {
 		get(target, property) {
@@ -59,8 +59,7 @@ function withStream(models: Models, streamSimple: Models["streamSimple"]): Model
 }
 
 /**
- * A stream that commits one partial and then ends with a final message that is not strict JSON, so the classification
- * commit throws and the scheduler faults the task.
+ * 一个流先提交一段部分内容，最后以不符合严格 JSON 格式的消息结束，因此分类提交会抛出异常，调度器会将任务标记为故障。
  */
 function invalidFinalStream(): ReturnType<Models["streamSimple"]> {
 	const events = async function* () {
@@ -107,7 +106,7 @@ describe("generation", () => {
 		expect(await live(harness, root)).toEqual({});
 		const task = (await harness.commit((tx) => tx.scanTasks({ conversationId: root.id }, 10), context)).items[0];
 		expect(task?.kind).toBe("pi.generation");
-		// Entries written by the generation are attributed to it; the admitted user entry is not task work.
+		// generation 写入的条目归属于该 generation；已接纳的用户条目不属于任务工作。
 		expect(entries.map((entry) => entry.byTaskId)).toEqual([undefined, task!.id, task!.id]);
 		expect(task?.state).toEqual({
 			status: "terminal",
@@ -133,7 +132,7 @@ describe("generation", () => {
 				write.type === "document.change" && write.id === record!.id ? [write.content.kind] : [],
 			),
 		);
-		// Streaming writes deltas; the commit that settles the answer clears generation and writes a base.
+		// 流式输出期间写入增量；提交最终回答时会清除 generation 并写入完整基准。
 		expect(contents).toContain("delta");
 		expect(contents.at(-1)).toBe("base");
 		await harness.close(context);
@@ -153,7 +152,7 @@ describe("generation", () => {
 		const taskId = await runTask(harness, root);
 		await harness.abortTask(taskId, context);
 		expect((await harness.waitForTask(taskId, context)).state.outcome).toEqual({ status: "aborted" });
-		// The earlier settlement stays; the run's own settlement leaves it unchanged.
+		// 较早的结算记录会保留；本次运行的结算不会改变它。
 		expect(await submission.status(context)).toMatchObject({ status: "unanswered", reason: "withdrawn" });
 		expect(await live(harness, root)).toEqual({});
 		await harness.close(context);
@@ -246,7 +245,7 @@ describe("generation", () => {
 		harness.resume();
 		expect((await (await root.submit({ type: "input", content: "hi" }, context)).wait(context)).status).toBe("done");
 		expect(setup.reports).toContainEqual(new Error("wrapper failed"));
-		// The failed section is absent, so nothing was rendered.
+		// 失败的区段不存在，因此不会渲染任何内容。
 		expect((await allEntries(root)).map((entry) => entry.kind)).toEqual(["pi.user", "pi.assistant"]);
 		await harness.close(context);
 	});
@@ -367,7 +366,7 @@ describe("generation", () => {
 		await root.configure({ thinkingLevel: "high" }, context);
 		harness.resume();
 		await (await root.submit({ type: "input", content: "one" }, context)).wait(context);
-		// Both are read at the next preparation: the thinking level from pi.agent, the stream options live from settings.
+		// 两者都会在下一次准备时读取：思考级别来自 pi.agent，流式选项则实时从设置中读取。
 		await root.configure({ thinkingLevel: null }, context);
 		setup.settings.stream = { timeoutMs: 99 };
 		await (await root.submit({ type: "input", content: "two" }, context)).wait(context);
@@ -385,7 +384,7 @@ describe("generation", () => {
 		await harness.close(context);
 	});
 
-	// Regression coverage for #10424.
+	// #10424 的回归测试。
 	it("keeps provider session IDs request-local across concurrent conversations", async () => {
 		const setup = chatSetup();
 		const seen = new Map<string, string[]>();
@@ -428,7 +427,7 @@ describe("generation", () => {
 		await harness.close(context);
 	});
 
-	// Regression coverage for #10424.
+	// #10424 的回归测试。
 	it("creates and persists provider state before a legacy conversation's request", async () => {
 		const setup = chatSetup();
 		let sent: string | undefined;
@@ -456,7 +455,7 @@ describe("generation", () => {
 		setup.faux.setResponses([
 			(_context, options) => {
 				seen.push(options?.timeoutMs);
-				// The user changes the setting while the first attempt runs.
+				// 用户在首次尝试运行期间更改设置。
 				timeoutMs = 222;
 				return ERROR_503;
 			},
@@ -479,7 +478,7 @@ describe("generation", () => {
 		const root = await harness.root(context, { agent: { model: { provider: "faux", modelId: "faux-1" } } });
 		harness.resume();
 		expect((await (await root.submit({ type: "input", content: "hi" }, context)).wait(context)).status).toBe("done");
-		// The retry prepares again, so it resolves the settings again and sends the new timeout.
+		// 重试会重新执行准备流程，因此会再次解析设置并发送新的超时时间。
 		expect(seen).toEqual([111, 222]);
 		await harness.close(context);
 	});
@@ -509,7 +508,7 @@ describe("generation", () => {
 		const shortStream = (): ReturnType<Models["streamSimple"]> => {
 			const events = async function* () {
 				yield { type: "start", partial: fauxAssistantMessage("partial", { stopReason: "pending" }) };
-				// Longer than the default 100 ms, shorter than the configured interval.
+				// 长于默认的 100 毫秒，但短于配置的间隔。
 				await new Promise((resolve) => setTimeout(resolve, 300));
 			};
 			const final = fauxAssistantMessage("final");
@@ -590,7 +589,7 @@ describe("generation", () => {
 		const deferredStream = (): ReturnType<Models["streamSimple"]> => {
 			const events = async function* () {
 				yield { type: "start", partial: fauxAssistantMessage([], { stopReason: "pending" }) };
-				// Longer than the partial throttle: an empty partial would be committed here.
+				// 等待时间长于部分响应的限流间隔；空的部分响应原本会在此处提交。
 				await new Promise((resolve) => setTimeout(resolve, 300));
 			};
 			const final = fauxAssistantMessage([], { stopReason: "deferred", deferred: handle });
@@ -636,7 +635,7 @@ describe("generation", () => {
 	it("orphans a blocked run task with full run cleanup", async () => {
 		const setup = chatSetup();
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
-		// A run whose task was stored by a newer generation definition this process cannot run.
+		// 当前进程无法运行由更新版本 generation 定义存储的任务。
 		const { taskId, submissionId } = await (harness as unknown as SessionImpl).commitWith(async (tx) => {
 			const entry = await tx.appendEntry(UserEntry, root.id, {
 				model: [{ role: "user", content: "hi", timestamp: 1 }],

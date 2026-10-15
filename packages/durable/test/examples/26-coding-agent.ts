@@ -1,6 +1,6 @@
-// A small coding agent: the built-in coding tools, a prompt that knows the working directory, settings backed by the
-// app's settings file, and an environment that follows the conversation's directory.
-// Run from packages/durable:
+// 一个简易编码智能体：使用内置编码工具、能够读取工作目录的提示词、由应用设置文件提供的配置，
+// 以及随会话目录变化的执行环境。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/26-coding-agent.ts
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,7 +25,7 @@ const context = BACKGROUND_CONTEXT;
 const workspace = await mkdtemp(join(tmpdir(), "pi-durable-agent-"));
 await mkdir(join(workspace, "app"));
 
-// The app's own prompt, next to the coding tools.
+// 在编码工具旁边定义应用自己的提示词。
 const Coding = defineExtension({
 	name: "coding",
 	sections: [
@@ -37,8 +37,8 @@ const registry = createRegistry();
 registry.install(CodingTools);
 registry.install(Coding);
 
-// Settings the user edits while the agent runs, like a settings.json the app watches. The getters make every
-// Harness read see the current file; nothing is copied or stored.
+// 用户可在智能体运行期间更改这些设置，例如由应用监视的 settings.json。getter 可确保 Harness 每次读取时
+// 都看到文件中的最新值；设置不会被复制或存储。
 const userSettings = { parallelTools: true, maxRetries: 3 };
 const settings: HarnessSettings = {
 	get toolExecution() {
@@ -49,8 +49,7 @@ const settings: HarnessSettings = {
 	},
 };
 
-// The Harness calls this for every tool call and request with the conversation's `cwd`, so changing a conversation's
-// directory needs no restart.
+// Harness 会在每次工具调用和请求时，使用会话的 `cwd` 调用此函数，因此更改会话目录无需重启。
 const env = ({ cwd = workspace }: { readonly cwd?: string }) => new NodeExecutionEnv({ cwd });
 
 const faux = fauxProvider();
@@ -71,7 +70,7 @@ const lastBashOutput = async () => {
 await (await root.submit({ type: "input", content: "Where are we?" }, context)).wait(context);
 console.log("bash ran in:", await lastBashOutput());
 
-// The user switches the project directory and turns off parallel tools. Both apply from the next use.
+// 用户切换项目目录并关闭并行工具；两项更改都会从下一次调用开始生效。
 await root.configure({ cwd: join(workspace, "app") }, context);
 userSettings.parallelTools = false;
 await (await root.submit({ type: "input", content: "And now?" }, context)).wait(context);

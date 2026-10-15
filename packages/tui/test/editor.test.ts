@@ -12,12 +12,12 @@ import { stripTerminalSequences, visibleWidth } from "../src/utils.ts";
 import { defaultEditorTheme } from "./test-themes.ts";
 import { VirtualTerminal } from "./virtual-terminal.ts";
 
-/** Create a TUI with a virtual terminal for testing */
+/** 创建使用虚拟终端的 TUI 以供测试。 */
 function createTestTUI(cols = 80, rows = 24): TUI {
 	return new TuiMainScreen(new VirtualTerminal(cols, rows));
 }
 
-/** Standard applyCompletion that replaces prefix with item.value */
+/** 标准 applyCompletion 实现：将前缀替换为 item.value。 */
 function applyCompletion(
 	lines: string[],
 	cursorLine: number,
@@ -47,7 +47,7 @@ describe("Editor component", () => {
 		it("does nothing on Up arrow when history is empty", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			editor.handleInput("\x1b[A"); // Up arrow
+			editor.handleInput("\x1b[A"); // 按向上键。
 
 			assert.strictEqual(editor.getText(), "");
 		});
@@ -58,7 +58,7 @@ describe("Editor component", () => {
 			editor.addToHistory("first prompt");
 			editor.addToHistory("second prompt");
 
-			editor.handleInput("\x1b[A"); // Up arrow
+			editor.handleInput("\x1b[A"); // 按向上键。
 
 			assert.strictEqual(editor.getText(), "second prompt");
 		});
@@ -70,16 +70,16 @@ describe("Editor component", () => {
 			editor.addToHistory("second");
 			editor.addToHistory("third");
 
-			editor.handleInput("\x1b[A"); // Up - shows "third"
+			editor.handleInput("\x1b[A"); // 按向上键显示 "third"。
 			assert.strictEqual(editor.getText(), "third");
 
-			editor.handleInput("\x1b[A"); // Up - shows "second"
+			editor.handleInput("\x1b[A"); // 按向上键显示 "second"。
 			assert.strictEqual(editor.getText(), "second");
 
-			editor.handleInput("\x1b[A"); // Up - shows "first"
+			editor.handleInput("\x1b[A"); // 按向上键显示 "first"。
 			assert.strictEqual(editor.getText(), "first");
 
-			editor.handleInput("\x1b[A"); // Up - stays at "first" (oldest)
+			editor.handleInput("\x1b[A"); // 按向上键后仍停留在 "first"（最早的记录）。
 			assert.strictEqual(editor.getText(), "first");
 		});
 
@@ -91,14 +91,14 @@ describe("Editor component", () => {
 			editor.handleInput("\x1b[D");
 			editor.handleInput("\x1b[D");
 
-			editor.handleInput("\x1b[A"); // Up - jumps to start before history browsing
+			editor.handleInput("\x1b[A"); // 浏览历史记录前，按向上键先将光标移至行首。
 			assert.strictEqual(editor.getText(), "draft");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			editor.handleInput("\x1b[A"); // Up at start - shows "prompt"
+			editor.handleInput("\x1b[A"); // 光标位于行首时按向上键，显示 "prompt"。
 			assert.strictEqual(editor.getText(), "prompt");
 
-			editor.handleInput("\x1b[B"); // Down - restores draft
+			editor.handleInput("\x1b[B"); // 按向下键恢复草稿。
 			assert.strictEqual(editor.getText(), "draft");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 		});
@@ -111,20 +111,20 @@ describe("Editor component", () => {
 			editor.addToHistory("third");
 			editor.setText("draft");
 
-			// Go to oldest
-			editor.handleInput("\x1b[A"); // start of draft
-			editor.handleInput("\x1b[A"); // third
-			editor.handleInput("\x1b[A"); // second
-			editor.handleInput("\x1b[A"); // first
+			// 移至最早的历史记录。
+			editor.handleInput("\x1b[A"); // 草稿行首。
+			editor.handleInput("\x1b[A"); // 第三条历史记录。
+			editor.handleInput("\x1b[A"); // 第二条历史记录。
+			editor.handleInput("\x1b[A"); // 第一条历史记录。
 
-			// Navigate back
-			editor.handleInput("\x1b[B"); // second
+			// 向较新的记录导航。
+			editor.handleInput("\x1b[B"); // 第二条历史记录。
 			assert.strictEqual(editor.getText(), "second");
 
-			editor.handleInput("\x1b[B"); // third
+			editor.handleInput("\x1b[B"); // 第三条记录。
 			assert.strictEqual(editor.getText(), "third");
 
-			editor.handleInput("\x1b[B"); // draft
+			editor.handleInput("\x1b[B"); // 草稿。
 			assert.strictEqual(editor.getText(), "draft");
 		});
 
@@ -133,8 +133,8 @@ describe("Editor component", () => {
 
 			editor.addToHistory("old prompt");
 
-			editor.handleInput("\x1b[A"); // Up - shows "old prompt"
-			editor.handleInput("x"); // Type a character - exits history mode
+			editor.handleInput("\x1b[A"); // 按向上键显示 "old prompt"。
+			editor.handleInput("x"); // 输入字符后退出历史记录浏览模式。
 
 			assert.strictEqual(editor.getText(), "xold prompt");
 		});
@@ -145,10 +145,10 @@ describe("Editor component", () => {
 			editor.addToHistory("first");
 			editor.addToHistory("second");
 
-			editor.handleInput("\x1b[A"); // Up - shows "second"
-			editor.setText(""); // External clear
+			editor.handleInput("\x1b[A"); // 按向上键显示 "second"。
+			editor.setText(""); // 外部清空文本。
 
-			// Up should start fresh from most recent
+			// 按向上键应从最近一条记录重新开始浏览。
 			editor.handleInput("\x1b[A");
 			assert.strictEqual(editor.getText(), "second");
 		});
@@ -163,7 +163,7 @@ describe("Editor component", () => {
 			editor.handleInput("\x1b[A");
 			assert.strictEqual(editor.getText(), "valid");
 
-			// Should not have more entries
+			// 不应再有其他记录。
 			editor.handleInput("\x1b[A");
 			assert.strictEqual(editor.getText(), "valid");
 		});
@@ -175,10 +175,10 @@ describe("Editor component", () => {
 			editor.addToHistory("same");
 			editor.addToHistory("same");
 
-			editor.handleInput("\x1b[A"); // "same"
+			editor.handleInput("\x1b[A"); // 显示“same”。
 			assert.strictEqual(editor.getText(), "same");
 
-			editor.handleInput("\x1b[A"); // stays at "same" (only one entry)
+			editor.handleInput("\x1b[A"); // 只有一条记录，因此仍停留在“same”。
 			assert.strictEqual(editor.getText(), "same");
 		});
 
@@ -187,15 +187,15 @@ describe("Editor component", () => {
 
 			editor.addToHistory("first");
 			editor.addToHistory("second");
-			editor.addToHistory("first"); // Not consecutive, should be added
+			editor.addToHistory("first"); // 两次操作不连续，因此应加入历史记录。
 
-			editor.handleInput("\x1b[A"); // "first"
+			editor.handleInput("\x1b[A"); // 第一条历史记录。
 			assert.strictEqual(editor.getText(), "first");
 
-			editor.handleInput("\x1b[A"); // "second"
+			editor.handleInput("\x1b[A"); // “second”记录。
 			assert.strictEqual(editor.getText(), "second");
 
-			editor.handleInput("\x1b[A"); // "first" (older one)
+			editor.handleInput("\x1b[A"); // 较早的那条“first”记录。
 			assert.strictEqual(editor.getText(), "first");
 		});
 
@@ -205,33 +205,33 @@ describe("Editor component", () => {
 			editor.addToHistory("history item");
 			editor.setText("line1\nline2");
 
-			// Cursor is at end of line2, Up should move to line1
-			editor.handleInput("\x1b[A"); // Up - cursor movement
+			// 光标位于第二行末尾，按向上键应移至第一行。
+			editor.handleInput("\x1b[A"); // 按向上键移动光标。
 
-			// Insert character to verify cursor position
+			// 插入字符以验证光标位置。
 			editor.handleInput("X");
 
-			// X should be inserted in line1, not replace with history
+			// X 应插入第一行，而不是用历史记录替换当前文本。
 			assert.strictEqual(editor.getText(), "line1X\nline2");
 		});
 
 		it("limits history to 100 entries", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Add 105 entries
+			// 添加 105 条记录。
 			for (let i = 0; i < 105; i++) {
 				editor.addToHistory(`prompt ${i}`);
 			}
 
-			// Navigate to oldest
+			// 导航到最早的记录。
 			for (let i = 0; i < 100; i++) {
 				editor.handleInput("\x1b[A");
 			}
 
-			// Should be at entry 5 (oldest kept), not entry 0
+			// 应停在第 5 条记录（保留记录中的最早一条），而不是第 0 条。
 			assert.strictEqual(editor.getText(), "prompt 5");
 
-			// One more Up should not change anything
+			// 再按一次向上键也不应发生变化。
 			editor.handleInput("\x1b[A");
 			assert.strictEqual(editor.getText(), "prompt 5");
 		});
@@ -242,11 +242,11 @@ describe("Editor component", () => {
 			editor.addToHistory("older entry");
 			editor.addToHistory("line1\nline2\nline3");
 
-			editor.handleInput("\x1b[A"); // Up - shows multi-line entry at start
+			editor.handleInput("\x1b[A"); // 按向上键显示位于行首的多行记录。
 			assert.strictEqual(editor.getText(), "line1\nline2\nline3");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			editor.handleInput("\x1b[A"); // Up again - immediately navigates to older entry
+			editor.handleInput("\x1b[A"); // 再按一次向上键，立即导航到更早的历史记录。
 			assert.strictEqual(editor.getText(), "older entry");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 		});
@@ -258,15 +258,15 @@ describe("Editor component", () => {
 			editor.addToHistory("line1\nline2\nline3");
 			editor.addToHistory("newer entry");
 
-			editor.handleInput("\x1b[A"); // newer entry
-			editor.handleInput("\x1b[A"); // multi-line entry
-			editor.handleInput("\x1b[A"); // older entry
+			editor.handleInput("\x1b[A"); // 较新的记录。
+			editor.handleInput("\x1b[A"); // 多行记录。
+			editor.handleInput("\x1b[A"); // 较早的记录。
 
-			editor.handleInput("\x1b[B"); // Down - shows multi-line entry at end
+			editor.handleInput("\x1b[B"); // 按向下键显示位于行尾的多行记录。
 			assert.strictEqual(editor.getText(), "line1\nline2\nline3");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 5 });
 
-			editor.handleInput("\x1b[B"); // Down again - immediately navigates to newer entry
+			editor.handleInput("\x1b[B"); // 再按一次向下键，立即导航到更新的历史记录。
 			assert.strictEqual(editor.getText(), "newer entry");
 		});
 
@@ -275,14 +275,14 @@ describe("Editor component", () => {
 
 			editor.addToHistory("line1\nline2\nline3");
 
-			editor.handleInput("\x1b[A"); // Up - shows entry at start
+			editor.handleInput("\x1b[A"); // 按向上键显示位于行首的记录。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			editor.handleInput("\x1b[B"); // Down - cursor moves to line2
+			editor.handleInput("\x1b[B"); // 按向下键将光标移至第 2 行。
 			assert.strictEqual(editor.getText(), "line1\nline2\nline3");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 0 });
 
-			editor.handleInput("\x1b[A"); // Up - cursor moves back to line1
+			editor.handleInput("\x1b[A"); // 按向上键将光标移回第 1 行。
 			assert.strictEqual(editor.getText(), "line1\nline2\nline3");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 		});
@@ -300,7 +300,7 @@ describe("Editor component", () => {
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 });
 
-			editor.handleInput("\x1b[D"); // Left
+			editor.handleInput("\x1b[D"); // 左方向键。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 2 });
 		});
 
@@ -322,7 +322,7 @@ describe("Editor component", () => {
 
 			editor.handleInput("\\");
 
-			// Backslash should be visible immediately, not buffered
+			// 反斜杠应立即显示，不应被缓冲。
 			assert.strictEqual(editor.getText(), "\\");
 		});
 
@@ -356,7 +356,7 @@ describe("Editor component", () => {
 			editor.handleInput("x");
 			editor.handleInput("\r");
 
-			// Should submit, not insert newline (backslash not at cursor)
+			// 应提交内容，而不是插入换行符（反斜杠不在光标前）。
 			assert.strictEqual(submitted, true);
 		});
 
@@ -369,7 +369,7 @@ describe("Editor component", () => {
 			assert.strictEqual(editor.getText(), "\\\\\\");
 
 			editor.handleInput("\r");
-			// Only the last backslash is removed, newline inserted
+			// 只删除最后一个反斜杠，并插入换行符。
 			assert.strictEqual(editor.getText(), "\\\\\n");
 		});
 	});
@@ -427,8 +427,8 @@ describe("Editor component", () => {
 			editor.handleInput("ö");
 			editor.handleInput("ü");
 
-			// Delete the last character (ü)
-			editor.handleInput("\x7f"); // Backspace
+			// 删除最后一个字符（ü）。
+			editor.handleInput("\x7f"); // 退格键。
 
 			const text = editor.getText();
 			assert.strictEqual(text, "äö");
@@ -440,8 +440,8 @@ describe("Editor component", () => {
 			editor.handleInput("😀");
 			editor.handleInput("👍");
 
-			// Delete the last emoji (👍) - single backspace deletes whole grapheme cluster
-			editor.handleInput("\x7f"); // Backspace
+			// 删除最后一个表情符号（👍）；按一次退格键会删除整个字素簇。
+			editor.handleInput("\x7f"); // 退格键。
 
 			const text = editor.getText();
 			assert.strictEqual(text, "😀");
@@ -454,11 +454,11 @@ describe("Editor component", () => {
 			editor.handleInput("ö");
 			editor.handleInput("ü");
 
-			// Move cursor left twice
-			editor.handleInput("\x1b[D"); // Left arrow
-			editor.handleInput("\x1b[D"); // Left arrow
+			// 将光标向左移动两次。
+			editor.handleInput("\x1b[D"); // 左方向键。
+			editor.handleInput("\x1b[D"); // 左方向键。
 
-			// Insert 'x' in the middle
+			// 在中间插入 'x'。
 			editor.handleInput("x");
 
 			const text = editor.getText();
@@ -472,13 +472,13 @@ describe("Editor component", () => {
 			editor.handleInput("👍");
 			editor.handleInput("🎉");
 
-			// Move cursor left over last emoji (🎉) - single arrow moves over whole grapheme
-			editor.handleInput("\x1b[D"); // Left arrow
+			// 将光标向左移过最后一个表情符号（🎉）；按一次方向键会跨过整个字素簇。
+			editor.handleInput("\x1b[D"); // 左方向键。
 
-			// Move cursor left over second emoji (👍)
+			// 将光标向左移过第二个表情符号（👍）。
 			editor.handleInput("\x1b[D");
 
-			// Insert 'x' between first and second emoji
+			// 在第一个和第二个表情符号之间插入 'x'。
 			editor.handleInput("x");
 
 			const text = editor.getText();
@@ -491,7 +491,7 @@ describe("Editor component", () => {
 			editor.handleInput("ä");
 			editor.handleInput("ö");
 			editor.handleInput("ü");
-			editor.handleInput("\n"); // new line
+			editor.handleInput("\n"); // 换行。
 			editor.handleInput("Ä");
 			editor.handleInput("Ö");
 			editor.handleInput("Ü");
@@ -503,7 +503,7 @@ describe("Editor component", () => {
 		it("replaces the entire document with unicode text via setText (paste simulation)", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Simulate bracketed paste / programmatic replacement
+			// 模拟带括号粘贴或通过程序替换文本。
 			editor.setText("Hällö Wörld! 😀 äöüÄÖÜß");
 
 			const text = editor.getText();
@@ -515,8 +515,8 @@ describe("Editor component", () => {
 
 			editor.handleInput("a");
 			editor.handleInput("b");
-			editor.handleInput("\x01"); // Ctrl+A (move to start)
-			editor.handleInput("x"); // Insert at start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			editor.handleInput("x"); // 在行首插入字符。
 
 			const text = editor.getText();
 			assert.strictEqual(text, "xab");
@@ -525,22 +525,22 @@ describe("Editor component", () => {
 		it("deletes words correctly with Ctrl+W and Alt+Backspace", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Basic word deletion
+			// 基本的按词删除。
 			editor.setText("foo bar baz");
 			editor.handleInput("\x17"); // Ctrl+W
 			assert.strictEqual(editor.getText(), "foo bar ");
 
-			// Trailing whitespace
+			// 删除末尾空白。
 			editor.setText("foo bar   ");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "foo ");
 
-			// Punctuation run
+			// 删除连续标点。
 			editor.setText("foo bar...");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "foo bar");
 
-			// ASCII punctuation inside Intl word-like segments preserves old boundaries
+			// Intl 的类词语分段中包含 ASCII 标点时，仍保留原有边界。
 			editor.setText("foo.bar");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "foo.");
@@ -549,26 +549,26 @@ describe("Editor component", () => {
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "foo:");
 
-			// Delete across multiple lines
+			// 跨多行删除。
 			editor.setText("line one\nline two");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "line one\nline ");
 
-			// Delete empty line (merge)
+			// 删除空行并合并相邻内容。
 			editor.setText("line one\n");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "line one");
 
-			// Grapheme safety (emoji as a word)
+			// 保证字素簇完整性（将表情符号视为一个词）。
 			editor.setText("foo 😀😀 bar");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "foo 😀😀 ");
 			editor.handleInput("\x17");
 			assert.strictEqual(editor.getText(), "foo ");
 
-			// Alt+Backspace
+			// Alt+Backspace。
 			editor.setText("foo bar");
-			editor.handleInput("\x1b\x7f"); // Alt+Backspace (legacy)
+			editor.handleInput("\x1b\x7f"); // Alt+退格键（旧版按键序列）。
 			assert.strictEqual(editor.getText(), "foo ");
 		});
 
@@ -576,39 +576,39 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("foo bar... baz");
-			// Cursor at end
+			// 光标位于末尾。
 
-			// Move left over baz
+			// 向左移过 baz。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 11 }); // after '...'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 11 }); // 位于“...”之后。
 
-			// Move left over punctuation
+			// 向左移过标点。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // after 'bar'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // 位于“bar”之后。
 
-			// Move left over bar
+			// 向左移过 bar。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 4 }); // after 'foo '
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 4 }); // 位于“foo ”之后。
 
-			// Move right over bar
+			// 向右移过 bar。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // at end of 'bar'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // 位于“bar”末尾。
 
-			// Move right over punctuation run
+			// 向右移过连续标点。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 }); // after '...'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 }); // 位于“...”之后。
 
-			// Move right skips space and lands after baz
+			// 向右移动时跳过空格并停在 baz 之后。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 14 }); // end of line
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 14 }); // 位于行尾。
 
-			// Test forward from start with leading whitespace
+			// 验证从带前导空白的文本开头向后移动。
 			editor.setText("   foo bar");
-			editor.handleInput("\x01"); // Ctrl+A to go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 }); // after 'foo'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 }); // 位于“foo”之后。
 
-			// ASCII punctuation inside Intl word-like segments preserves old boundaries
+			// Intl 的类词语分段中包含 ASCII 标点时，仍保留原有边界。
 			editor.setText("foo.bar baz");
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left over baz
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 });
@@ -631,31 +631,31 @@ describe("Editor component", () => {
 
 			// 你好，世界 = 你好(0-2) ，(2-3) 世界(3-5)
 			editor.setText("你好，世界");
-			// Cursor at end (col 5)
+			// 光标位于末尾（第 5 列）。
 
-			// Move left over 世界
+			// 向左移过“世界”。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 }); // after ，
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 }); // 位于“，”之后。
 
-			// Move left over ，
+			// 向左移过“，”。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 2 }); // after 你好
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 2 }); // 位于“你好”之后。
 
-			// Move left over 你好
+			// 向左移过“你好”。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 }); // start
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 }); // 位于行首。
 
-			// Move right over 你好
+			// 向右移过“你好”。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 2 }); // after 你好
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 2 }); // 位于“你好”之后。
 
-			// Move right over ，
+			// 向右移过“，”。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 }); // after ，
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 }); // 位于“，”之后。
 
-			// Move right over 世界
+			// 向右移过“世界”。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // end
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // 位于行尾。
 		});
 
 		it("handles mixed CJK and ASCII word movement", () => {
@@ -663,40 +663,40 @@ describe("Editor component", () => {
 
 			// "hello你好，world世界" = hello(0-5) 你好(5-7) ，(7-8) world(8-13) 世界(13-15)
 			editor.setText("hello你好，world世界");
-			// Cursor at end (col 15)
+			// 光标位于末尾（第 15 列）。
 
-			// Move left over 世界
+			// 向左移过“世界”。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 13 }); // after 'world'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 13 }); // 位于“world”之后。
 
-			// Move left over world
+			// 向左移过 world。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 }); // after ，
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 }); // 位于“，”之后。
 
-			// Move left over ，
+			// 向左移过“，”。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // after 你好
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // 位于“你好”之后。
 
-			// Move left over 你好
+			// 向左移过“你好”。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // after 'hello'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // 位于“hello”之后。
 
-			// Move left over hello
+			// 向左移过 hello。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 }); // start
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 }); // 位于行首。
 
-			// Forward from start
+			// 从开头向后移动。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // after 'hello'
-
-			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // after 你好
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // 位于“hello”之后。
 
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 }); // after ，
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // 位于“你好”之后。
 
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 13 }); // after 'world'
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 }); // 位于“，”之后。
+
+			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 13 }); // 位于“world”之后。
 
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 15 }); // end
@@ -723,7 +723,7 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(width), { ...defaultEditorTheme, borderColor });
 			editor.setText(Array.from({ length: 20 }, (_, index) => `line ${index}`).join("\n"));
 
-			// Render once to initialize wrapping, then move the cursor so content remains above and below the viewport.
+			// 先渲染一次以初始化换行，再移动光标，使视口上方和下方都保留内容。
 			editor.render(width);
 			for (let index = 0; index < 10; index++) editor.handleInput("\x1b[A");
 
@@ -746,11 +746,11 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 			const width = 20;
 
-			// ✅ is 2 columns wide, so "Hello ✅ World" is 14 columns
+			// ✅ 占 2 列，因此 "Hello ✅ World" 共占 14 列。
 			editor.setText("Hello ✅ World");
 			const lines = editor.render(width);
 
-			// All content lines (between borders) should fit within width
+			// 所有内容行（边框之间的行）都应适配指定宽度。
 			for (let i = 1; i < lines.length - 1; i++) {
 				const lineWidth = visibleWidth(lines[i]!);
 				assert.strictEqual(lineWidth, width, `Line ${i} has width ${lineWidth}, expected ${width}`);
@@ -761,13 +761,13 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 			const width = 10;
 
-			// Each ✅ is 2 columns. "✅✅✅✅✅" = 10 columns, fits exactly
-			// "✅✅✅✅✅✅" = 12 columns, needs wrap
+			// 每个 ✅ 占 2 列。"✅✅✅✅✅" 共 10 列，恰好放满。
+			// "✅✅✅✅✅✅" 共 12 列，需要换行。
 			editor.setText("✅✅✅✅✅✅");
 			const lines = editor.render(width);
 
-			// Should have 2 content lines (plus 2 border lines)
-			// First line: 5 emojis (10 cols), second line: 1 emoji (2 cols) + padding
+			// 应有 2 行内容（另加上下 2 行边框）。
+			// 第一行包含 5 个表情符号（10 列），第二行包含 1 个表情符号（2 列）及填充空格。
 			for (let i = 1; i < lines.length - 1; i++) {
 				const lineWidth = visibleWidth(lines[i]!);
 				assert.strictEqual(lineWidth, width, `Line ${i} has width ${lineWidth}, expected ${width}`);
@@ -788,9 +788,9 @@ describe("Editor component", () => {
 
 		it("wraps CJK characters correctly (each is 2 columns wide)", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
-			const width = 10 + 1; // +1 col reserved for cursor
+			const width = 10 + 1; // 额外预留 1 列用于显示光标。
 
-			// Each CJK char is 2 columns. "日本語テスト" = 6 chars = 12 columns
+			// 每个中日韩字符占 2 列。"日本語テスト" 共 6 个字符，占 12 列。
 			editor.setText("日本語テスト");
 			const lines = editor.render(width);
 
@@ -799,22 +799,22 @@ describe("Editor component", () => {
 				assert.strictEqual(lineWidth, width, `Line ${i} has width ${lineWidth}, expected ${width}`);
 			}
 
-			// Verify content split correctly
+			// 验证内容已正确拆分。
 			const contentLines = lines.slice(1, -1).map((l) => stripTerminalSequences(l).trim());
 			assert.strictEqual(contentLines.length, 2);
-			assert.strictEqual(contentLines[0], "日本語テス"); // 5 chars = 10 columns
+			assert.strictEqual(contentLines[0], "日本語テス"); // 5 个字符占 10 列。
 			assert.strictEqual(contentLines[1], "ト"); // 1 char = 2 columns (+ padding)
 		});
 
 		it("handles mixed ASCII and wide characters in wrapping", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
-			const width = 15 + 1; // +1 col reserved for cursor
+			const width = 15 + 1; // 额外预留 1 列用于显示光标。
 
-			// "Test ✅ OK 日本" = 4 + 1 + 2 + 1 + 2 + 1 + 4 = 15 columns (fits in width-1=15)
+			// "Test ✅ OK 日本" 占 4 + 1 + 2 + 1 + 2 + 1 + 4 = 15 列（恰好适配 width-1=15）。
 			editor.setText("Test ✅ OK 日本");
 			const lines = editor.render(width);
 
-			// Should fit in one content line
+			// 应能放在同一行内容中。
 			const contentLines = lines.slice(1, -1);
 			assert.strictEqual(contentLines.length, 1);
 
@@ -827,14 +827,14 @@ describe("Editor component", () => {
 			const width = 20;
 
 			editor.setText("A✅B");
-			// Cursor should be at end (after B)
+			// 光标应位于末尾（B 之后）。
 			const lines = editor.render(width);
 
-			// The cursor (reverse video space) should be visible
+			// 光标（反显空格）应可见。
 			const contentLine = lines[1]!;
 			assert.ok(contentLine.includes(FAKE_CURSOR_START), "Should have fake cursor");
 
-			// Line should still be correct width
+			// 行宽仍应正确。
 			assert.strictEqual(visibleWidth(contentLine), width);
 		});
 
@@ -842,8 +842,8 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 			const width = 11;
 
-			// "0123456789✅" = 10 ASCII + 2-wide emoji = 12 columns
-			// Should wrap before the emoji since it would exceed width
+			// "0123456789✅" 包含 10 个 ASCII 字符和一个占 2 列的表情符号，共 12 列。
+			// 因为超出宽度，表情符号前应换行。
 			editor.setText("0123456789✅");
 			const lines = editor.render(width);
 
@@ -858,14 +858,14 @@ describe("Editor component", () => {
 			for (const paddingX of [0, 1]) {
 				const editor = new Editor(createTestTUI(width + paddingX), defaultEditorTheme, { paddingX });
 
-				// Type 9 chars → fills layoutWidth exactly, cursor at end on same line
+				// 输入 9 个字符，恰好占满 layoutWidth，光标位于同一行末尾。
 				for (const ch of "aaaaaaaaa") editor.handleInput(ch);
 				let lines = editor.render(width + paddingX);
 				let contentLines = lines.slice(1, -1);
 				assert.strictEqual(contentLines.length, 1, "Should be 1 content line before wrap");
 				assert.ok(contentLines[0]!.endsWith(renderFakeCursor(" ")), "Cursor should be at end of line");
 
-				// Type 1 more → text wraps to second line
+				// 再输入 1 个字符，文本应换到第二行。
 				editor.handleInput("a");
 				lines = editor.render(width + paddingX);
 				contentLines = lines.slice(1, -1);
@@ -882,16 +882,16 @@ describe("Editor component", () => {
 			editor.setText("Hello world this is a test of word wrapping functionality");
 			const lines = editor.render(width);
 
-			// Get content lines (between borders)
+			// 获取内容行（边框之间的行）。
 			const contentLines = lines.slice(1, -1).map((l) => stripTerminalSequences(l).trim());
 
-			// Should NOT break mid-word
-			// Line 1 should end with a complete word
+			// 不应在词语中间断行。
+			// 第一行应以完整词语结尾。
 			assert.ok(!contentLines[0]!.endsWith("-"), "Line should not end with hyphen (mid-word break)");
 
-			// Each content line should be complete words
+			// 每行内容都应由完整词语组成。
 			for (const line of contentLines) {
-				// Words at end of line should be complete (no partial words)
+				// 行尾的词语应完整，不能只显示部分内容。
 				const lastChar = line.trimEnd().slice(-1);
 				assert.ok(lastChar === "" || /[\w.,!?;:]/.test(lastChar), `Line ends unexpectedly with: "${lastChar}"`);
 			}
@@ -904,14 +904,14 @@ describe("Editor component", () => {
 			editor.setText("Word1 Word2 Word3 Word4 Word5 Word6");
 			const lines = editor.render(width);
 
-			// Get content lines (between borders)
+			// 获取内容行（边框之间的行）。
 			const contentLines = lines.slice(1, -1);
 
-			// No line should start with whitespace (except for padding at the end)
+			// 行首不应有空白（行尾的填充空格除外）。
 			for (let i = 0; i < contentLines.length; i++) {
 				const line = stripVTControlCharacters(contentLines[i]!);
 				const trimmedStart = line.trimStart();
-				// The line should either be all padding or start with a word character
+				// 每行要么全是填充空格，要么以词语字符开头。
 				if (trimmedStart.length > 0) {
 					assert.ok(!/^\s+\S/.test(line.trimEnd()), `Line ${i} starts with unexpected whitespace before content`);
 				}
@@ -925,7 +925,7 @@ describe("Editor component", () => {
 			editor.setText("Check https://example.com/very/long/path/that/exceeds/width here");
 			const lines = editor.render(width);
 
-			// All lines should fit within width
+			// 所有行都应适配指定宽度。
 			for (let i = 1; i < lines.length - 1; i++) {
 				const lineWidth = visibleWidth(lines[i]!);
 				assert.strictEqual(lineWidth, width, `Line ${i} has width ${lineWidth}, expected ${width}`);
@@ -940,7 +940,7 @@ describe("Editor component", () => {
 			const lines = editor.render(width);
 
 			const contentLine = stripVTControlCharacters(lines[1]!).trim();
-			// Multiple spaces should be preserved
+			// 多个连续空格应予保留。
 			assert.ok(contentLine.includes("Word1   Word2"), "Multiple spaces should be preserved");
 		});
 
@@ -951,26 +951,26 @@ describe("Editor component", () => {
 			editor.setText("");
 			const lines = editor.render(width);
 
-			// Should have border + empty content + border
+			// 应包含边框、空内容行和另一条边框。
 			assert.strictEqual(lines.length, 3);
 		});
 
 		it("handles single word that fits exactly", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
-			const width = 10 + 1; // +1 col reserved for cursor
+			const width = 10 + 1; // 额外预留 1 列用于显示光标。
 
 			editor.setText("1234567890");
 			const lines = editor.render(width);
 
-			// Should have exactly 3 lines (top border, content, bottom border)
+			// 应恰好有 3 行：顶部边框、内容行和底部边框。
 			assert.strictEqual(lines.length, 3);
 			const contentLine = stripVTControlCharacters(lines[1]!);
 			assert.ok(contentLine.includes("1234567890"), "Content should contain the word");
 		});
 
 		it("wraps word to next line when it ends exactly at terminal width", () => {
-			// "hello " (6) + "world" (5) = 11, but "world" is non-whitespace ending at width.
-			// Thus, wrap it to next line. The trailing space stays with "hello" on line 1
+			// "hello "（6 个字符）+ "world"（5 个字符）= 11；但 "world" 末尾不是空白，正好到达宽度边界。
+			// 因此应将其换到下一行。末尾空格保留在第一行的 "hello" 后面。
 			const chunks = wordWrapLine("hello world test", 11);
 
 			assert.strictEqual(chunks.length, 2);
@@ -979,8 +979,8 @@ describe("Editor component", () => {
 		});
 
 		it("keeps whitespace at terminal width boundary on same line", () => {
-			// "hello world " is exactly 12 chars (including trailing space)
-			// The space at position 12 should stay on the first line
+			// "hello world " 恰好有 12 个字符（包括末尾空格）。
+			// 第 12 个位置的空格应保留在第一行。
 			const chunks = wordWrapLine("hello world test", 12);
 
 			assert.strictEqual(chunks.length, 2);
@@ -1057,9 +1057,9 @@ describe("Editor component", () => {
 		});
 
 		it("force-breaks when wide char after word boundary wrap still overflows", () => {
-			// " " (1) + "a"*186 (186) + "你" (2) = 189 visible width
-			// maxWidth = 187: backtracking to the space would leave 186 + 2 = 188 > 187,
-			// so the algorithm must force-break before the wide char instead.
+			// " "（1 列）+ "a"*186（186 列）+ "你"（2 列）= 189 列可见宽度。
+			// maxWidth = 187：回退到空格处会剩下 186 + 2 = 188 列，超过 187，
+			// 因此算法必须改为在宽字符之前强制换行。
 			const line = ` ${"a".repeat(186)}你`;
 			const chunks = wordWrapLine(line, 187);
 
@@ -1069,14 +1069,14 @@ describe("Editor component", () => {
 					`chunk "${chunk.text.slice(0, 20)}..." has visible width ${visibleWidth(chunk.text)}, expected <= 187`,
 				);
 			}
-			// Verify no content is lost
+			// 验证内容没有丢失。
 			const reconstructed = chunks.map((c) => line.slice(c.startIndex, c.endIndex)).join("");
 			assert.strictEqual(reconstructed, line);
 		});
 
 		it("splits oversized atomic segment across multiple chunks", () => {
-			// Simulate a paste marker wider than maxWidth by passing pre-segmented data
-			const marker = "[paste #1 +20 lines]"; // 21 chars
+			// 通过传入预分段数据，模拟宽度超过 maxWidth 的粘贴标记。
+			const marker = "[paste #1 +20 lines]"; // 共 21 个字符。
 			const line = `A${marker}B`;
 			const segments: Intl.SegmentData[] = [
 				{ segment: "A", index: 0, input: line },
@@ -1086,7 +1086,7 @@ describe("Editor component", () => {
 
 			const chunks = wordWrapLine(line, 10, segments);
 
-			// Every chunk must fit within maxWidth
+			// 每个分块都必须适配 maxWidth。
 			for (const chunk of chunks) {
 				assert.ok(
 					visibleWidth(chunk.text) <= 10,
@@ -1094,7 +1094,7 @@ describe("Editor component", () => {
 				);
 			}
 
-			// Verify no content is lost
+			// 验证内容没有丢失。
 			const reconstructed = chunks.map((c) => line.slice(c.startIndex, c.endIndex)).join("");
 			assert.strictEqual(reconstructed, line);
 		});
@@ -1112,7 +1112,7 @@ describe("Editor component", () => {
 			for (const chunk of chunks) {
 				assert.ok(visibleWidth(chunk.text) <= 10);
 			}
-			// "B" ends up on the last line (either alone or with the marker tail)
+			// "B" 会落在最后一行（可能单独显示，也可能与标记尾部一起显示）。
 			assert.strictEqual(chunks[chunks.length - 1]!.text.includes("B"), true);
 
 			const reconstructed = chunks.map((c) => line.slice(c.startIndex, c.endIndex)).join("");
@@ -1139,8 +1139,8 @@ describe("Editor component", () => {
 		});
 
 		it("splits consecutive oversized atomic segments", () => {
-			const m1 = "[paste #1 +20 lines]"; // 21 chars
-			const m2 = "[paste #2 +30 lines]"; // 21 chars
+			const m1 = "[paste #1 +20 lines]"; // 共 21 个字符。
+			const m2 = "[paste #2 +30 lines]"; // 共 21 个字符。
 			const line = `${m1}${m2}`;
 			const segments: Intl.SegmentData[] = [
 				{ segment: m1, index: 0, input: line },
@@ -1181,7 +1181,7 @@ describe("Editor component", () => {
 
 			const chunks = wordWrapLine(line, 10, segments);
 
-			// All chunks must fit
+			// 所有分块都必须适配指定宽度。
 			for (const chunk of chunks) {
 				assert.ok(
 					visibleWidth(chunk.text) <= 10,
@@ -1189,7 +1189,7 @@ describe("Editor component", () => {
 				);
 			}
 
-			// Last chunk should contain "world" (normal wrapping resumes)
+			// 最后一个分块应包含 "world"（之后恢复正常换行）。
 			assert.strictEqual(chunks[chunks.length - 1]!.text, "world");
 
 			const reconstructed = chunks.map((c) => line.slice(c.startIndex, c.endIndex)).join("");
@@ -1202,10 +1202,10 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("foo bar baz");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "baz"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "baz"。
 			assert.strictEqual(editor.getText(), "foo bar ");
 
-			// Move to beginning and yank
+			// 移至开头并粘贴剪切环内容。
 			editor.handleInput("\x01"); // Ctrl+A
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "bazfoo bar ");
@@ -1215,16 +1215,16 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			// Move cursor to middle
-			editor.handleInput("\x01"); // Ctrl+A (start)
-			editor.handleInput("\x1b[C"); // Right 5 times
+			// 将光标移至中间。
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			editor.handleInput("\x1b[C"); // 向右移动 5 次。
 			editor.handleInput("\x1b[C");
 			editor.handleInput("\x1b[C");
 			editor.handleInput("\x1b[C");
 			editor.handleInput("\x1b[C");
-			editor.handleInput("\x1b[C"); // After "hello "
+			editor.handleInput("\x1b[C"); // 再向右移动一列。
 
-			editor.handleInput("\x15"); // Ctrl+U - deletes "hello "
+			editor.handleInput("\x15"); // Ctrl+U 删除 "hello "。
 			assert.strictEqual(editor.getText(), "world");
 
 			editor.handleInput("\x19"); // Ctrl+Y
@@ -1235,8 +1235,8 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A (start)
-			editor.handleInput("\x0b"); // Ctrl+K - deletes "hello world"
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			editor.handleInput("\x0b"); // Ctrl+K 删除 "hello world"。
 
 			assert.strictEqual(editor.getText(), "");
 
@@ -1255,27 +1255,27 @@ describe("Editor component", () => {
 		it("Alt+Y cycles through kill ring after Ctrl+Y", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Create kill ring with multiple entries
+			// 创建包含多个条目的剪切环。
 			editor.setText("first");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "first"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "first"。
 			editor.setText("second");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "second"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "second"。
 			editor.setText("third");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "third"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "third"。
 
-			// Kill ring now has: [first, second, third]
+			// 此时剪切环内容为：[first, second, third]。
 			assert.strictEqual(editor.getText(), "");
 
-			editor.handleInput("\x19"); // Ctrl+Y - yanks "third" (most recent)
+			editor.handleInput("\x19"); // Ctrl+Y 粘贴 "third" (most recent)。
 			assert.strictEqual(editor.getText(), "third");
 
-			editor.handleInput("\x1by"); // Alt+Y - cycles to "second"
+			editor.handleInput("\x1by"); // Alt+Y 切换到“second”。
 			assert.strictEqual(editor.getText(), "second");
 
-			editor.handleInput("\x1by"); // Alt+Y - cycles to "first"
+			editor.handleInput("\x1by"); // Alt+Y 切换到“first”。
 			assert.strictEqual(editor.getText(), "first");
 
-			editor.handleInput("\x1by"); // Alt+Y - cycles back to "third"
+			editor.handleInput("\x1by"); // Alt+Y：循环回到“third”。
 			assert.strictEqual(editor.getText(), "third");
 		});
 
@@ -1283,14 +1283,14 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("test");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "test"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "test"。
 			editor.setText("other");
 
-			// Type something to break the yank chain
+			// 输入字符以打断连续粘贴链。
 			editor.handleInput("x");
 			assert.strictEqual(editor.getText(), "otherx");
 
-			// Alt+Y should do nothing
+			// Alt+Y 不应执行任何操作。
 			editor.handleInput("\x1by"); // Alt+Y
 			assert.strictEqual(editor.getText(), "otherx");
 		});
@@ -1299,12 +1299,12 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("only");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "only"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "only"。
 
-			editor.handleInput("\x19"); // Ctrl+Y - yanks "only"
+			editor.handleInput("\x19"); // Ctrl+Y 粘贴 "only"。
 			assert.strictEqual(editor.getText(), "only");
 
-			editor.handleInput("\x1by"); // Alt+Y - should do nothing (only 1 entry)
+			editor.handleInput("\x1by"); // Alt+Y 不应执行任何操作。
 			assert.strictEqual(editor.getText(), "only");
 		});
 
@@ -1312,13 +1312,13 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("one two three");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "three"
-			editor.handleInput("\x17"); // Ctrl+W - deletes "two " (prepended)
-			editor.handleInput("\x17"); // Ctrl+W - deletes "one " (prepended)
+			editor.handleInput("\x17"); // Ctrl+W 删除 "three"。
+			editor.handleInput("\x17"); // Ctrl+W 删除前置的 "two "。
+			editor.handleInput("\x17"); // Ctrl+W 删除前置的 "one "。
 
 			assert.strictEqual(editor.getText(), "");
 
-			// Should be one combined entry
+			// 所有删除内容应合并为一个条目。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "one two three");
 		});
@@ -1326,31 +1326,31 @@ describe("Editor component", () => {
 		it("Ctrl+U accumulates multiline deletes including newlines", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Start with multiline text, cursor at end
+			// 以多行文本开始，光标位于末尾。
 			editor.setText("line1\nline2\nline3");
-			// Cursor is at end of line3 (line 2, col 5)
+			// 光标位于第三行末尾（第 2 行，第 5 列）。
 
-			// Delete "line3"
+			// 删除 "line3"。
 			editor.handleInput("\x15"); // Ctrl+U
 			assert.strictEqual(editor.getText(), "line1\nline2\n");
 
-			// Delete newline (at start of empty line 2, merges with line1)
+			// 删除换行符（光标位于第二行空行开头，删除后与第一行合并）。
 			editor.handleInput("\x15"); // Ctrl+U
 			assert.strictEqual(editor.getText(), "line1\nline2");
 
-			// Delete "line2"
+			// 删除 "line2"。
 			editor.handleInput("\x15"); // Ctrl+U
 			assert.strictEqual(editor.getText(), "line1\n");
 
-			// Delete newline
+			// 删除换行符。
 			editor.handleInput("\x15"); // Ctrl+U
 			assert.strictEqual(editor.getText(), "line1");
 
-			// Delete "line1"
+			// 删除 "line1"。
 			editor.handleInput("\x15"); // Ctrl+U
 			assert.strictEqual(editor.getText(), "");
 
-			// All deletions accumulated into one entry: "line1\nline2\nline3"
+			// 所有删除内容都合并为一个条目："line1\nline2\nline3"。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "line1\nline2\nline3");
 		});
@@ -1359,12 +1359,12 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("prefix|suffix");
-			// Position cursor at |
+			// 将光标放在 | 的位置。
 			editor.handleInput("\x01"); // Ctrl+A
-			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // Move right 6 times
+			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // 向右移动 6 次。
 
-			editor.handleInput("\x0b"); // Ctrl+K - deletes "suffix" (forward)
-			editor.handleInput("\x0b"); // Ctrl+K - deletes "|" (forward, appended)
+			editor.handleInput("\x0b"); // Ctrl+K 删除 "suffix" (forward)。
+			editor.handleInput("\x0b"); // Ctrl+K 删除 "|" (forward, appended)。
 			assert.strictEqual(editor.getText(), "prefix");
 
 			editor.handleInput("\x19"); // Ctrl+Y
@@ -1374,22 +1374,22 @@ describe("Editor component", () => {
 		it("non-delete actions break kill accumulation", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Delete "baz", then type "x" to break accumulation, then delete "x"
+			// 删除 "baz"，再输入 "x" 打断累积，最后删除 "x"。
 			editor.setText("foo bar baz");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "baz"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "baz"。
 			assert.strictEqual(editor.getText(), "foo bar ");
 
-			editor.handleInput("x"); // Typing breaks accumulation
+			editor.handleInput("x"); // 输入字符会中断连续累积。
 			assert.strictEqual(editor.getText(), "foo bar x");
 
-			editor.handleInput("\x17"); // Ctrl+W - deletes "x" (separate entry, not accumulated)
+			editor.handleInput("\x17"); // Ctrl+W 删除“x”，并单独保存为一项，不与前项合并。
 			assert.strictEqual(editor.getText(), "foo bar ");
 
-			// Yank most recent - should be "x", not "xbaz"
+			// 粘贴最近删除的内容，应为 "x"，而不是 "xbaz"。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "foo bar x");
 
-			// Cycle to previous - should be "baz" (separate entry)
+			// 切换到上一个条目，应为单独保存的 "baz"。
 			editor.handleInput("\x1by"); // Alt+Y
 			assert.strictEqual(editor.getText(), "foo bar baz");
 		});
@@ -1403,13 +1403,13 @@ describe("Editor component", () => {
 			editor.handleInput("\x17"); // Ctrl+W
 			editor.setText("");
 
-			editor.handleInput("\x19"); // Ctrl+Y - yanks "second"
+			editor.handleInput("\x19"); // Ctrl+Y 粘贴 "second"。
 			assert.strictEqual(editor.getText(), "second");
 
-			editor.handleInput("x"); // Type breaks yank chain
+			editor.handleInput("x"); // 输入字符会中断连续粘贴链。
 			assert.strictEqual(editor.getText(), "secondx");
 
-			editor.handleInput("\x1by"); // Alt+Y - should do nothing
+			editor.handleInput("\x1by"); // Alt+Y 不应执行任何操作。
 			assert.strictEqual(editor.getText(), "secondx");
 		});
 
@@ -1417,26 +1417,26 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("first");
-			editor.handleInput("\x17"); // deletes "first"
+			editor.handleInput("\x17"); // 删除“first”。
 			editor.setText("second");
-			editor.handleInput("\x17"); // deletes "second"
+			editor.handleInput("\x17"); // 删除“second”。
 			editor.setText("third");
-			editor.handleInput("\x17"); // deletes "third"
+			editor.handleInput("\x17"); // 删除“third”。
 			editor.setText("");
 
-			// Ring: [first, second, third]
+			// 剪切环内容：[first, second, third]。
 
-			editor.handleInput("\x19"); // Ctrl+Y - yanks "third"
-			editor.handleInput("\x1by"); // Alt+Y - cycles to "second", ring rotates
+			editor.handleInput("\x19"); // Ctrl+Y 粘贴 "third"。
+			editor.handleInput("\x1by"); // Alt+Y 切换到“second”，剪切环随之轮转。
 
-			// Now ring is: [third, first, second]
+			// 此时剪切环内容为：[third, first, second]。
 			assert.strictEqual(editor.getText(), "second");
 
-			// Do something else
+			// 执行其他操作。
 			editor.handleInput("x");
 			editor.setText("");
 
-			// New yank should get "second" (now at end after rotation)
+			// 新的粘贴操作应取得 "second"（旋转后它位于环尾）。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "second");
 		});
@@ -1444,24 +1444,24 @@ describe("Editor component", () => {
 		it("consecutive deletions across lines coalesce into one entry", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// "1\n2\n3" with cursor at end, delete everything with Ctrl+W
+			// 光标位于 "1\n2\n3" 末尾，按 Ctrl+W 删除全部内容。
 			editor.setText("1\n2\n3");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "3"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "3"。
 			assert.strictEqual(editor.getText(), "1\n2\n");
 
-			editor.handleInput("\x17"); // Ctrl+W - deletes newline (merge with prev line)
+			editor.handleInput("\x17"); // Ctrl+W 删除换行符并与上一行合并。
 			assert.strictEqual(editor.getText(), "1\n2");
 
-			editor.handleInput("\x17"); // Ctrl+W - deletes "2"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "2"。
 			assert.strictEqual(editor.getText(), "1\n");
 
-			editor.handleInput("\x17"); // Ctrl+W - deletes newline
+			editor.handleInput("\x17"); // Ctrl+W 删除换行符。
 			assert.strictEqual(editor.getText(), "1");
 
-			editor.handleInput("\x17"); // Ctrl+W - deletes "1"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "1"。
 			assert.strictEqual(editor.getText(), "");
 
-			// All deletions should have accumulated into one entry
+			// 所有删除内容都应累积为一个条目。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "1\n2\n3");
 		});
@@ -1469,26 +1469,26 @@ describe("Editor component", () => {
 		it("Ctrl+K at line end deletes newline and coalesces", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// "ab" on line 1, "cd" on line 2, cursor at end of line 1
+			// 第 1 行为 "ab"，第 2 行为 "cd"，光标位于第 1 行末尾。
 			editor.setText("");
 			editor.handleInput("a");
 			editor.handleInput("b");
 			editor.handleInput("\n");
 			editor.handleInput("c");
 			editor.handleInput("d");
-			// Move to end of first line
-			editor.handleInput("\x1b[A"); // Up arrow
-			editor.handleInput("\x05"); // Ctrl+E - end of line
+			// 移至第一行末尾。
+			editor.handleInput("\x1b[A"); // 按向上键。
+			editor.handleInput("\x05"); // Ctrl+E：移至行尾。
 
-			// Now at end of "ab", Ctrl+K should delete newline (merge with "cd")
-			editor.handleInput("\x0b"); // Ctrl+K - deletes newline
+			// 此时光标位于 "ab" 末尾，Ctrl+K 应删除换行符并与 "cd" 合并。
+			editor.handleInput("\x0b"); // Ctrl+K 删除 newline。
 			assert.strictEqual(editor.getText(), "abcd");
 
-			// Continue deleting
-			editor.handleInput("\x0b"); // Ctrl+K - deletes "cd"
+			// 继续删除。
+			editor.handleInput("\x0b"); // Ctrl+K 删除 "cd"。
 			assert.strictEqual(editor.getText(), "ab");
 
-			// Both deletions should accumulate
+			// 两次删除都应累积到同一个条目中。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "ab\ncd");
 		});
@@ -1497,10 +1497,10 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("word");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "word"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "word"。
 			editor.setText("hello world");
 
-			// Move to middle (after "hello ")
+			// 移至中间（"hello " 之后）。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C");
 
@@ -1511,24 +1511,24 @@ describe("Editor component", () => {
 		it("handles yank-pop in middle of text", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Create two kill ring entries
+			// 创建两个剪切环条目。
 			editor.setText("FIRST");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "FIRST"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "FIRST"。
 			editor.setText("SECOND");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "SECOND"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "SECOND"。
 
-			// Ring: ["FIRST", "SECOND"]
+			// 剪切环内容：["FIRST", "SECOND"]。
 
-			// Set up "hello world" and position cursor after "hello "
+			// 设置文本 "hello world"，并将光标放在 "hello " 之后。
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start of line
-			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // Move right 6
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // 向右移动 6 次。
 
-			// Yank "SECOND" in the middle
+			// 在中间粘贴 "SECOND"。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "hello SECONDworld");
 
-			// Yank-pop replaces "SECOND" with "FIRST"
+			// Yank-pop 将 "SECOND" 替换为 "FIRST"。
 			editor.handleInput("\x1by"); // Alt+Y
 			assert.strictEqual(editor.getText(), "hello FIRSTworld");
 		});
@@ -1536,27 +1536,27 @@ describe("Editor component", () => {
 		it("multiline yank and yank-pop in middle of text", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Create single-line entry
+			// 创建单行条目。
 			editor.setText("SINGLE");
-			editor.handleInput("\x17"); // Ctrl+W - deletes "SINGLE"
+			editor.handleInput("\x17"); // Ctrl+W 删除 "SINGLE"。
 
-			// Create multiline entry via consecutive Ctrl+U
+			// 连续按 Ctrl+U 创建多行条目。
 			editor.setText("A\nB");
-			editor.handleInput("\x15"); // Ctrl+U - deletes "B"
-			editor.handleInput("\x15"); // Ctrl+U - deletes newline
-			editor.handleInput("\x15"); // Ctrl+U - deletes "A"
-			// Ring: ["SINGLE", "A\nB"]
+			editor.handleInput("\x15"); // Ctrl+U 删除 "B"。
+			editor.handleInput("\x15"); // Ctrl+U 删除 newline。
+			editor.handleInput("\x15"); // Ctrl+U 删除 "A"。
+			// 剪切环内容：["SINGLE", "A\nB"]。
 
-			// Insert in middle of "hello world"
+			// 在 "hello world" 中间插入内容。
 			editor.setText("hello world");
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C");
 
-			// Yank multiline "A\nB"
+			// 粘贴多行内容 "A\nB"。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "hello A\nBworld");
 
-			// Yank-pop replaces with "SINGLE"
+			// Yank-pop 将其替换为 "SINGLE"。
 			editor.handleInput("\x1by"); // Alt+Y
 			assert.strictEqual(editor.getText(), "hello SINGLEworld");
 		});
@@ -1565,15 +1565,15 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world test");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 
-			editor.handleInput("\x1bd"); // Alt+D - deletes "hello"
+			editor.handleInput("\x1bd"); // Alt+D 删除“hello”。
 			assert.strictEqual(editor.getText(), " world test");
 
-			editor.handleInput("\x1bd"); // Alt+D - deletes " world" (skips whitespace, then word)
+			editor.handleInput("\x1bd"); // Alt+D 删除“ world”（跳过空白后再删除单词）。
 			assert.strictEqual(editor.getText(), " test");
 
-			// Yank should get accumulated text
+			// 粘贴操作应取得累积的文本。
 			editor.handleInput("\x19"); // Ctrl+Y
 			assert.strictEqual(editor.getText(), "hello world test");
 		});
@@ -1582,11 +1582,11 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("line1\nline2");
-			// Move to start of document, then to end of first line
-			editor.handleInput("\x1b[A"); // Up arrow - go to first line
-			editor.handleInput("\x05"); // Ctrl+E - end of line
+			// 移至文档开头，再移到第一行末尾。
+			editor.handleInput("\x1b[A"); // 按向上键移至第一行。
+			editor.handleInput("\x05"); // Ctrl+E：移至行尾。
 
-			editor.handleInput("\x1bd"); // Alt+D - deletes newline (merges lines)
+			editor.handleInput("\x1bd"); // Alt+D 删除换行符并合并两行。
 			assert.strictEqual(editor.getText(), "line1line2");
 
 			editor.handleInput("\x19"); // Ctrl+Y
@@ -1598,7 +1598,7 @@ describe("Editor component", () => {
 		it("does nothing when undo stack is empty", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 		});
 
@@ -1618,12 +1618,12 @@ describe("Editor component", () => {
 			editor.handleInput("d");
 			assert.strictEqual(editor.getText(), "hello world");
 
-			// Undo removes " world" (space captured state before it, so we restore to "hello")
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销会删除 " world"（空格前保存了状态，因此恢复为 "hello"）。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello");
 
-			// Undo removes "hello"
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销会删除 "hello"。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 		});
 
@@ -1639,13 +1639,13 @@ describe("Editor component", () => {
 			editor.handleInput(" ");
 			assert.strictEqual(editor.getText(), "hello  ");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo) - removes second " "
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销，并移除第二个空格。
 			assert.strictEqual(editor.getText(), "hello ");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo) - removes first " "
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销，并移除第一个空格。
 			assert.strictEqual(editor.getText(), "hello");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo) - removes "hello"
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销，并移除“hello”。
 			assert.strictEqual(editor.getText(), "");
 		});
 
@@ -1665,13 +1665,13 @@ describe("Editor component", () => {
 			editor.handleInput("d");
 			assert.strictEqual(editor.getText(), "hello\nworld");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello\n");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 		});
 
@@ -1683,10 +1683,10 @@ describe("Editor component", () => {
 			editor.handleInput("l");
 			editor.handleInput("l");
 			editor.handleInput("o");
-			editor.handleInput("\x7f"); // Backspace
+			editor.handleInput("\x7f"); // 退格键。
 			assert.strictEqual(editor.getText(), "hell");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello");
 		});
 
@@ -1698,12 +1698,12 @@ describe("Editor component", () => {
 			editor.handleInput("l");
 			editor.handleInput("l");
 			editor.handleInput("o");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			editor.handleInput("\x1b[C"); // Right arrow
-			editor.handleInput("\x1b[3~"); // Delete key
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			editor.handleInput("\x1b[C"); // 右方向键。
+			editor.handleInput("\x1b[3~"); // Delete 键。
 			assert.strictEqual(editor.getText(), "hllo");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello");
 		});
 
@@ -1726,7 +1726,7 @@ describe("Editor component", () => {
 			editor.handleInput("\x17"); // Ctrl+W
 			assert.strictEqual(editor.getText(), "hello ");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 		});
 
@@ -1744,13 +1744,13 @@ describe("Editor component", () => {
 			editor.handleInput("r");
 			editor.handleInput("l");
 			editor.handleInput("d");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // Move right 6 times
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // 向右移动 6 次。
 
 			editor.handleInput("\x0b"); // Ctrl+K
 			assert.strictEqual(editor.getText(), "hello ");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 
 			editor.handleInput("|");
@@ -1771,13 +1771,13 @@ describe("Editor component", () => {
 			editor.handleInput("r");
 			editor.handleInput("l");
 			editor.handleInput("d");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // Move right 6 times
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // 向右移动 6 次。
 
 			editor.handleInput("\x15"); // Ctrl+U
 			assert.strictEqual(editor.getText(), "world");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 		});
 
@@ -1790,11 +1790,11 @@ describe("Editor component", () => {
 			editor.handleInput("l");
 			editor.handleInput("o");
 			editor.handleInput(" ");
-			editor.handleInput("\x17"); // Ctrl+W - delete "hello "
-			editor.handleInput("\x19"); // Ctrl+Y - yank
+			editor.handleInput("\x17"); // Ctrl+W：删除“hello ”。
+			editor.handleInput("\x19"); // Ctrl+Y：粘贴剪切环中的内容。
 			assert.strictEqual(editor.getText(), "hello ");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 		});
 
@@ -1802,15 +1802,15 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // Move right 5 (after "hello", before space)
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // 向右移动 5 次，使光标位于“hello”之后、空格之前。
 
-			// Simulate bracketed paste of "beep boop"
+			// 模拟带括号粘贴 "beep boop"。
 			editor.handleInput("\x1b[200~beep boop\x1b[201~");
 			assert.strictEqual(editor.getText(), "hellobeep boop world");
 
-			// Single undo should restore entire pre-paste state
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销一次应恢复粘贴前的全部状态。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 
 			editor.handleInput("|");
@@ -1840,9 +1840,8 @@ describe("Editor component", () => {
 		it("decodes CSI-u Ctrl+letter sequences inside bracketed paste (tmux popup)", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// tmux popups with extended-keys-format=csi-u re-encode \n in pastes as
-			// \x1b[106;5u (Ctrl+J). Without decoding, the per-char filter strips ESC
-			// and leaks "[106;5u" between lines. See issue #3599.
+			// tmux 弹出窗口在 extended-keys-format=csi-u 模式下，会将粘贴内容中的 \n 重新编码为
+			// \x1b[106;5u（Ctrl+J）。如果不先解码，逐字符过滤器会移除 ESC，导致 "[106;5u" 泄漏到行间。参见 issue #3599。
 			editor.handleInput("\x1b[200~line1\x1b[106;5uline2\x1b[106;5uline3\x1b[201~");
 			assert.strictEqual(editor.getText(), "line1\nline2\nline3");
 		});
@@ -1851,15 +1850,15 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // Move right 5 (after "hello", before space)
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // 向右移动 5 次，使光标位于“hello”之后、空格之前。
 
-			// Simulate bracketed paste of multi-line text
+			// 模拟带括号粘贴多行文本。
 			editor.handleInput("\x1b[200~line1\nline2\nline3\x1b[201~");
 			assert.strictEqual(editor.getText(), "helloline1\nline2\nline3 world");
 
-			// Single undo should restore entire pre-paste state
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销一次应恢复粘贴前的全部状态。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 
 			editor.handleInput("|");
@@ -1870,15 +1869,15 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // Move right 5 (after "hello", before space)
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // 向右移动 5 次，使光标位于“hello”之后、空格之前。
 
-			// Programmatic insertion (e.g., clipboard image path)
+			// 通过程序插入文本（例如剪贴板中的图片路径）。
 			editor.insertTextAtCursor("/tmp/image.png");
 			assert.strictEqual(editor.getText(), "hello/tmp/image.png world");
 
-			// Single undo should restore entire pre-insert state
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销一次应恢复插入前的全部状态。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 
 			editor.handleInput("|");
@@ -1889,20 +1888,20 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // Move right 5 (after "hello", before space)
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C"); // 向右移动 5 次，使光标位于“hello”之后、空格之前。
 
-			// Insert multiline text
+			// 插入多行文本。
 			editor.insertTextAtCursor("line1\nline2\nline3");
 			assert.strictEqual(editor.getText(), "helloline1\nline2\nline3 world");
 
-			// Cursor should be at end of inserted text (after "line3", before " world")
+			// 光标应位于插入文本末尾（"line3" 之后、" world" 之前）。
 			const cursor = editor.getCursor();
 			assert.strictEqual(cursor.line, 2);
 			assert.strictEqual(cursor.col, 5); // "line3".length
 
-			// Single undo should restore entire pre-insert state
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销一次应恢复插入前的全部状态。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 		});
 
@@ -1911,14 +1910,14 @@ describe("Editor component", () => {
 
 			editor.setText("");
 
-			// Insert text with CRLF
+			// 插入包含 CRLF 的文本。
 			editor.insertTextAtCursor("a\r\nb\r\nc");
 			assert.strictEqual(editor.getText(), "a\nb\nc");
 
 			editor.handleInput("\x1b[45;5u"); // Undo
 			assert.strictEqual(editor.getText(), "");
 
-			// Insert text with CR only
+			// 插入仅包含 CR 的文本。
 			editor.insertTextAtCursor("x\ry\rz");
 			assert.strictEqual(editor.getText(), "x\ny\nz");
 		});
@@ -1942,7 +1941,7 @@ describe("Editor component", () => {
 			editor.setText("");
 			assert.strictEqual(editor.getText(), "");
 
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 		});
 
@@ -1963,19 +1962,19 @@ describe("Editor component", () => {
 			assert.strictEqual(submitted, "hello");
 			assert.strictEqual(editor.getText(), "");
 
-			// Undo should do nothing - stack was cleared
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销操作应无效，因为撤销栈已清空。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 		});
 
 		it("exits history browsing mode on undo", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Add "hello" to history
+			// 将 "hello" 添加到历史记录。
 			editor.addToHistory("hello");
 			assert.strictEqual(editor.getText(), "");
 
-			// Type "world"
+			// 输入 "world"。
 			editor.handleInput("w");
 			editor.handleInput("o");
 			editor.handleInput("r");
@@ -1983,32 +1982,32 @@ describe("Editor component", () => {
 			editor.handleInput("d");
 			assert.strictEqual(editor.getText(), "world");
 
-			// Ctrl+W - delete word
+			// 按 Ctrl+W 删除一个词。
 			editor.handleInput("\x17"); // Ctrl+W
 			assert.strictEqual(editor.getText(), "");
 
-			// Press Up - enter history browsing, shows "hello"
-			editor.handleInput("\x1b[A"); // Up arrow
+			// 按向上键进入历史记录浏览模式，显示 "hello"。
+			editor.handleInput("\x1b[A"); // 按向上键。
 			assert.strictEqual(editor.getText(), "hello");
 
-			// Undo should restore to "" (state before entering history browsing)
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销应恢复为空文本（进入历史记录浏览模式之前的状态）。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 
-			// Undo again should restore to "world" (state before Ctrl+W)
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 再撤销一次应恢复为 "world"（按 Ctrl+W 之前的状态）。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "world");
 		});
 
 		it("undo restores to pre-history state even after multiple history navigations", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Add history entries
+			// 添加历史记录条目。
 			editor.addToHistory("first");
 			editor.addToHistory("second");
 			editor.addToHistory("third");
 
-			// Type something
+			// 输入一些内容。
 			editor.handleInput("c");
 			editor.handleInput("u");
 			editor.handleInput("r");
@@ -2018,24 +2017,24 @@ describe("Editor component", () => {
 			editor.handleInput("t");
 			assert.strictEqual(editor.getText(), "current");
 
-			// Clear editor
+			// 清空编辑器。
 			editor.handleInput("\x17"); // Ctrl+W
 			assert.strictEqual(editor.getText(), "");
 
-			// Navigate through history multiple times
-			editor.handleInput("\x1b[A"); // Up - "third"
+			// 多次浏览历史记录。
+			editor.handleInput("\x1b[A"); // 按向上键选中“third”。
 			assert.strictEqual(editor.getText(), "third");
-			editor.handleInput("\x1b[A"); // Up - "second"
+			editor.handleInput("\x1b[A"); // 按向上键选中“second”。
 			assert.strictEqual(editor.getText(), "second");
-			editor.handleInput("\x1b[A"); // Up - "first"
+			editor.handleInput("\x1b[A"); // 按向上键选中“first”。
 			assert.strictEqual(editor.getText(), "first");
 
-			// Undo should go back to "" (state before we started browsing), not intermediate states
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销应恢复为空文本（开始浏览前的状态），而不是中间状态。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "");
 
-			// Another undo goes back to "current"
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 再撤销一次应恢复为 "current"。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "current");
 		});
 
@@ -2055,17 +2054,17 @@ describe("Editor component", () => {
 			editor.handleInput("d");
 			assert.strictEqual(editor.getText(), "hello world");
 
-			// Move cursor left 5 (to after "hello ")
+			// 将光标向左移动 5 次（移至 "hello " 之后）。
 			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[D");
 
-			// Type "lol" in the middle
+			// 在中间输入 "lol"。
 			editor.handleInput("l");
 			editor.handleInput("o");
 			editor.handleInput("l");
 			assert.strictEqual(editor.getText(), "hello lolworld");
 
-			// Undo should restore to "hello world" (before inserting "lol")
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销应恢复为 "hello world"（插入 "lol" 之前的状态）。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello world");
 
 			editor.handleInput("|");
@@ -2082,21 +2081,21 @@ describe("Editor component", () => {
 			editor.handleInput("o");
 			assert.strictEqual(editor.getText(), "hello");
 
-			// Delete word on empty - multiple times (should be no-ops)
-			editor.handleInput("\x17"); // Ctrl+W - deletes "hello"
+			// 在空文本上多次执行删除词语操作（这些操作应无效）。
+			editor.handleInput("\x17"); // Ctrl+W 删除 "hello"。
 			assert.strictEqual(editor.getText(), "");
-			editor.handleInput("\x17"); // Ctrl+W - no-op (nothing to delete)
-			editor.handleInput("\x17"); // Ctrl+W - no-op
+			editor.handleInput("\x17"); // Ctrl+W：不执行任何操作（没有内容可删除）。
+			editor.handleInput("\x17"); // Ctrl+W：不执行任何操作。
 
-			// Single undo should restore "hello"
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销一次应恢复为 "hello"。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "hello");
 		});
 
 		it("undoes autocomplete", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Create a mock autocomplete provider
+			// 创建一个模拟自动补全提供器。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
@@ -2114,19 +2113,19 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "di"
+			// 输入 "di"。
 			editor.handleInput("d");
 			editor.handleInput("i");
 			assert.strictEqual(editor.getText(), "di");
 
-			// Press Tab to trigger autocomplete
+			// 按 Tab 键触发自动补全。
 			editor.handleInput("\t");
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "dist/");
 			assert.strictEqual(editor.isShowingAutocomplete(), false);
 
-			// Undo should restore to "di"
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销应恢复为 "di"。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "di");
 		});
 	});
@@ -2367,21 +2366,21 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "Work"
+			// 输入 "Work"。
 			editor.handleInput("W");
 			editor.handleInput("o");
 			editor.handleInput("r");
 			editor.handleInput("k");
 			assert.strictEqual(editor.getText(), "Work");
 
-			// Press Tab - should auto-apply without showing menu
+			// 按 Tab 键应直接应用补全，而不显示菜单。
 			editor.handleInput("\t");
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "Workspace/");
 			assert.strictEqual(editor.isShowingAutocomplete(), false);
 
-			// Undo should restore to "Work"
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销应恢复为 "Work"。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "Work");
 		});
 
@@ -2411,19 +2410,19 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "src"
+			// 输入 "src"。
 			editor.handleInput("s");
 			editor.handleInput("r");
 			editor.handleInput("c");
 			assert.strictEqual(editor.getText(), "src");
 
-			// Press Tab - should show menu because there are multiple suggestions
+			// 有多个建议，因此按 Tab 键应显示菜单。
 			editor.handleInput("\t");
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "src");
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Press Tab again to accept first suggestion
+			// 再按一次 Tab 键以接受第一条建议。
 			editor.handleInput("\t");
 			assert.strictEqual(editor.getText(), "src/");
 			assert.strictEqual(editor.isShowingAutocomplete(), false);
@@ -2458,24 +2457,24 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Press Tab on empty prompt - should show all files (force mode)
+			// 在空提示符处按 Tab 键，应显示所有文件（强制模式）。
 			editor.handleInput("\t");
 			await flushAutocomplete();
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Type "r" - should narrow to "readme.md" (force mode keeps suggestions open)
+			// 输入 "r" 后应筛选出 "readme.md"（强制模式会保持建议列表打开）。
 			editor.handleInput("r");
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "r");
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Type "e" - should still show "readme.md"
+			// 输入 "e" 后仍应显示 "readme.md"。
 			editor.handleInput("e");
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "re");
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Accept with Tab
+			// 按 Tab 键接受建议。
 			editor.handleInput("\t");
 			assert.strictEqual(editor.getText(), "readme.md");
 			assert.strictEqual(editor.isShowingAutocomplete(), false);
@@ -2515,19 +2514,17 @@ describe("Editor component", () => {
 		});
 
 		it("re-queries the autocomplete picker when the cursor moves back into the command name", async () => {
-			// Regression for earendil-works/pi#5496: arrowing left out of a slash
-			// command's argument region must re-query the picker, not leave the
-			// stale argument list showing. Before the fix, moveCursor() never
-			// called updateAutocomplete(), so `/cmd ` (argument menu) + Left kept
-			// displaying the arguments against a `/cmd` prefix — and a Tab there
-			// would concatenate the stale suggestion onto the partial command name.
+			// earendil-works/pi#5496 回归测试：从斜杠命令的参数区域向左移动光标时，必须重新查询选择器，
+			// 不能继续显示过期的参数列表。修复前，moveCursor() 不会调用 updateAutocomplete()，
+			// 因此在 `/cmd `（参数菜单）处按左键后，仍会针对 `/cmd` 前缀显示参数，
+			// 此时按 Tab 会把过期建议拼接到不完整的命令名称后。
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const before = (lines[0] || "").slice(0, cursorCol);
 					if (!before.startsWith("/")) return null;
-					// Past the command name (a space before the cursor): offer arguments.
+					// 光标已越过命令名（光标前有空格）：提供参数建议。
 					if (before.includes(" ")) {
 						return {
 							items: [
@@ -2538,7 +2535,7 @@ describe("Editor component", () => {
 							prefix: before.slice(before.indexOf(" ") + 1),
 						};
 					}
-					// Inside the command name: offer the command name only.
+					// 光标仍在命令名中：仅提供命令名建议。
 					return { items: [{ value: "cmd", label: "cmd" }], prefix: before };
 				},
 				applyCompletion,
@@ -2546,7 +2543,7 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type `/cmd ` so the picker ends up showing the argument list.
+			// 输入 `/cmd `，使选择器显示参数列表。
 			for (const ch of "/cmd ") {
 				editor.handleInput(ch);
 				await flushAutocomplete();
@@ -2559,12 +2556,12 @@ describe("Editor component", () => {
 				.join("\n");
 			assert.ok(atArg.includes("repo"), "argument menu should be visible at `/cmd `");
 
-			// Arrow Left back into the command name (`/cmd`).
+			// 按左方向键，将光标移回命令名（`/cmd`）内。
 			editor.handleInput("\x1b[D");
 			await flushAutocomplete();
 
-			// The picker must have re-queried: the stale argument items are gone
-			// (replaced by the command-name suggestion, or the picker closed).
+			// 选择器必须重新查询：过期的参数项应已消失
+			//（被命令名建议替换，或选择器已关闭）。
 			const afterMove = editor
 				.render(80)
 				.map((l) => stripVTControlCharacters(l))
@@ -2698,18 +2695,18 @@ describe("Editor component", () => {
 		it("hides autocomplete when backspacing slash command to empty", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Mock provider with slash commands
+			// 创建包含斜杠命令的模拟提供器。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
 					const prefix = text.slice(0, cursorCol);
-					// Only return slash command suggestions when line starts with /
+					// 仅当行首为 / 时返回斜杠命令建议。
 					if (prefix.startsWith("/")) {
 						const commands = [
 							{ value: "/model", label: "model", description: "Change model" },
 							{ value: "/help", label: "help", description: "Show help" },
 						];
-						const query = prefix.slice(1); // Remove leading /
+						const query = prefix.slice(1); // 移除开头的 /。
 						const filtered = commands.filter((c) => c.value.startsWith(query));
 						if (filtered.length > 0) {
 							return { items: filtered, prefix };
@@ -2722,13 +2719,13 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "/" - should show slash command suggestions
+			// 输入 "/" 后应显示斜杠命令建议。
 			editor.handleInput("/");
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "/");
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Backspace to delete "/" - should hide autocomplete completely
+			// 按退格键删除 "/" 后应完全隐藏自动补全。
 			editor.handleInput("\x7f"); // Backspace
 			await flushAutocomplete();
 			assert.strictEqual(editor.getText(), "");
@@ -2738,13 +2735,13 @@ describe("Editor component", () => {
 		it("applies exact typed slash-argument value on Enter even when first item is highlighted", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Mock provider for /argtest command with argument completions
+			// 为 /argtest 命令及其参数补全创建模拟提供器。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
 					const beforeCursor = text.slice(0, cursorCol);
 
-					// Check if we're in argument completion context: "/argtest <prefix>"
+					// 检查当前是否处于参数补全上下文："/argtest <prefix>"。
 					const argtestMatch = beforeCursor.match(/^\/argtest\s+(\S+)$/);
 					if (argtestMatch) {
 						const argumentText = argtestMatch[1]!;
@@ -2753,7 +2750,7 @@ describe("Editor component", () => {
 							{ value: "two", label: "two" },
 							{ value: "three", label: "three" },
 						];
-						// Return all arguments that start with the typed prefix
+						// 返回所有以已输入前缀开头的参数。
 						const filtered = allArguments.filter((arg) => arg.value.startsWith(argumentText));
 						if (filtered.length > 0) {
 							return { items: filtered, prefix: argumentText };
@@ -2766,7 +2763,7 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "/argtest two"
+			// 输入 "/argtest two"。
 			editor.handleInput("/");
 			editor.handleInput("a");
 			editor.handleInput("r");
@@ -2784,23 +2781,23 @@ describe("Editor component", () => {
 			await flushAutocomplete();
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Press Enter - should apply the exact typed value "two", not the first item
+			// 按 Enter 应应用实际输入的值 "two"，而不是列表中的第一项。
 			editor.handleInput("\r");
 
-			// The exact typed value "two" should be retained
+			// 应保留实际输入的值 "two"。
 			assert.strictEqual(editor.getText(), "/argtest two");
 		});
 
 		it("selects first prefix match on Enter when typed arg is not exact match", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Mock provider for /argtest command with argument completions
+			// 为 /argtest 命令及其参数补全创建模拟提供器。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
 					const beforeCursor = text.slice(0, cursorCol);
 
-					// Check if we're in argument completion context
+					// 检查当前是否处于参数补全上下文。
 					const argtestMatch = beforeCursor.match(/^\/argtest\s+(\S+)$/);
 					if (argtestMatch) {
 						const argumentText = argtestMatch[1]!;
@@ -2809,7 +2806,7 @@ describe("Editor component", () => {
 							{ value: "three", label: "three" },
 							{ value: "twelve", label: "twelve" },
 						];
-						// Return all items that start with the typed prefix
+						// 返回所有以已输入前缀开头的项目。
 						const filtered = allArguments.filter((arg) => arg.value.startsWith(argumentText));
 						if (filtered.length > 0) {
 							return { items: filtered, prefix: argumentText };
@@ -2822,7 +2819,7 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "/argtest t" - filtered to [two, three, twelve], prefix "t" matches "two" first
+			// 输入 "/argtest t" 后筛选为 [two, three, twelve]；前缀 "t" 首先匹配 "two"。
 			editor.handleInput("/");
 			editor.handleInput("a");
 			editor.handleInput("r");
@@ -2837,7 +2834,7 @@ describe("Editor component", () => {
 			await flushAutocomplete();
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Press Enter - "t" prefix matches "two" (first in list), so "two" is applied
+			// 按 Enter 后，前缀 "t" 首先匹配列表中的 "two"，因此应用 "two"。
 			editor.handleInput("\r");
 			assert.strictEqual(editor.getText(), "/argtest two");
 		});
@@ -2845,7 +2842,7 @@ describe("Editor component", () => {
 		it("highlights unique prefix match as user types (before full exact match)", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Mock provider that returns all items unfiltered (like real extensions do)
+			// 创建不筛选项目的模拟提供器（与真实扩展的行为一致）。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
@@ -2854,7 +2851,7 @@ describe("Editor component", () => {
 					const argtestMatch = beforeCursor.match(/^\/argtest\s+(\S+)$/);
 					if (argtestMatch) {
 						const argumentText = argtestMatch[1]!;
-						// Return all items - provider does not filter
+						// 返回所有项目，由调用方负责筛选。
 						const allArguments = [
 							{ value: "one", label: "one" },
 							{ value: "two", label: "two" },
@@ -2869,7 +2866,7 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "/argtest tw" - "tw" is a prefix of only "two"
+			// 输入 "/argtest tw"；"tw" 仅是 "two" 的前缀。
 			editor.handleInput("/");
 			editor.handleInput("a");
 			editor.handleInput("r");
@@ -2886,7 +2883,7 @@ describe("Editor component", () => {
 			await flushAutocomplete();
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Press Enter - "tw" uniquely matches "two", so "two" should be applied
+			// 按 Enter 后，"tw" 唯一匹配 "two"，因此应应用 "two"。
 			editor.handleInput("\r");
 			assert.strictEqual(editor.getText(), "/argtest two");
 		});
@@ -2894,7 +2891,7 @@ describe("Editor component", () => {
 		it("selects first prefix match when multiple items match", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Mock provider that returns all items unfiltered
+			// 创建返回全部项目、不进行筛选的模拟提供器。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
@@ -2917,7 +2914,7 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "/argtest t" - "t" is a prefix of both "two" and "three"
+			// 输入 "/argtest t"；"t" 同时是 "two" 和 "three" 的前缀。
 			editor.handleInput("/");
 			editor.handleInput("a");
 			editor.handleInput("r");
@@ -2932,7 +2929,7 @@ describe("Editor component", () => {
 			await flushAutocomplete();
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Press Enter - "t" matches "two" first, so "two" is selected
+			// 按 Enter 后，"t" 首先匹配 "two"，因此选择 "two"。
 			editor.handleInput("\r");
 			assert.strictEqual(editor.getText(), "/argtest two");
 		});
@@ -2940,14 +2937,14 @@ describe("Editor component", () => {
 		it("works for built-in-style command argument completion path (model-like)", async () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Mock provider for /model command with model completions
+			// 为 /model 命令的模型补全创建模拟提供器。
 			const mockProvider: AutocompleteProvider = {
 				getSuggestions: async (lines, _cursorLine, cursorCol) => {
 					const text = lines[0] || "";
 					const beforeCursor = text.slice(0, cursorCol);
 
-					// Check if we're in /model argument completion context
-					// Use [^ ]+ to match any non-space characters (including hyphens)
+					// 检查当前是否处于 /model 参数补全上下文。
+					// 使用 [^ ]+ 匹配所有非空格字符（包括连字符）。
 					const modelMatch = beforeCursor.match(/^\/model\s+(\S+)$/);
 					if (modelMatch) {
 						const modelText = modelMatch[1]!;
@@ -2956,7 +2953,7 @@ describe("Editor component", () => {
 							{ value: "gpt-4o-mini", label: "gpt-4o-mini" },
 							{ value: "claude-sonnet", label: "claude-sonnet" },
 						];
-						// Return all models that start with the typed prefix
+						// 返回所有以已输入前缀开头的模型。
 						const filtered = allModels.filter((m) => m.value.startsWith(modelText));
 						if (filtered.length > 0) {
 							return { items: filtered, prefix: modelText };
@@ -2969,7 +2966,7 @@ describe("Editor component", () => {
 
 			editor.setAutocompleteProvider(mockProvider);
 
-			// Type "/model gpt-4o-mini" - exact match for second item in list
+			// 输入 "/model gpt-4o-mini"，与列表中的第二项完全匹配。
 			editor.handleInput("/");
 			editor.handleInput("m");
 			editor.handleInput("o");
@@ -2993,10 +2990,10 @@ describe("Editor component", () => {
 			await flushAutocomplete();
 			assert.strictEqual(editor.isShowingAutocomplete(), true);
 
-			// Press Enter - should retain exact typed value, not apply first highlighted item
+			// 按 Enter 应保留实际输入的值，而不是应用高亮的第一项。
 			editor.handleInput("\r");
 
-			// The exact typed value should be retained
+			// 应保留实际输入的值。
 			assert.strictEqual(editor.getText(), "/model gpt-4o-mini");
 		});
 
@@ -3080,11 +3077,11 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			editor.handleInput("\x1d"); // Ctrl+] (legacy sequence for ctrl+])
-			editor.handleInput("o"); // Jump to first 'o'
+			editor.handleInput("\x1d"); // Ctrl+]（Ctrl+] 的旧版按键序列）。
+			editor.handleInput("o"); // 跳转到first 'o'。
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 4 }); // 'o' in "hello"
 		});
@@ -3093,13 +3090,13 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
-			// Move cursor to the 'o' in "hello" (col 4)
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			// 将光标移到 "hello" 中的 'o' 处（第 4 列）。
 			for (let i = 0; i < 4; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 4 });
 
 			editor.handleInput("\x1d"); // Ctrl+]
-			editor.handleInput("o"); // Jump to next 'o' (in "world")
+			editor.handleInput("o"); // 跳转到next 'o' (in "world")。
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // 'o' in "world"
 		});
@@ -3108,14 +3105,14 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("abc\ndef\nghi");
-			// Cursor is at end (line 2, col 3). Move to line 0 via up arrows, then Ctrl+A
-			editor.handleInput("\x1b[A"); // Up
-			editor.handleInput("\x1b[A"); // Up - now on line 0
-			editor.handleInput("\x01"); // Ctrl+A - go to start of line
+			// 光标位于末尾（第 2 行，第 3 列）。按向上键移至第 0 行，再按 Ctrl+A。
+			editor.handleInput("\x1b[A"); // 按向上键。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行。
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
 			editor.handleInput("\x1d"); // Ctrl+]
-			editor.handleInput("g"); // Jump to 'g' on line 3
+			editor.handleInput("g"); // 跳转到第 3 行中的“g”。
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 0 });
 		});
@@ -3124,11 +3121,11 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			// Cursor at end (col 11)
+			// 光标位于末尾（第 11 列）。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 11 });
 
-			editor.handleInput("\x1b\x1d"); // Ctrl+Alt+] (ESC followed by Ctrl+])
-			editor.handleInput("o"); // Jump to last 'o' before cursor
+			editor.handleInput("\x1b\x1d"); // Ctrl+Alt+]（先发送 ESC，再发送 Ctrl+]）。
+			editor.handleInput("o"); // 跳转到光标前最后一个“o”。
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 }); // 'o' in "world"
 		});
@@ -3137,11 +3134,11 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("abc\ndef\nghi");
-			// Cursor at end of line 3
+			// 光标位于第 3 行末尾。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 3 });
 
 			editor.handleInput("\x1b\x1d"); // Ctrl+Alt+]
-			editor.handleInput("a"); // Jump to 'a' on line 1
+			editor.handleInput("a"); // 跳转到第 1 行的“a”。
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 		});
@@ -3150,7 +3147,7 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
 			editor.handleInput("\x1d"); // Ctrl+]
@@ -3163,7 +3160,7 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			// Cursor at end
+			// 光标位于末尾。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 11 });
 
 			editor.handleInput("\x1b\x1d"); // Ctrl+Alt+]
@@ -3176,16 +3173,16 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("Hello World");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			// Search for lowercase 'h' - should not find it (only 'H' exists)
+			// 搜索小写字母 'h'：应找不到，因为文本中只有大写 'H'。
 			editor.handleInput("\x1d"); // Ctrl+]
 			editor.handleInput("h");
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 }); // Cursor unchanged
 
-			// Search for uppercase 'W' - should find it
+			// 搜索大写字母 'W'：应能找到。
 			editor.handleInput("\x1d"); // Ctrl+]
 			editor.handleInput("W");
 
@@ -3196,13 +3193,13 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
 			editor.handleInput("\x1d"); // Ctrl+] - enter jump mode
 			editor.handleInput("\x1d"); // Ctrl+] again - cancel
 
-			// Type 'o' normally - should insert, not jump
+			// 正常输入 'o'：应插入字符，而非跳转。
 			editor.handleInput("o");
 			assert.strictEqual(editor.getText(), "ohello world");
 		});
@@ -3211,16 +3208,16 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
 			editor.handleInput("\x1d"); // Ctrl+] - enter jump mode
-			editor.handleInput("\x1b"); // Escape - cancel jump mode
+			editor.handleInput("\x1b"); // 按 Escape 取消跳转模式。
 
-			// Cursor should be unchanged (Escape itself doesn't move cursor in editor)
+			// 光标应保持不变（Escape 本身不会在编辑器中移动光标）。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			// Type 'o' normally - should insert, not jump
+			// 正常输入 'o'：应插入字符，而非跳转。
 			editor.handleInput("o");
 			assert.strictEqual(editor.getText(), "ohello world");
 		});
@@ -3229,13 +3226,13 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			// Cursor at end
+			// 光标位于末尾。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 11 });
 
 			editor.handleInput("\x1b\x1d"); // Ctrl+Alt+] - enter backward jump mode
 			editor.handleInput("\x1b\x1d"); // Ctrl+Alt+] again - cancel
 
-			// Type 'o' normally - should insert, not jump
+			// 正常输入 'o'：应插入字符，而非跳转。
 			editor.handleInput("o");
 			assert.strictEqual(editor.getText(), "hello worldo");
 		});
@@ -3244,16 +3241,16 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("foo(bar) = baz;");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			// Jump to '('
+			// 跳转到 '('。
 			editor.handleInput("\x1d"); // Ctrl+]
 			editor.handleInput("(");
 
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 });
 
-			// Jump to '='
+			// 跳转到 '='。
 			editor.handleInput("\x1d"); // Ctrl+]
 			editor.handleInput("=");
 
@@ -3276,34 +3273,34 @@ describe("Editor component", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
 			editor.setText("hello world");
-			editor.handleInput("\x01"); // Ctrl+A - go to start
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 
-			// Type to set lastAction to "type-word"
+			// 输入字符，将 lastAction 设为 "type-word"。
 			editor.handleInput("x");
 			assert.strictEqual(editor.getText(), "xhello world");
 
-			// Jump forward
+			// 向前跳转。
 			editor.handleInput("\x1d"); // Ctrl+]
 			editor.handleInput("o");
 
-			// Type more - should start a new undo unit (lastAction was reset)
+			// 继续输入：应开始新的撤销单元（lastAction 已重置）。
 			editor.handleInput("Y");
 			assert.strictEqual(editor.getText(), "xhellYo world");
 
-			// Undo should only undo "Y", not "x" as well
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销操作只应撤销 "Y"，不能同时撤销 "x"。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "xhello world");
 		});
 	});
 
 	describe("Sticky column", () => {
-		// Helper: position cursor at a specific line and column
+		// 辅助函数：将光标定位到指定行和列。
 		function positionCursor(editor: Editor, line: number, col: number): void {
-			// Go to line 0 first
+			// 先移至第 0 行。
 			for (let i = 0; i < 20; i++) editor.handleInput("\x1b[A");
-			// Go to target line
+			// 移至目标行。
 			for (let i = 0; i < line; i++) editor.handleInput("\x1b[B");
-			// Go to target col
+			// 移至目标列。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < col; i++) editor.handleInput("\x1b[C");
 		}
@@ -3311,23 +3308,23 @@ describe("Editor component", () => {
 		it("preserves target column when moving up through a shorter line", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Line 0: "2222222222x222" (x at col 10)
-			// Line 1: "" (empty)
-			// Line 2: "1111111111_111111111111" (_ at col 10)
+			// 第 0 行："2222222222x222"（x 位于第 10 列）。
+			// 第 1 行：""（空行）。
+			// 第 2 行："1111111111_111111111111"（_ 位于第 10 列）。
 			editor.setText("2222222222x222\n\n1111111111_111111111111");
 
-			// Position cursor on _ (line 2, col 10)
-			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 23 }); // At end
-			editor.handleInput("\x01"); // Ctrl+A - go to start of line
-			for (let i = 0; i < 10; i++) editor.handleInput("\x1b[C"); // Move right to col 10
+			// 将光标定位到 _ 处（第 2 行，第 10 列）。
+			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 23 }); // 位于末尾。
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。 of line
+			for (let i = 0; i < 10; i++) editor.handleInput("\x1b[C"); // 向右移动至第 10 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 });
 
-			// Press Up - should move to empty line (col clamped to 0)
-			editor.handleInput("\x1b[A"); // Up arrow
+			// 按向上键应移至空行（列位置限制为 0）。
+			editor.handleInput("\x1b[A"); // 按向上键。
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 0 });
 
-			// Press Up again - should move to line 0 at col 10 (on 'x')
-			editor.handleInput("\x1b[A"); // Up arrow
+			// 再按向上键应移至第 0 行第 10 列（即 'x' 处）。
+			editor.handleInput("\x1b[A"); // 按向上键。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 });
 		});
 
@@ -3336,19 +3333,19 @@ describe("Editor component", () => {
 
 			editor.setText("1111111111_111\n\n2222222222x222222222222");
 
-			// Position cursor on _ (line 0, col 10)
-			editor.handleInput("\x1b[A"); // Up to line 1
-			editor.handleInput("\x1b[A"); // Up to line 0
+			// 将光标定位到 _ 处（第 0 行，第 10 列）。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 10; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 });
 
-			// Press Down - should move to empty line (col clamped to 0)
-			editor.handleInput("\x1b[B"); // Down arrow
+			// 按向下键应移至空行（列位置限制为 0）。
+			editor.handleInput("\x1b[B"); // 按向下键。
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 0 });
 
-			// Press Down again - should move to line 2 at col 10 (on 'x')
-			editor.handleInput("\x1b[B"); // Down arrow
+			// 再按向下键应移至第 2 行第 10 列（即 'x' 处）。
+			editor.handleInput("\x1b[B"); // 按向下键。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 });
 		});
 
@@ -3357,23 +3354,23 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Start at line 2, col 5
+			// 从第 2 行第 5 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 5 });
 
-			// Move up through empty line
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 5 (sticky)
+			// 向上经过空行。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 5 列 (sticky)。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 });
 
-			// Move left - resets sticky column
+			// 向左移动会重置固定列。
 			editor.handleInput("\x1b[D"); // Left
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 4 });
 
-			// Move down twice
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 4 (new sticky from col 4)
+			// 向下移动两次。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 4 列，固定列更新为 4。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 4 });
 		});
 
@@ -3382,25 +3379,25 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Start at line 0, col 5
-			editor.handleInput("\x1b[A"); // Up to line 1
-			editor.handleInput("\x1b[A"); // Up to line 0
+			// 从第 0 行第 5 列开始。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 5; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 });
 
-			// Move down through empty line
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 5 (sticky)
+			// 向下经过空行。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 5 列 (sticky)。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 5 });
 
-			// Move right - resets sticky column
+			// 向右移动会重置固定列。
 			editor.handleInput("\x1b[C"); // Right
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 6 });
 
-			// Move up twice
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 6 (new sticky from col 6)
+			// 向上移动两次。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 6 列，固定列更新为 6。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 });
 		});
 
@@ -3409,22 +3406,22 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Start at line 2, col 8
+			// 从第 2 行第 8 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 8; i++) editor.handleInput("\x1b[C");
 
-			// Move up through empty line
-			editor.handleInput("\x1b[A"); // Up
-			editor.handleInput("\x1b[A"); // Up - line 0, col 8
+			// 向上经过空行。
+			editor.handleInput("\x1b[A"); // 按向上键。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 8 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 });
 
-			// Type a character - resets sticky column
+			// 输入字符会重置固定列。
 			editor.handleInput("X");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 9 });
 
-			// Move down twice
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 9 (new sticky from col 9)
+			// 向下移动两次。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 9 列，固定列更新为 9。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 9 });
 		});
 
@@ -3433,22 +3430,22 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Start at line 2, col 8
+			// 从第 2 行第 8 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 8; i++) editor.handleInput("\x1b[C");
 
-			// Move up through empty line
-			editor.handleInput("\x1b[A"); // Up
-			editor.handleInput("\x1b[A"); // Up - line 0, col 8
+			// 向上经过空行。
+			editor.handleInput("\x1b[A"); // 按向上键。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 8 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 });
 
-			// Backspace - resets sticky column
+			// 按退格键会重置固定列。
 			editor.handleInput("\x7f"); // Backspace
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 });
 
-			// Move down twice
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 7 (new sticky from col 7)
+			// 向下移动两次。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 7 列，固定列更新为 7。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 7 });
 		});
 
@@ -3457,19 +3454,19 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Start at line 2, col 8
+			// 从第 2 行第 8 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 8; i++) editor.handleInput("\x1b[C");
 
-			// Move up - establishes sticky col 8
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
+			// 向上移动，记录固定列 8。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
 
-			// Ctrl+A - resets sticky column to 0
+			// Ctrl+A 会将固定列重置为 0。
 			editor.handleInput("\x01"); // Ctrl+A
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 0 });
 
-			// Move up
-			editor.handleInput("\x1b[A"); // Up - line 0, col 0 (new sticky from col 0)
+			// 向上移动。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 0 列，固定列更新为 0。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 		});
 
@@ -3478,22 +3475,22 @@ describe("Editor component", () => {
 
 			editor.setText("12345\n\n1234567890");
 
-			// Start at line 2, col 3
+			// 从第 2 行第 3 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 3; i++) editor.handleInput("\x1b[C");
 
-			// Move up through empty line - establishes sticky col 3
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 3
+			// 向上经过空行，并记录固定列 3。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 3 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 });
 
-			// Ctrl+E - resets sticky column to end
+			// Ctrl+E 会将固定列重置到行末。
 			editor.handleInput("\x05"); // Ctrl+E
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 });
 
-			// Move down twice
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 5 (new sticky from col 5)
+			// 向下移动两次。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 5 列，固定列更新为 5。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 5 });
 		});
 
@@ -3502,21 +3499,21 @@ describe("Editor component", () => {
 
 			editor.setText("hello world\n\nhello world");
 
-			// Start at end of line 2 (col 11)
+			// 从第 2 行末尾开始（第 11 列）。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 11 });
 
-			// Move up through empty line - establishes sticky col 11
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 11
+			// 向上经过空行，并记录固定列 11。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 11 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 11 });
 
-			// Ctrl+Left - word movement resets sticky column
+			// Ctrl+Left 按词移动时会重置固定列。
 			editor.handleInput("\x1b[1;5D"); // Ctrl+Left
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 }); // Before "world"
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 }); // 位于 world 之前。
 
-			// Move down twice
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 6 (new sticky from col 6)
+			// 向下移动两次。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 6 列，固定列更新为 6。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 6 });
 		});
 
@@ -3525,24 +3522,24 @@ describe("Editor component", () => {
 
 			editor.setText("hello world\n\nhello world");
 
-			// Start at line 0, col 0
-			editor.handleInput("\x1b[A"); // Up
-			editor.handleInput("\x1b[A"); // Up
+			// 从第 0 行第 0 列开始。
+			editor.handleInput("\x1b[A"); // 按向上键。
+			editor.handleInput("\x1b[A"); // 按向上键。
 			editor.handleInput("\x01"); // Ctrl+A
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			// Move down through empty line - establishes sticky col 0
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 0
+			// 向下经过空行，并记录固定列 0。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 0 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 0 });
 
-			// Ctrl+Right - word movement resets sticky column
+			// Ctrl+Right 按词移动时会重置固定列。
 			editor.handleInput("\x1b[1;5C"); // Ctrl+Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 5 }); // After "hello"
+			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 5 }); // 位于 hello 之后。
 
-			// Move up twice
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 5 (new sticky from col 5)
+			// 向上移动两次。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 5 列，固定列更新为 5。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 });
 		});
 
@@ -3551,36 +3548,36 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Go to line 0, col 8
-			editor.handleInput("\x1b[A"); // Up to line 1
-			editor.handleInput("\x1b[A"); // Up to line 0
+			// 移至第 0 行第 8 列。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 8; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 });
 
-			// Move down through empty line - establishes sticky col 8
-			editor.handleInput("\x1b[B"); // Down - line 1, col 0
-			editor.handleInput("\x1b[B"); // Down - line 2, col 8 (sticky)
+			// 向下经过空行，并记录固定列 8。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 8 列 (sticky)。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 8 });
 
-			// Type something to create undo state - this clears sticky and sets col to 9
+			// 输入内容以创建可撤销状态；这会清除固定列并将列位置设为 9。
 			editor.handleInput("X");
 			assert.strictEqual(editor.getText(), "1234567890\n\n12345678X90");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 9 });
 
-			// Move up - establishes new sticky col 9
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 9
+			// 向上移动，记录新的固定列 9。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 9 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 9 });
 
-			// Undo - resets sticky column and restores cursor to line 2, col 8
-			editor.handleInput("\x1b[45;5u"); // Ctrl+- (undo)
+			// 撤销会重置固定列，并将光标恢复到第 2 行第 8 列。
+			editor.handleInput("\x1b[45;5u"); // Ctrl+-：撤销。
 			assert.strictEqual(editor.getText(), "1234567890\n\n1234567890");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 8 });
 
-			// Move up - should capture new sticky from restored col 8, not old col 9
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 8 (new sticky from restored position)
+			// 向上移动时应根据恢复后的第 8 列记录新的固定列，而不是沿用旧值 9。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 8 列，固定列根据恢复的位置重新确定。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 });
 		});
 
@@ -3589,23 +3586,23 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\nab\ncd\nef\n1234567890");
 
-			// Start at line 4, col 7
+			// 从第 4 行第 7 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 7; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 4, col: 7 });
 
-			// Move up multiple times through short lines
-			editor.handleInput("\x1b[A"); // Up - line 3, col 2 (clamped)
-			editor.handleInput("\x1b[A"); // Up - line 2, col 2 (clamped)
-			editor.handleInput("\x1b[A"); // Up - line 1, col 2 (clamped)
-			editor.handleInput("\x1b[A"); // Up - line 0, col 7 (restored)
+			// 多次向上经过较短的行。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 3 行、第 2 列 (clamped)。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 2 行、第 2 列 (clamped)。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 2 列 (clamped)。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 7 列 (restored)。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 7 });
 
-			// Move down multiple times - sticky should still be 7
-			editor.handleInput("\x1b[B"); // Down - line 1, col 2
-			editor.handleInput("\x1b[B"); // Down - line 2, col 2
-			editor.handleInput("\x1b[B"); // Down - line 3, col 2
-			editor.handleInput("\x1b[B"); // Down - line 4, col 7 (restored)
+			// 多次向下移动，固定列仍应为 7。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行、第 2 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行、第 2 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 3 行、第 2 列。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 4 行、第 7 列 (restored)。
 			assert.deepStrictEqual(editor.getCursor(), { line: 4, col: 7 });
 		});
 
@@ -3613,23 +3610,23 @@ describe("Editor component", () => {
 			const tui = createTestTUI(15, 24); // Narrow terminal
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Line 0: short
-			// Line 1: 30 chars = wraps to 3 visual lines at width 10 (after padding)
+			// 第 0 行：短文本。
+			// 第 1 行：30 个字符；宽度为 10（扣除填充后）时会换成 3 个显示行。
 			editor.setText("short\n123456789012345678901234567890");
-			editor.render(15); // This gives 14 layout width
+			editor.render(15); // 此时布局宽度为 14 列。
 
-			// Position at end of line 1 (col 30)
+			// 将光标放在第 1 行末尾（第 30 列）。
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 30 });
 
-			// Move up repeatedly - should traverse all visual lines of the wrapped text
-			// and eventually reach line 0
-			editor.handleInput("\x1b[A"); // Up - to previous visual line within line 1
+			// 连续向上移动时应逐个经过文本换行后的显示行，
+			// 最终到达第 0 行。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行内的上一个显示行。
 			assert.strictEqual(editor.getCursor().line, 1);
 
-			editor.handleInput("\x1b[A"); // Up - another visual line
+			editor.handleInput("\x1b[A"); // 按向上键再移至上一个显示行。
 			assert.strictEqual(editor.getCursor().line, 1);
 
-			editor.handleInput("\x1b[A"); // Up - should reach line 0
+			editor.handleInput("\x1b[A"); // 按向上键应到达第 0 行。
 			assert.strictEqual(editor.getCursor().line, 0);
 		});
 
@@ -3638,72 +3635,72 @@ describe("Editor component", () => {
 
 			editor.setText("1234567890\n\n1234567890");
 
-			// Establish sticky column
+			// 记录固定列。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 8; i++) editor.handleInput("\x1b[C");
-			editor.handleInput("\x1b[A"); // Up
+			editor.handleInput("\x1b[A"); // 按向上键。
 
-			// setText should reset sticky column
+			// setText 应重置固定列。
 			editor.setText("abcdefghij\n\nabcdefghij");
-			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 }); // At end
+			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 }); // 位于末尾。
 
-			// Move up - should capture new sticky from current position (10)
-			editor.handleInput("\x1b[A"); // Up - line 1, col 0
-			editor.handleInput("\x1b[A"); // Up - line 0, col 10
+			// 向上移动时应根据当前位置（第 10 列）记录新的固定列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 10 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 });
 		});
 
 		it("sets preferredVisualCol when pressing right at end of prompt (last line)", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Line 0: 20 chars with 'x' at col 10
-			// Line 1: empty
-			// Line 2: 10 chars ending with '_'
+			// 第 0 行：20 个字符，'x' 位于第 10 列。
+			// 第 1 行：空行。
+			// 第 2 行：10 个字符，以 '_' 结尾。
 			editor.setText("111111111x1111111111\n\n333333333_");
 
-			// Go to line 0, press Ctrl+E (end of line) - col 20
-			editor.handleInput("\x1b[A"); // Up to line 1
-			editor.handleInput("\x1b[A"); // Up to line 0
-			editor.handleInput("\x05"); // Ctrl+E - move to end of line
+			// 移至第 0 行，按 Ctrl+E 到行末（第 20 列）。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
+			editor.handleInput("\x05"); // Ctrl+E：将光标移至行尾。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 20 });
 
-			// Move down to line 2 - cursor clamped to col 10 (end of line)
-			editor.handleInput("\x1b[B"); // Down to line 1, col 0
-			editor.handleInput("\x1b[B"); // Down to line 2, col 10 (clamped)
+			// 向下移至第 2 行，光标限制在第 10 列（行末）。
+			editor.handleInput("\x1b[B"); // 按向下键移至第 1 行、第 0 列。
+			editor.handleInput("\x1b[B"); // 按向下键移至第 2 行、第 10 列 (clamped)。
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 });
 
-			// Press Right at end of prompt - nothing visible happens, but sets preferredVisualCol to 10
-			editor.handleInput("\x1b[C"); // Right - can't move, but sets preferredVisualCol
-			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 }); // Still at same position
+			// 在提示符末尾按向右键：位置看似未变，但会将 preferredVisualCol 设为 10。
+			editor.handleInput("\x1b[C"); // 无法继续向右移动，但会设置 preferredVisualCol。
+			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 10 }); // 仍位于原位置。
 
-			// Move up twice to line 0 - should use preferredVisualCol (10) to land on 'x'
-			editor.handleInput("\x1b[A"); // Up to line 1, col 0
-			editor.handleInput("\x1b[A"); // Up to line 0, col 10 (on 'x')
+			// 向上移动两次到第 0 行，应使用 preferredVisualCol（10）定位到 'x'。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行、第 0 列。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行、第 10 列。 (on 'x')
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 });
 		});
 
 		it("handles editor resizes when preferredVisualCol is on the same line", () => {
-			// Create editor with wider terminal
+			// 在更宽的终端中创建编辑器。
 			const tui = createTestTUI(80, 24);
 			const editor = new Editor(tui, defaultEditorTheme);
 
 			editor.setText("12345678901234567890\n\n12345678901234567890");
 
-			// Start at line 2, col 15
+			// 从第 2 行第 15 列开始。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 15; i++) editor.handleInput("\x1b[C");
 
-			// Move up through empty line - establishes sticky col 15
-			editor.handleInput("\x1b[A"); // Up
-			editor.handleInput("\x1b[A"); // Up - line 0, col 15
+			// 向上经过空行，并记录固定列 15。
+			editor.handleInput("\x1b[A"); // 按向上键。
+			editor.handleInput("\x1b[A"); // 按向上键后位于第 0 行、第 15 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 15 });
 
-			// Render with narrower width to simulate resize
+			// 使用较窄的宽度进行渲染，以模拟终端尺寸变化。
 			editor.render(12); // Width 12
 
-			// Move down - sticky should be clamped to new width
-			editor.handleInput("\x1b[B"); // Down - line 1
-			editor.handleInput("\x1b[B"); // Down - line 2, col should be clamped
+			// 向下移动时，固定列应限制在新的宽度范围内。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 1 行。
+			editor.handleInput("\x1b[B"); // 按向下键后位于第 2 行，列位置应限制在有效范围内。
 			assert.equal(editor.getCursor().col, 4);
 		});
 
@@ -3711,37 +3708,37 @@ describe("Editor component", () => {
 			const tui = createTestTUI(80, 24);
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Create a line that wraps into multiple visual lines at width 10
-			// "12345678901234567890" = 20 chars, wraps to 2 visual lines at width 10
+			// 创建一行会在宽度为 10 时换成多个显示行的文本。
+			// "12345678901234567890" 共 20 个字符，在宽度为 10 时会折成 2 个显示行。
 			editor.setText("short\n12345678901234567890");
 
-			// Go to line 1, col 15
+			// 移至第 1 行第 15 列。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 15; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 15 });
 
-			// Move up to establish sticky col 15
-			editor.handleInput("\x1b[A"); // Up to line 0
-			// Line 0 has only 5 chars, so cursor at col 5
+			// 向上移动，以记录固定列 15。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
+			// 第 0 行只有 5 个字符，因此光标位于第 5 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 });
 
-			// Narrow the editor
+			// 缩窄编辑器。
 			editor.render(10);
 
-			// Move down - preferredVisualCol was 15, but width is 10
-			// Should land on line 1, clamped to width (visual col 9, which is logical col 9)
-			editor.handleInput("\x1b[B"); // Down to line 1
+			// 向下移动：preferredVisualCol 为 15，但宽度为 10。
+			// 光标应落在第 1 行，并限制在宽度范围内（显示列 9，也就是逻辑列 9）。
+			editor.handleInput("\x1b[B"); // 按向下键移至第 1 行。
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 8 });
 
-			// Move up
-			editor.handleInput("\x1b[A"); // Up - should go to line 0
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // Line 0 only has 5 chars
+			// 向上移动。
+			editor.handleInput("\x1b[A"); // 向上移动到第 0 行。
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 5 }); // 第 0 行只有 5 个字符。
 
-			// Restore the original width
+			// 恢复原来的宽度。
 			editor.render(80);
 
-			// Move down - preferredVisualCol was kept at 15
-			editor.handleInput("\x1b[B"); // Down to line 1
+			// 向下移动；preferredVisualCol 保留为 15。
+			editor.handleInput("\x1b[B"); // 按向下键移至第 1 行。
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 15 });
 		});
 
@@ -3753,20 +3750,20 @@ describe("Editor component", () => {
 			positionCursor(editor, 0, 18);
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 18 });
 
-			// Narrow to width 10 (layoutWidth = 9).
-			// Line 0 last segment has visual col max 9, line 1 first segment max 8
+			// 将宽度缩至 10（layoutWidth = 9）。
+			// 第 0 行最后一个片段的最大显示列为 9，第 1 行第一个片段的最大显示列为 8。
 			editor.render(10);
 
-			// Move down: cursor clamps to 8
+			// 向下移动时，光标限制在第 8 列。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 8 });
 
-			// Widen back. Move up, the current visual col wins
+			// 恢复较宽尺寸后向上移动，此时以当前显示列为准。
 			editor.render(80);
 			editor.handleInput("\x1b[A");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 8 });
 
-			// Preferred was cleared by the rewrapped branch
+			// 重新换行的分支已清除 preferred 列。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 8 });
 		});
@@ -3779,35 +3776,35 @@ describe("Editor component", () => {
 			positionCursor(editor, 0, 18);
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 18 });
 
-			// Narrow to width 10 (layoutWidth = 9). Moving down clamps to col 8
+			// 将宽度缩至 10（layoutWidth = 9），向下移动时限制在第 8 列。
 			editor.render(10);
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 8 });
 
-			// Widen the editor
+			// 加宽编辑器。
 			editor.render(80);
 
-			// Move down to short line "ab".
-			// preferredVisualCol is replaced with current visual col (8), cursor clamps to 2
+			// 向下移至较短的行 "ab"。
+			// preferredVisualCol 更新为当前显示列 8，光标限制在第 2 列。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 2 });
 
-			// Moving up restores to preferred col 8
+			// 向上移动会恢复到固定列 8。
 			editor.handleInput("\x1b[A");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 8 });
 		});
 	});
 
 	describe("Paste marker atomic behavior", () => {
-		/** Helper: simulate a large paste that creates a marker */
+		/** 辅助函数：模拟会生成标记的大段粘贴内容。 */
 		function pasteWithMarker(editor: Editor): string {
-			const bigContent = "line\n".repeat(20).trimEnd(); // 20 lines
+			const bigContent = "line\n".repeat(20).trimEnd(); // 共 20 行。
 			editor.handleInput(`\x1b[200~${bigContent}\x1b[201~`);
-			// The editor replaces large pastes with a marker like "[paste #1 +20 lines]"
+			// 编辑器会用类似 "[paste #1 +20 lines]" 的标记替换大段粘贴内容。
 			return editor.getText();
 		}
 
-		/** Helper: 12-line paste content with a distinguishing tag */
+		/** 辅助函数：生成带有区分标记的 12 行粘贴内容。 */
 		function bigPaste(tag: string): string {
 			return Array.from({ length: 12 }, (_, i) => `${tag}${i}`).join("\n");
 		}
@@ -3823,22 +3820,22 @@ describe("Editor component", () => {
 			editor.handleInput("A");
 			pasteWithMarker(editor);
 			editor.handleInput("B");
-			// Text: "A[paste #1 +20 lines]B", cursor at end
+			// 文本为 "A[paste #1 +20 lines]B"，光标位于末尾。
 
-			// Go to start
+			// 移至开头。
 			editor.handleInput("\x01"); // Ctrl+A
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 
-			// Right arrow: should move past "A"
+			// 按向右键应移过 "A"。
 			editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 });
 
-			// Right arrow: should skip the entire marker
+			// 按向右键应跳过整个标记。
 			editor.handleInput("\x1b[C");
 			const marker = editor.getText().match(/\[paste #\d+ \+\d+ lines\]/)![0];
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 + marker.length });
 
-			// Right arrow: should move past "B"
+			// 按向右键应移过 "B"。
 			editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 + marker.length + 1 });
 		});
@@ -3848,19 +3845,19 @@ describe("Editor component", () => {
 			editor.handleInput("A");
 			pasteWithMarker(editor);
 			editor.handleInput("B");
-			// Cursor at end
+			// 光标位于末尾。
 
-			// Left arrow: past "B"
+			// 按向左键，移过 "B"。
 			editor.handleInput("\x1b[D");
 			const text = editor.getText();
 			const marker = text.match(/\[paste #\d+ \+\d+ lines\]/)![0];
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 + marker.length });
 
-			// Left arrow: skip the entire marker
+			// 按向左键，跳过整个标记。
 			editor.handleInput("\x1b[D");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 });
 
-			// Left arrow: past "A"
+			// 按向左键，移过 "A"。
 			editor.handleInput("\x1b[D");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 0 });
 		});
@@ -3874,14 +3871,14 @@ describe("Editor component", () => {
 			const text = editor.getText();
 			const marker = text.match(/\[paste #\d+ \+\d+ lines\]/)![0];
 
-			// Position cursor right after the marker (before "B")
+			// 将光标放在标记之后（"B" 之前）。
 			editor.handleInput("\x01"); // Ctrl+A
-			// Move past "A" and the marker
-			editor.handleInput("\x1b[C"); // past "A"
-			editor.handleInput("\x1b[C"); // past marker
+			// 移过 "A" 和标记。
+			editor.handleInput("\x1b[C"); // 移过“A”。
+			editor.handleInput("\x1b[C"); // 移过标记。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 + marker.length });
 
-			// Backspace: should delete the entire marker at once
+			// 按退格键应一次删除整个标记。
 			editor.handleInput("\x7f");
 			assert.strictEqual(editor.getText(), "AB");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 });
@@ -3893,12 +3890,12 @@ describe("Editor component", () => {
 			pasteWithMarker(editor);
 			editor.handleInput("B");
 
-			// Position cursor on "A" (col 0) then move right once to be just before marker
+			// 将光标放在 "A" 处（第 0 列），再向右移动一次到标记前。
 			editor.handleInput("\x01"); // Ctrl+A
-			editor.handleInput("\x1b[C"); // past "A", now at col 1 (start of marker)
+			editor.handleInput("\x1b[C"); // 越过“A”后位于第 1 列，即标记开头。
 
-			// Forward delete: should delete the entire marker at once
-			editor.handleInput("\x1b[3~"); // Delete key
+			// 按向前删除键应一次删除整个标记。
+			editor.handleInput("\x1b[3~"); // Delete 键。
 			assert.strictEqual(editor.getText(), "AB");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 });
 		});
@@ -3910,19 +3907,19 @@ describe("Editor component", () => {
 			pasteWithMarker(editor);
 			editor.handleInput(" ");
 			editor.handleInput("Y");
-			// Text: "X [paste #1 +20 lines] Y"
+			// 文本为 "X [paste #1 +20 lines] Y"。
 
 			const text = editor.getText();
 			const marker = text.match(/\[paste #\d+ \+\d+ lines\]/)![0];
 
-			// Go to start
+			// 移至开头。
 			editor.handleInput("\x01"); // Ctrl+A
 
-			// Ctrl+Right: skip "X"
+			// Ctrl+Right：跳过 "X"。
 			editor.handleInput("\x1b[1;5C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 });
 
-			// Ctrl+Right: skip whitespace + marker (marker treated as single non-ws, non-punct unit)
+			// Ctrl+Right：跳过空白和标记（标记作为一个整体处理，既不是空白也不是标点）。
 			editor.handleInput("\x1b[1;5C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 2 + marker.length });
 		});
@@ -3935,16 +3932,16 @@ describe("Editor component", () => {
 
 			const textBefore = editor.getText();
 
-			// Position after marker
+			// 将光标放在标记之后。
 			editor.handleInput("\x01");
-			editor.handleInput("\x1b[C"); // past A
-			editor.handleInput("\x1b[C"); // past marker
+			editor.handleInput("\x1b[C"); // 移过 A。
+			editor.handleInput("\x1b[C"); // 移过标记。
 
-			// Delete marker
+			// 删除标记。
 			editor.handleInput("\x7f");
 			assert.strictEqual(editor.getText(), "AB");
 
-			// Undo
+			// 撤销。
 			editor.handleInput("\x1b[45;5u");
 			assert.strictEqual(editor.getText(), textBefore);
 		});
@@ -3958,8 +3955,8 @@ describe("Editor component", () => {
 
 			const paste = bigPaste("alpha");
 			editor.handleInput(`\x1b[200~${paste}\x1b[201~`);
-			editor.handleInput("\x7f"); // delete the marker
-			editor.handleInput("\x1b[45;5u"); // undo: restores marker text and registry
+			editor.handleInput("\x7f"); // 删除标记。
+			editor.handleInput("\x1b[45;5u"); // 撤销：恢复标记文本和注册表。
 			editor.handleInput("\r");
 			assert.strictEqual(submitted, paste);
 		});
@@ -3974,11 +3971,11 @@ describe("Editor component", () => {
 			const pasteA = bigPaste("alpha");
 			const pasteB = bigPaste("beta");
 			editor.handleInput(`\x1b[200~${pasteA}\x1b[201~`); // #1 = A
-			editor.handleInput(`\x1b[200~${pasteB}\x1b[201~`); // #2 = B, cursor at end
+			editor.handleInput(`\x1b[200~${pasteB}\x1b[201~`); // 第二个标记对应 B，光标位于末尾。
 			editor.handleInput("\x01"); // Ctrl+A
-			editor.handleInput("\x1b[C"); // right over marker #1
-			editor.handleInput("\x7f"); // delete marker #1, renumbers #2 -> #1
-			editor.handleInput("\x1b[45;5u"); // undo
+			editor.handleInput("\x1b[C"); // 向右越过标记 #1。
+			editor.handleInput("\x7f"); // 删除标记 #1，并将 #2 重新编号为 #1。
+			editor.handleInput("\x1b[45;5u"); // 撤销。
 			editor.handleInput("\r");
 			assert.strictEqual(submitted, pasteA + pasteB);
 		});
@@ -3999,7 +3996,7 @@ describe("Editor component", () => {
 			editor.handleInput("\x01"); // Ctrl+A
 			editor.handleInput(`\x1b[200~${pasteC}\x1b[201~`); // #3 = C, text: [#3][#2][#1]
 			editor.handleInput("\x05"); // Ctrl+E
-			editor.handleInput("\x7f"); // delete marker #1, renumber #3 -> #2 and #2 -> #1
+			editor.handleInput("\x7f"); // 删除标记 #1，并将 #3 重新编号为 #2、#2 重新编号为 #1。
 			editor.handleInput("\r");
 			assert.strictEqual(submitted, pasteC + pasteB);
 		});
@@ -4014,7 +4011,7 @@ describe("Editor component", () => {
 			const paste = bigPaste("alpha");
 			editor.handleInput(`\x1b[200~${paste}\x1b[201~`);
 			editor.setText("replacement");
-			editor.handleInput("\x1b[45;5u"); // undo
+			editor.handleInput("\x1b[45;5u"); // 撤销。
 			editor.handleInput("\r");
 			assert.strictEqual(submitted, paste);
 		});
@@ -4029,18 +4026,18 @@ describe("Editor component", () => {
 			const markers = [...text.matchAll(/\[paste #\d+ \+\d+ lines\]/g)];
 			assert.strictEqual(markers.length, 2);
 
-			// Go to start
+			// 移至开头。
 			editor.handleInput("\x01");
 
-			// Right arrow: should skip first marker atomically
+			// 按向右键应将第一个标记作为整体跳过。
 			editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: markers[0]![0].length });
 
-			// Right arrow: past space
+			// 按向右键移过空格。
 			editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: markers[0]![0].length + 1 });
 
-			// Right arrow: should skip second marker atomically
+			// 按向右键应将第二个标记作为整体跳过。
 			editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), {
 				line: 0,
@@ -4050,21 +4047,21 @@ describe("Editor component", () => {
 
 		it("does not treat manually typed marker-like text as atomic (no valid paste ID)", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
-			// Type text that matches the pattern but was typed manually (no paste entry)
+			// 手动输入符合标记格式的文本，但没有对应的粘贴记录。
 			const fakeMarker = "[paste #99 +5 lines]";
 			for (const ch of fakeMarker) editor.handleInput(ch);
 
 			assert.strictEqual(editor.getText(), fakeMarker);
 
-			// No paste with ID 99 exists, so the marker is NOT treated atomically.
-			// Right arrow should move one grapheme at a time.
+			// 不存在 ID 为 99 的粘贴记录，因此不会将该标记视为原子片段。
+			// 按向右键时应一次移动一个字素簇。
 			editor.handleInput("\x01"); // Ctrl+A
 			editor.handleInput("\x1b[C"); // Right
-			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 }); // Just past "["
+			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 1 }); // 光标刚好位于 "[" 之后。
 		});
 
 		it("does not crash when paste marker is wider than terminal width", () => {
-			// Reproduce: terminal width 8, paste marker "[paste #1 +47 lines]" (21 chars)
+			// 复现条件：终端宽度为 8，粘贴标记 "[paste #1 +47 lines]" 长 21 个字符。
 			const tui = createTestTUI();
 			const editor = new Editor(tui, defaultEditorTheme);
 			const bigContent = "line\n".repeat(47).trimEnd();
@@ -4075,9 +4072,9 @@ describe("Editor component", () => {
 			assert.ok(marker, "paste marker should be created");
 			assert.ok(visibleWidth(marker[0]) > 8, "marker should be wider than render width");
 
-			// Render at very narrow width - should not throw
+			// 在很窄的宽度下渲染，不应抛出异常。
 			const lines = editor.render(8);
-			// Every rendered line must fit within the width (marker is split)
+			// 每个渲染行都必须适配指定宽度（标记会被拆分）。
 			for (const line of lines) {
 				assert.ok(
 					visibleWidth(line) <= 8,
@@ -4087,30 +4084,29 @@ describe("Editor component", () => {
 		});
 
 		it("does not crash when text + paste marker exceeds terminal width with cursor on marker", () => {
-			// Reproduce: terminal width 54, text "b".repeat(35) + "[paste #1 +27 lines]" + "bbbb"
-			// Cursor lands on the paste marker after word-wrap, causing the rendered line
-			// to be 55 visible chars (1 over the width).
+			// 复现条件：终端宽度为 54，文本为 "b".repeat(35) + "[paste #1 +27 lines]" + "bbbb"。
+			// 单词换行后光标落在粘贴标记上，导致渲染行的可见宽度达到 55，超过终端宽度 1 列。
 			const tui = createTestTUI();
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Type 35 'b' characters
+			// 输入 35 个 'b' 字符。
 			for (let i = 0; i < 35; i++) editor.handleInput("b");
 
-			// Paste 27 lines
+			// 粘贴 27 行内容。
 			const bigContent = "line\n".repeat(27).trimEnd();
 			editor.handleInput(`\x1b[200~${bigContent}\x1b[201~`);
 
-			// Type a few more characters
+			// 再输入几个字符。
 			for (let i = 0; i < 4; i++) editor.handleInput("b");
 
-			// Move cursor left to land on the paste marker
-			editor.handleInput("\x1b[D"); // past last 'b'
-			editor.handleInput("\x1b[D"); // past last 'b'
-			editor.handleInput("\x1b[D"); // past last 'b'
-			editor.handleInput("\x1b[D"); // past last 'b'
-			editor.handleInput("\x1b[D"); // now on the paste marker
+			// 向左移动光标，使其落在粘贴标记上。
+			editor.handleInput("\x1b[D"); // 移至最后一个 b 之前。
+			editor.handleInput("\x1b[D"); // 移至最后一个 b 之前。
+			editor.handleInput("\x1b[D"); // 移至最后一个 b 之前。
+			editor.handleInput("\x1b[D"); // 移至最后一个 b 之前。
+			editor.handleInput("\x1b[D"); // 此时光标位于粘贴标记上。
 
-			// Render at width 54 - should not throw
+			// 按宽度 54 渲染，不应抛出异常。
 			const renderWidth = 54;
 			const lines = editor.render(renderWidth);
 			for (const line of lines) {
@@ -4122,24 +4118,24 @@ describe("Editor component", () => {
 		});
 
 		it("wordWrapLine re-checks overflow after backtracking to wrap opportunity", () => {
-			// Reproduce crash #2: " " + "b".repeat(35) + atomic_marker(20 chars) + "bbbb"
-			// layoutWidth=53. After wrapping at the space, the remaining 35 b's + marker = 55
-			// must trigger a second force-break instead of silently overflowing.
+			// 复现崩溃 #2：" " + "b".repeat(35) + atomic_marker（20 个字符）+ "bbbb"。
+			// layoutWidth=53。在空格处换行后，剩余的 35 个 b 和标记共占 55 列，
+			// 必须再次强制换行，不能无声溢出。
 			const tui = createTestTUI();
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Type a space, then 35 b's
+			// 输入一个空格，再输入 35 个 b。
 			editor.handleInput(" ");
 			for (let i = 0; i < 35; i++) editor.handleInput("b");
 
-			// Paste 27 lines to create marker
+			// 粘贴 27 行内容以生成标记。
 			const bigContent = "line\n".repeat(27).trimEnd();
 			editor.handleInput(`\x1b[200~${bigContent}\x1b[201~`);
 
-			// Type trailing chars
+			// 输入末尾字符。
 			for (let i = 0; i < 4; i++) editor.handleInput("b");
 
-			// Render at width 54 (contentWidth=54, layoutWidth=53 with paddingX=0)
+			// 按宽度 54 渲染（paddingX=0 时，contentWidth=54，layoutWidth=53）。
 			const renderWidth = 54;
 			const lines = editor.render(renderWidth);
 			for (const line of lines) {
@@ -4175,34 +4171,34 @@ describe("Editor component", () => {
 		it("snaps to the paste marker start when navigating down into it", () => {
 			const editor = new Editor(createTestTUI(), defaultEditorTheme);
 
-			// Line 0: long enough text to establish a sticky column
+			// 第 0 行文本足够长，可用于记录固定列。
 			editor.setText("12345678901234567890\n\nhello ");
 
-			// Create a large paste to get a marker
+			// 粘贴大段内容以生成标记。
 			const bigContent = "x".repeat(2000);
 			editor.handleInput(`\x1b[200~${bigContent}\x1b[201~`);
 			editor.render(80);
 
 			const text = editor.getText();
 			const _marker = text.match(/\[paste #\d+ \d+ chars\]/)![0];
-			// Line 0: "12345678901234567890"
-			// Line 1: "" (empty)
-			// Line 2: "hello [paste #1 2000 chars]"
-			//         marker starts at col 6
+			// 第 0 行："12345678901234567890"。
+			// 第 1 行：""（空行）。
+			// 第 2 行："hello [paste #1 2000 chars]"。
+			//         标记从第 6 列开始。
 
-			// Navigate to line 0, col 10
-			editor.handleInput("\x1b[A"); // Up to line 1
-			editor.handleInput("\x1b[A"); // Up to line 0
-			editor.handleInput("\x01"); // Ctrl+A (start of line)
+			// 导航到第 0 行第 10 列。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 1 行。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
 			for (let i = 0; i < 10; i++) editor.handleInput("\x1b[C"); // Right 10
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 });
 
-			// Down to empty line
+			// 向下移至空行。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 0 });
 
-			// Down to paste marker line - sticky col 10 falls inside marker (starts at col 6).
-			// Cursor should snap to start of marker (col 6), not end (col 6 + marker.length).
+			// 向下移至粘贴标记所在行时，固定列 10 落在标记内部（标记从第 6 列开始）。
+			// 光标应吸附到标记开头（第 6 列），而非标记末尾（第 6 列 + marker.length）。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 6 });
 		});
@@ -4211,12 +4207,12 @@ describe("Editor component", () => {
 			const tui = createTestTUI(30, 24);
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Build:
-			// Line 0: "1234567890123456" (16 chars)
-			// Line 1: "" (empty)
-			// Line 2: "[paste #1 2000 chars]" (22 chars, paste marker)
-			// Line 3: "" (empty)
-			// Line 4: "abcdefghijklmnop" (16 chars)
+			// 构造以下文本：
+			// 第 0 行："1234567890123456"（16 个字符）。
+			// 第 1 行：""（空行）。
+			// 第 2 行："[paste #1 2000 chars]"（22 个字符的粘贴标记）。
+			// 第 3 行：""（空行）。
+			// 第 4 行："abcdefghijklmnop"（16 个字符）。
 			for (const ch of "1234567890123456") editor.handleInput(ch);
 			editor.handleInput("\n");
 			editor.handleInput("\n");
@@ -4226,25 +4222,25 @@ describe("Editor component", () => {
 			for (const ch of "abcdefghijklmnop") editor.handleInput(ch);
 			editor.render(30);
 
-			// Navigate to line 0, col 10
-			for (let i = 0; i < 4; i++) editor.handleInput("\x1b[A"); // Up to line 0
+			// 导航到第 0 行第 10 列。
+			for (let i = 0; i < 4; i++) editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 10; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 10 });
 
-			// Down to empty line - sticky col 10 established
+			// 向下移至空行，固定列记录为 10。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 0 });
 
-			// Down to paste marker - cursor snapped to col 0 (start of marker)
+			// 向下移至粘贴标记时，光标吸附到第 0 列（标记开头）。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 2, col: 0 });
 
-			// Down to empty line
+			// 向下移至空行。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 3, col: 0 });
 
-			// Down to last line - should restore sticky col 10
+			// 向下移至最后一行，固定列应恢复为 10。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 4, col: 10 });
 		});
@@ -4253,20 +4249,19 @@ describe("Editor component", () => {
 			const tui = createTestTUI(20, 24);
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Build:
-			// Logical line 0: "abcdefgh" + marker(21 chars) + "ijklmnopqr"
-			// Logical line 1: "123456789012345678"
+			// 构造以下文本：
+			// 逻辑行 0："abcdefgh" + 标记（21 个字符）+ "ijklmnopqr"。
+			// 逻辑行 1："123456789012345678"。
 			//
-			// Marker "[paste #1 +100 lines]" (21 chars) is wider than the
-			// terminal (20). Word-wrap splits at the space before "lines",
-			// producing:
-			//   VL1: abcdefgh              (startCol 0,  len 8)
-			//   VL2: [paste #1 +100        (startCol 8,  len 15) <- marker head
-			//   VL3: lines]ijklmnopqr      (startCol 23, len 16) <- marker tail + content
-			//   VL4: 123456789012345678    (line 1)
+			// 标记 "[paste #1 +100 lines]" 长 21 个字符，超过终端宽度 20。
+			// 单词换行会在 "lines" 前的空格处断开，结果如下：
+			//   VL1: abcdefgh              (起始列 0，长度 8)
+			//   VL2: [paste #1 +100        (startCol 8,  len 15) <- 标记前半部分
+			//   VL3: lines]ijklmnopqr      (startCol 23, len 16) <- 标记后半部分和正文
+			//   VL4: 123456789012345678    (逻辑行 1)
 			//
-			// On VL3 the marker tail "lines]" occupies visual cols 0-5.
-			// Content ("i") starts at visual col 6 = logical col 29.
+			// 在 VL3 上，标记尾部 "lines]" 占据显示列 0–5。
+			// 正文（"i"）从显示列 6 开始，对应逻辑列 29。
 			for (const ch of "abcdefgh") editor.handleInput(ch);
 			const bigContent = "line\n".repeat(100).trimEnd();
 			editor.handleInput(`\x1b[200~${bigContent}\x1b[201~`);
@@ -4283,29 +4278,28 @@ describe("Editor component", () => {
 			const markerStart = 8;
 			const markerEnd = markerStart + markerLen; // 29
 
-			// Navigate to line 0, col 6 (on "g"). Preferred col 6 is past the
-			// marker tail on VL3, so the cursor should land on content ("i" at
-			// col 29) without snapping back.
-			editor.handleInput("\x1b[A"); // Up to line 0
-			editor.handleInput("\x01"); // Ctrl+A (start of line)
-			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // Right to col 6
+			// 导航到第 0 行第 6 列（"g" 处）。固定列 6 超过 VL3 上的标记尾部，
+			// 因此光标应落在正文（第 29 列的 "i"）上，而不应吸附回标记。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
+			editor.handleInput("\x01"); // Ctrl+A：移至行首。
+			for (let i = 0; i < 6; i++) editor.handleInput("\x1b[C"); // 向右移动至第 6 列。
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 });
 
-			// Down: cursor lands on paste marker start
+			// 向下移动：光标落在粘贴标记开头。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: markerStart });
 
-			// Down again: preferred col 6 lands at VL3 col 29 ("i"), which is
-			// past the marker. Cursor stays on line 0.
+			// 再次向下移动：固定列 6 会落在 VL3 的第 29 列（"i"），即标记之后。
+			// 光标仍停留在逻辑行 0。
 			editor.handleInput("\x1b[B");
 			assert.strictEqual(editor.getCursor().line, 0);
-			assert.strictEqual(editor.getCursor().col, markerEnd); // col 29 = "i"
+			assert.strictEqual(editor.getCursor().col, markerEnd); // 第 29 列对应字符“i”。
 
-			// Up: back to paste marker
+			// 向上移动：回到粘贴标记处。
 			editor.handleInput("\x1b[A");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: markerStart });
 
-			// Up again: back to col 6 ("g")
+			// 再次向上移动：回到第 6 列（"g" 处）。
 			editor.handleInput("\x1b[A");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 6 });
 		});
@@ -4314,14 +4308,13 @@ describe("Editor component", () => {
 			const tui = createTestTUI(20, 24);
 			const editor = new Editor(tui, defaultEditorTheme);
 
-			// Same layout. Start at col 3 ("d"). Preferred col 3 maps to VL3
-			// visual col 3 which is inside the "lines]" marker tail.
-			// moveToVisualLine detects the continuation VL and skips to VL4
-			// (line 1).
-			//   VL1: abcdefgh              (startCol 0,  len 8)
-			//   VL2: [paste #1 +100        (startCol 8,  len 15) <- marker head
-			//   VL3: lines]ijklmnopqr      (startCol 23, len 16) <- marker tail + content
-			//   VL4: 123456789012345678    (line 1)
+			// 布局相同。从第 3 列（"d"）开始。固定列 3 会映射到 VL3 的显示列 3，
+			// 即标记尾部 "lines]" 内。moveToVisualLine 会识别这是续行并跳到 VL4
+			//（逻辑行 1）。
+			//   VL1: abcdefgh              (起始列 0，长度 8)
+			//   VL2: [paste #1 +100        (起始列 8，长度 15) <- 标记头部
+			//   VL3: lines]ijklmnopqr      (起始列 23，长度 16) <- 标记尾部与内容
+			//   VL4: 123456789012345678    (第 1 行)
 			for (const ch of "abcdefgh") editor.handleInput(ch);
 			const bigContent = "line\n".repeat(100).trimEnd();
 			editor.handleInput(`\x1b[200~${bigContent}\x1b[201~`);
@@ -4330,21 +4323,21 @@ describe("Editor component", () => {
 			for (const ch of "123456789012345678") editor.handleInput(ch);
 			editor.render(20);
 
-			// Navigate to line 0, col 3 (on "d")
-			editor.handleInput("\x1b[A"); // Up to line 0
+			// 导航到第 0 行第 3 列（"d" 处）。
+			editor.handleInput("\x1b[A"); // 按向上键移至第 0 行。
 			editor.handleInput("\x01"); // Ctrl+A
 			for (let i = 0; i < 3; i++) editor.handleInput("\x1b[C");
 			assert.deepStrictEqual(editor.getCursor(), { line: 0, col: 3 });
 
-			// Down: marker
+			// 向下移动：到达标记处。
 			editor.handleInput("\x1b[B");
 			assert.strictEqual(editor.getCursor().col, 8);
 
-			// Down: skips VL3 (col 3 in marker tail) and lands on line 1
+			// 向下移动：跳过 VL3（第 3 列位于标记尾部），落到逻辑行 1。
 			editor.handleInput("\x1b[B");
 			assert.deepStrictEqual(editor.getCursor(), { line: 1, col: 3 });
 
-			// Round-trip back
+			// 再向上返回。
 			editor.handleInput("\x1b[A");
 			assert.strictEqual(editor.getCursor().col, 8); // marker
 			editor.handleInput("\x1b[A");

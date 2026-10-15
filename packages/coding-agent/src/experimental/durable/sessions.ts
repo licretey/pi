@@ -4,7 +4,7 @@ import { basename, join, resolve } from "node:path";
 import lockfile from "proper-lockfile";
 import { getAgentDir } from "../../config.ts";
 
-/** One session directory holding `session.sqlite`, locked by this process. */
+/** 保存 `session.sqlite` 并由当前进程锁定的会话目录。 */
 export interface SessionLocation {
 	id: string;
 	directory: string;
@@ -14,7 +14,7 @@ export interface SessionLocation {
 	release(): Promise<void>;
 }
 
-/** A new session for `cwd`, or its newest one with `continueSession`. */
+/** 为 `cwd` 创建的新会话；若指定 `continueSession`，则使用该目录下最新的会话。 */
 export async function selectSession(cwdInput: string, continueSession: boolean): Promise<SessionLocation> {
 	const cwd = await realpath(resolve(cwdInput));
 	const root = join(
@@ -44,7 +44,7 @@ export async function selectSession(cwdInput: string, continueSession: boolean):
 
 	let release: () => Promise<void>;
 	try {
-		// A lock left by a crashed process goes stale after 10 s; wait that long before giving up.
+		// 崩溃进程遗留的锁会在 10 秒后过期；放弃前等待这段时间。
 		release = await lockfile.lock(directory, {
 			realpath: false,
 			retries: { retries: 12, minTimeout: 1000, maxTimeout: 1000 },

@@ -1,4 +1,4 @@
-/** Fast deterministic hash to shorten long strings */
+/** 快速确定性哈希，用于缩短长字符串 */
 export function shortHash(str: string): string {
 	let h1 = 0xdeadbeef;
 	let h2 = 0x41c6ce57;

@@ -1,9 +1,8 @@
 /**
- * Presentation for the edit tool.
+ * edit 工具的呈现逻辑。
  *
- * Renderers live apart from the implementation so a process that only displays tool output does not
- * load the execution path or its typebox parameter schema. `edit.ts` spreads these into its
- * definition, so the tool's public shape is unchanged.
+ * 渲染器与工具实现分开放置，避免只显示工具输出的进程加载执行逻辑或 TypeBox 参数架构。
+ * `edit.ts` 会将这些渲染器展开到工具定义中，因此工具的公开结构保持不变。
  */
 
 import { Box, Container, Spacer, Text } from "@earendil-works/pi-tui";

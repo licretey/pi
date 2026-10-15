@@ -30,7 +30,7 @@ import { context } from "./session-support.ts";
 
 const Count = Type.Object({ count: Type.Number() });
 
-/** A tool that returns `result`, with `extra` such as a schema. */
+/** 返回 `result` 的工具，并可附带 schema 等 `extra` 信息。 */
 function returning(name: string, result: ToolExecutionResult, extra: Partial<ToolRegistration> = {}): ToolRegistration {
 	return defineTool({
 		name,
@@ -47,7 +47,7 @@ function call(name: string): AssistantMessage {
 
 const DONE = fauxAssistantMessage([fauxText("done")]);
 
-/** Run `name` as a nested call of a `probe` tool and return what the probe received. */
+/** 将 `name` 作为 `probe` 工具的嵌套调用运行，并返回 probe 收到的内容。 */
 async function nested(setup: ChatSetup, name: string): Promise<NestedToolExecutionResult> {
 	let received: NestedToolExecutionResult | undefined;
 	addTool(
@@ -69,7 +69,7 @@ async function nested(setup: ChatSetup, name: string): Promise<NestedToolExecuti
 	return received!;
 }
 
-/** Run `name` as a model-issued call and return its transcript message. */
+/** 将 `name` 作为模型发起的调用运行，并返回对话记录中的对应消息。 */
 async function direct(setup: ChatSetup, name: string): Promise<ToolResultMessage> {
 	setup.faux.setResponses([call(name), DONE]);
 	const { harness, root } = await openChat(new MemoryStorage(), setup);
@@ -208,7 +208,7 @@ describe("structured output", () => {
 			addTool(setup.registry, returning(name, result, schema ? { structuredOutputSchema: Count } : {}));
 			const received = await nested(setup, name);
 			expect(received.isError).toBe(true);
-			// The broken value is dropped; a schema-less tool's error result still carries its output, here none.
+			// 不符合模式的值会被丢弃；无模式工具的错误结果仍会携带其输出，此处输出为空。
 			if (schema) expect(received).not.toHaveProperty("structuredOutput");
 			else expect(received.structuredOutput).toBe("");
 			expect(codes(received)).toEqual(["invalid_structured_output"]);
@@ -216,7 +216,7 @@ describe("structured output", () => {
 
 			const modelSetup = chatSetup();
 			addTool(modelSetup.registry, returning(name, result, schema ? { structuredOutputSchema: Count } : {}));
-			// The model never sees structured output: its call stands, and the host gets a report.
+			// 模型不会收到结构化输出：工具调用结果保持不变，宿主会收到报告。
 			const stored = await direct(modelSetup, name);
 			expect(stored.isError).toBe(false);
 			expect(JSON.stringify(stored.content)).not.toContain(message);
@@ -292,7 +292,7 @@ describe("structured output", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await harness.close(context);
-		// A schema-less tool's value is its output, so redacting the output redacts what programs get.
+		// 无模式工具的值就是其输出，因此脱敏输出也会影响程序获取的值。
 		expect(plain?.structuredOutput).toBe("rewritten");
 		expect(counter).toMatchObject({ structuredOutput: { count: 1 } });
 		expect(other?.isError).toBe(true);

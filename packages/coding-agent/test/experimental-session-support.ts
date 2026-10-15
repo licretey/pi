@@ -27,7 +27,7 @@ export async function configureExperimentalWorkerModel(agentDir: string): Promis
 	});
 }
 
-/** The root conversation's model, read from the Session's durable storage while no worker owns it. */
+/** 没有 worker 持有根对话时，从 Session 的持久化存储中读取其模型。 */
 export async function readExperimentalSessionState(
 	sessionsRoot: string,
 	sessionId: string,

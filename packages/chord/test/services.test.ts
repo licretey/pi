@@ -69,11 +69,11 @@ describe("remote services", () => {
 	test("checks remote JSON contracts only at compile time", () => {
 		expect(defineService<JsonPassthrough>("test.json-passthrough").local).toBe(false);
 		const defineInvalidContracts = (): void => {
-			// @ts-expect-error Remote service arguments must be JSON-compatible.
+			// @ts-expect-error 远程服务参数必须可序列化为 JSON。
 			defineService<NonJsonArgument>("test.non-json-argument");
-			// @ts-expect-error Remote service results must be JSON-compatible.
+			// @ts-expect-error 远程服务结果必须可序列化为 JSON。
 			defineService<NonJsonResult>("test.non-json-result");
-			// @ts-expect-error Replicated state must be JSON-compatible.
+			// @ts-expect-error 复制状态必须可序列化为 JSON。
 			defineService<NonJsonState>("test.non-json-state");
 		};
 		expect(defineInvalidContracts).not.toThrow();

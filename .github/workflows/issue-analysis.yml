@@ -1,48 +1,33 @@
-# Runs the repo's /is prompt against an issue when the `pi-analyze` label is added
-# or when a staff member comments `@issuron analyze` anywhere on an issue.
+# 添加 `pi-analyze` 标签，或工作人员在议题任意位置评论 `@issuron analyze` 时，针对该议题运行仓库的 `/is` 提示词。
 #
-# Comment triggers can include one `#run-on-*` tag anywhere in the text:
+# 评论触发语句可在任意位置包含一个 `#run-on-*` 标签：
 #   @issuron analyze #run-on-linux    -> ubuntu-latest (default)
 #   @issuron analyze #run-on-windows  -> windows-latest
 #   @issuron analyze #run-on-mac      -> macos-latest
 #
-# Label triggers always run on the default Linux runner. Runner selection is
-# intentionally restricted to hardcoded aliases in the authorization step.
+# 标签触发始终使用默认 Linux 运行器。授权步骤会将运行器限制为预先定义的别名。
 #
-# Setup required before this works:
-#   1. Create a `pi-analyze` GitHub environment on the repo and add a
-#      `PI_AUTH_JSON` secret containing the contents of a pi auth.json
+# 使用前需要完成以下设置：
+#   1. 在仓库中创建 `pi-analyze` GitHub 环境，并添加 `PI_AUTH_JSON` 密钥，内容为 pi auth.json
 #      (~/.pi/agent/auth.json).
-#   2. Create the `pi-analyze` label.
-#   3. Add a repository secret `EARENDIL_ORG_READ_TOKEN` with permission to
-#      read `earendil-works` org membership. The authorization job uses it to
-#      verify that the label actor is an active member of `earendil-works/staff`.
-#   4. Add an environment secret `PI_GIST_TOKEN` on `pi-analyze` with gist
-#      creation permission. The analysis job uses it to upload the exported
-#      session gist.
-#   5. Add an environment secret `PI_AUTH_UPDATE_TOKEN` on `pi-analyze` with
-#      permission to update this repo's environment secrets. The analysis job
-#      uses it to write back refreshed `PI_AUTH_JSON` contents. Fine-grained
-#      tokens need repository permission `Environments: read and write` on this
-#      repo; classic tokens need the `repo` scope. The `Secrets` permission is
-#      not enough: it only covers repository-level Actions secrets, while every
-#      `/repos/{owner}/{repo}/environments/{env}/secrets/*` endpoint is governed
-#      by `Environments`. Without it `gh secret set` fails with "Resource not
-#      accessible by personal access token" and the stored credential goes stale
-#      until its refresh token is rejected.
+#   2. 创建 `pi-analyze` 标签。
+#   3. 添加仓库密钥 `EARENDIL_ORG_READ_TOKEN`，使其能够读取 `earendil-works` 组织成员关系。授权任务使用它
+#      验证添加标签的用户是否为 `earendil-works/staff` 的有效成员。
+#   4. 在 `pi-analyze` 环境中添加密钥 `PI_GIST_TOKEN`，并授予创建 gist 的权限。分析任务使用它上传导出的会话 gist。
+#   5. 在 `pi-analyze` 环境中添加密钥 `PI_AUTH_UPDATE_TOKEN`，授予其更新本仓库环境密钥的权限。分析任务使用它
+#      写回刷新的 `PI_AUTH_JSON`。细粒度令牌需要本仓库的 `Environments: read and write` 权限；经典令牌需要
+#      `repo` 范围。仅有 `Secrets` 权限并不足够：它只涵盖仓库级 Actions 密钥，而
+#      `/repos/{owner}/{repo}/environments/{env}/secrets/*` 接口受 `Environments` 权限控制。缺少该权限时，
+#      `gh secret set` 会报错 "Resource not accessible by personal access token"，保存的凭据会逐渐过期，直到刷新令牌被拒绝。
 #
-# `PI_AUTH_JSON` must come from a login dedicated to this workflow. OpenAI Codex
-# rotates refresh tokens on every refresh, so sharing one auth.json with a
-# developer machine invalidates whichever copy refreshes second, and analysis
-# then fails with "OAuth refresh failed for openai-codex".
+# `PI_AUTH_JSON` 必须来自专供此工作流使用的登录账号。OpenAI Codex 每次刷新都会轮换刷新令牌，因此若与开发机共用
+# 同一个 auth.json，后刷新的副本会使另一个副本失效，随后分析会报错 "OAuth refresh failed for openai-codex"。
 #
-# The selected runner must have Node.js support plus gh, fd, and ripgrep. GitHub
-# hosted runners are bootstrapped below; future self-hosted aliases should have
-# those dependencies preinstalled or installable by the setup steps.
+# 所选运行器必须支持 Node.js，并提供 gh、fd 和 ripgrep。下方会配置 GitHub 托管运行器；今后添加的自托管别名
+# 应预装这些依赖，或能通过设置步骤安装它们。
 #
-# The session runs in a high-entropy checkout directory so the recorded cwd is
-# a unique string. Import the session into a local checkout with the
-# /ir extension command (.pi/extensions/import-repro.ts):
+# 会话在随机性足够高的检出目录中运行，确保记录的 cwd 是唯一值。使用以下命令将会话导入本地检出目录：
+# 使用 `/ir` 扩展命令（.pi/extensions/import-repro.ts）导入：
 #   pi "/ir <gist-id | gist-url | pi.dev/session URL>"
 
 name: Issue Analysis

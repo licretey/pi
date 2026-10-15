@@ -121,7 +121,7 @@ describe("TuiAltScreen", () => {
 		assert.strictEqual(terminal.getViewport()[3], "line 7  ↓ Jump to end         ");
 		assert.strictEqual(terminal.getViewport()[4]?.trimEnd(), "editor");
 
-		// Pressing next to the label starts a selection instead of jumping.
+		// 在标签旁按下鼠标会开始选择，而不是跳转。
 		terminal.sendInput("\x1b[<0;2;4M");
 		terminal.sendInput("\x1b[<0;2;4m");
 		await terminal.waitForRender();
@@ -139,7 +139,7 @@ describe("TuiAltScreen", () => {
 	});
 
 	it("keeps the jump-to-end indicator centered as the auto scrollbar hides and reappears", async () => {
-		// Regression test for #9136: auto scrollbar visibility must not move the indicator.
+		// #9136 回归测试：自动显示滚动条时，滚动指示器的位置不得改变。
 		const terminal = new VirtualTerminal(80, 6);
 		const label = " ↓ Jump to latest message · End ";
 		const tui = new TuiAltScreen(terminal, undefined, undefined, {
@@ -154,7 +154,7 @@ describe("TuiAltScreen", () => {
 		try {
 			await terminal.waitForRender();
 
-			// Scrolling over the track keeps the scrollbar visible until the pointer leaves.
+			// 在滚动条轨道上滚动时，滚动条应保持可见，直到指针离开。
 			terminal.sendInput("\x1b[<64;80;1M");
 			await terminal.waitForRender();
 			assert.strictEqual(transcript.isScrollbarVisible, true);
@@ -162,7 +162,7 @@ describe("TuiAltScreen", () => {
 			const scrollTop = transcript.scrollTop;
 			const visibleColumn = terminal.getViewport()[5].indexOf(label);
 
-			// Leaving the track lets the auto-hide timer expire without changing the content.
+			// 指针离开轨道后，自动隐藏计时器应正常到期，且内容不变。
 			terminal.sendInput("\x1b[<35;79;1M");
 			await terminal.waitForRender();
 			assert.strictEqual(transcript.isScrollbarVisible, false);
@@ -182,7 +182,7 @@ describe("TuiAltScreen", () => {
 	});
 
 	it("leaves the scrollbar visible and clickable when the jump-to-end indicator spans the transcript", async () => {
-		// Regression coverage for #9136: centering must not paint or capture clicks over the scrollbar.
+		// #9136 回归测试：居中布局不得覆盖滚动条，也不得拦截其上的点击。
 		const terminal = new VirtualTerminal(30, 6);
 		const tui = new TuiAltScreen(terminal, undefined, undefined, {
 			scrollToEndIndicator: () => "↓".repeat(30),
@@ -204,7 +204,7 @@ describe("TuiAltScreen", () => {
 		await terminal.waitForRender();
 		assert.strictEqual(transcript.isFollowingEnd, false);
 
-		// The indicator must not intercept a press on the scrollbar's last column.
+		// 滚动指示器不得拦截发生在滚动条最后一列上的按下事件。
 		assert.strictEqual(terminal.getViewport()[3], `${"↓".repeat(29)}┃`);
 		terminal.sendInput("\x1b[<0;30;4M");
 		terminal.sendInput("\x1b[<0;30;4m");
@@ -248,7 +248,7 @@ describe("TuiAltScreen", () => {
 			["line 5", "line 6", "line 7", "line 8", "editor", "footer"],
 		);
 
-		// Wheel over the dock falls back to the primary transcript scroll view.
+		// 在停靠区域上滚动时，应回退到主要会话记录滚动视图处理。
 		terminal.sendInput("\x1b[<64;1;6M");
 		await terminal.waitForRender();
 		assert.deepStrictEqual(
@@ -327,7 +327,7 @@ describe("TuiAltScreen", () => {
 		await terminal.waitForRender();
 		assert.strictEqual(tui.viewportTop, 8);
 
-		// Alt modifier sets bit 8 on the wheel button (72 = 64 + 8).
+		// Alt 修饰键会将滚轮按钮的第 8 位设为 1（72 = 64 + 8）。
 		terminal.sendInput("\x1b[<72;1;1M");
 		await terminal.waitForRender();
 		assert.strictEqual(tui.viewportTop, 3);
@@ -504,7 +504,7 @@ describe("TuiAltScreen", () => {
 		tui.stop();
 	});
 
-	// #9758: wheel line counts can change at runtime; Alt keeps its multiplier.
+	// #9758：滚轮移动行数可在运行时改变；Alt 修饰键仍应保留其倍率。
 	it("applies runtime wheel line count updates", async () => {
 		const terminal = new VirtualTerminal(20, 4);
 		const tui = new TuiAltScreen(terminal, undefined, undefined, { wheelScrollLines: 3 });
@@ -925,7 +925,7 @@ describe("TuiAltScreen", () => {
 		const bottom = transcript.scrollTop;
 		assert.ok(bottom > 0);
 
-		// #10314: unmodified Home/End belong to the editor in every UI mode.
+		// #10314：在所有界面模式下，未带修饰键的 Home/End 都应由编辑器处理。
 		const editorKeys = ["\x1bOH", "\x1b[F", "\x1b[57423u", "\x1b[5;5~", "\x1b[6;5~"];
 		for (const input of editorKeys) terminal.sendInput(input);
 		await terminal.waitForRender();
@@ -1075,7 +1075,7 @@ describe("TuiAltScreen", () => {
 	});
 
 	it("redraws WezTerm Kitty images after writes to covered rows", async () => {
-		// Regression test for #10319: a scrollbar update below an unchanged image anchor erased its cells.
+		// #10319 回归测试：未变化的图像锚点下方更新滚动条时，曾导致锚点单元格被擦除。
 		const weztermPane = process.env.WEZTERM_PANE;
 		let tui: TuiAltScreen | undefined;
 		process.env.WEZTERM_PANE = "1";
@@ -1495,7 +1495,7 @@ describe("TuiAltScreen", () => {
 	});
 
 	it("flashes a specific error returned by the injected copySelection handler", async () => {
-		// Regression test for #9618.
+		// #9618 回归测试。
 		const terminal = new RecordingTerminal(80, 4);
 		const tui = new TuiAltScreen(terminal, undefined, undefined, {
 			copyOnSelect: false,
@@ -1593,7 +1593,7 @@ describe("TuiAltScreen", () => {
 		tui.start();
 		await terminal.waitForRender();
 
-		// The second click lands on a different character in alpha.
+		// 第二次点击落在 alpha 中的另一个字符上。
 		terminal.sendInput("\x1b[<0;6;1M");
 		terminal.sendInput("\x1b[<0;6;1m");
 		terminal.sendInput("\x1b[<0;10;1M");
@@ -1602,7 +1602,7 @@ describe("TuiAltScreen", () => {
 		const alpha = `\x1b]52;c;${Buffer.from("alpha").toString("base64")}\x07`;
 		assert.ok(terminal.events.some((event) => event.type === "write" && event.data.includes(alpha)));
 
-		// A double-click drag includes each word touched, rather than partial words.
+		// 双击后拖动应选中触及的每个完整单词，而不是单词的部分内容。
 		terminal.sendInput("\x1b[<0;12;1M");
 		terminal.sendInput("\x1b[<0;12;1m");
 		terminal.sendInput("\x1b[<0;14;1M");
@@ -1642,7 +1642,7 @@ describe("TuiAltScreen", () => {
 		await terminal.waitForRender();
 		assert.strictEqual(writeCount(), idleWriteCount);
 
-		// A completed click leaves a zero-width anchor, but later orphaned drag/release events must not extend it.
+		// 点击完成后会留下零宽度锚点；之后脱离按下事件的拖动或释放事件不得扩展该锚点。
 		terminal.sendInput("\x1b[<0;1;1M");
 		terminal.sendInput("\x1b[<0;1;1m");
 		terminal.sendInput("\x1b[<32;4;2M");
@@ -1650,7 +1650,7 @@ describe("TuiAltScreen", () => {
 		await terminal.waitForRender();
 		assert.strictEqual(clipboardWriteCount(), 0);
 
-		// Losing focus after a press without a drag cancels the press without repainting.
+		// 按下后未拖动便失去焦点时，应取消该按下操作且不触发重绘。
 		terminal.sendInput("\x1b[<0;1;3M");
 		await terminal.waitForRender();
 		const pressedWriteCount = writeCount();

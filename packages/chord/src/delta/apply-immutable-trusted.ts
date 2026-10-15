@@ -11,7 +11,7 @@ const DATA_DESCRIPTOR: PropertyDescriptor = {
 	configurable: true,
 };
 
-/** Apply self-produced trusted operations while copying each touched container once. */
+/** 应用自身产生的受信操作，同时每个被触及的容器只复制一次。 */
 export function applyImmutableTrusted<T>(target: T, operations: readonly Op[]): T {
 	let root = target as unknown as JsonValue;
 	const owned = new WeakSet<object>();

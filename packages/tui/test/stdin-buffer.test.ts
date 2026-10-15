@@ -1,7 +1,7 @@
 /**
- * Tests for StdinBuffer
+ * StdinBuffer 的测试。
  *
- * Based on code from OpenTUI (https://github.com/anomalyco/opentui)
+ * 基于 OpenTUI（https://github.com/anomalyco/opentui）的代码。
  * MIT License - Copyright (c) 2025 opentui
  */
 
@@ -17,19 +17,19 @@ describe("StdinBuffer", () => {
 	beforeEach(() => {
 		buffer = new StdinBuffer({ timeout: 10 });
 
-		// Collect emitted sequences
+		// 收集已发出的序列。
 		emittedSequences = [];
 		buffer.on("data", (sequence) => {
 			emittedSequences.push(sequence);
 		});
 	});
 
-	// Helper to process data through the buffer
+	// 将数据传入缓冲区处理。
 	function processInput(data: string | Buffer): void {
 		buffer.process(data);
 	}
 
-	// Helper to wait for async operations
+	// 等待异步操作完成。
 	async function wait(ms: number): Promise<void> {
 		return new Promise((resolve) => setTimeout(resolve, ms));
 	}
@@ -129,19 +129,18 @@ describe("StdinBuffer", () => {
 			processInput("\x1b[<35");
 			assert.deepStrictEqual(emittedSequences, []);
 
-			// Wait for timeout
+			// 等待超时。
 			await wait(15);
 
 			assert.deepStrictEqual(emittedSequences, ["\x1b[<35"]);
 		});
 
 		it("should flush a lone ESC as Escape when CR arrives after the timeout", async () => {
-			// Legacy-mode Alt+Enter is ESC + CR; when the terminal/transport splits
-			// the bytes further apart than the timeout, ESC is flushed alone and the
-			// host sees Escape (interrupt) instead of Alt+Enter. This locks in the
-			// behavior so the configurable timeout in ProcessTerminal stays honest.
+			// 传统模式下，Alt+Enter 对应 ESC + CR；若终端或传输层拆分字节的间隔超过超时时长，
+			// ESC 会单独刷新，宿主端收到的是 Escape（中断），而不是 Alt+Enter。此测试固定该行为，
+			// 确保 ProcessTerminal 的可配置超时时长与实际行为一致。
 			processInput("\x1b");
-			await wait(20); // buffer timeout is 10ms in beforeEach
+			await wait(20); // beforeEach 中将缓冲区超时时长设为 10 毫秒。
 			processInput("\r");
 
 			assert.deepStrictEqual(emittedSequences, ["\x1b", "\r"]);
@@ -156,7 +155,7 @@ describe("StdinBuffer", () => {
 			});
 
 			processInput("\x1b");
-			await wait(20); // > 10ms default escapeTimeout, < 100ms configured escapeTimeout
+			await wait(20); // 大于 escapeTimeout 的默认值 10 毫秒，小于配置值 100 毫秒。
 			processInput("\r");
 
 			assert.deepStrictEqual(emittedSequences, ["\x1b\r"]);
@@ -220,46 +219,45 @@ describe("StdinBuffer", () => {
 
 	describe("Kitty Keyboard Protocol", () => {
 		it("should handle Kitty CSI u press events", () => {
-			// Press 'a' in Kitty protocol
+			// Kitty 协议中的 a 键按下事件。
 			processInput("\x1b[97u");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[97u"]);
 		});
 
 		it("should handle Kitty CSI u release events", () => {
-			// Release 'a' in Kitty protocol
+			// Kitty 协议中的 a 键释放事件。
 			processInput("\x1b[97;1:3u");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[97;1:3u"]);
 		});
 
 		it("should handle batched Kitty press and release", () => {
-			// Press 'a', release 'a' batched together (common over SSH)
+			// a 键的按下和释放事件合并到同一批数据中（SSH 场景中很常见）。
 			processInput("\x1b[97u\x1b[97;1:3u");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[97u", "\x1b[97;1:3u"]);
 		});
 
 		it("should handle multiple batched Kitty events", () => {
-			// Press 'a', release 'a', press 'b', release 'b'
+			// 依次包含 a 键按下、a 键释放、b 键按下和 b 键释放事件。
 			processInput("\x1b[97u\x1b[97;1:3u\x1b[98u\x1b[98;1:3u");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[97u", "\x1b[97;1:3u", "\x1b[98u", "\x1b[98;1:3u"]);
 		});
 
 		it("should handle Kitty arrow keys with event type", () => {
-			// Up arrow press with event type
+			// 带事件类型的上方向键按下事件。
 			processInput("\x1b[1;1:1A");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[1;1:1A"]);
 		});
 
 		it("should handle Kitty functional keys with event type", () => {
-			// Delete key release
+			// Delete 键释放事件。
 			processInput("\x1b[3;1:3~");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[3;1:3~"]);
 		});
 
 		it("should split ESC+ESC+CSI into standalone ESC and the CSI sequence (WezTerm Escape key regression)", () => {
-			// WezTerm with enable_kitty_keyboard sends Escape key press as raw \x1b
-			// and the release as a full Kitty CSI-u sequence, concatenated.
-			// The buffer must not treat \x1b\x1b as a complete meta-key when the
-			// following byte starts a new escape sequence.
+			// WezTerm 启用 enable_kitty_keyboard 后，会将 Escape 键按下事件作为原始 \x1b 发送，
+			// 并将释放事件作为完整的 Kitty CSI-u 序列紧接着发送。
+			// 如果后续字节开始了新的转义序列，缓冲区不能把 \x1b\x1b 当作完整的 Meta 组合键。
 			processInput("\x1b\x1b[27;129:3u");
 			assert.deepStrictEqual(emittedSequences, ["\x1b", "\x1b[27;129:3u"]);
 		});
@@ -270,13 +268,13 @@ describe("StdinBuffer", () => {
 		});
 
 		it("should still emit ESC+ESC as a single sequence when not followed by a new escape", () => {
-			// \x1b\x1b alone (no following CSI) stays as-is — e.g. ctrl+alt+[
+			// 单独出现的 \x1b\x1b（后面没有 CSI）应保持原样，例如 ctrl+alt+[。
 			processInput("\x1b\x1b");
 			assert.deepStrictEqual(emittedSequences, ["\x1b\x1b"]);
 		});
 
 		it("should handle plain characters mixed with Kitty sequences", () => {
-			// Plain 'a' followed by Kitty release
+			// 普通字符 a 后跟 Kitty 协议的按键释放事件。
 			processInput("a\x1b[97;1:3u");
 			assert.deepStrictEqual(emittedSequences, ["a", "\x1b[97;1:3u"]);
 		});
@@ -303,7 +301,7 @@ describe("StdinBuffer", () => {
 		});
 
 		it("should handle rapid typing simulation with Kitty protocol", () => {
-			// Simulates typing "hi" quickly with releases interleaved
+			// 模拟快速输入 hi，按键释放事件穿插在按下事件之间。
 			processInput("\x1b[104u\x1b[104;1:3u\x1b[105u\x1b[105;1:3u");
 			assert.deepStrictEqual(emittedSequences, ["\x1b[104u", "\x1b[104;1:3u", "\x1b[105u", "\x1b[105;1:3u"]);
 		});
@@ -358,7 +356,7 @@ describe("StdinBuffer", () => {
 	describe("Edge Cases", () => {
 		it("should handle empty input", () => {
 			processInput("");
-			// Empty string emits an empty data event
+			// 空字符串会触发内容为空的数据事件。
 			assert.deepStrictEqual(emittedSequences, [""]);
 		});
 
@@ -366,7 +364,7 @@ describe("StdinBuffer", () => {
 			processInput("\x1b");
 			assert.deepStrictEqual(emittedSequences, []);
 
-			// After timeout, should emit
+			// 超时后应发出该序列。
 			await wait(15);
 			assert.deepStrictEqual(emittedSequences, ["\x1b"]);
 		});
@@ -419,7 +417,7 @@ describe("StdinBuffer", () => {
 			processInput("\x1b[<35");
 			assert.deepStrictEqual(emittedSequences, []);
 
-			// Wait for timeout to flush
+			// 等待超时后刷新缓冲内容。
 			await wait(15);
 
 			assert.deepStrictEqual(emittedSequences, ["\x1b[<35"]);
@@ -443,13 +441,13 @@ describe("StdinBuffer", () => {
 		beforeEach(() => {
 			buffer = new StdinBuffer({ timeout: 10 });
 
-			// Collect emitted sequences
+			// 收集已发出的序列。
 			emittedSequences = [];
 			buffer.on("data", (sequence) => {
 				emittedSequences.push(sequence);
 			});
 
-			// Collect paste events
+			// 收集粘贴事件。
 			emittedPaste = [];
 			buffer.on("paste", (data) => {
 				emittedPaste.push(data);
@@ -464,7 +462,7 @@ describe("StdinBuffer", () => {
 			processInput(pasteStart + content + pasteEnd);
 
 			assert.deepStrictEqual(emittedPaste, ["hello world"]);
-			assert.deepStrictEqual(emittedSequences, []); // No data events during paste
+			assert.deepStrictEqual(emittedSequences, []); // 粘贴期间不会触发 data 事件。
 		});
 
 		it("should handle paste arriving in chunks", () => {
@@ -516,10 +514,10 @@ describe("StdinBuffer", () => {
 			processInput("\x1b[<35");
 			buffer.destroy();
 
-			// Wait longer than timeout
+			// 等待时间超过超时时长。
 			await wait(15);
 
-			// Should not have emitted anything
+			// 不应发出任何内容。
 			assert.deepStrictEqual(emittedSequences, []);
 		});
 	});

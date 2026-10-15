@@ -106,33 +106,33 @@ interface ModelRuntimeSnapshot {
 }
 
 export interface CreateModelRuntimeOptions {
-	/** Credential storage. Defaults to the file at authPath. */
+	/** 凭据存储。默认使用 authPath 指定的文件。 */
 	credentials?: CredentialStore;
 	authPath?: string;
 	modelsPath?: string | null;
 	modelsStore?: ModelsStore;
 	modelsStorePath?: string;
-	/** Allow create() to refresh model catalogs over the network. Defaults to false. */
+	/** 是否允许 create() 通过网络刷新模型目录。默认关闭。 */
 	allowModelNetwork?: boolean;
-	/** Timeout for the create-time network model refresh. */
+	/** 创建运行时期间网络刷新模型目录的超时时间。 */
 	modelRefreshTimeoutMs?: number;
 	catalogBaseUrl?: string;
-	/** Optional caller cancellation for initial cache restoration and availability checks. */
+	/** 可选的调用方取消信号，用于取消初始缓存恢复和可用性检查。 */
 	signal?: AbortSignal;
-	/** Skip initial catalog and availability refresh. Static models remain available. */
+	/** 跳过初始目录和可用性刷新。静态模型仍可用。 */
 	refreshOnCreate?: boolean;
 }
 
 export interface ModelRuntimeAuthOverrides extends AuthOperationOptions {
 	apiKey?: string;
 	env?: Record<string, string>;
-	/** Require this much remaining OAuth-token validity; defaults to five minutes. */
+	/** 要求 OAuth 令牌至少剩余的有效时长；默认值为五分钟。 */
 	minOAuthValidityMs?: number;
 }
 
 export type CredentialSynchronizationOperation = "login" | "logout" | "setRuntimeApiKey" | "removeRuntimeApiKey";
 
-/** Credentials changed successfully, but the local model/auth snapshot could not be synchronized. */
+/** 凭据已成功变更，但无法同步本地模型/身份验证快照。 */
 export class CredentialSynchronizationError extends Error {
 	readonly providerId: string;
 	readonly operation: CredentialSynchronizationOperation;
@@ -168,7 +168,7 @@ function mergeHeaders(
 	return merged;
 }
 
-/** Configured pi-ai Models collection used by coding-agent and SDK consumers. */
+/** 为 coding-agent 和 SDK 使用方配置的 pi-ai Models 集合。 */
 export class ModelRuntime implements Models {
 	private readonly models: MutableModels;
 	private readonly credentials: RuntimeCredentials;
@@ -176,7 +176,7 @@ export class ModelRuntime implements Models {
 	private readonly builtins = new Map<string, Provider>();
 	private readonly nativeExtensionProviders = new Map<string, Provider>();
 	private readonly extensionProviders = new Map<string, ProviderConfigInput>();
-	/** Virtual models by provider id, then model id. */
+	/** 虚拟模型映射：先按提供方 ID 索引，再按模型 ID 索引。 */
 	private readonly virtualModels = new Map<string, Map<string, RegisteredVirtualModel>>();
 	private readonly compositionErrors = new Map<string, string>();
 	private readonly modelsPath: string | undefined;
@@ -287,7 +287,7 @@ export class ModelRuntime implements Models {
 		]);
 	}
 
-	/** Returns the provider without virtual models, or undefined when only virtual models define it. */
+	/** 返回不含虚拟模型的提供方；若该提供方仅由虚拟模型定义，则返回 undefined。 */
 	private recomposeProvider(providerId: string): Provider | undefined {
 		const provider = this.composeProvider(providerId);
 		const virtualModels = [...(this.virtualModels.get(providerId)?.values() ?? [])].map((entry) => entry.model);
@@ -297,12 +297,12 @@ export class ModelRuntime implements Models {
 		return provider;
 	}
 
-	/** The provider without virtual models, or undefined when nothing defines it. */
+	/** 返回不含虚拟模型的提供方；若没有任何配置定义该提供方，则返回 undefined。 */
 	private composeProvider(providerId: string): Provider | undefined {
 		const base = this.nativeExtensionProviders.get(providerId) ?? this.builtins.get(providerId);
 		const extension = this.extensionProviders.get(providerId);
 		if (!this.config.getProvider(providerId) && !extension) {
-			// No overlays: use the builtin untouched so its auth/login/stream behavior is exact.
+			// 没有叠加配置时直接使用内置提供方，确保其身份验证、登录和流式请求行为保持原样。
 			this.compositionErrors.delete(providerId);
 			return base;
 		}
@@ -379,7 +379,7 @@ export class ModelRuntime implements Models {
 	}
 
 	private async refreshProviderAvailability(providerId: string, signal: AbortSignal): Promise<void> {
-		// Invalidate any full availability pass that started before this credential change.
+		// 使凭据变更前启动的所有完整可用性检查失效。
 		++this.availabilityRefreshSeq;
 		const providerSeq = (this.providerAvailabilitySeq.get(providerId) ?? 0) + 1;
 		this.providerAvailabilitySeq.set(providerId, providerSeq);
@@ -524,7 +524,7 @@ export class ModelRuntime implements Models {
 		return this.nativeExtensionProviders.get(providerId);
 	}
 
-	/** @internal Compatibility fallback for ModelRegistry when provider auth is unconfigured. */
+	/** @internal 提供方身份验证尚未配置时，供 ModelRegistry 使用的兼容回退。 */
 	getCompatibilityRequestConfig(model: Model<Api>): CompatibilityRequestConfig {
 		return resolveCompatibilityRequestConfig(
 			model,
@@ -716,8 +716,7 @@ export class ModelRuntime implements Models {
 	streamSimple(model: Model<Api>, context: Context, options?: ModelsSimpleStreamOptions): AssistantMessageEventStream {
 		const transcript = normalizeContext(context);
 		if (isVirtualModel(model)) {
-			// Requests outside the agent loop are routed here. Callers sized them before routing, so
-			// cap the output budget to the routed model.
+			// 代理循环之外的请求会路由到此处。调用方已在路由前计算请求规模，因此需按目标模型限制输出预算。
 			return lazyStream(model, async () => {
 				const route = await this.resolveModel(model, transcript.messages, {
 					reason: "direct",
@@ -727,8 +726,7 @@ export class ModelRuntime implements Models {
 				const { maxTokens: limit } = route.model;
 				const maxTokens = options?.maxTokens && limit > 0 ? Math.min(options.maxTokens, limit) : options?.maxTokens;
 				const reasoning = route.thinkingLevel === "off" ? undefined : route.thinkingLevel;
-				// Caller credentials were resolved for the virtual model's provider. Another provider
-				// resolves its own, so they are not sent to the wrong vendor.
+				// 调用方凭据是针对虚拟模型所属提供方解析的。若路由到其他提供方，应重新解析其凭据，避免将凭据发送给错误的服务商。
 				const { apiKey, headers, env, ...rest } = options ?? {};
 				const auth = route.model.provider === model.provider ? { apiKey, headers, env } : {};
 				return this.streamSimple(route.model, context, { ...rest, ...auth, maxTokens, reasoning });
@@ -851,8 +849,8 @@ export class ModelRuntime implements Models {
 			...options,
 			allowNetwork: options.allowNetwork ?? this.modelNetworkEnabled,
 		};
-		// Published pi-ai builds before ModelsStore returned void and accepted a provider ID.
-		// The fallback keeps source-mode CLI tests working without rebuilding workspace dependencies.
+		// 较早发布的 pi-ai 版本中，ModelsStore 尚未加入，refresh 返回 void，且接收的是提供方 ID。
+		// 此回退可让源码模式下的 CLI 测试继续运行，而无需重建工作区依赖。
 		const result = ((await this.models.refresh(refreshOptions)) as ModelsRefreshResult | undefined) ?? {
 			aborted: refreshOptions.signal?.aborted ?? false,
 			errors: new Map(),
@@ -875,7 +873,7 @@ export class ModelRuntime implements Models {
 			try {
 				await this.queueAvailabilityRefresh(options.signal);
 			} catch {
-				// Availability errors are recorded by the latest pass; refreshed models remain usable.
+				// 最新一轮检查会记录可用性错误；已刷新的模型仍可使用。
 			}
 		}
 		return { aborted: result.aborted || (options.signal?.aborted ?? false), errors };
@@ -896,9 +894,9 @@ export class ModelRuntime implements Models {
 	}
 
 	/**
-	 * Mark a newly registered provider as configured when it has a stored credential or a configured
-	 * API key. Availability checks run asynchronously, and callers such as initial model selection
-	 * read the snapshot before they finish. The next availability pass replaces this entry.
+	 * 新注册的提供方若已有已存储凭据或已配置 API 密钥，则将其标记为已配置。
+	 * 可用性检查会异步执行，因此初始模型选择等调用方可能会先读取到此快照。
+	 * 下一轮可用性检查完成后会替换此临时条目。
 	 */
 	private markProvisionallyConfigured(
 		providerId: string,
@@ -908,7 +906,7 @@ export class ModelRuntime implements Models {
 		if (!this.snapshot.storedProviders.has(providerId) && !configuredStatus?.configured) return;
 		const configuredProviders = new Set(this.snapshot.configuredProviders).add(providerId);
 		const auth = new Map(this.snapshot.auth);
-		// Never clobber a real check result.
+		// 绝不覆盖真实检查结果。
 		if (!auth.get(providerId)) auth.set(providerId, { type, source: "configured provider" });
 		this.snapshot = {
 			...this.snapshot,
@@ -919,12 +917,12 @@ export class ModelRuntime implements Models {
 	}
 
 	registerProvider(providerId: string, config: ProviderConfigInput): void {
-		// Validate the incoming registration on its own, like the legacy registry:
-		// a broken re-registration must throw without touching the stored config.
+		// 与旧版注册表相同，单独验证传入的注册配置：
+		// 重新注册的配置无效时必须抛出异常，且不得修改已存储的配置。
 		validateExtensionProvider(providerId, this.builtins.get(providerId), this.config.getProvider(providerId), config);
 		this.nativeExtensionProviders.delete(providerId);
-		// Re-registration merges defined values over the previous registration and
-		// preserves undefined ones, matching the legacy ModelRegistry contract.
+		// 重新注册时，将已定义的值合并到先前的注册配置上，并保留未定义的值，
+		// 以符合旧版 ModelRegistry 的约定。
 		const previous = this.extensionProviders.get(providerId);
 		const effective: ProviderConfigInput = { ...previous };
 		for (const [key, value] of Object.entries(config)) {
@@ -950,9 +948,9 @@ export class ModelRuntime implements Models {
 	}
 
 	/**
-	 * Register a virtual model under `definition.provider`, which may also list physical models or
-	 * several virtual models. Re-registering the same provider and id replaces the virtual model.
-	 * Throws when the id belongs to a physical model of that provider.
+	 * 在 `definition.provider` 下注册虚拟模型；该提供方也可以包含实体模型或多个虚拟模型。
+	 * 使用相同的提供方和 ID 重新注册时，会替换原有虚拟模型。
+	 * 如果该 ID 属于此提供方的实体模型，则抛出异常。
 	 */
 	registerVirtualModel(definition: VirtualModelDefinition): void {
 		const { provider: providerId, id } = definition;
@@ -965,8 +963,8 @@ export class ModelRuntime implements Models {
 		models.set(id, { model: createVirtualModel(definition), route: (request) => definition.route(request) });
 		this.virtualModels.set(providerId, models);
 		if (!this.recomposeProvider(providerId) && !this.snapshot.configuredProviders.has(providerId)) {
-			// A provider of only virtual models needs no credentials. Mark it configured now: session
-			// restore checks auth before the refresh below lands.
+			// 仅提供虚拟模型的提供方不需要凭据。立即将其标记为已配置，
+			// 因为下方刷新完成前，会话恢复流程就会检查身份验证状态。
 			const auth = new Map(this.snapshot.auth).set(providerId, { type: "api_key", source: "virtual" });
 			const configuredProviders = new Set(this.snapshot.configuredProviders).add(providerId);
 			this.snapshot = { ...this.snapshot, auth, configuredProviders };
@@ -985,13 +983,12 @@ export class ModelRuntime implements Models {
 	}
 
 	/**
-	 * Ask a virtual model's router for the model and thinking level of one request. The router must
-	 * return a physical catalog model whose provider has credentials; the thinking level is clamped
-	 * to that model. Throws when routing fails.
+	 * 请求虚拟模型的路由器为单次请求选择模型和思考级别。路由器必须返回目录中的实体模型，
+	 * 且该模型所属提供方已配置凭据；思考级别会限制在该模型支持的范围内。路由失败时抛出异常。
 	 *
-	 * `previous` reports the latest successful response in `messages`. A retry passes the failed
-	 * response as `options.failed`; `messages` no longer contains it. `options.state` is the router
-	 * state stored by the caller, which also stores the returned state.
+	 * `previous` 表示 `messages` 中最近一次成功响应。重试时通过 `options.failed` 传入失败响应；
+	 * 此时 `messages` 中已不再包含该响应。`options.state` 是调用方保存的路由器状态，
+	 * 调用方也会保存返回的状态。
 	 */
 	async resolveModel(
 		model: Model<Api>,
@@ -1010,7 +1007,7 @@ export class ModelRuntime implements Models {
 		const { failed, ...request } = options;
 		const latest = findLatestResponse(messages);
 		const previousModel = latest && this.getPhysicalModel(latest.provider, latest.model);
-		// A failed routing attempt names the virtual model; there is no physical request to report.
+		// 路由失败时应报告虚拟模型名称；此时尚无实体请求可供报告。
 		const failedModel = failed && this.getPhysicalModel(failed.provider, failed.model);
 		const route = await virtual.route({
 			...request,
@@ -1026,7 +1023,7 @@ export class ModelRuntime implements Models {
 		return { model: target, thinkingLevel: clampThinkingLevel(target, route.thinkingLevel), state: route.state };
 	}
 
-	/** A catalog chat model that is not virtual. */
+	/** 目录中的非虚拟聊天模型。 */
 	getPhysicalModel(providerId: string, modelId: string): Model<Api> | undefined {
 		const model = this.models.getModel(providerId, modelId);
 		return model && !isVirtualModel(model) ? model : undefined;

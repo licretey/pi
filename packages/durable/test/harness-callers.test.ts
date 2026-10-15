@@ -28,7 +28,7 @@ function call(name: string, id = "c1"): AssistantMessage {
 	return fauxAssistantMessage([fauxToolCall(name, {}, { id })], { stopReason: "toolUse" });
 }
 
-/** A tool that calls each of `names` as a nested call and records what it got back. */
+/** 将 `names` 中的每个工具作为嵌套调用执行，并记录各自的返回值。 */
 function prober(names: readonly string[]) {
 	const received = new Map<string, NestedToolExecutionResult>();
 	const registration = defineTool({
@@ -104,7 +104,7 @@ describe("who may call a tool", () => {
 		const setup = await setupWith([read, bash, probe.registration]);
 		setup.faux.setResponses([call("probe"), DONE]);
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
-		// modelTools cannot bring back what tools disabled.
+		// modelTools 无法重新启用已通过 tools 禁用的工具。
 		await root.configure({ tools: { remove: [bash] }, modelTools: [bash, probe.registration] }, context);
 		expect(await offered(root)).toEqual(["probe"]);
 		expect(await callable(root)).toEqual(["read", "probe"]);

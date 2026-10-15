@@ -255,8 +255,8 @@ describe("Agent", () => {
 			},
 		});
 
-		// The pending message claims to add `second` and remove `first`, but the executable
-		// set still has `first` and lacks `second`: the executable set wins.
+		// 待处理消息声称要添加 `second` 并移除 `first`，但实际可执行集合仍包含 `first` 且不包含 `second`；
+		// 应以实际可执行集合为准。
 		await agent.prompt([
 			{
 				role: "system",
@@ -313,18 +313,18 @@ describe("Agent", () => {
 			eventCount++;
 		});
 
-		// No initial event on subscribe
+		// 订阅时不会立即收到初始事件。
 		expect(eventCount).toBe(0);
 
-		// State mutators don't emit events
+		// 状态修改方法不会触发事件。
 		agent.state.thinkingLevel = "low";
 		expect(eventCount).toBe(0);
 		expect(agent.state.thinkingLevel).toBe("low");
 
-		// Unsubscribe should work
+		// 取消订阅应生效。
 		unsubscribe();
 		agent.state.thinkingLevel = "high";
-		expect(eventCount).toBe(0); // Should not increase
+		expect(eventCount).toBe(0); // 数量不应增加。
 	});
 
 	it("emits full lifecycle events for thrown run failures", async () => {
@@ -613,34 +613,34 @@ describe("Agent", () => {
 	it("should update state with mutators", () => {
 		const agent = new Agent({ streamFn: unusedStreamFunction });
 
-		// Test setModel
+		// 测试 setModel。
 		const newModel = getModel("google", "gemini-2.5-flash");
 		agent.state.model = newModel;
 		expect(agent.state.model).toBe(newModel);
 
-		// Test setThinkingLevel
+		// 测试 setThinkingLevel。
 		agent.state.thinkingLevel = "high";
 		expect(agent.state.thinkingLevel).toBe("high");
 
-		// Test setTools
+		// 测试 setTools。
 		const tools = [{ name: "test", description: "test tool" } as any];
 		agent.state.tools = tools;
 		expect(agent.state.tools).toEqual(tools);
-		expect(agent.state.tools).not.toBe(tools); // Should be a copy
+		expect(agent.state.tools).not.toBe(tools); // 应为副本。
 
-		// Test replaceMessages
+		// 测试 replaceMessages。
 		const messages = [{ role: "user" as const, content: "Hello", timestamp: Date.now() }];
 		agent.state.messages = messages;
 		expect(agent.state.messages).toEqual(messages);
-		expect(agent.state.messages).not.toBe(messages); // Should be a copy
+		expect(agent.state.messages).not.toBe(messages); // 应为副本。
 
-		// Test appendMessage
+		// 测试 appendMessage。
 		const newMessage = { role: "assistant" as const, content: [{ type: "text" as const, text: "Hi" }] };
 		agent.state.messages.push(newMessage as any);
 		expect(agent.state.messages).toHaveLength(2);
 		expect(agent.state.messages[1]).toBe(newMessage);
 
-		// Test clearMessages
+		// 测试 clearMessages。
 		agent.state.messages = [];
 		expect(agent.state.messages).toEqual([]);
 	});
@@ -651,7 +651,7 @@ describe("Agent", () => {
 		const message = { role: "user" as const, content: "Steering message", timestamp: Date.now() };
 		agent.steer(message);
 
-		// The message is queued but not yet in state.messages
+		// 消息已进入队列，但尚未写入 state.messages。
 		expect(agent.state.messages).not.toContainEqual(message);
 	});
 
@@ -661,14 +661,14 @@ describe("Agent", () => {
 		const message = { role: "user" as const, content: "Follow-up message", timestamp: Date.now() };
 		agent.followUp(message);
 
-		// The message is queued but not yet in state.messages
+		// 消息已进入队列，但尚未写入 state.messages。
 		expect(agent.state.messages).not.toContainEqual(message);
 	});
 
 	it("should handle abort controller", () => {
 		const agent = new Agent({ streamFn: unusedStreamFunction });
 
-		// Should not throw even if nothing is running
+		// 即使当前没有任务运行，也不应抛出异常。
 		expect(() => agent.abort()).not.toThrow();
 	});
 
@@ -709,13 +709,13 @@ describe("Agent", () => {
 	it("should throw when prompt() called while streaming", async () => {
 		let abortSignal: AbortSignal | undefined;
 		const agent = new Agent({
-			// Use a stream function that responds to abort
+			// 使用能够响应中止信号的流函数。
 			streamFn: (_model, _context, options) => {
 				abortSignal = options?.signal;
 				const stream = createAssistantMessageEventStream();
 				queueMicrotask(() => {
 					stream.push({ type: "start", partial: createAssistantMessage("") });
-					// Check abort signal periodically
+					// 定期检查中止信号。
 					const checkAbort = () => {
 						if (abortSignal?.aborted) {
 							stream.push({ type: "error", reason: "aborted", error: createAssistantMessage("Aborted") });
@@ -729,21 +729,21 @@ describe("Agent", () => {
 			},
 		});
 
-		// Start first prompt (don't await, it will block until abort)
+		// 启动第一次提示请求（不要等待其完成，它会一直阻塞到被中止）。
 		const firstPrompt = agent.prompt("First message");
 
-		// Wait a tick for isStreaming to be set
+		// 等待一个事件循环周期，让 isStreaming 更新。
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(agent.state.isStreaming).toBe(true);
 
-		// Second prompt should reject
+		// 第二次提示请求应被拒绝。
 		await expect(agent.prompt("Second message")).rejects.toThrow(
 			"Agent is already processing a prompt. Use steer() or followUp() to queue messages, or wait for completion.",
 		);
 
-		// Cleanup - abort to stop the stream
+		// 清理：中止请求以停止数据流。
 		agent.abort();
-		await firstPrompt.catch(() => {}); // Ignore abort error
+		await firstPrompt.catch(() => {}); // 忽略中止错误。
 	});
 
 	it("should throw when continue() called while streaming", async () => {
@@ -767,17 +767,17 @@ describe("Agent", () => {
 			},
 		});
 
-		// Start first prompt
+		// 启动第一次提示请求。
 		const firstPrompt = agent.prompt("First message");
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(agent.state.isStreaming).toBe(true);
 
-		// continue() should reject
+		// continue() 应被拒绝。
 		await expect(agent.continue()).rejects.toThrow(
 			"Agent is already processing. Wait for completion before continuing.",
 		);
 
-		// Cleanup
+		// 清理。
 		agent.abort();
 		await firstPrompt.catch(() => {});
 	});
@@ -1191,7 +1191,7 @@ describe("Agent", () => {
 		await agent.prompt("hello");
 		expect(receivedSessionId).toBe("session-abc");
 
-		// Test setter
+		// 测试设置方法。
 		agent.sessionId = "session-def";
 		expect(agent.sessionId).toBe("session-def");
 

@@ -1,6 +1,6 @@
 /**
- * Generic selector component for extensions.
- * Displays a list of string options with keyboard navigation.
+ * 扩展通用选择器组件。
+ * 显示字符串选项列表，并支持键盘导航。
  */
 
 import { Container, getKeybindings, Spacer, Text, type TUI } from "@earendil-works/pi-tui";

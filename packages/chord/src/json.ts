@@ -8,11 +8,11 @@ const DATA_DESCRIPTOR: PropertyDescriptor = {
 };
 
 export type CopyJsonOptions = {
-	/** Omit undefined object properties while preserving strict array semantics. */
+	/** 省略值为 undefined 的对象属性，同时保留严格的数组语义。 */
 	readonly omitUndefinedProperties?: boolean;
 };
 
-/** Copy a value into an alias-free strict-JSON tree owned by the caller. */
+/** 将值复制到由调用方持有且不含别名的严格 JSON 树中。 */
 export function copyJson(value: unknown, options?: CopyJsonOptions): JsonValue {
 	return copy(value, undefined, options?.omitUndefinedProperties === true);
 }
@@ -30,7 +30,7 @@ function copy(value: unknown, ancestors: Set<object> | undefined, omitUndefinedP
 	active.add(value);
 	try {
 		if (Array.isArray(value)) {
-			// Indices plus `length` only: extra, symbol, and missing keys all change the count.
+			// 只计入数组索引和 `length`：额外属性、Symbol 属性和缺失的键都会改变属性数量。
 			if (Object.getPrototypeOf(value) !== Array.prototype || Reflect.ownKeys(value).length !== value.length + 1) {
 				throw new TypeError("Value must contain strict JSON dense plain arrays");
 			}
@@ -70,7 +70,7 @@ function defineData(target: object, key: PropertyKey, value: JsonValue): void {
 	DATA_DESCRIPTOR.value = undefined;
 }
 
-/** Return whether a value is finite strict JSON with plain objects and no cycles. */
+/** 判断值是否为有限的严格 JSON，且仅包含普通对象、不含循环引用。 */
 export function isJsonValue(value: unknown): value is JsonValue {
 	return check(value, new Set<object>());
 }

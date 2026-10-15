@@ -31,9 +31,9 @@ export interface ServerServiceSource extends RemoteServiceSource {
 
 export interface SessionServiceSource extends RemoteServiceSource {
 	readonly attachment: ReplicatedState<SessionAttachmentState>;
-	/** Wait for the exact current attachment generation to finish hydrating. */
+	/** 等待当前连接版本完成数据填充。 */
 	whenAttached(sessionId: string, context: Context): Promise<void>;
-	/** Wait for every binding to finish releasing the previous attachment. */
+	/** 等待所有绑定释放上一连接。 */
 	whenDetached(context: Context): Promise<void>;
 	dispose(context: Context): Promise<void>;
 }
@@ -350,12 +350,12 @@ class SessionServiceSourceImpl implements SessionServiceSource {
 	}
 }
 
-/** Create the server-scoped remote service source for one presentation client. */
+/** 为一个呈现客户端创建服务器级远程服务源。 */
 export function createServerServiceSource(client: Client, options: ServiceSourceOptions = {}): ServerServiceSource {
 	return new ServerServiceSourceImpl(client, options);
 }
 
-/** Create the selected-Session remote service source for one presentation client. */
+/** 为一个呈现客户端创建其所选会话的远程服务源。 */
 export function createSessionServiceSource(client: Client, options: ServiceSourceOptions = {}): SessionServiceSource {
 	return new SessionServiceSourceImpl(client, options);
 }

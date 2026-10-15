@@ -6,11 +6,11 @@ import * as bundledPiTui from "@earendil-works/pi-tui";
 import * as bundledTypebox from "typebox";
 import * as bundledTypeboxCompile from "typebox/compile";
 import * as bundledTypeboxValue from "typebox/value";
-// This import is safe because loader.ts exports are not re-exported from index.ts.
-// Extensions can therefore import from @earendil-works/pi-coding-agent.
+// 由于 index.ts 未重新导出 loader.ts 的导出项，因此此处导入是安全的。
+// 扩展可以据此从 @earendil-works/pi-coding-agent 导入。
 import * as bundledPiCodingAgent from "../../index.ts";
 
-/** Modules available to extensions in source and compiled binary runtimes. */
+/** 源码和编译后二进制运行环境中可供扩展使用的模块。 */
 export const VIRTUAL_MODULES: Record<string, unknown> = {
 	typebox: bundledTypebox,
 	"typebox/compile": bundledTypeboxCompile,
@@ -20,9 +20,8 @@ export const VIRTUAL_MODULES: Record<string, unknown> = {
 	"@sinclair/typebox/value": bundledTypeboxValue,
 	"@earendil-works/pi-agent-core": bundledPiAgentCore,
 	"@earendil-works/pi-tui": bundledPiTui,
-	// Extensions resolve the pi-ai root to the compat entrypoint (a strict
-	// superset of the core entrypoint): existing extensions using the old
-	// global API keep working at runtime until compat is removed.
+	// 扩展从 pi-ai 根路径导入时会解析到兼容入口（它严格包含核心入口的全部导出）：
+	// 旧版扩展使用的全局 API 在兼容入口移除前仍可正常运行。
 	"@earendil-works/pi-ai": bundledPiAiCompat,
 	"@earendil-works/pi-ai/compat": bundledPiAiCompat,
 	"@earendil-works/pi-ai/oauth": bundledPiAiOauth,

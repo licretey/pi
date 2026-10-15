@@ -10,7 +10,7 @@ export async function readBody(request: IncomingMessage): Promise<string> {
 	return Buffer.concat(chunks).toString("utf8");
 }
 
-/** Starts a loopback HTTP server and returns its origin. Call `closeServers` from `afterEach`. */
+/** 启动回环 HTTP 服务器并返回其源地址。请在 `afterEach` 中调用 `closeServers`。 */
 export async function listen(handler: HttpHandler): Promise<string> {
 	let origin = "";
 	const server = createServer((request, response) => {

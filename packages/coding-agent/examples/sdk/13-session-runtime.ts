@@ -1,11 +1,11 @@
 /**
- * Session runtime
+ * 会话运行时。
  *
- * Use AgentSessionRuntime when you need to replace the active AgentSession,
- * for example for new-session, resume, fork, or import flows.
+ * 需要替换当前 AgentSession 时使用 AgentSessionRuntime，
+ * 例如新建会话、恢复会话、分叉或导入会话。
  *
- * The important pattern is: after the runtime replaces the active session,
- * rebind any session-local subscriptions and extension bindings to `runtime.session`.
+ * 关键做法是：运行时替换当前会话后，
+ * 将会话级订阅和扩展绑定重新关联到 `runtime.session`。
  */
 
 import {

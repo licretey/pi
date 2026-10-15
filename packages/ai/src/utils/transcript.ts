@@ -4,8 +4,8 @@ import { contentText, getSystemMessageText } from "./text.ts";
 export type { TranscriptContext } from "../types.ts";
 
 /**
- * Build the leading system message for a prompt and tool set. Returns undefined when
- * both are empty, so an empty transcript stays empty.
+ * 为提示词与工具集构建开头的系统消息。两者都为空时返回 undefined，
+ * 因此空的 transcript 保持为空。
  */
 export function createInitialSystemMessage(
 	systemPrompt: string | undefined,
@@ -23,9 +23,9 @@ export function createInitialSystemMessage(
 }
 
 /**
- * Fold `Context.systemPrompt` and `Context.tools` into a leading system message.
- * This is the only entry point that produces a {@link TranscriptContext}; every
- * provider-facing function expects the result.
+ * 将 `Context.systemPrompt` 与 `Context.tools` 折叠进开头的系统消息。
+ * 这是唯一能产出 {@link TranscriptContext} 的入口；
+ * 每个面向提供商的函数都期望接收其结果。
  */
 export function normalizeContext(context: Context): TranscriptContext {
 	const initialMessage = createInitialSystemMessage(context.systemPrompt, context.tools);
@@ -34,8 +34,8 @@ export function normalizeContext(context: Context): TranscriptContext {
 }
 
 /**
- * Any message list. The replay helpers only read entries whose role is `"system"`, so
- * agent transcripts that carry custom message roles can be passed without filtering.
+ * 任意消息列表。重放辅助函数只读取 role 为 `"system"` 的条目，
+ * 因此携带自定义消息角色的 agent transcript 可以不经过滤直接传入。
  */
 export type TranscriptMessages = readonly { role: string }[];
 
@@ -43,18 +43,18 @@ function isSystemMessage(message: { role: string }): message is SystemMessage {
 	return message.role === "system";
 }
 
-/** Return the leading system message, if the transcript starts with one. */
+/** 返回开头的系统消息；若 transcript 不以系统消息开头则为 undefined。 */
 export function getInitialSystemMessage(messages: TranscriptMessages): SystemMessage | undefined {
 	const first = messages[0];
 	return first && isSystemMessage(first) ? first : undefined;
 }
 
-/** Drop the leading system message for APIs that carry the prompt outside the message list. */
+/** 为把提示词放在消息列表之外的 API 去掉开头的系统消息。 */
 export function withoutInitialSystemMessage(messages: Message[]): Message[] {
 	return getInitialSystemMessage(messages) ? messages.slice(1) : messages;
 }
 
-/** Resolve the tools available after applying every transcript delta in order. */
+/** 按顺序应用 transcript 中的每个变化后，解析出当前可用的工具。 */
 export function getCurrentTools(messages: TranscriptMessages): Tool[] {
 	const tools = new Map<string, Tool>();
 	for (const message of messages) {
@@ -66,9 +66,9 @@ export function getCurrentTools(messages: TranscriptMessages): Tool[] {
 }
 
 /**
- * Replay every system message into one leading system message holding the current
- * prompt and tools. Later `content` is appended to the base prompt, `sections` are
- * patched by name, and tools are resolved with {@link getCurrentTools}.
+ * 将所有系统消息重放进一个持有当前提示词与工具的开头系统消息。
+ * 较晚的 `content` 追加到基础提示词之后，`sections` 按名称做补丁式更新，
+ * 工具用 {@link getCurrentTools} 解析。
  */
 export function getCurrentSystemMessage(messages: TranscriptMessages): SystemMessage | undefined {
 	const content: string[] = [];
@@ -95,15 +95,15 @@ export function getCurrentSystemMessage(messages: TranscriptMessages): SystemMes
 	};
 }
 
-/** Render the current system prompt text after replaying every system message. */
+/** 重放所有系统消息后，渲染当前的系统提示词文本。 */
 export function getCurrentSystemPrompt(messages: TranscriptMessages): string {
 	const message = getCurrentSystemMessage(messages);
 	return message ? getSystemMessageText(message) : "";
 }
 
 /**
- * Rebuild the transcript for APIs without mid-conversation system messages: the replayed
- * system message leads, and every later system message is dropped.
+ * 为不支持对话中途系统消息的 API 重建 transcript：重放后的系统消息
+ * 放在开头，之后的所有系统消息都被丢弃。
  */
 export function collapseSystemMessages(context: TranscriptContext): TranscriptContext {
 	const head = getCurrentSystemMessage(context.messages);
@@ -111,7 +111,7 @@ export function collapseSystemMessages(context: TranscriptContext): TranscriptCo
 	return { messages: head ? [head, ...messages] : messages } as TranscriptContext;
 }
 
-/** Keep later system messages in place when the model accepts them; otherwise collapse them. */
+/** 模型接受对话中途系统消息时保留原样；否则折叠为一条。 */
 export function resolveTranscript(
 	context: TranscriptContext,
 	supportsMidConvoSystemMessages: boolean | undefined,
@@ -119,7 +119,7 @@ export function resolveTranscript(
 	return supportsMidConvoSystemMessages ? context : collapseSystemMessages(context);
 }
 
-/** Strip executable and display-only fields from a tool before transcript comparison or persistence. */
+/** 在做 transcript 比较或持久化之前，剥离工具上可执行与仅供展示的字段。 */
 export function toToolDeclaration(tool: Tool): Tool {
 	return {
 		name: tool.name,
@@ -130,12 +130,11 @@ export function toToolDeclaration(tool: Tool): Tool {
 }
 
 /**
- * Whether two tools declare the same interface to the model.
+ * 判断两个工具是否向模型声明了相同的接口。
  *
- * Both sides go through {@link toToolDeclaration} first: its JSON round-trip drops the
- * typebox symbol keys and `undefined` fields that a structural comparison would see, and
- * builds both objects with the same key order, so comparing the serialized declarations
- * is exact. This avoids a deep-equal dependency in a browser-safe package.
+ * 两侧都先经过 {@link toToolDeclaration}：其 JSON 往返会丢弃结构比较本会看到的
+ * typebox 符号键和 `undefined` 字段，并以相同的键序构建两个对象，因此比较
+ * 序列化后的声明是精确的。这避免了在浏览器安全的包里引入 deep-equal 依赖。
  */
 export function declarationsEqual(left: Tool, right: Tool): boolean {
 	return JSON.stringify(toToolDeclaration(left)) === JSON.stringify(toToolDeclaration(right));
@@ -146,7 +145,7 @@ export interface ToolStateChanges {
 	toolsRemoved: ToolReference[];
 }
 
-/** Compare two complete tool states. A changed definition is a removal followed by an addition. */
+/** 比较两个完整的工具状态。被修改的定义表现为一次移除后跟一次新增。 */
 export function getToolStateChanges(previous: readonly Tool[], current: readonly Tool[]): ToolStateChanges {
 	const previousTools = new Map(previous.map((tool) => [tool.name, tool]));
 	const currentTools = new Map(current.map((tool) => [tool.name, tool]));
@@ -166,7 +165,7 @@ export function getToolStateChanges(previous: readonly Tool[], current: readonly
 	};
 }
 
-/** Every definition referenced by transcript tool state, in first-declaration order. */
+/** transcript 工具状态引用的所有定义，按首次声明顺序排列。 */
 export function getDeclaredTools(messages: TranscriptMessages): Tool[] {
 	const definitions = new Map<string, Tool>();
 	for (const message of messages) {
@@ -177,11 +176,11 @@ export function getDeclaredTools(messages: TranscriptMessages): Tool[] {
 }
 
 /**
- * Whether a tool name was declared twice with different definitions. A transport that can
- * only reference previously declared tools by name cannot replay such a history.
+ * 某个工具名是否以不同定义被声明了两次。只能按名称引用先前已声明工具的
+ * 传输层无法重放这样的历史。
  *
- * @deprecated No built-in transport needs this anymore: Anthropic expresses redefinitions with
- * inline `tool_definition` blocks. Kept for API compatibility and will be removed in a future release.
+ * @deprecated 已无内置传输层需要此函数：Anthropic 用内联的 `tool_definition`
+ * 块表达重定义。保留仅为 API 兼容性，未来版本将移除。
  */
 export function hasToolRedefinitions(messages: TranscriptMessages): boolean {
 	const declared = new Map<string, Tool>();
@@ -196,7 +195,7 @@ export function hasToolRedefinitions(messages: TranscriptMessages): boolean {
 	return false;
 }
 
-/** Whether tool history contains a removal or same-name redeclaration that an addition-only transport cannot replay. */
+/** 工具历史中是否包含「只支持新增」的传输层无法重放的变化：移除或同名重声明。 */
 export function hasNonAdditiveToolChanges(messages: TranscriptMessages): boolean {
 	const declared = new Set<string>();
 	for (const message of messages) {
@@ -211,20 +210,20 @@ export function hasNonAdditiveToolChanges(messages: TranscriptMessages): boolean
 }
 
 export interface TranscriptTools {
-	/** Tools sent in the top-level request field. */
+	/** 发送在顶层请求字段中的工具。 */
 	requestTools: Tool[];
 	/**
-	 * Whether later system messages carry their own `toolsAdded` as in-place additions.
-	 * When false, `requestTools` already holds the complete current tool set.
+	 * 较晚的系统消息是否以原地新增的方式携带各自的 `toolsAdded`。
+	 * 为 false 时，`requestTools` 已持有完整的当前工具集。
 	 */
 	anchorsAdditions: boolean;
 }
 
 /**
- * Split tool declarations between the top-level request field and in-place additions.
- * Transports that can anchor additions at a system message keep the initial tools at the
- * top and load later ones where they appear; that only works when no tool was removed or
- * redeclared, so everything else sends the current tool list.
+ * 在顶层请求字段与原地新增之间拆分工具声明。
+ * 能把新增锚定到系统消息上的传输层将初始工具放在顶部、并在后续工具
+ * 出现的位置加载它们；这只有在没有工具被移除或重声明时才可行，
+ * 因此其余情况一律发送当前的工具列表。
  */
 export function resolveTranscriptTools(messages: TranscriptMessages, supportsToolAdditions: boolean): TranscriptTools {
 	const anchorsAdditions = supportsToolAdditions && !hasNonAdditiveToolChanges(messages);

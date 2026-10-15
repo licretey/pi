@@ -1,4 +1,4 @@
-//! Length-prefixed frames: `u32 length | u8 type | u32 id | u32 jsonLength | json | payload` (docs/protocol.md).
+//! 长度前缀帧格式：`u32 length | u8 type | u32 id | u32 jsonLength | json | payload`（见 docs/protocol.md）。
 
 use serde_json::Value;
 use std::io::{self, Read, Write};
@@ -10,9 +10,9 @@ pub const EVENT: u8 = 4;
 pub const CANCEL: u8 = 5;
 pub const PING: u8 = 6;
 
-/// Largest frame either side accepts.
+/// 通信任一端接受的最大帧长度。
 pub const MAX_FRAME: usize = 16 * 1024 * 1024;
-/// Largest payload a response carries, leaving room for its JSON.
+/// 响应可携带的最大负载，为 JSON 内容预留空间。
 pub const MAX_PAYLOAD: usize = MAX_FRAME - 64 * 1024;
 
 pub struct Frame {
@@ -46,7 +46,7 @@ fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.to_string())
 }
 
-/// Read one frame; `None` at a clean end of input.
+/// 读取一帧；输入正常结束时返回 `None`。
 pub fn read_frame(input: &mut impl Read) -> io::Result<Option<Frame>> {
     let mut length = [0u8; 4];
     match input.read_exact(&mut length) {
@@ -66,7 +66,7 @@ pub fn read_frame(input: &mut impl Read) -> io::Result<Option<Frame>> {
     if 9 + json_length > length {
         return Err(invalid("JSON length out of range"));
     }
-    // Unparseable JSON leaves the framing intact: the frame arrives with `Value::Null` and gets an error reply.
+    // JSON 无法解析时仍保留帧结构：帧中的值设为 `Value::Null`，随后返回错误响应。
     let json = if json_length == 0 {
         Value::Object(Default::default())
     } else {

@@ -5,7 +5,7 @@ import { InteractiveMode } from "../../../src/modes/interactive/interactive-mode
 import { runRpcMode } from "../../../src/modes/rpc/rpc-mode.ts";
 import { createHarness, type Harness } from "../harness.ts";
 
-// Regression for https://github.com/earendil-works/pi/issues/9068
+// https://github.com/earendil-works/pi/issues/9068 的回归测试。
 
 const rpcIo = vi.hoisted(() => ({
 	outputLines: [] as string[],

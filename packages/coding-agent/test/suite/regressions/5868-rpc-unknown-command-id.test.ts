@@ -3,7 +3,7 @@ import type { AgentSessionRuntime } from "../../../src/core/agent-session-runtim
 import { runRpcMode } from "../../../src/modes/rpc/rpc-mode.ts";
 import { createHarness, type Harness } from "../harness.ts";
 
-// Regression for https://github.com/earendil-works/pi/issues/5868
+// https://github.com/earendil-works/pi/issues/5868 的回归测试。
 
 const rpcIo = vi.hoisted(() => ({
 	outputLines: [] as string[],

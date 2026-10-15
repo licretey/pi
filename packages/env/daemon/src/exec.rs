@@ -1,4 +1,4 @@
-//! `exec`: Durable's `NodeExecutionEnv.exec` semantics (docs/semantics.md), output streamed as `output` events.
+//! `exec`：遵循 Durable 的 `NodeExecutionEnv.exec` 语义（见 docs/semantics.md），并将输出作为 `output` 事件流式发送。
 
 use crate::decode::StreamDecoder;
 use crate::errors::Failure;
@@ -19,10 +19,10 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 const EXIT_STDIO_GRACE: Duration = Duration::from_millis(100);
-/// How often a delivery waiting for the link to drain looks again.
+/// 等待连接排空的发送操作重新检查状态的间隔。
 const UNSENT_POLL: Duration = Duration::from_millis(20);
 
-/// Commands this daemon started and has not reaped; killed when the connection ends.
+/// 此守护进程已启动但尚未回收的命令；连接结束时会将其终止。
 pub type Groups = Arc<Mutex<HashSet<u32>>>;
 
 pub enum Message {
@@ -30,13 +30,13 @@ pub enum Message {
     Eof(usize),
     Exit(ExitStatus),
     WaitFailed(String),
-    /// Abort: the command settles as `aborted`.
+    /// 中止：命令以 `aborted` 状态结算。
     Cancel,
-    /// Kill without aborting, as `cleanup()` does: the command settles with the killed process's status.
+    /// 只终止进程而不中止任务，如 `cleanup()` 所做：命令按被终止进程的状态结算。
     Kill,
 }
 
-/// Cancellation of one request, registered before the request runs so a cancel that arrives first is not lost.
+/// 单个请求的取消状态；在请求运行前注册，避免先到达的取消信号丢失。
 #[derive(Default)]
 pub struct Control {
     pub aborted: AtomicBool,
@@ -126,7 +126,7 @@ fn random_uuid() -> String {
     )
 }
 
-/// Spill of the complete raw output, started once it crosses either threshold, like Node's.
+/// 完整原始输出的溢写内容；达到任一阈值后开始溢写，与 Node 的行为一致。
 struct Spill {
     after_bytes: u64,
     after_lines: u64,
@@ -163,7 +163,7 @@ impl Spill {
         }
     }
 
-    /// `createTempFile({ prefix: "pi-output-", suffix: ".log" })`: a fresh `tmp-` directory holding the file.
+    /// 相当于 `createTempFile({ prefix: "pi-output-", suffix: ".log" })`：创建新的 `tmp-` 目录并在其中保存文件。
     fn start(&mut self, tmpdir: &str) -> Result<(), String> {
         let prefix = Path::new(tmpdir)
             .join("tmp-")
@@ -210,7 +210,7 @@ fn spawn(
     Ok(child)
 }
 
-/// Read one pipe on its own thread. Without an output window, reading waits while too much output is unsent.
+/// 在独立线程中读取一个管道。未设置输出窗口时，待发送输出过多会暂停读取。
 fn spawn_reader(
     stream: usize,
     pipe: impl sys::Pipe + Send + 'static,
@@ -238,7 +238,7 @@ fn output_frame(id: u32, stream: &str, text: String, skipped: Option<Value>) -> 
     Frame::with_payload(EVENT, id, json, text.into_bytes())
 }
 
-/// Run one command, sending output events for request `id`, until it settles.
+/// 运行一条命令，并持续为请求 `id` 发送输出事件，直到命令结算。
 pub fn run(
     id: u32,
     request: ExecRequest,
@@ -252,7 +252,7 @@ pub fn run(
     if control.aborted.load(Ordering::SeqCst) {
         return Err(Failure::new("aborted", "aborted"));
     }
-    // A string runs through the shell (as its last argument, or on stdin for legacy WSL bash); argv runs directly.
+    // 字符串命令通过 Shell 执行（作为最后一个参数传入；旧版 WSL Bash 则从标准输入读取）；argv 命令直接执行。
     let (program, args, stdin_command) = match (&request.command, &request.argv) {
         (Some(command), _) => {
             let shell = sys::shell_config(request.shell_path.as_deref())?;
@@ -292,7 +292,7 @@ pub fn run(
     groups.lock().unwrap().insert(pid);
     let deadline = request.timeout.map(|timeout| Instant::now() + timeout);
     let stop = Arc::new(AtomicBool::new(false));
-    // Without a window, output is not coalesced; reading then waits for the link.
+    // 未设置输出窗口时不会合并输出；待发送数据过多时，读取操作会等待连接排空。
     let gate = if request.window.is_none() {
         Some(output.clone())
     } else {
@@ -371,7 +371,7 @@ pub fn run(
     }
     loop {
         let now = Instant::now();
-        // Node's timer stays armed until the command settles, including the grace period after exit.
+        // Node 的计时器会一直运行到命令结算，包括进程退出后的宽限期。
         if !timed_out && deadline.is_some_and(|deadline| now >= deadline) {
             timed_out = true;
             kill(&mut killed);
@@ -380,7 +380,7 @@ pub fn run(
             break;
         }
         if idle_until.is_some_and(|idle| now >= idle) {
-            // A descendant may hold the pipes open after the process exited; stop waiting for it.
+            // 进程退出后，后代进程可能仍占用管道；此时不再继续等待。
             break;
         }
         if let Some(pending) = &mut pending
@@ -435,7 +435,7 @@ pub fn run(
             Err(RecvTimeoutError::Disconnected) => break,
         }
     }
-    // Like Node destroying its streams: stop reading, so the pipes close even if a descendant still holds them.
+    // 与 Node 销毁流的做法相同：停止读取，使管道关闭，即使仍有后代进程占用管道也是如此。
     stop.store(true, Ordering::SeqCst);
     for reader in &readers {
         sys::interrupt_reader(reader);

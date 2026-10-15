@@ -85,7 +85,7 @@ describe("Mistral reasoning mode selection", () => {
 		expect(payload.reasoningEffort).toBeUndefined();
 	});
 
-	// Regression for #8700 and #9375: Medium and GLM-5.2 ignore Magistral's prompt_mode.
+	// #8700 和 #9375 回归测试：Medium 和 GLM-5.2 会忽略 Magistral 的 prompt_mode。
 	describe.each(["mistral-small-2603", "mistral-medium-latest", "zai-glm-5-2"] as const)("%s", (modelId) => {
 		const map = modelId === "zai-glm-5-2" ? GLM_5_2_LEVELS : NONE_HIGH_LEVELS;
 
@@ -110,7 +110,7 @@ describe("Mistral reasoning mode selection", () => {
 		});
 	});
 
-	// Regression for #9678: requested levels must reach Mistral-hosted GLM models.
+	// #9678 回归测试：请求的推理级别必须传递给由 Mistral 托管的 GLM 模型。
 	it("sends max for GLM-5.2", async () => {
 		const payload = await capturePayload(makeModel("zai-glm-5-2", true, GLM_5_2_LEVELS), { reasoning: "max" });
 
@@ -132,7 +132,7 @@ describe("Mistral reasoning mode selection", () => {
 		});
 	});
 
-	// Regression for #8700: reasoning controls must respect the model's reasoning capability.
+	// #8700 回归测试：推理控制项必须符合模型本身的推理能力。
 	it("omits reasoning controls for non-reasoning models", async () => {
 		const payload = await capturePayload(makeModel("mistral-medium-2505", false), { reasoning: "medium" });
 

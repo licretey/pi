@@ -30,9 +30,8 @@ function isCatalogEntry(value: unknown): value is CatalogEntry {
 }
 
 /**
- * Hydrate the checkout's provider data files from a published typed catalog
- * (`models.all.json`) without network access. With `validateOnly`, stage and
- * validate the data without replacing the checkout's current data.
+ * 从已发布的带类型模型目录（`models.all.json`）为当前检出版本填充提供商数据文件，无需访问网络。
+ * 启用 `validateOnly` 时，只暂存并校验数据，不替换当前检出版本中的数据。
  */
 export function hydrateModelCatalog(
 	packageRoot: string,
@@ -60,8 +59,7 @@ export function hydrateModelCatalog(
 		files[`${provider}.json`] = `${JSON.stringify(grouped.groups)}\n`;
 	}
 
-	// Public catalogs have no generation timestamp. Use a fixed stamp so hydration
-	// produces identical bytes for identical input, regardless of build time.
+	// 公共目录不包含生成时间戳。使用固定时间戳，确保相同输入无论何时构建都会生成完全相同的字节内容。
 	const manifest = createModelDataManifest(structure, files, "1970-01-01T00:00:00.000Z");
 	const providersDir = join(packageRoot, "src", "providers");
 	const stagingRoot = mkdtempSync(join(providersDir, ".model-hydration-"));

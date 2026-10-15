@@ -312,8 +312,8 @@ export interface ModelCatalogEntry {
 }
 
 /**
- * Group one provider's typed catalog entries by API and key them by `type:id`,
- * the layout of `src/providers/data/<provider>.json`.
+ * 按 API 对单个提供商的类型化目录条目分组，并使用 `type:id` 作为键，
+ * 与 `src/providers/data/<provider>.json` 的布局一致。
  */
 export function groupProviderModelData<T extends ModelCatalogEntry>(
 	providerId: string,

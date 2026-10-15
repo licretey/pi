@@ -1,8 +1,8 @@
 /**
- * Confirm Destructive Actions Extension
+ * 危险操作确认扩展。
  *
- * Prompts for confirmation before destructive session actions (clear, switch, branch).
- * Demonstrates how to cancel session events using the before_* events.
+ * 在执行清空、切换、分支等可能造成数据丢失的会话操作前请求确认。
+ * 演示如何通过 before_* 事件取消会话操作。
  */
 
 import type { ExtensionAPI, SessionBeforeSwitchEvent, SessionMessageEntry } from "@earendil-works/pi-coding-agent";
@@ -24,7 +24,7 @@ export default function (pi: ExtensionAPI) {
 			return;
 		}
 
-		// reason === "resume" - check if there are unsaved changes (messages since last assistant response)
+		// reason === "resume"：检查是否存在未保存的更改（上次助手回复之后的消息）。
 		const entries = ctx.sessionManager.getEntries();
 		const hasUnsavedWork = entries.some(
 			(e): e is SessionMessageEntry => e.type === "message" && e.message.role === "user",

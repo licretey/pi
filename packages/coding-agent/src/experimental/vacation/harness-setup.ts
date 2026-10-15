@@ -6,13 +6,13 @@ import type { ModelRuntime } from "../../core/model-runtime.ts";
 import type { SettingsManager } from "../../core/settings-manager.ts";
 import { Search, Vacation } from "./vacation.ts";
 
-/** pi's HTTP setup: proxy, idle timeouts, and one undici for fetch. Without it, some provider streams break off. */
+/** pi 的 HTTP 配置：代理、空闲超时，以及供 fetch 使用的 undici 实例。缺少这些配置时，某些提供商的流会意外中断。 */
 export function configureHarnessHttp(settingsManager: SettingsManager): void {
 	applyHttpProxySettings(settingsManager.getGlobalSettings().httpProxy);
 	configureHttpDispatcher(settingsManager.getHttpIdleTimeoutMs());
 }
 
-/** Harness settings read at every use from pi's settings as loaded at startup. */
+/** Harness 设置；每次使用时都从 pi 启动时加载的设置中读取。 */
 export function createHarnessSettings(settingsManager: SettingsManager): HarnessSettings {
 	return {
 		get stream() {
@@ -39,7 +39,7 @@ export function createHarnessSettings(settingsManager: SettingsManager): Harness
 	};
 }
 
-/** A registry with the vacation planner and its research subagent's search. No coding tools, no pi prompt. */
+/** 包含休假规划器及其研究子代理搜索工具的注册表。不包含代码工具或 pi 提示词。 */
 export function createVacationRegistry(): Registry {
 	const registry = createRegistry();
 	registry.install(Vacation);
@@ -53,7 +53,7 @@ export interface InitialModel {
 	readonly fallbackMessage?: string;
 }
 
-/** The model a new root conversation starts with: an explicit `--provider`/`--model`, or pi's default resolution. */
+/** 新根对话使用的模型：显式指定的 `--provider`/`--model`，或由 pi 按默认规则解析的模型。 */
 export async function findInitialAgentModel(
 	settingsManager: SettingsManager,
 	modelRuntime: ModelRuntime,

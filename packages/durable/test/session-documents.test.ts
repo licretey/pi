@@ -129,7 +129,7 @@ describe("Session document transactions", () => {
 		expect(second).not.toBe(first);
 		expect(first.nested.count).toBe(0);
 		expect(second.nested.count).toBe(1);
-		// Unchanged subtrees are structurally shared between immutable revisions.
+		// 不变的子树会在不可变版本之间共享结构。
 		expect(second.items).toBe(first.items);
 		expect(second.other).toBe(first.other);
 	});
@@ -151,7 +151,7 @@ describe("Session document transactions", () => {
 		expect(published.ops).toBe(admitted.content.ops);
 		const set = published.ops.find((op) => op[0] === "s");
 		expect(set).toEqual(["s", ["other"], { label: "y" }]);
-		// Trusted immutability: the Session makes no second copy of operation payloads.
+		// 依赖可信的不可变性：Session 不会再次复制操作负载。
 		expect(set![2]).toBe(snapshot.other);
 	});
 
@@ -296,7 +296,7 @@ describe("Session document transactions", () => {
 			settled = true;
 		});
 		await flush();
-		// The line stays held until the late acquisition settles.
+		// 事务队列会一直被占用，直到延迟的资源获取操作完成。
 		expect(settled).toBe(false);
 		gate.release();
 		await expect(commit).rejects.toThrow("pending Tx operations");
@@ -414,7 +414,7 @@ describe("Session document transactions", () => {
 			session.commitWith(async (tx) => {
 				(await tx.doc(LiveDoc, conversationId)).message = "lost";
 				(await tx.doc(CounterDoc)).count = 2;
-				// Replacing a missing task fails during assembly, after every change was prepared.
+				// 替换不存在的任务会在组装阶段失败；此时所有更改均已准备完毕。
 				tx.setTask({
 					id: idFromNumber<TaskId<JsonValue>>(999),
 					conversationId,
@@ -510,7 +510,7 @@ describe("Session document transactions", () => {
 		expect(await session.snapshot(LiveDoc, conversationId, context)).toBeUndefined();
 		await session.unloadDocuments();
 		expect(await session.snapshot(LiveDoc, conversationId, context)).toBeUndefined();
-		// Retiring an absent address is a no-op.
+		// 归档不存在的地址不会产生任何操作。
 		const commits = storage.commits.length;
 		await session.commit((tx) => tx.retireDoc(LiveDoc, conversationId), context);
 		expect(storage.commits.length).toBe(commits);

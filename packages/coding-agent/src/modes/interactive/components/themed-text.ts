@@ -1,12 +1,11 @@
 import { Text } from "@earendil-works/pi-tui";
 
 /**
- * Text whose content applies theme colors. Plain `Text` keeps the colors its string was built with, so
- * a theme change, or the system theme receiving the terminal's colors, would leave it stale. This
- * rebuilds the string from `build` after every invalidation, which the UI performs on theme changes.
+ * 内容会应用主题颜色的文本组件。普通 `Text` 会保留创建字符串时使用的颜色，因此切换主题或系统主题
+ * 接收终端颜色后，颜色会过期。本组件在每次失效后都通过 `build` 重新生成字符串；界面会在主题变化时使其失效。
  *
- * `build` must return the same content each time, apart from colors. Snapshot changing data before
- * creating the component, or call `invalidate()` after changing state that `build` reads.
+ * 除颜色外，`build` 每次都必须返回相同内容。创建组件前应先固定可能变化的数据；若 `build` 读取的状态发生变化，
+ * 则调用 `invalidate()`。
  */
 export class ThemedText extends Text {
 	private readonly build: () => string;

@@ -1,5 +1,5 @@
-// Transcript history and model context.
-// Run from packages/durable:
+// 对话记录历史和模型上下文。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/09-context.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { AssistantMessage, Message, StopReason, ToolResultMessage } from "@earendil-works/pi-ai";
@@ -13,14 +13,13 @@ const harness = await Harness.open(
 	context,
 );
 
-// Entries are immutable. `model` holds the messages an entry contributes to
-// the next model request; `data` is for the app only. context() turns the
-// stored transcript into those request messages:
-//   - an entry with `head` starts a new context; older entries stay stored,
-//   - `edits` replace or omit what an earlier entry contributes,
-//   - aborted, error, and deferred assistant messages are not sent,
-//   - tool results are sent right after their call, in call order,
-//   - a call without a result gets a synthesized error result.
+// 条目不可变。`model` 保存该条目为下一次模型请求提供的消息；`data` 仅供应用使用。context() 会将存储的对话记录
+// 转换为请求消息，规则如下：
+//   - 带有 `head` 的条目会开启新的上下文；较早条目仍会保留，
+//   - `edits` 会替换或移除较早条目提供的内容，
+//   - 已中止、出错或延迟的助手消息不会发送，
+//   - 工具结果会按调用顺序紧跟在对应调用之后发送，
+//   - 没有结果的调用会生成一个错误结果。
 function assistantMessage(text: string, calls: readonly string[] = [], stopReason?: StopReason): AssistantMessage {
 	return {
 		role: "assistant",
@@ -105,12 +104,12 @@ console.log(
 );
 console.log("request messages:", view.messages.map(show));
 
-// A fork at the tool call has no results yet; context() fills them in.
+// 从工具调用处创建的分支尚无工具结果；context() 会补全这些结果。
 const cut = await transcript.fork(calls.id, { ownership: { kind: "ownerless" } }, context);
 console.log("fork messages:", (await cut.context(context)).messages.map(show));
 
-// A headed summary replaces everything before the entry it points at.
-// "self" points the head at the summary entry itself.
+// 带有 head 的摘要会替代其指向条目之前的所有上下文。
+// "self" 表示将 head 指向摘要条目本身。
 await transcript.commit(
 	(tx) =>
 		tx.appendEntry(transcript.id, {
@@ -123,8 +122,8 @@ await transcript.commit(
 view = await transcript.context(context);
 console.log("after summary:", view.head?.kind, view.messages.map(show));
 
-// entries() pages the stored transcript, newest first, including inherited
-// parent entries. Nothing is ever deleted by heads or edits.
+// entries() 会分页读取已存储的对话记录，按时间倒序排列，并包含从父对话继承的条目。
+// head 和 edits 都不会删除任何条目。
 const history = await transcript.entries({}, 3, undefined, context);
 console.log(
 	"newest stored entries:",

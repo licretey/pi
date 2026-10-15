@@ -1,8 +1,8 @@
 /**
- * Tool HTML renderer for custom tools in HTML export.
+ * HTML 导出时用于渲染自定义工具的工具渲染器。
  *
- * Renders custom tool calls and results to HTML by invoking their TUI renderers
- * and converting the ANSI output to HTML.
+ * 调用自定义工具的 TUI 渲染器，将工具调用和结果渲染为 HTML，
+ * 并将 ANSI 输出转换为 HTML。
  */
 
 import type { ImageContent, TextContent } from "@earendil-works/pi-ai";
@@ -12,20 +12,20 @@ import type { ToolRenderContext, ToolRenderers } from "../extensions/types.ts";
 import { ansiLinesToHtml } from "./ansi-to-html.ts";
 
 export interface ToolHtmlRendererDeps {
-	/** Renderers of calls to a tool, as resolved by extensions and the registered tool */
+	/** 扩展和已注册工具解析出的工具调用渲染器。 */
 	getToolRenderers: (name: string) => ToolRenderers | undefined;
-	/** Theme for styling */
+	/** 用于设置样式的主题。 */
 	theme: Theme;
-	/** Working directory for render context */
+	/** 渲染上下文所用的工作目录。 */
 	cwd: string;
-	/** Terminal width for rendering (default: 100) */
+	/** 渲染时使用的终端宽度（默认值：100）。 */
 	width?: number;
 }
 
 export interface ToolHtmlRenderer {
-	/** Render a tool call to HTML. Returns undefined if tool has no custom renderer. */
+	/** 将工具调用渲染为 HTML。工具没有自定义渲染器时返回 undefined。 */
 	renderCall(toolCallId: string, toolName: string, args: unknown): string | undefined;
-	/** Render a tool result to collapsed/expanded HTML. Returns undefined if tool has no custom renderer. */
+	/** 将工具结果渲染为折叠/展开 HTML。工具没有自定义渲染器时返回 undefined。 */
 	renderResult(
 		toolCallId: string,
 		toolName: string,
@@ -36,10 +36,10 @@ export interface ToolHtmlRenderer {
 }
 
 /**
- * Create a tool HTML renderer.
+ * 创建工具 HTML 渲染器。
  *
- * The renderer looks up tool definitions and invokes their renderCall/renderResult
- * methods, converting the resulting TUI Component output (ANSI) to HTML.
+ * 渲染器会查找工具定义并调用其 renderCall/renderResult 方法，
+ * 再将 TUI Component 生成的 ANSI 输出转换为 HTML。
  */
 const ANSI_ESCAPE_REGEX = /\x1b\[[\d;]*m/g;
 
@@ -115,7 +115,7 @@ export function createToolHtmlRenderer(deps: ToolHtmlRendererDeps): ToolHtmlRend
 				const lines = component.render(width);
 				return ansiLinesToHtml(lines);
 			} catch {
-				// On error, return undefined so HTML export can fall back to structured result rendering
+				// 出错时返回 undefined，以便 HTML 导出回退到结构化结果渲染。
 				return undefined;
 			}
 		},
@@ -133,15 +133,15 @@ export function createToolHtmlRenderer(deps: ToolHtmlRendererDeps): ToolHtmlRend
 					return undefined;
 				}
 
-				// Build AgentToolResult from content array
-				// Cast content since session storage uses generic object types
+				// 根据 content 数组构造 AgentToolResult。
+				// 会话存储使用通用对象类型，因此需要对 content 进行类型转换。
 				const agentToolResult = {
 					content: result as (TextContent | ImageContent)[],
 					details,
 					isError,
 				};
 
-				// Render collapsed
+				// 渲染折叠视图。
 				const collapsedComponent = toolDef.renderResult(
 					agentToolResult,
 					{ expanded: false, isPartial: false },
@@ -151,7 +151,7 @@ export function createToolHtmlRenderer(deps: ToolHtmlRendererDeps): ToolHtmlRend
 				renderedResultComponents.set(toolCallId, collapsedComponent);
 				const collapsed = ansiLinesToHtml(trimRenderedResultLines(collapsedComponent.render(width)));
 
-				// Render expanded
+				// 渲染展开视图。
 				const expandedComponent = toolDef.renderResult(
 					agentToolResult,
 					{ expanded: true, isPartial: false },
@@ -166,7 +166,7 @@ export function createToolHtmlRenderer(deps: ToolHtmlRendererDeps): ToolHtmlRend
 					expanded,
 				};
 			} catch {
-				// On error, return undefined so HTML export can fall back to structured result rendering
+				// 出错时返回 undefined，以便 HTML 导出回退到结构化结果渲染。
 				return undefined;
 			}
 		},

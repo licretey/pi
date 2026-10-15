@@ -24,7 +24,7 @@ export function openaiProvider(): Provider<"openai-responses"> {
 			...Object.values(OPENAI_MODELS),
 			...Object.values<ClassifierModel<"openai-decisions">>(OPENAI_CLASSIFIER_MODELS),
 		],
-		// Sign in with ChatGPT tokens only reach the Responses API; the Decisions API rejects them.
+		// 使用 ChatGPT token 登录只能访问 Responses API；Decisions API 会拒绝它们。
 		filterAllModels: (models, credential) =>
 			credential?.type === "oauth" ? models.filter((model) => !isModelType(model, "classifier")) : models,
 		api: openAIResponsesApi(),

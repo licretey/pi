@@ -80,7 +80,7 @@ export interface ServerProfile {
 	release(): Promise<void>;
 }
 
-/** Lock one logical server ID in a shared experimental server directory. */
+/** 在共享的实验性服务器目录中锁定一个逻辑服务器 ID。 */
 export async function acquireServerProfile(directory: string, requestedServerId?: string): Promise<ServerProfile> {
 	await mkdir(directory, { recursive: true, mode: 0o700 });
 	let serverId: ServerId;
@@ -141,7 +141,7 @@ export interface ActivateServerOptions {
 	readonly model?: string;
 }
 
-/** Ensure the selected logical server is reachable, launching the current Pi installation if needed. */
+/** 确保选定的逻辑服务器可访问；必要时启动当前安装的 Pi。 */
 export async function activateServer(options: ActivateServerOptions): Promise<ActivatedServer> {
 	if (options.provider !== undefined && options.model === undefined) {
 		throw new Error("Server model provider requires a model");
@@ -155,7 +155,7 @@ export async function activateServer(options: ActivateServerOptions): Promise<Ac
 	try {
 		const existing = await connect(route);
 		if (existing) {
-			// Another activator won the race, so startup-only selections can no longer be applied.
+			// 另一个激活器已抢先完成启动，因此不能再应用仅限启动时生效的选择。
 			if (options.model !== undefined) {
 				await existing.dispose();
 				throw new Error("Model selection is only valid when automatically activating a new server");
@@ -244,7 +244,7 @@ async function connect(route: UnixServerRoute): Promise<Client | undefined> {
 const AUTO_SERVER_STARTUP_GRACE_MS = 10_000;
 const AUTO_SERVER_IDLE_GRACE_MS = 1_000;
 
-/** Reconcile operator, startup, client, and worker holds for one server generation. */
+/** 协调同一服务器进程的操作员、启动流程、客户端和工作进程持有状态。 */
 export class ServerLifetime {
 	readonly #keepAlive: boolean;
 	#connectionCount = 0;
@@ -331,21 +331,21 @@ export interface RunningServer {
 }
 
 export interface StartServerOptions {
-	/** Server profile and socket directory. Defaults to PI_SERVER_DIR or ~/.pi/server. */
+	/** 服务器配置和套接字目录。默认为 PI_SERVER_DIR 或 ~/.pi/server。 */
 	readonly directory?: string;
-	/** Logical service ID. Defaults to PI_SERVER_ID or the directory's default-server-id. */
+	/** 逻辑服务 ID。默认为 PI_SERVER_ID 或目录中的 default-server-id。 */
 	readonly serverId?: ServerId;
-	/** Durable session directory. Defaults to the experimental directory under the configured agent directory. */
+	/** 持久化会话目录。默认为已配置代理目录下的实验性目录。 */
 	readonly sessionDir?: string;
-	/** Optional provider for an explicitly selected Session worker model. */
+	/** 可选的提供商，用于指定会话工作进程使用的模型。 */
 	readonly provider?: string;
-	/** Optional model override for newly started Session workers. */
+	/** 新启动的会话工作进程可选使用的模型覆盖值。 */
 	readonly model?: string;
-	/** Hold the server open without client or Session demand. Defaults to true for foreground servers. */
+	/** 即使没有客户端或会话需求，也保持服务器运行。前台服务器默认为 true。 */
 	readonly keepAlive?: boolean;
-	/** Optional explicit Radius credential. Stored Radius auth is used when omitted. */
+	/** 可选的显式 Radius 凭据。省略时使用已存储的 Radius 认证信息。 */
 	readonly relayAuth?: AuthInput;
-	/** Explicit plugin packages. Undefined restores the logical server profile; an empty list clears it. */
+	/** 显式指定的插件包。undefined 表示恢复逻辑服务器配置；空列表表示清除插件包。 */
 	readonly pluginPackages?: readonly string[];
 	readonly onRelayStatus?: (status: RadiusRelayHostStatus) => void;
 }
@@ -489,7 +489,7 @@ async function startServerBackend(
 	};
 }
 
-/** Start a replaceable experimental server behind the stable coordinator endpoint. */
+/** 在稳定的协调器端点后启动可替换的实验性服务器。 */
 export async function startServer(options: StartServerOptions = {}): Promise<RunningServer> {
 	if (options.provider !== undefined && options.model === undefined) {
 		throw new Error("Server model provider requires a model");
@@ -678,7 +678,7 @@ export async function startServer(options: StartServerOptions = {}): Promise<Run
 	}
 }
 
-/** Start an operator-held server while serializing against automatic cold activation. */
+/** 启动由操作员持有的服务器，并与自动冷启动流程串行协调。 */
 export async function startForegroundServer(
 	options: Omit<StartServerOptions, "keepAlive"> = {},
 ): Promise<RunningServer> {
@@ -725,7 +725,7 @@ function parseServerModelOptions(value: string | undefined): { provider?: string
 	return provider === undefined ? { model } : { provider, model };
 }
 
-/** Run an automatically activated server until its client and Session demand disappears. */
+/** 运行自动激活的服务器，直到客户端和会话需求消失。 */
 export async function runServerProcess(args: readonly string[]): Promise<void> {
 	const [directory, serverId, sessionDir, serializedModel] = args;
 	if (args.length > 4) throw new Error("Internal server received unexpected arguments");

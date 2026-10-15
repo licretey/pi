@@ -9,7 +9,7 @@ import { RpcClient } from "../src/modes/rpc/rpc-client.ts";
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 /**
- * RPC mode tests.
+ * RPC 模式测试。
  */
 describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_TOKEN)("RPC mode", () => {
 	let client: RpcClient;
@@ -47,17 +47,17 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should save messages to session file", async () => {
 		await client.start();
 
-		// Send prompt and wait for completion
+		// 发送提示词并等待完成。
 		const events = await client.promptAndWait("Reply with just the word 'hello'");
 
-		// Should have message events
+		// 应包含消息事件。
 		const messageEndEvents = events.filter((e) => e.type === "message_end");
 		expect(messageEndEvents.length).toBeGreaterThanOrEqual(2); // user + assistant
 
-		// Wait for file writes
+		// 等待文件写入完成。
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
-		// Verify session file
+		// 验证会话文件。
 		const sessionsPath = join(sessionDir, "sessions");
 		expect(existsSync(sessionsPath)).toBe(true);
 
@@ -74,10 +74,10 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 			.split("\n")
 			.map((line) => JSON.parse(line));
 
-		// First entry should be session header
+		// 第一项应为会话头。
 		expect(entries[0].type).toBe("session");
 
-		// Should have user and assistant messages
+		// 应包含用户消息和 assistant 消息。
 		const messages = entries.filter((e: { type: string }) => e.type === "message");
 		expect(messages.length).toBeGreaterThanOrEqual(2);
 
@@ -89,18 +89,18 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should handle manual compaction", async () => {
 		await client.start();
 
-		// First send a prompt to have messages to compact
+		// 先发送提示词，生成待压缩的消息。
 		await client.promptAndWait("Say hello");
 
-		// Compact
+		// 执行压缩。
 		const result = await client.compact();
 		expect(result.summary).toBeDefined();
 		expect(result.tokensBefore).toBeGreaterThan(0);
 
-		// Wait for file writes
+		// 等待文件写入完成。
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
-		// Verify compaction in session file
+		// 验证会话文件中的压缩记录。
 		const sessionsPath = join(sessionDir, "sessions");
 		const sessionDirs = readdirSync(sessionsPath);
 		const cwdSessionDir = join(sessionsPath, sessionDirs[0]);
@@ -128,17 +128,17 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should add bash output to context", async () => {
 		await client.start();
 
-		// First send a prompt to initialize session
+		// 先发送提示词以初始化会话。
 		await client.promptAndWait("Say hi");
 
-		// Run bash command
+		// 运行 bash 命令。
 		const uniqueValue = `test-${Date.now()}`;
 		await client.bash(`echo ${uniqueValue}`);
 
-		// Wait for file writes
+		// 等待文件写入完成。
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
-		// Verify bash message in session
+		// 验证会话中的 bash 消息。
 		const sessionsPath = join(sessionDir, "sessions");
 		const sessionDirs = readdirSync(sessionsPath);
 		const cwdSessionDir = join(sessionsPath, sessionDirs[0]);
@@ -160,16 +160,16 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should include bash output in LLM context", async () => {
 		await client.start();
 
-		// Run a bash command with a unique value
+		// 运行 bash 命令并输出唯一值。
 		const uniqueValue = `unique-${Date.now()}`;
 		await client.bash(`echo ${uniqueValue}`);
 
-		// Ask the LLM what the output was
+		// 询问 LLM 命令输出的内容。
 		const events = await client.promptAndWait(
 			"What was the exact output of the echo command I just ran? Reply with just the value, nothing else.",
 		);
 
-		// Find assistant's response
+		// 查找 assistant 的响应。
 		const messageEndEvents = events.filter((e) => e.type === "message_end") as AgentEvent[];
 		const assistantMessage = messageEndEvents.find(
 			(e) => e.type === "message_end" && e.message?.role === "assistant",
@@ -184,10 +184,10 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should set and get thinking level", async () => {
 		await client.start();
 
-		// Set thinking level
+		// 设置思考等级。
 		await client.setThinkingLevel("high");
 
-		// Verify via state
+		// 通过状态验证。
 		const state = await client.getState();
 		expect(state.thinkingLevel).toBe("high");
 	}, 30000);
@@ -195,16 +195,16 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should cycle thinking level", async () => {
 		await client.start();
 
-		// Get initial level
+		// 获取初始等级。
 		const initialState = await client.getState();
 		const initialLevel = initialState.thinkingLevel;
 
-		// Cycle
+		// 循环切换。
 		const result = await client.cycleThinkingLevel();
 		expect(result).toBeDefined();
 		expect(result!.level).not.toBe(initialLevel);
 
-		// Verify via state
+		// 通过状态验证。
 		const newState = await client.getState();
 		expect(newState.thinkingLevel).toBe(result!.level);
 	}, 30000);
@@ -215,16 +215,16 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 		const levels = await client.getAvailableThinkingLevels();
 		expect(levels.length).toBeGreaterThan(0);
 
-		// The current level reported by get_state must be in the available list
+		// get_state 返回的当前等级必须包含在可用等级列表中。
 		const state = await client.getState();
 		expect(levels).toContain(state.thinkingLevel);
 
-		// cycle_thinking_level must only ever land on levels from get_available_thinking_levels
+		// cycle_thinking_level 只能切换到 get_available_thinking_levels 返回的等级。
 		const initialLevel = state.thinkingLevel;
 		const cycled = await client.cycleThinkingLevel();
 		if (cycled) {
 			expect(levels).toContain(cycled.level);
-			// distinct cycle step (unless only one level)
+			// 除非只有一个等级，否则每次循环都应切换到不同等级。
 			if (levels.length > 1) {
 				expect(cycled.level).not.toBe(initialLevel);
 			}
@@ -237,7 +237,7 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 		const models = await client.getAvailableModels();
 		expect(models.length).toBeGreaterThan(0);
 
-		// All models should have required fields
+		// 所有模型都应包含必需字段。
 		for (const model of models) {
 			expect(model.provider).toBeDefined();
 			expect(model.id).toBeDefined();
@@ -249,7 +249,7 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should get session stats", async () => {
 		await client.start();
 
-		// Send a prompt first
+		// 先发送提示词。
 		await client.promptAndWait("Hello");
 
 		const stats = await client.getSessionStats();
@@ -262,17 +262,17 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should create new session", async () => {
 		await client.start();
 
-		// Send a prompt
+		// 发送提示词。
 		await client.promptAndWait("Hello");
 
-		// Verify messages exist
+		// 验证消息存在。
 		let state = await client.getState();
 		expect(state.messageCount).toBeGreaterThan(0);
 
-		// New session
+		// 新建会话。
 		await client.newSession();
 
-		// Verify messages cleared
+		// 验证消息已清空。
 		state = await client.getState();
 		expect(state.messageCount).toBe(0);
 	}, 90000);
@@ -280,10 +280,10 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should export to HTML", async () => {
 		await client.start();
 
-		// Send a prompt first
+		// 先发送提示词。
 		await client.promptAndWait("Hello");
 
-		// Export
+		// 导出。
 		const result = await client.exportHtml();
 		expect(result.path).toBeDefined();
 		expect(result.path.endsWith(".html")).toBe(true);
@@ -293,14 +293,14 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should get last assistant text", async () => {
 		await client.start();
 
-		// Initially null
+		// 初始值为 null。
 		let text = await client.getLastAssistantText();
 		expect(text).toBeUndefined();
 
-		// Send prompt
+		// 发送提示词。
 		await client.promptAndWait("Reply with just: test123");
 
-		// Should have text now
+		// 此时应已有文本。
 		text = await client.getLastAssistantText();
 		expect(text).toContain("test123");
 	}, 90000);
@@ -317,12 +317,12 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 		}
 		expect(leafId).toBe(entries[entries.length - 1].id);
 
-		// since cursor returns only entries strictly after the given id
+		// cursor 只返回指定 ID 之后的条目。
 		const since = await client.getEntries(entries[0].id);
 		expect(since.entries.map((e) => e.id)).toEqual(entries.slice(1).map((e) => e.id));
 		expect(since.leafId).toBe(leafId);
 
-		// unknown since id is an error response
+		// 未知的 since ID 会返回错误响应。
 		await expect(client.getEntries("nonexistent-id")).rejects.toThrow("Entry not found");
 	}, 90000);
 
@@ -335,7 +335,7 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 		const { tree, leafId: treeLeafId } = await client.getTree();
 		expect(treeLeafId).toBe(leafId);
 
-		// Single root whose chain matches the entries
+		// 单个根节点，其链条应与这些条目相符。
 		expect(tree.length).toBe(1);
 		const chainIds: string[] = [];
 		let nodes = tree;
@@ -356,7 +356,7 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 		await client.compact();
 
 		const after = await client.getEntries();
-		// Append-only: pre-compaction entries are still there, in the same order
+		// 仅追加：压缩前的条目仍然保留，且顺序不变。
 		expect(after.entries.slice(0, before.entries.length).map((e) => e.id)).toEqual(before.entries.map((e) => e.id));
 		expect(after.entries.some((e) => e.type === "compaction")).toBe(true);
 	}, 120000);
@@ -364,24 +364,24 @@ describe.skipIf(!process.env.ANTHROPIC_API_KEY && !process.env.ANTHROPIC_OAUTH_T
 	test("should set and get session name", async () => {
 		await client.start();
 
-		// Initially undefined
+		// 初始值为 undefined。
 		let state = await client.getState();
 		expect(state.sessionName).toBeUndefined();
 
-		// Send a prompt first - session files are only written after first assistant message
+		// 先发送提示词：会话文件只会在第一条 assistant 消息之后写入。
 		await client.promptAndWait("Reply with just 'ok'");
 
-		// Set name
+		// 设置名称。
 		await client.setSessionName("my-test-session");
 
-		// Verify via state
+		// 通过状态验证。
 		state = await client.getState();
 		expect(state.sessionName).toBe("my-test-session");
 
-		// Wait for file writes
+		// 等待文件写入完成。
 		await new Promise((resolve) => setTimeout(resolve, 200));
 
-		// Verify session_info entry in session file
+		// 验证会话文件中的 session_info 条目。
 		const sessionsPath = join(sessionDir, "sessions");
 		const sessionDirs = readdirSync(sessionsPath);
 		const cwdSessionDir = join(sessionsPath, sessionDirs[0]);

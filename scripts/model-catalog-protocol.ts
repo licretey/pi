@@ -1,28 +1,25 @@
 /**
- * Model catalog protocol shared by pi and pi.dev.
+ * pi 与 pi.dev 共用的模型目录协议。
  *
- * This file is copied verbatim into two repositories. Change both copies in
- * the same pair of pull requests and keep them byte for byte identical:
+ * 此文件会原样复制到两个代码库。修改时应在同一组拉取请求中更新两份副本，
+ * 并确保两者逐字节保持一致：
  *
  *   earendil-works/pi      scripts/model-catalog-protocol.ts
  *   earendil-works/pi.dev  src/shared/models/protocol.ts
  *
- * pi uses it to publish catalog revisions and to test clients against the
- * catalog selection pi.dev performs. pi.dev uses it to serve catalog requests.
- * Keep it free of imports and runtime specific APIs so it runs unchanged in
- * Node.js and Cloudflare Workers.
+ * pi 使用此文件发布目录修订版本，并根据 pi.dev 的目录选择逻辑测试客户端；pi.dev 使用它处理目录请求。
+ * 此文件不得依赖导入或特定运行时 API，以便在 Node.js 和 Cloudflare Workers 中无需修改即可运行。
  *
- * Storage layout under `MODEL_CATALOG_PREFIX`:
+ * `MODEL_CATALOG_PREFIX` 下的存储结构：
  *
- *   index.json                                    revision index (`ModelCatalogIndex`)
- *   revisions/<revision>/models.json              chat models by provider and id
- *   revisions/<revision>/models.all.json          models of every type by provider
- *   revisions/<revision>/providers.json           sorted provider ids
- *   revisions/<revision>/providers/<id>.json      chat models of one provider by id
- *   revisions/<revision>/providers/<id>.all.json  models of every type of one provider
+ *   index.json                                    修订版本索引（`ModelCatalogIndex`）
+ *   revisions/<revision>/models.json              按提供商和 ID 存储的聊天模型
+ *   revisions/<revision>/models.all.json          按提供商存储的所有类型模型
+ *   revisions/<revision>/providers.json           排序后的提供商 ID
+ *   revisions/<revision>/providers/<id>.json      某个提供商按 ID 存储的聊天模型
+ *   revisions/<revision>/providers/<id>.all.json  某个提供商的所有类型模型
  *
- * Clients that send `?types=` receive the typed `.all.json` variant. Older
- * clients receive the legacy chat-only variant.
+ * 发送 `?types=` 的客户端会收到带类型信息的 `.all.json` 版本；旧版客户端会收到仅包含聊天模型的兼容版本。
  */
 
 export const MODEL_CATALOG_SCHEMA_VERSION = 1;
@@ -73,14 +70,14 @@ export function isValidModelCatalogPiVersion(version: string): boolean {
 	return parsePiVersion(version) !== undefined;
 }
 
-/** Compare two Pi versions with semver precedence. Throws for invalid versions. */
+/** 按语义化版本优先级比较两个 Pi 版本；版本无效时抛出异常。 */
 export function compareModelCatalogPiVersions(left: string, right: string): number {
 	return comparePiVersions(requirePiVersion(left), requirePiVersion(right));
 }
 
 /**
- * Parse the `types` query parameter. Returns undefined when it is present but
- * invalid. Clients that do not send it predate model types.
+ * 解析 `types` 查询参数。参数存在但无效时返回 undefined。
+ * 不发送该参数的客户端早于模型类型功能。
  */
 export function parseModelCatalogRepresentation(
 	types: string | null | undefined,
@@ -95,12 +92,11 @@ export function parseModelCatalogRepresentation(
 }
 
 /**
- * Decide how to answer a catalog request from its URL and User-Agent.
+ * 根据 URL 和 User-Agent 确定如何响应模型目录请求。
  *
- * Released clients do not send `pi-version`. Responses are cached by URL, so
- * instead of varying the response on the User-Agent, clients that identify
- * as Pi are redirected to the equivalent URL with an explicit `pi-version`.
- * Requests without a Pi User-Agent receive the default catalog.
+ * 已发布的客户端不会发送 `pi-version`。响应按 URL 缓存，因此对于能识别为 Pi 的客户端，
+ * 不根据 User-Agent 返回不同响应，而是将其重定向到带有明确 `pi-version` 的等效 URL。
+ * 未携带 Pi User-Agent 的请求会收到默认目录。
  */
 export function parseModelCatalogRequest(url: string | URL, userAgent: string | null | undefined): ModelCatalogRequest {
 	const requestUrl = new URL(url);
@@ -125,9 +121,8 @@ export function parseModelCatalogRequest(url: string | URL, userAgent: string | 
 }
 
 /**
- * Select the catalog revision for a Pi version: the entry with the highest
- * minimum version that does not exceed it. Requests without a version receive
- * the default revision. Returns undefined when no entry is compatible.
+ * 为指定的 Pi 版本选择目录修订版本：选择最低适用版本不高于该版本且数值最高的条目。
+ * 未指定版本的请求使用默认修订版本；没有兼容条目时返回 undefined。
  */
 export function selectModelCatalog(
 	index: ModelCatalogIndex,
@@ -158,8 +153,7 @@ export function selectModelCatalog(
 }
 
 /**
- * Validate an index read from storage. Returns only the protocol fields;
- * publishers may store additional metadata on each entry.
+ * 校验从存储中读取的索引。仅返回协议定义的字段；发布方可以在每个条目中存储额外元数据。
  */
 export function parseModelCatalogIndex(value: unknown): ModelCatalogIndex {
 	if (

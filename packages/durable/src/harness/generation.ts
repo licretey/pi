@@ -52,9 +52,9 @@ export type GenerationCheckpoint =
 	| {
 			phase: "prepare";
 			attempt: number;
-			/** The blocking compaction this generation waited for; it starts no other compaction (spec §8.3). */
+			/** 该 generation 等待过的阻塞性 compaction；它不会再启动其他 compaction（spec §8.3）。 */
 			compacted?: TaskId<CompactionResult>;
-			/** Error text of the overflow that started `compacted`; checked once when `prepare` resumes. */
+			/** 触发 `compacted` 的溢出错误文本；`prepare` 恢复时检查一次。 */
 			overflow?: string;
 	  }
 	| {
@@ -63,9 +63,9 @@ export type GenerationCheckpoint =
 			compacted?: TaskId<CompactionResult>;
 			model: ModelRef;
 			thinkingLevel: ModelThinkingLevel;
-			/** The settings' request options when preparation committed; a resend after recovery uses them unchanged. */
+			/** 预备阶段 commit 时 settings 的请求选项；恢复后的重发原样使用它们。 */
 			streamOptions: ConversationStreamOptions;
-			/** Newest entry included in the request. */
+			/** 请求中包含的最新 entry。 */
 			cutoff: EntryId;
 	  }
 	| { phase: "retry"; attempt: number; compacted?: TaskId<CompactionResult>; until: number }
@@ -79,13 +79,13 @@ export type GenerationCheckpoint =
 			pollAt: number;
 	  }
 	| {
-			/** Waiting on the round's tool tasks, which the generation owns (spec §8.5). */
+			/** 在等待本轮的工具任务，它们由该 generation 拥有（spec §8.5）。 */
 			phase: "tools";
-			/** The tool-calling answer. */
+			/** 发起工具调用的回答。 */
 			assistant: EntryId;
-			/** Tool tasks created so far, in call order; grows by one per started call of a sequential round. */
+			/** 至此已创建的工具任务，按调用顺序；顺序轮中每启动一个调用就增加一个。 */
 			tools: TaskId<ToolTaskResult>[];
-			/** Calls of a sequential round not started yet, in call order. */
+			/** 顺序轮中尚未启动的调用，按调用顺序。 */
 			pending: string[];
 	  };
 
@@ -94,23 +94,23 @@ export type GenerationResult = { entryId: EntryId };
 type Runtime = TaskRuntime<GenerationInput, GenerationCheckpoint, GenerationResult, GenerationHooks>;
 type Next = NextTaskState<GenerationCheckpoint, GenerationResult>;
 
-/** What classification needs from the request that produced a message. */
+/** 分类时需要从产生该消息的请求中得知的内容。 */
 type Request = {
 	readonly attempt: number;
 	readonly compacted: TaskId<CompactionResult> | undefined;
 	readonly model: ModelRef;
 	readonly cutoff: EntryId;
-	/** Committed model context through `cutoff`, when the phase already derived it. */
+	/** 到 `cutoff` 为止已提交的模型上下文，phase 已派生出来时带上。 */
 	readonly messages?: readonly Message[];
-	/** Set when the message came from polling, so a still deferred result polls strictly later. */
+	/** 消息来自轮询时设置；因此仍处于 deferred 的结果会严格推迟到之后轮询。 */
 	readonly pollAt?: number;
 };
 
 const DEFAULT_POLL_AFTER_MS = 5000;
 
 /**
- * Built-in generation task: prepares the positional system prompt and tool loadout, requests or polls the model,
- * retries, and classifies the response. The run's inputs live in `pi.live.run`.
+ * 内置的 generation 任务：准备按位置排布的 system prompt 和工具装载，请求或轮询模型，重试，并对响应分类。
+ * run 的输入存放在 `pi.live.run`。
  */
 export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, GenerationResult, GenerationHooks>({
 	name: "pi.generation",
@@ -118,9 +118,9 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 	initial: () => ({ phase: "prepare", attempt: 1 }),
 	phases: {
 		/**
-		 * Render the system prompt and tool loadout and append the positional `pi.system` entries they need, then move to
-		 * `request`. The agent and settings resolved here are fixed for this request. Only the Harness writes to a busy
-		 * conversation, so the transcript read here is still the tail at the commit.
+		 * 渲染 system prompt 与工具装载，并追加它们所需的按位置排布的 `pi.system` entry，然后进入 `request`。
+		 * 此处解析出的 agent 与 settings 对本次请求固定不变。只有 Harness 会写入忙碌中的 conversation，
+		 * 因此这里读到的 transcript 在 commit 时仍是尾部。
 		 */
 		prepare: async (task, runtime, context) => {
 			const { conversationId } = runtime;
@@ -154,7 +154,7 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 					? thresholdCompaction(view, entries, resolved.contextWindow, settings.compaction)
 					: undefined;
 			if (threshold === "blocking") {
-				// Compact first and prepare again; the transcript is unchanged until the compaction appends.
+				// 先做 compaction 再重新预备；在 compaction 追加之前 transcript 保持不变。
 				await runtime.commit(async (tx): Promise<Next> => {
 					const child = await createCompaction(tx, conversationId, { reason: "threshold" }, runtime.taskId);
 					const checkpoint = { phase: "prepare", attempt, compacted: child } as const;
@@ -166,7 +166,7 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 				let cutoff = (await tx.scanEntries({ conversationId }, 1)).items[0]?.id;
 				for (const entry of entries) cutoff = (await tx.appendEntry(SystemEntry, conversationId, entry)).id;
 				if (cutoff === undefined) throw new Error(`Conversation ${conversationId} has no entries to send`);
-				// Checked in this commit, so a compaction admitted during preparation counts.
+				// 在本次 commit 内检查，因此预备期间准入的 compaction 也算数。
 				if (threshold === "background" && (await tx.doc(LiveDoc, conversationId)).compactions === undefined) {
 					await createCompaction(tx, conversationId, { reason: "threshold" });
 				}
@@ -234,7 +234,7 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 			const { assistant, tools, pending } = task.state.checkpoint;
 			const [next, ...rest] = pending;
 			if (next === undefined) return finishToolRound(runtime, assistant, tools, context);
-			// Sequential round: start the next call and wait for it.
+			// 顺序轮：启动下一个调用并等待它。
 			await runtime.commit(async (tx): Promise<Next> => {
 				const live = await tx.doc(LiveDoc, runtime.conversationId);
 				const taskId = await createToolTask(tx, runtime, assistant, next);
@@ -263,7 +263,7 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 			}
 		}
 		const conversationId = runtime.conversationId;
-		// Runs after the round's tool tasks are terminal; calls never started get `aborted` results (spec §8.5).
+		// 在本轮工具任务全部进入终态后运行；从未启动的调用会得到 `aborted` 结果（spec §8.5）。
 		const unstarted =
 			checkpoint.phase === "tools"
 				? await readCalls(runtime, checkpoint.assistant, checkpoint.pending, context)
@@ -281,7 +281,7 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 	},
 });
 
-/** The calls `callIds` of the assistant entry, in the given order. */
+/** assistant entry 中 `callIds` 指定的调用，按给定顺序返回。 */
 async function readCalls(
 	runtime: Runtime,
 	assistant: EntryId,
@@ -293,7 +293,7 @@ async function readCalls(
 	return callIds.flatMap((id) => calls.filter((call) => call.id === id).slice(0, 1));
 }
 
-/** A tool task for call `callId`, owned by the generation. */
+/** 调用 `callId` 的工具任务，由该 generation 拥有。 */
 function createToolTask(tx: Tx, runtime: Runtime, assistant: EntryId, callId: string): Promise<TaskId<ToolTaskResult>> {
 	return tx.createTask(
 		ToolTask,
@@ -303,9 +303,9 @@ function createToolTask(tx: Tx, runtime: Runtime, assistant: EntryId, callId: st
 }
 
 /**
- * Which threshold compaction preparation starts before its request (spec §8.3): `blocking` above
- * `contextWindow - reserveTokens`, `background` above the background threshold, and only when range selection finds a
- * cut. The caller starts a background one only while no compaction is listed.
+ * 预备阶段在其请求之前启动哪种阈值 compaction（spec §8.3）：高于 `contextWindow - reserveTokens` 时为
+ * `blocking`，高于 background 阈值时为 `background`，且仅当选区选择能找到切点时。只有当下没有登记任何
+ * compaction 时，调用方才会启动 background 的那种。
  */
 function thresholdCompaction(
 	view: ContextView,
@@ -326,7 +326,7 @@ function thresholdCompaction(
 	return over;
 }
 
-/** Settle the run's inputs `unanswered` with `model_error` and fail with `text`. */
+/** 把 run 的输入以 `model_error` 落定为 `unanswered`，并以 `text` 失败。 */
 async function failModelError(runtime: Runtime, text: string, context: Context): Promise<void> {
 	await runtime.commit(async (tx) => {
 		const live = await tx.doc(LiveDoc, runtime.conversationId);
@@ -338,7 +338,7 @@ async function failModelError(runtime: Runtime, text: string, context: Context):
 	}, context);
 }
 
-/** Settle the run's inputs `unanswered` with `no_model` and fail. */
+/** 把 run 的输入以 `no_model` 落定为 `unanswered` 并失败。 */
 async function failNoModel(runtime: Runtime, ref: ModelRef | undefined, context: Context): Promise<void> {
 	const message =
 		ref === undefined ? "No model is configured" : `Model ${ref.provider}/${ref.modelId} is not available`;
@@ -350,8 +350,8 @@ async function failNoModel(runtime: Runtime, ref: ModelRef | undefined, context:
 }
 
 /**
- * Append a committed partial left by an interrupted, aborted, faulted, or orphaned attempt as an aborted assistant
- * entry; the caller replaces or removes `generation`.
+ * 把被中断、中止、故障化或孤儿化的尝试留下的已提交 partial，追加为一条 aborted 状态的 assistant entry；
+ * 调用方负责替换或移除 `generation`。
  */
 export async function convertPartial(tx: Tx, live: Draft<LiveState>, conversationId: ConversationId): Promise<void> {
 	const partial = live.generation?.message;
@@ -361,9 +361,9 @@ export async function convertPartial(tx: Tx, live: Draft<LiveState>, conversatio
 }
 
 /**
- * Stream one request and return the terminal message. Partials commit as trailing writes at most every
- * `progress.partialIntervalMs` (default 100 ms) with one commit in flight; `finally` stops the throttle and awaits that
- * commit, so no stale partial lands after the outcome.
+ * 发起一次流式请求并返回终态消息。partial 作为尾随写入提交，间隔至多 `progress.partialIntervalMs`
+ * （默认 100 ms），且同时只有一个 commit 在途；`finally` 停掉节流并等待该 commit 落地，
+ * 因此 outcome 之后不会有陈旧的 partial 落入。
  */
 async function streamResponse(
 	runtime: Runtime,
@@ -384,7 +384,7 @@ async function streamResponse(
 		pending = undefined;
 		if (partial === undefined || stopped) return;
 		inFlight = (async () => {
-			// Copy synchronously: the provider keeps mutating its partial.
+			// 同步复制：provider 还在持续修改它的 partial。
 			const message = copyJson(partial, { omitUndefinedProperties: true });
 			await runtime.commit(async (tx) => {
 				const live = await tx.doc(LiveDoc, runtime.conversationId);
@@ -394,7 +394,7 @@ async function streamResponse(
 			}, context);
 		})()
 			.catch((error: unknown) => {
-				// Rejections after an abort mark or close are expected; the committed state stays consistent.
+				// 中止标记或 close 之后的 rejection 属预期；已提交的状态保持一致。
 				if (!runtime.signal.aborted) runtime.report(error);
 			})
 			.finally(() => {
@@ -405,8 +405,8 @@ async function streamResponse(
 	try {
 		const events = runtime.models.streamSimple(model, { messages: [...messages] }, options);
 		for await (const event of events) {
-			// A partial without content, such as pi-ai's opening `start` event, shows nothing; a deferred response
-			// never gets past it, so it never leaves a partial.
+			// 没有内容的 partial（如 pi-ai 开场的 `start` 事件）什么都不显示；deferred 响应永远到不了它之后，
+			// 所以绝不会留下 partial。
 			if (event.type === "done" || event.type === "error" || event.partial.content.length === 0) continue;
 			pending = event.partial;
 			if (timer === undefined && inFlight === undefined) timer = setTimeout(flush, interval);
@@ -419,14 +419,14 @@ async function streamResponse(
 	}
 }
 
-/** Classify a terminal provider message in one commit that also clears the partial. */
+/** 在一次 commit 中对 provider 的终态消息分类，同时清除 partial。 */
 async function classify(
 	runtime: Runtime,
 	request: Request,
 	message: AssistantMessage,
 	context: Context,
 ): Promise<void> {
-	// An abort mark or close: the abort invocation or the reopened run handles the committed state.
+	// 中止标记或 close：由 abort invocation 或重新打开的 run 处理已提交的状态。
 	runtime.signal.throwIfAborted();
 	const conversationId = runtime.conversationId;
 	const { attempt, compacted, model: ref, cutoff } = request;
@@ -459,7 +459,7 @@ async function classify(
 	if (message.stopReason === "stop" || message.stopReason === "length" || message.stopReason === "toolUse") {
 		return answer(runtime, message, context);
 	}
-	// The retry and compaction policies govern the next attempt, so they are read now rather than pinned at preparation.
+	// 重试与 compaction 策略决定下一次尝试，因此现在读取，而非在预备阶段固定。
 	const settings = runtime.settings;
 	const overflow = message.stopReason === "error" && isContextOverflow(message);
 	if (overflow && compacted === undefined && settings.compaction.enabled) {
@@ -479,7 +479,7 @@ async function classify(
 		}
 	}
 	const policy = settings.retry;
-	// An overflow is never retried: only a compaction can make the next request fit.
+	// 溢出绝不重试：只有 compaction 能让下一次请求装得下。
 	const retry =
 		message.stopReason === "error" &&
 		!overflow &&
@@ -510,9 +510,9 @@ async function classify(
 }
 
 /**
- * A final answer; the final boundary places queued items (spec §6). The first `onYield` continuation appends a user
- * message and hands the run to a successor generation, but only when the boundary selected no user item and no reset.
- * Otherwise the run's inputs settle `done`, and selected user items start the next run.
+ * 最终回答；final 边界会安置排队的条目（spec §6）。第一个 `onYield` 续接会追加一条 user 消息并把 run 交给
+ * 后继 generation，但仅当边界没有选出 user 条目且没有 reset 时。否则 run 的输入以 `done` 落定，
+ * 选出的 user 条目启动下一个 run。
  */
 async function answer(runtime: Runtime, message: AssistantMessage, context: Context): Promise<void> {
 	let continuation: UserInput | undefined;
@@ -522,7 +522,7 @@ async function answer(runtime: Runtime, message: AssistantMessage, context: Cont
 	});
 	const conversationId = runtime.conversationId;
 	await runtime.commit(async (tx): Promise<Next> => {
-		// Queue modes are read on the Session line, when the boundary is decided.
+		// 队列模式在 Session 线上、边界确定之时读取。
 		const boundary = await prepareBoundary(tx, conversationId, runtime.settings);
 		const live = await tx.doc(LiveDoc, conversationId);
 		const entry = await appendAssistant(tx, conversationId, message);
@@ -542,9 +542,9 @@ async function answer(runtime: Runtime, message: AssistantMessage, context: Cont
 }
 
 /**
- * Append the tool-calling answer and start its tool round in one commit (spec §8.3). A call to a tool the request did
- * not offer gets its `tool_unavailable` result here; every other call gets a tool task owned by the generation, only the
- * first one now when the round is sequential. The generation then waits for them in its `tools` phase, keeping the run.
+ * 在一次 commit 中追加发起工具调用的回答并启动它的工具轮（spec §8.3）。调用请求未提供的工具的调用
+ * 在这里得到 `tool_unavailable` 结果；其余每个调用都得到一个由 generation 拥有的工具任务——当轮次为顺序
+ * 执行时现在只启动第一个。之后 generation 在其 `tools` phase 中等待它们，保住这个 run。
  */
 async function startToolRound(
 	runtime: Runtime,
@@ -557,7 +557,7 @@ async function startToolRound(
 	const messages =
 		request.messages ?? (await runtime.context(conversationId, context, { at: request.cutoff })).messages;
 	const offered = new Set(getCurrentTools(messages).map((tool) => tool.name));
-	// Read as the round starts; a tool is resolved as its tool task resolves it.
+	// 在轮次启动时读取；工具按其工具任务解析它的方式被解析。
 	const tools = (await runtime.agent(context)).tools;
 	const sequential =
 		runtime.settings.toolExecution === "sequential" ||
@@ -595,8 +595,8 @@ async function startToolRound(
 }
 
 /**
- * The round's tools are terminal: apply their controls and either end the run at the final boundary (`terminate`,
- * `handoff`, or a queued reset) or hand it to the next generation at the `postTools` boundary (spec §8.5).
+ * 本轮的工具已全部进入终态：应用它们的 control，要么在 final 边界结束 run（`terminate`、`handoff`
+ * 或排队的 reset），要么在 `postTools` 边界把 run 交给下一个 generation（spec §8.5）。
  */
 async function finishToolRound(
 	runtime: Runtime,
@@ -609,7 +609,7 @@ async function finishToolRound(
 	const outcomes = await runtime.outcomes(tools, context);
 	tools.forEach((id, index) => {
 		const outcome = outcomes[index]!;
-		// Version 1 results have no kind; every result a generation's round reads is a model-issued call's.
+		// Version 1 的结果没有 kind；generation 轮次读到的每个结果都是模型发起调用的。
 		controls.set(
 			id,
 			outcome.status === "completed" && outcome.result.kind !== "nested" ? outcome.result.control : undefined,
@@ -618,12 +618,12 @@ async function finishToolRound(
 	const slots = (await runtime.snapshot(LiveDoc, conversationId, context))?.tools ?? [];
 	const results = slots.flatMap((slot) => (slot.entry === undefined ? [] : [slot.entry]));
 	await runtime.hooks.each("afterTools", (hook) => hook(assistant, results, runtime, context));
-	// Every call of the round, including those answered without a task, must ask to terminate.
+	// 本轮的每一个调用——包括那些没有任务就得到回答的——都必须请求 terminate。
 	const terminate =
 		slots.length > 0 &&
 		slots.every((slot) => slot.taskId !== undefined && controls.get(slot.taskId)?.terminate === true);
 	const added = [...controls.values()].flatMap((control) => control?.addTools ?? []);
-	// The last handoff in call order wins.
+	// 调用顺序中最后一个 handoff 生效。
 	const handoff = [...controls.values()].findLast((control) => control?.handoff !== undefined)?.handoff;
 	await runtime.commit(async (tx): Promise<Next> => {
 		const boundary = await prepareBoundary(tx, conversationId, runtime.settings);
@@ -642,7 +642,7 @@ async function finishToolRound(
 		} else {
 			const { users, reset } = await applyBoundary(tx, boundary, "postTools", now);
 			if (reset) {
-				// The queued reset cut the run's context before an answer.
+				// 排队的 reset 在回答产生之前切掉了 run 的上下文。
 				endRun(tx, live, runtime.taskId, { status: "unanswered", reason: "reset" });
 				if (users.length > 0) await startRun(tx, conversationId, live, users);
 			} else {
@@ -657,8 +657,8 @@ async function finishToolRound(
 }
 
 /**
- * Append a provider result and add its usage to `pi.usage` in the same commit.
- * REMINDER: every built-in writer of assistant entries goes through here, so the usage ledger stays complete.
+ * 追加一条 provider 结果，并在同一次 commit 中把它的用量计入 `pi.usage`。
+ * 提醒：所有内置的 assistant entry 写入方都经过这里，因此用量台账保持完整。
  */
 async function appendAssistant(
 	tx: Tx,
@@ -669,7 +669,7 @@ async function appendAssistant(
 	return tx.appendEntry(AssistantEntry, conversationId, { model: [message] });
 }
 
-/** Start a run for `inputs`, placed input submissions: a new generation takes `pi.live.run`. */
+/** 为已就位的输入提交 `inputs` 启动一个 run：新的 generation 接管 `pi.live.run`。 */
 export async function startRun(
 	tx: Tx,
 	conversationId: ConversationId,
@@ -679,12 +679,12 @@ export async function startRun(
 	live.run = { taskId: await createGeneration(tx, conversationId), inputs };
 }
 
-/** A generation owned by its conversation. */
+/** 由其 conversation 拥有的 generation。 */
 function createGeneration(tx: Tx, conversationId: ConversationId): Promise<TaskId<GenerationResult>> {
 	return tx.createTask(GenerationTask, {}, { ownership: { kind: "conversation" }, conversationId });
 }
 
-/** Hand run control from `from` to `to`; the run's inputs move with it. */
+/** 把 run 的控制权从 `from` 交给 `to`；run 的输入随之迁移。 */
 export function handOver(live: Draft<LiveState>, from: TaskId, to: TaskId): void {
 	if (live.run?.taskId === from) live.run.taskId = to;
 }

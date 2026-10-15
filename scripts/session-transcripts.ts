@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * Extracts session transcripts for a given cwd, splits into context-sized files,
- * optionally spawns subagents to analyze patterns.
+ * 提取指定工作目录的会话记录，并拆分为适合上下文长度的文件；
+ * 可选择启动子代理分析其中的模式。
  *
- * Usage: node scripts/session-transcripts.ts [--analyze] [--output <dir>] [cwd]
- *   --analyze      Spawn pi subagents to analyze each transcript file
- *   --output <dir> Output directory for transcript files (defaults to ./session-transcripts)
- *   cwd            Working directory to extract sessions for (defaults to current)
+ * 用法：node scripts/session-transcripts.ts [--analyze] [--output <dir>] [cwd]
+ *   --analyze      启动 pi 子代理，分析每个会话记录文件
+ *   --output <dir> 会话记录文件的输出目录（默认为 ./session-transcripts）
+ *   cwd            要提取会话的工作目录（默认为当前目录）
  */
 
 import { readFileSync, readdirSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -17,11 +17,11 @@ import { join, resolve } from "path";
 import { parseSessionEntries, type SessionMessageEntry } from "../packages/coding-agent/src/core/session-manager.ts";
 import chalk from "chalk";
 
-const MAX_CHARS_PER_FILE = 100_000; // ~20k tokens, leaving room for prompt + analysis + output
+const MAX_CHARS_PER_FILE = 100_000; // 约 2 万个 token，为提示词、分析和输出预留空间。
 
 function cwdToSessionDir(cwd: string): string {
 	const normalized = resolve(cwd).replace(/\//g, "-");
-	return `--${normalized.slice(1)}--`; // Remove leading slash, wrap with --
+	return `--${normalized.slice(1)}--`; // 移除开头的斜杠，并在两侧添加 --。
 }
 
 function extractTextContent(content: string | Array<{ type: string; text?: string }>): string {
@@ -96,12 +96,12 @@ function runSubagent(prompt: string, cwd: string): Promise<{ success: boolean }>
 						textBuffer += msgEvent.delta;
 					}
 				} else if (event.type === "tool_execution_start" && event.toolName) {
-					// Print accumulated text before tool starts
+					// 在工具开始运行前输出已累积的文本。
 					if (textBuffer.trim()) {
 						console.log(chalk.dim("  " + truncateLine(textBuffer, MAX_DISPLAY_WIDTH)));
 						textBuffer = "";
 					}
-					// Format tool call with args
+					// 格式化包含参数的工具调用。
 					let argsStr = "";
 					if (event.args) {
 						if (event.toolName === "read") {
@@ -114,14 +114,14 @@ function runSubagent(prompt: string, cwd: string): Promise<{ success: boolean }>
 					}
 					console.log(chalk.cyan(`  [${event.toolName}] ${argsStr}`));
 				} else if (event.type === "turn_end") {
-					// Print any remaining text at turn end
+					// 在回合结束时输出剩余文本。
 					if (textBuffer.trim()) {
 						console.log(chalk.dim("  " + truncateLine(textBuffer, MAX_DISPLAY_WIDTH)));
 					}
 					textBuffer = "";
 				}
 			} catch {
-				// Ignore malformed JSON
+				// 忽略格式错误的 JSON。
 			}
 		});
 
@@ -144,14 +144,14 @@ async function main() {
 	const args = process.argv.slice(2);
 	const analyzeFlag = args.includes("--analyze");
 
-	// Parse --output <dir>
+	// 解析 --output <dir> 参数。
 	const outputIdx = args.indexOf("--output");
 	let outputDir = resolve("./session-transcripts");
 	if (outputIdx !== -1 && args[outputIdx + 1]) {
 		outputDir = resolve(args[outputIdx + 1]);
 	}
 
-	// Find cwd (positional arg that's not a flag or flag value)
+	// 查找 cwd（既不是标志，也不是标志值的位置参数）。
 	const flagIndices = new Set<number>();
 	flagIndices.add(args.indexOf("--analyze"));
 	if (outputIdx !== -1) {
@@ -178,7 +178,7 @@ async function main() {
 
 	console.log(`Found ${sessionFiles.length} session files in ${sessionDir}`);
 
-	// Collect all transcripts
+	// 收集所有会话记录。
 	const allTranscripts: string[] = [];
 	for (const file of sessionFiles) {
 		const filePath = join(sessionDir, file);
@@ -193,13 +193,13 @@ async function main() {
 		process.exit(1);
 	}
 
-	// Split into files respecting MAX_CHARS_PER_FILE
+	// 按 MAX_CHARS_PER_FILE 限制拆分为多个文件。
 	const outputFiles: string[] = [];
 	let currentContent = "";
 	let fileIndex = 0;
 
 	for (const transcript of allTranscripts) {
-		// If adding this transcript would exceed limit, write current and start new
+		// 添加此会话记录后若超出限制，则先写入当前文件，再新建文件。
 		if (currentContent.length > 0 && currentContent.length + transcript.length + 2 > MAX_CHARS_PER_FILE) {
 			const filename = `session-transcripts-${String(fileIndex).padStart(3, "0")}.txt`;
 			writeFileSync(join(outputDir, filename), currentContent);
@@ -209,9 +209,9 @@ async function main() {
 			fileIndex++;
 		}
 
-		// If this single transcript exceeds limit, write it to its own file
+		// 如果单条会话记录就超出限制，则将它单独写入一个文件。
 		if (transcript.length > MAX_CHARS_PER_FILE) {
-			// Write any pending content first
+			// 先写入尚未保存的内容。
 			if (currentContent.length > 0) {
 				const filename = `session-transcripts-${String(fileIndex).padStart(3, "0")}.txt`;
 				writeFileSync(join(outputDir, filename), currentContent);
@@ -220,7 +220,7 @@ async function main() {
 				currentContent = "";
 				fileIndex++;
 			}
-			// Write the large transcript to its own file
+			// 将这条较大的会话记录单独写入文件。
 			const filename = `session-transcripts-${String(fileIndex).padStart(3, "0")}.txt`;
 			writeFileSync(join(outputDir, filename), transcript);
 			outputFiles.push(filename);
@@ -232,7 +232,7 @@ async function main() {
 		currentContent += (currentContent ? "\n\n" : "") + transcript;
 	}
 
-	// Write remaining content
+	// 写入剩余内容。
 	if (currentContent.length > 0) {
 		const filename = `session-transcripts-${String(fileIndex).padStart(3, "0")}.txt`;
 		writeFileSync(join(outputDir, filename), currentContent);
@@ -247,7 +247,7 @@ async function main() {
 		return;
 	}
 
-	// Find AGENTS.md files to compare against
+	// 查找 AGENTS.md 文件以便进行对照。
 	const globalAgentsMd = join(homedir(), ".pi/agent/AGENTS.md");
 	const localAgentsMd = join(cwd, "AGENTS.md");
 	const agentsMdFiles = [globalAgentsMd, localAgentsMd].filter(existsSync);
@@ -256,7 +256,7 @@ async function main() {
 			? `STEP 1: Read the existing AGENTS.md file(s) to see what's already encoded:\n${agentsMdFiles.join("\n")}\n\nSTEP 2: `
 			: "";
 
-	// Spawn subagents to analyze each file
+	// 为每个文件启动子代理进行分析。
 	const analysisPrompt = `You are analyzing session transcripts to identify recurring user instructions that could be automated.
 
 ${agentsMdSection}READING THE TRANSCRIPT:
@@ -322,7 +322,7 @@ Rules:
 		}
 	}
 
-	// Collect all created summary files
+	// 收集所有已生成的摘要文件。
 	const summaryFiles = readdirSync(outputDir)
 		.filter((f) => f.endsWith(".summary.txt"))
 		.sort();
@@ -335,7 +335,7 @@ Rules:
 		return;
 	}
 
-	// Final aggregation step
+	// 执行最终汇总。
 	console.log("\nAggregating findings into final summary...");
 
 	const summaryPaths = summaryFiles.map((f) => join(outputDir, f)).join("\n");

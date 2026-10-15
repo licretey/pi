@@ -42,7 +42,7 @@ function recordingStreams(capture: (options: StreamOptions | undefined) => void)
 }
 
 describe("OpenCode provider headers", () => {
-	// Regression test for https://github.com/earendil-works/pi/issues/9326
+	// https://github.com/earendil-works/pi/issues/9326 的回归测试。
 	it.each(["stream", "streamSimple"] as const)(
 		"maps sessionId for %s requests even without cache retention",
 		(method) => {

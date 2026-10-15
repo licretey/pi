@@ -20,7 +20,7 @@ import { contained } from "../src/session/session.ts";
 import { ControlledStorage, context } from "./session-support.ts";
 import { aborted, deferred, openTasks } from "./task-support.ts";
 
-/** Waits for its signal, records that it saw it, and ends `aborted` through its abort handler. */
+/** 等待中止信号并记录收到信号，然后通过中止处理器将任务结束状态设为 `aborted`。 */
 const signals: string[] = [];
 const Waiting = defineTask<null, { phase: "work" }, null>({
 	name: "test.waiting",
@@ -38,8 +38,8 @@ const Waiting = defineTask<null, { phase: "work" }, null>({
 });
 
 /**
- * Fails each Storage method named in `failing` once, with `error`. A scan of entries with a limit above 1 is the context
- * read's scan of its range, off the Session line; `heldRange` holds it until released.
+ * 对 `failing` 中指定的每个 Storage 方法使用 `error` 失败一次。条目扫描上限大于 1 时，表示上下文读取
+ * 在 Session 队列之外扫描其范围；`heldRange` 会将扫描挂起，直到显式释放。
  */
 class FailingCalls extends ControlledStorage {
 	readonly error = new Error("disk gone");
@@ -100,7 +100,7 @@ describe("a failed Storage call", () => {
 
 		const failure = new Error("disk gone");
 		storage.failNextCommit(failure);
-		// The call that hit it gets the storage error itself.
+		// 触发故障的调用会直接收到存储错误。
 		await expect(root.commit((tx) => tx.appendEntry(root.id, { kind: "note" }), context)).rejects.toBe(failure);
 
 		const failed = { name: "SessionFailed", cause: failure };
@@ -108,7 +108,7 @@ describe("a failed Storage call", () => {
 		await expect(idle).rejects.toMatchObject(failed);
 		expect(await watch.closed).toEqual({ reason: "session_failed", error: failure });
 		expect(await stream.closed).toEqual({ reason: "session_failed", error: failure });
-		// Every later call, and a wait that starts now.
+		// 所有后续调用，以及此时开始的等待操作。
 		await expect(harness.getTask(id, context)).rejects.toMatchObject(failed);
 		await expect(harness.waitForIdle(context)).rejects.toMatchObject(failed);
 		await expect(root.submit({ type: "input", content: "x" }, context)).rejects.toMatchObject(failed);
@@ -137,7 +137,7 @@ describe("a failed Storage call", () => {
 		storage.heldRange = { entered: deferred(), release: release.promise };
 		const reading = root.context(context);
 		await storage.heldRange.entered.promise;
-		// Another call fails the Session while the context read is underway.
+		// 上下文读取进行期间，另一个调用导致 Session 失败。
 		storage.failing.add("mintId");
 		await expect(root.commit((tx) => tx.appendEntry(root.id, { kind: "note" }), context)).rejects.toBe(storage.error);
 		let closed = false;
@@ -146,7 +146,7 @@ describe("a failed Storage call", () => {
 		});
 		for (let i = 0; i < 5; i++) await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(closed).toBe(false);
-		// The read succeeds at the backend, yet its caller gets the failure: nothing it read is used.
+		// 后端读取成功，但调用方仍会收到失败结果：读取到的内容不会被使用。
 		release.resolve();
 		await expect(reading).rejects.toMatchObject({ name: "SessionFailed", cause: storage.error });
 		expect(await harness.closed).toEqual({ reason: "failed", error: storage.error });
@@ -175,7 +175,7 @@ describe("a failed Storage call", () => {
 		}
 		const storage = new Paged();
 		const { harness, root } = await started(storage);
-		// More entries than one page of the context read.
+		// 条目数量超过上下文读取的一页。
 		await root.commit(async (tx) => {
 			for (let n = 0; n < 300; n++) await tx.appendEntry(root.id, { kind: "note" });
 		}, context);
@@ -332,7 +332,7 @@ describe("a failed Storage call", () => {
 		(harness as unknown as { observeCommits(listener: () => void): void }).observeCommits(() => {
 			throw bug;
 		});
-		// The commit itself is durable and resolves; the Session fails behind it.
+		// 提交本身已持久化并成功完成；随后 Session 才失败。
 		await expect(root.commit((tx) => tx.appendEntry(root.id, { kind: "note" }), context)).resolves.toBeDefined();
 		expect(await harness.closed).toEqual({ reason: "failed", error: bug });
 		expect(reports).toEqual([bug]);
@@ -396,7 +396,7 @@ describe("a failed Storage call", () => {
 		const aborting = harness.abortTask(id, context);
 		await held.entered;
 		held.release();
-		// The abort mark commits and the abort joins the run, which ignores its signal; then the Session fails.
+		// 中止标记已提交，中止操作也已加入忽略其 signal 的运行任务；随后 Session 失败。
 		const failure = new Error("disk gone");
 		await new Promise((resolve) => setTimeout(resolve, 5));
 		storage.failNextCommit(failure);
@@ -514,8 +514,8 @@ describe("listener and report errors", () => {
 		process.on("unhandledRejection", onUnhandled);
 		try {
 			const errors: unknown[] = [];
-			// A thenable that, like some libraries' promises, calls only the handler it settles with.
-			// biome-ignore lint/suspicious/noThenProperty: the test is about a thenable
+			// thenable 的行为类似某些库的 promise：只调用与其最终状态对应的处理器。
+			// biome-ignore lint/suspicious/noThenProperty: 此测试专门验证 thenable
 			const thenable = { then: (resolve: () => void) => queueMicrotask(() => resolve()) };
 			contained(
 				() => thenable,
@@ -608,7 +608,7 @@ describe("listener and report errors", () => {
 			},
 			(error) => {
 				reports.push(error);
-				// Reentry, as a handler that commits does: the clock is read again before this report returns.
+				// 与会提交的处理器一样发生重入：此报告返回前会再次读取时钟。
 				if (reports.length < 5) clock();
 			},
 		);

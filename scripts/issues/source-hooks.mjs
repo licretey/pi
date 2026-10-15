@@ -1,5 +1,5 @@
-// Resolve workspace packages to their TypeScript sources, so the triage tool runs without building packages.
-// A package without a "source" export condition (pi-ai) resolves to dist/*.js; this maps it to src/*.ts.
+// 将工作区包解析到其 TypeScript 源码，以便分诊工具无需构建包即可运行。
+// 没有 "source" 导出条件的包（如 pi-ai）会解析到 dist/*.js；此处将其映射到 src/*.ts。
 import { existsSync, realpathSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -12,7 +12,7 @@ function toSource(url) {
 	if (!DIST_JS.test(path)) return undefined;
 	const source = path.replace(DIST_JS, "$1/src/$2.ts");
 	if (!existsSync(source)) return undefined;
-	// Real path: Node refuses to strip types under node_modules.
+	// 必须使用真实路径：Node 不会为 node_modules 下的文件剥离类型。
 	return pathToFileURL(realpathSync(source)).href;
 }
 

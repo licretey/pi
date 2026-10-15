@@ -18,7 +18,7 @@ afterEach(async () => {
 
 const echo: CodemodeTool = { name: "echo", execute: (args) => args };
 
-// Base64 of the leading bytes of each format. image() only inspects the signature.
+// 各图像格式开头字节的 Base64 编码。image() 只检查文件签名。
 const PNG = "iVBORw0KGgo=";
 const JPEG = "/9j/4A==";
 const GIF = "R0lGODlh";
@@ -73,7 +73,7 @@ describe("script execution", () => {
 			{ type: "image", data: PNG, mimeType: "image/png" },
 			{ type: "image", data: JPEG, mimeType: "image/jpeg" },
 			{ type: "image", data: GIF, mimeType: "image/gif" },
-			// The MIME type comes from the data, not from the declared type.
+			// MIME 类型由图像数据确定，而不是由声明的类型确定。
 			{ type: "image", data: WEBP, mimeType: "image/webp" },
 			{ type: "image", data: PNG, mimeType: "image/png" },
 		]);
@@ -378,7 +378,7 @@ describe("store and load", () => {
 		);
 		expect(result).toMatchObject({
 			ok: true,
-			// undefined array elements become null in the JSON round trip of the return value.
+			// 返回值经过 JSON 往返转换后，数组中的 undefined 元素会变为 null。
 			value: [41, 42, null, null],
 			storeWrites: { set: { counter: 42, list: [1, { a: null }] }, delete: ["old"] },
 		});
@@ -443,7 +443,7 @@ describe("globals", () => {
 		`);
 		expect(result).toMatchObject({ ok: true, value: ["function", "function", 2] });
 		expect(result.calls.map((call) => call.name)).toEqual(["echo"]);
-		// Messages are handled in order, so an unawaited global still runs before the script settles.
+		// 消息按顺序处理，因此即使没有 await，全局函数也会在脚本结束前运行。
 		expect(seen).toEqual([{ ref: 1 }, "not awaited"]);
 	});
 
@@ -463,7 +463,7 @@ describe("globals", () => {
 			return [Object.keys(models), await models.first("a", "ignored"), "extra" in models];
 		`);
 		expect(result).toMatchObject({ ok: true, value: [["list", "first"], "a", false] });
-		// undefined array elements become null in the JSON round trip.
+		// 经过 JSON 往返转换后，数组中的 undefined 元素会变为 null。
 		expect(seen).toEqual([["classifier", null, 3], []]);
 	});
 
@@ -530,7 +530,7 @@ describe("limits and lifetime", () => {
 			ok: false,
 			error: { kind: "script", message: expect.stringContaining("can never settle") },
 		});
-		// Returning while a call is still pending is not a stall.
+		// 调用仍处于等待状态时返回，不应被视为卡住。
 		const returned = await sandbox.execute("tools.echo(2); return 'early'", { timeoutMs: Number.POSITIVE_INFINITY });
 		expect(returned).toMatchObject({ ok: true, value: "early" });
 	});
@@ -544,7 +544,7 @@ describe("limits and lifetime", () => {
 	it("aborts via signal and cancels in-flight calls", async () => {
 		const controller = new AbortController();
 		let toolSignal: AbortSignal | undefined;
-		// Resolves on each call, so the test waits for the worker instead of a fixed delay.
+		// 每次调用时都会完成，因此测试等待 worker 响应，而不是使用固定延时。
 		let called: () => void = () => {};
 		const nextCall = () =>
 			new Promise<void>((resolve) => {
@@ -582,7 +582,7 @@ describe("limits and lifetime", () => {
 		expect(await promise).toMatchObject({ ok: false, error: { kind: "aborted", message: "Sandbox closed" } });
 	});
 
-	// #10283: the host keeps all output, so a script that prints in a loop must not grow it without bound.
+	// #10283：宿主会保留所有输出，因此循环打印的脚本不能让输出无限增长。
 	it("fails a script whose output passes the limits, even if it catches the error", async () => {
 		const sandbox = createSandbox();
 		for (const print of ["text(s)", "console.log(s)", 'image("data:image/png;base64," + p)']) {
@@ -656,8 +656,8 @@ describe("limits and lifetime", () => {
 		});
 	});
 
-	// #10444: a malformed payload from the worker must fail the run as a sandbox error instead of
-	// throwing in the host's message listener and never settling.
+	// #10444：worker 返回格式错误的负载时，执行应以沙箱错误失败，
+	// 不能在宿主的消息监听器中抛出异常并导致 Promise 永远无法完成。
 	it.each([
 		[{ type: "done", ok: true, value: "1", writes: "null" }, "store writes are not an array"],
 		[{ type: "done", ok: true, value: "1", writes: "[1]" }, "store writes contain a malformed entry"],
@@ -701,7 +701,7 @@ describe("escape hatches", () => {
 	});
 
 	it("keeps eval and Function inside the VM", async () => {
-		// Code generation is allowed: it can only produce more code in the same wasm instance.
+		// 允许动态生成代码：生成的代码仍只能在同一个 wasm 实例中执行。
 		const sandbox = createSandbox([echo]);
 		const result = await sandbox.execute(`
 			return [
@@ -724,8 +724,7 @@ describe("escape hatches", () => {
 		expect(result.value).not.toBe("imported");
 	});
 
-	// #10444: the prelude shares the built-ins with the script, so patching them could corrupt what
-	// the prelude sends to the host.
+	// #10444：前导代码与脚本共享内置对象，因此修改这些对象可能破坏前导代码发送给宿主的数据。
 	it("ignores patches to built-ins and built-in globals", async () => {
 		const sandbox = createSandbox([echo]);
 		const result = await sandbox.execute(`

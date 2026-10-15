@@ -1,16 +1,16 @@
 /**
- * Reload Runtime Extension
+ * 重新加载运行时扩展。
  *
- * Demonstrates ctx.reload() from ExtensionCommandContext and an LLM-callable
- * tool that queues a follow-up command to trigger reload.
+ * 演示如何在 ExtensionCommandContext 中调用 ctx.reload()，以及如何通过
+ * LLM 可调用的工具排队提交后续命令以触发重新加载。
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { Type } from "typebox";
 
 export default function (pi: ExtensionAPI) {
-	// Command entrypoint for reload.
-	// Treat reload as terminal for this handler.
+	// 重新加载命令的入口。
+	// 重新加载后，此处理器不会继续执行。
 	pi.registerCommand("reload-runtime", {
 		description: "Reload extensions, skills, prompts, themes, and context files",
 		handler: async (_args, ctx) => {
@@ -19,8 +19,8 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
-	// LLM-callable tool. Tools get ExtensionContext, so they cannot call ctx.reload() directly.
-	// Instead, queue a follow-up user command that executes the command above.
+	// 此工具可由 LLM 调用。工具接收的是 ExtensionContext，因此不能直接调用 ctx.reload()。
+	// 改为排队提交后续用户命令，由该命令执行上面的重新加载操作。
 	pi.registerTool({
 		name: "reload_runtime",
 		label: "Reload Runtime",

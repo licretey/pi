@@ -1,26 +1,26 @@
 /**
- * Custom Model Selection
+ * 自定义模型选择。
  *
- * Shows how to select a specific model and thinking level.
+ * 演示如何选择指定模型和思考级别。
  */
 
 import { createAgentSession, ModelRuntime } from "@earendil-works/pi-coding-agent";
 
 const modelRuntime = await ModelRuntime.create();
 
-// Option 1: Find a specific built-in model by provider/id
+// 方式一：按提供方和 ID 查找指定的内置模型。
 const opus = modelRuntime.getModel("anthropic", "claude-opus-4-5");
 if (opus) {
 	console.log(`Found model: ${opus.provider}/${opus.id}`);
 }
 
-// Option 2: Find model via registry (includes custom models from models.json)
+// 方式二：通过注册表查找模型（包括 models.json 中定义的自定义模型）。
 const customModel = modelRuntime.getModel("my-provider", "my-model");
 if (customModel) {
 	console.log(`Found custom model: ${customModel.provider}/${customModel.id}`);
 }
 
-// Option 3: Pick from available models (have valid API keys)
+// 方式三：从可用模型中选择（这些模型已有有效的 API 密钥）。
 const available = await modelRuntime.getAvailable();
 console.log(
 	"Available models:",

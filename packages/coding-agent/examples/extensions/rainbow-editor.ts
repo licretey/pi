@@ -1,12 +1,12 @@
 /**
- * Rainbow Editor - highlights "ultrathink" with animated shine effect
+ * 彩虹编辑器：为 "ultrathink" 添加动态闪光效果。
  *
- * Usage: pi --extension ./examples/extensions/rainbow-editor.ts
+ * 用法：pi --extension ./examples/extensions/rainbow-editor.ts
  */
 
 import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// Base colors (coral → yellow → green → teal → blue → purple → pink)
+// 基础颜色（珊瑚红 → 黄色 → 绿色 → 青绿色 → 蓝色 → 紫色 → 粉色）。
 const COLORS: [number, number, number][] = [
 	[233, 137, 115], // coral
 	[228, 186, 103], // yellow
@@ -28,7 +28,7 @@ function colorize(text: string, shinePos: number): string {
 		[...text]
 			.map((c, i) => {
 				const baseColor = COLORS[i % COLORS.length]!;
-				// 3-letter shine: center bright, adjacent dimmer
+				// 三个字母组成闪光区域：中间最亮，两侧较暗。
 				let factor = 0;
 				if (shinePos >= 0) {
 					const dist = Math.abs(i - shinePos);
@@ -74,9 +74,9 @@ class RainbowEditor extends CustomEditor {
 	}
 
 	render(width: number): string[] {
-		// Cycle: 10 shine positions + 10 pause frames
+		// 一个周期包括 10 个闪光位置和 10 帧暂停。
 		const cycle = this.frame % 20;
-		const shinePos = cycle < 10 ? cycle : -1; // -1 means no shine (pause)
+		const shinePos = cycle < 10 ? cycle : -1; // -1 表示暂停期间不显示闪光。
 		return super.render(width).map((line) => line.replace(/ultrathink/gi, (m) => colorize(m, shinePos)));
 	}
 }

@@ -47,13 +47,13 @@ export interface GrepToolDetails {
 }
 
 /**
- * Pluggable operations for the grep tool.
- * Override these to delegate search to remote systems (for example SSH).
+ * grep 工具的可插拔操作。
+ * 覆盖这些操作即可将搜索委托给远程系统（例如 SSH）。
  */
 export interface GrepOperations {
-	/** Check if path is a directory. Throws if path does not exist. */
+	/** 检查路径是否为目录；路径不存在时抛出异常。 */
 	isDirectory: (absolutePath: string) => Promise<boolean> | boolean;
-	/** Read file contents for context lines */
+	/** 读取文件内容，以获取上下文行。 */
 	readFile: (absolutePath: string) => Promise<string> | string;
 }
 
@@ -63,7 +63,7 @@ const defaultGrepOperations: GrepOperations = {
 };
 
 export interface GrepToolOptions {
-	/** Custom operations for grep. Default: local filesystem plus ripgrep */
+	/** grep 的自定义操作。默认使用本地文件系统和 ripgrep。 */
 	operations?: GrepOperations;
 }
 
@@ -205,7 +205,7 @@ export function createGrepToolDefinition(
 								const lineText = lines[current - 1] ?? "";
 								const sanitized = lineText.replace(/\r/g, "");
 								const isMatchLine = current === lineNumber;
-								// Truncate long lines so grep output stays compact.
+								// 截断过长的行，使 grep 输出保持精简。
 								const { text: truncatedText, wasTruncated } = truncateLine(sanitized);
 								if (wasTruncated) linesTruncated = true;
 								if (isMatchLine) block.push(`${relativePath}:${current}: ${truncatedText}`);
@@ -214,7 +214,7 @@ export function createGrepToolDefinition(
 							return block;
 						};
 
-						// Collect matches during streaming, then format them after rg exits.
+						// 流式读取期间收集匹配项，待 rg 退出后再格式化。
 						const matches: Array<{ filePath: string; lineNumber: number; lineText?: string }> = [];
 						rl.on("line", (line) => {
 							if (!line.trim() || matchCount >= effectiveLimit) return;
@@ -260,7 +260,7 @@ export function createGrepToolDefinition(
 								return;
 							}
 
-							// Format matches after streaming finishes so custom readFile() backends can be async.
+							// 流式读取结束后再格式化匹配项，以支持异步的自定义 readFile() 后端。
 							for (const match of matches) {
 								if (contextValue === 0 && match.lineText !== undefined) {
 									const relativePath = formatPath(match.filePath);
@@ -278,11 +278,11 @@ export function createGrepToolDefinition(
 							}
 
 							const rawOutput = outputLines.join("\n");
-							// Apply byte truncation. There is no line limit here because the match limit already capped rows.
+							// 按字节数截断。这里不限制行数，因为匹配数量上限已限制了输出行数。
 							const truncation = truncateHead(rawOutput, { maxLines: Number.MAX_SAFE_INTEGER });
 							let output = truncation.content;
 							const details: GrepToolDetails = {};
-							// Build actionable notices for truncation and match limits.
+							// 为截断和匹配数量上限生成明确的提示。
 							const notices: string[] = [];
 							if (matchLimitReached) {
 								notices.push(

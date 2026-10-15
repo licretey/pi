@@ -6,7 +6,7 @@ describe("regression #8989", () => {
 	it("preserves compaction context when a fork removes the boundary label", () => {
 		const session = SessionManager.inMemory();
 		const oldId = session.appendMessage(userMsg("old"));
-		// findCutPoint() can move a compaction boundary back to this context-invisible label.
+		// findCutPoint() 可能会将压缩边界向前移到这个对上下文不可见的标签处。
 		const labelId = session.appendLabelChange(oldId, "checkpoint");
 		const keptId = session.appendMessage(userMsg("kept"));
 		const compactionId = session.appendCompaction("summary", labelId, 100);

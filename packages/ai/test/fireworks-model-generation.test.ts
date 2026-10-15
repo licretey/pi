@@ -64,7 +64,7 @@ function generateFireworksModels(
 }
 
 describe("Fireworks model generation", () => {
-	// Regression for #9323: import catalog efforts and correct only the known omissions.
+	// #9323 回归测试：导入目录中的 effort，并只修正已知遗漏。
 	it("combines upstream effort and toggle metadata with narrow corrections", () => {
 		const models = generateFireworksModels({
 			"deepseek-v4-flash-0731": [{ type: "toggle" }, { type: "effort", values: ["low", "high", "max"] }],
@@ -104,7 +104,7 @@ describe("Fireworks model generation", () => {
 		expect(models["accounts/fireworks/models/kimi-k2p6"].thinkingLevelMap).toBeUndefined();
 	});
 
-	// Regression for #9323: new effort-capable models must not require an allowlist update.
+	// #9323 回归测试：新增支持 effort 的模型时，不应要求更新允许列表。
 	it("automatically sends native effort for newly cataloged Messages models", async () => {
 		const models = generateFireworksModels({
 			"new-reasoner": [{ type: "toggle" }, { type: "effort", values: ["low", "max"] }],
@@ -140,7 +140,7 @@ describe("Fireworks model generation", () => {
 		}
 	});
 
-	// Regression for #9323: full hardcoded maps must not override updated catalog efforts.
+	// #9323 回归测试：完整的硬编码映射不得覆盖已更新的目录 effort。
 	it("prefers updated upstream efforts over fixed maps and the Qwen fallback", () => {
 		const models = generateFireworksModels({
 			"deepseek-v4-flash-0731": [{ type: "effort", values: ["high", "max"] }],

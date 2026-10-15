@@ -8,7 +8,7 @@ const SHOW_IMAGES_SELECT_LIST_LAYOUT: SelectListLayoutOptions = {
 };
 
 /**
- * Component that renders a show images selector with borders
+ * 用于呈现带边框的图片显示选项选择器。
  */
 export class ShowImagesSelectorComponent extends Container {
 	private selectList: SelectList;
@@ -21,13 +21,13 @@ export class ShowImagesSelectorComponent extends Container {
 			{ value: "no", label: "No", description: "Show text placeholder instead" },
 		];
 
-		// Add top border
+		// 添加顶部边框。
 		this.addChild(new DynamicBorder());
 
-		// Create selector
+		// 创建选择器。
 		this.selectList = new SelectList(items, 5, getSelectListTheme(), SHOW_IMAGES_SELECT_LIST_LAYOUT);
 
-		// Preselect current value
+		// 预选当前值。
 		this.selectList.setSelectedIndex(currentValue ? 0 : 1);
 
 		this.selectList.onSelect = (item) => {
@@ -40,7 +40,7 @@ export class ShowImagesSelectorComponent extends Container {
 
 		this.addChild(this.selectList);
 
-		// Add bottom border
+		// 添加底部边框。
 		this.addChild(new DynamicBorder());
 	}
 

@@ -13,7 +13,7 @@ type ExpectResult = {
 	};
 };
 
-/** Adapts a Vitest/Jest-compatible `expect` function without importing either runner. */
+/** 适配 Vitest/Jest 兼容的 `expect` 函数，无需引入其中任何一个运行器。 */
 export function createExpectAssertions(expect: ExpectLike): StorageConformanceAssertions {
 	const result = (actual: unknown, message?: string): ExpectResult => expect(actual, message) as ExpectResult;
 	return {

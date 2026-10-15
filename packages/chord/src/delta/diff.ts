@@ -509,7 +509,7 @@ const operationCost = (operation: Op): number => {
 	}
 };
 
-/** Compute a compact operation batch from two immutable JSON revisions. */
+/** 根据两个不可变 JSON 版本计算精简的操作批次。 */
 export function diffRevisions(before: JsonValue, after: JsonValue): Op[] {
 	const operations: Op[] = [];
 	diffValue(before, after, [], operations);

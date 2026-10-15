@@ -20,7 +20,7 @@ import { wrapToolDefinition } from "./tool-definition-wrapper.ts";
 import { DEFAULT_MAX_BYTES, DEFAULT_MAX_LINES, formatSize, type TruncationResult } from "./truncate.ts";
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
-/** Output limit of `structuredContent.output`, which programmatic callers such as codemode scripts receive. */
+/** `structuredContent.output` 的输出上限；codemode 脚本等程序化调用方会收到此字段。 */
 const STRUCTURED_OUTPUT_MAX_BYTES = 1024 * 1024;
 const MAX_TIMEOUT_SECONDS = MAX_TIMEOUT_MS / 1000;
 
@@ -50,8 +50,8 @@ export const bashToolSystemPromptContribution = {
 export type BashToolInput = Static<typeof bashSchema>;
 
 /**
- * Result for programmatic callers such as codemode scripts. A non-zero exit code is an error result for the model, but scripts still resolve to this value.
- * `output` is not limited like the model-facing output: callers decide how much of it reaches the model.
+ * 提供给 codemode 脚本等程序化调用方的结果。非零退出码对模型而言表示错误，但脚本仍会正常得到此结果。
+ * `output` 不像面向模型的输出那样受限；调用方自行决定将多少内容传给模型。
  */
 const bashOutputSchema = Type.Object({
 	output: Type.String({ description: "Combined stdout and stderr, possibly truncated" }),
@@ -69,17 +69,17 @@ export interface BashToolDetails {
 }
 
 /**
- * Pluggable operations for the bash tool.
- * Override these to delegate command execution to remote systems (for example SSH).
+ * bash 工具可插拔的操作接口。
+ * 覆盖这些操作即可将命令执行委托给远程系统（例如 SSH）。
  */
 export interface BashOperations {
 	/**
-	 * Execute a command and stream output.
-	 * @param command The command to execute
-	 * @param cwd Working directory
-	 * @param options Execution options
-	 * @returns Promise resolving to the exit code. Report signal terminations as 128 + signal number;
-	 * a null exit code is treated as a failed command.
+	 * 执行命令并流式传递输出。
+	 * @param command 要执行的命令。
+	 * @param cwd 工作目录。
+	 * @param options 执行选项。
+	 * @returns 以退出码兑现的 Promise。因信号终止时，退出码为 128 + 信号编号；
+	 * null 退出码会被视为命令失败。
 	 */
 	exec: (
 		command: string,
@@ -93,7 +93,7 @@ export interface BashOperations {
 	) => Promise<{ exitCode: number | null }>;
 }
 
-/** Shared process execution used by the built-in shell tools. */
+/** 内置 shell 工具共用的进程执行实现。 */
 export function createLocalShellOperations(shellName: string, resolveShellConfig: () => ShellConfig): BashOperations {
 	return {
 		exec: async (command, cwd, { onData, signal, timeout, env }) => {
@@ -128,23 +128,22 @@ export function createLocalShellOperations(shellName: string, resolveShellConfig
 			};
 
 			try {
-				// Set timeout if provided.
+				// 如果指定了超时时间，则设置定时器。
 				if (timeoutMs !== undefined) {
 					timeoutHandle = setTimeout(() => {
 						timedOut = true;
 						if (child.pid) killProcessTree(child.pid);
 					}, timeoutMs);
 				}
-				// Stream stdout and stderr.
+				// 流式传递 stdout 和 stderr。
 				child.stdout?.on("data", onData);
 				child.stderr?.on("data", onData);
-				// Handle abort signal by killing the entire process tree.
+				// 收到中止信号时，终止整个进程树。
 				if (signal) {
 					if (signal.aborted) onAbort();
 					else signal.addEventListener("abort", onAbort, { once: true });
 				}
-				// Handle shell spawn errors and wait for the process to terminate without hanging
-				// on inherited stdio handles held by detached descendants.
+				// 处理 shell 启动错误，并等待进程终止；避免因分离的后代进程持有继承的 stdio 句柄而卡住。
 				const exitCode = await waitForChildProcess(child);
 				if (signal?.aborted) {
 					throw new Error("aborted");
@@ -152,8 +151,7 @@ export function createLocalShellOperations(shellName: string, resolveShellConfig
 				if (timedOut) {
 					throw new Error(`timeout:${timeout}`);
 				}
-				// A signal-killed shell has no exit code. Use the standard shell convention so
-				// callers do not mistake the termination for a successful command.
+				// 被信号终止的 shell 没有退出码。使用标准 shell 约定，避免调用方误以为命令执行成功。
 				const signalCode = child.signalCode;
 				return { exitCode: exitCode ?? (signalCode ? 128 + (osConstants.signals[signalCode] ?? 0) : 1) };
 			} finally {
@@ -166,10 +164,9 @@ export function createLocalShellOperations(shellName: string, resolveShellConfig
 }
 
 /**
- * Create bash operations using pi's built-in local shell execution backend.
+ * 使用 pi 内置的本地 shell 执行后端创建 bash 操作。
  *
- * This is useful for extensions that intercept user_bash and still want pi's
- * standard local shell behavior while wrapping or rewriting commands.
+ * 适用于拦截 user_bash 的扩展：扩展可以包装或改写命令，同时继续使用 pi 标准的本地 shell 行为。
  */
 export function createLocalBashOperations(options?: { shellPath?: string }): BashOperations {
 	return createLocalShellOperations("bash", () => getShellConfig(options?.shellPath));
@@ -212,15 +209,15 @@ function resolveSpawnContext(
 }
 
 export interface BashToolOptions {
-	/** Custom operations for command execution. Default: local shell */
+	/** 自定义命令执行操作。默认使用本地 shell。 */
 	operations?: BashOperations;
-	/** Command prefix prepended to every command (for example shell setup commands) */
+	/** 添加到每条命令开头的前缀（例如 shell 初始化命令）。 */
 	commandPrefix?: string;
-	/** Optional explicit shell path from settings */
+	/** 设置中可选的 shell 显式路径。 */
 	shellPath?: string;
-	/** Expose current Pi session metadata as PI_* environment variables. Default: true */
+	/** 将当前 Pi 会话元数据作为 PI_* 环境变量公开。默认值：true。 */
 	exposeSessionEnvironment?: boolean;
-	/** Hook to adjust command, cwd, or env before execution */
+	/** 执行前调整命令、cwd 或 env 的钩子。 */
 	spawnHook?: BashSpawnHook;
 }
 

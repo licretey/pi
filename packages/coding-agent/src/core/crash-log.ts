@@ -67,7 +67,7 @@ function stackContainsPath(stack: string, targetPath: string, includeDescendants
 	return false;
 }
 
-/** Find loaded extensions with source files in a stack trace. */
+/** 查找堆栈跟踪中包含源码文件的已加载扩展。 */
 export function findExtensionStackMatches(
 	stack: string | undefined,
 	extensions: readonly ExtensionStackMetadata[],
@@ -120,7 +120,7 @@ export function findExtensionStackMatches(
 	return matches;
 }
 
-/** Best-effort persistence for callers that are already crashing. */
+/** 为已经发生崩溃的调用方尽力持久化崩溃信息。 */
 export function recordCrash(
 	crash: { kind: CrashRecord["kind"]; error: unknown; sessionFile?: string; cwd: string },
 	path = crashLogPath(),
@@ -143,7 +143,7 @@ export function recordCrash(
 	}
 }
 
-/** Return the newest recent crash, marking pending records as announced. */
+/** 返回最近一次崩溃，并将待处理记录标记为已通知。 */
 export function takeUnnotifiedCrash(path = crashLogPath(), now = Date.now()): CrashRecord | undefined {
 	const records = readCrashLog(path);
 	const crash = [...records]
@@ -156,7 +156,7 @@ export function takeUnnotifiedCrash(path = crashLogPath(), now = Date.now()): Cr
 			path,
 		);
 	} catch {
-		// Showing the notice again is harmless.
+		// 再次显示此提示没有问题。
 	}
 	return crash;
 }
@@ -165,6 +165,6 @@ export function clearCrashLog(path = crashLogPath()): void {
 	try {
 		rmSync(path, { force: true });
 	} catch {
-		// The records can be attached again if cleanup fails.
+		// 如果清理失败，之后仍可再次附加这些记录。
 	}
 }

@@ -1,12 +1,12 @@
 /**
- * DOOM Overlay Demo - Play DOOM as an overlay
+ * DOOM 覆盖层演示：以覆盖层方式游玩 DOOM。
  *
- * Usage: pi --extension ./examples/extensions/doom-overlay
+ * 用法：pi --extension ./examples/extensions/doom-overlay
  *
- * Commands:
- *   /doom-overlay - Play DOOM in an overlay (Q to pause/exit)
+ * 命令：
+ *   /doom-overlay - 在覆盖层中游玩 DOOM（按 Q 暂停或退出）
  *
- * This demonstrates that overlays can handle real-time game rendering at 35 FPS.
+ * 此示例展示覆盖层能够以每秒 35 帧的速度实时渲染游戏。
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -14,7 +14,7 @@ import { DoomOverlayComponent } from "./doom-component.ts";
 import { DoomEngine } from "./doom-engine.ts";
 import { ensureWadFile } from "./wad-finder.ts";
 
-// Persistent engine instance - survives between invocations
+// 持久化引擎实例：在多次调用之间保留。
 let activeEngine: DoomEngine | null = null;
 let activeWadPath: string | null = null;
 
@@ -28,7 +28,7 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			// Auto-download WAD if not present
+			// 如果 WAD 文件不存在，则自动下载。
 			ctx.ui.notify("Loading DOOM...", "info");
 			const wad = args?.trim() ? args.trim() : await ensureWadFile();
 
@@ -38,7 +38,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			try {
-				// Reuse existing engine if same WAD, otherwise create new
+				// WAD 相同时复用现有引擎，否则创建新引擎。
 				let isResume = false;
 				if (activeEngine && activeWadPath === wad) {
 					ctx.ui.notify("Resuming DOOM...", "info");

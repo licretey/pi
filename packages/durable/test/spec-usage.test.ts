@@ -1,7 +1,6 @@
 /**
- * The usage examples of docs/spec.md, compile-checked. Each block is copied as written apart from formatting, with
- * the names the spec leaves to the application declared below. Keep the two in sync; `test/examples/` runs the same
- * patterns end to end.
+ * 对 docs/spec.md 中的用法示例进行编译检查。每个代码块都按文档内容复制，仅调整格式，
+ * 并在下方声明规范留给应用定义的名称。两者应保持同步；`test/examples/` 会端到端运行相同模式。
  */
 import type { Context, Draft } from "@earendil-works/chord";
 import { type AssistantMessage, type Models, type ToolCall, Type } from "@earendil-works/pi-ai";
@@ -35,7 +34,7 @@ import { expect, expectTypeOf, it } from "vitest";
 import type { ExecutionEnv } from "../src/env/index.ts";
 import { CodingTools, createBashTool, createEditTool, createReadTool } from "../src/tools/index.ts";
 
-// ─── Names the spec leaves to the application ────────────────────────────────
+// ─── 规范留给应用自行定义的名称 ───────────────────────────────────────────────
 
 declare const context: Context;
 declare const storage: Storage;
@@ -76,13 +75,13 @@ declare const Anchor: ReturnType<typeof defineTask<null, { phase: "hold" }, null
 declare const Reporter: ReturnType<typeof defineTask<null, { phase: "report" }, null>>;
 declare const subagentTool: ReturnType<typeof createReadTool>;
 
-/** Never called: the declared names above have no values. */
+/** 不会调用：上方声明的名称没有实际值。 */
 function examples() {
 	const readTool = createReadTool();
 	const editTool = createEditTool();
 	const bashTool = createBashTool();
 
-	// ─── Section 7.1: extensions and host setup ──────────────────────────────────
+	// ─── 第 7.1 节：扩展与宿主设置 ───────────────────────────────────────────────
 
 	const ContextFiles = defineExtension({ name: "context-files", sections: [section("agents-md", renderAgentsMd)] });
 	const Skills = defineExtension({ name: "skills", sections: [section("skills", renderSkills)] });
@@ -91,7 +90,7 @@ function examples() {
 		name: "coding",
 		sections: [
 			section("preamble", () => "You are an expert coding assistant.", { tag: false }),
-			// The environment the host built for this conversation, in the conversation's directory.
+			// 宿主在该对话所在目录中为其创建的环境。
 			section("cwd", (input) => input.env && `Working directory: ${input.env.cwd}`),
 		],
 	});
@@ -101,7 +100,7 @@ function examples() {
 			hook(ToolTask, { beforeTool: async (call) => (isDangerous(call) ? { block: "Needs approval" } : undefined) }),
 		],
 	});
-	// A role and a review loop, for conversations that select it.
+	// 为选择它的对话提供角色和审查循环。
 	const Reviewer = defineExtension({
 		name: "reviewer",
 		sections: [section("role", () => "You review diffs. Report problems as a list. Never edit files.")],
@@ -124,14 +123,14 @@ function examples() {
 			})),
 		],
 	});
-	// A bash inside a Python virtualenv for one conversation: it replaces CodingTools' bash in place,
-	// and Timing, if selected, wraps it.
+	// 为单个对话提供 Python 虚拟环境中的 bash：在原位置替换 CodingTools 的 bash；
+	// 若选中了 Timing 扩展，则由它包装该工具。
 	const Venv = defineExtension({
 		name: "venv",
 		tools: [createBashTool({ commandPrefix: "source .venv/bin/activate" })],
 	});
 
-	// ─── Section 7.2: hooks reading extension state ──────────────────────────────
+	// ─── 第 7.2 节：读取扩展状态的钩子 ───────────────────────────────────────────
 
 	const PlanModeDoc = defineDoc<{ enabled: boolean }>({
 		kind: "app.plan-mode",
@@ -145,7 +144,7 @@ function examples() {
 		name: "plan-mode",
 		hooks: [
 			hook(ToolTask, {
-				// An absent document means plan mode is off.
+				// 文档不存在表示计划模式已关闭。
 				beforeTool: async (call, api, context) =>
 					(await api.snapshot(PlanModeDoc, api.conversationId, context))?.enabled && writes(call)
 						? { block: "Plan mode: read-only" }
@@ -154,7 +153,7 @@ function examples() {
 		],
 	});
 
-	// ─── Section 7.3: subagents ──────────────────────────────────────────────────
+	// ─── 第 7.3 节：子智能体 ─────────────────────────────────────────────────────
 
 	const Subagent = defineExtension({
 		name: "subagent",
@@ -169,9 +168,9 @@ function examples() {
 					const child = await api.commit(async (tx) => {
 						const existing = (await tx.scanConversations({ ownerTaskId: api.taskId }, 1)).items[0];
 						if (existing !== undefined) return existing.id;
-						// Starts as a copy of this conversation's agent: model, thinking level, cwd, extensions, tools.
+						// 以当前对话的 agent 副本开始：包含模型、思考级别、cwd、扩展和工具。
 						const created = await tx.createConversation({ ownership: { kind: "task", taskId: api.taskId } });
-						// Without this extension, the child is not offered this tool.
+						// 没有此扩展时，不会向子任务提供该工具。
 						await configure(tx, created.id, { extensions: { remove: [Subagent] } });
 						return created.id;
 					}, context);
@@ -189,14 +188,14 @@ function examples() {
 
 	const SubagentTools = defineExtension({ name: "subagent-tools", tasks: [Anchor, Reporter], tools: [subagentTool] });
 
-	// ─── Section 7.4 ─────────────────────────────────────────────────────────────
+	// ─── 第 7.4 节 ───────────────────────────────────────────────────────────────
 
 	const Chat = defineExtension({
 		name: "chat",
 		sections: [section("preamble", () => "You are a helpful assistant.", { tag: false })],
 	});
 
-	// ─── Section 5.1: a task with intent, effect, outcome ────────────────────────
+	// ─── 第 5.1 节：包含意图、效果和结果的任务 ────────────────────────────────────
 
 	type Charge = { phase: "prepare" } | { phase: "charge"; key: string };
 	const Payment = defineTask<null, Charge, { entryId: EntryId }>({
@@ -204,7 +203,7 @@ function examples() {
 		version: 1,
 		initial: () => ({ phase: "prepare" }),
 		phases: {
-			// Intent, effect, outcome.
+			// 意图、效果、结果。
 			prepare: async (_task, runtime, context) => {
 				await runtime.commit(
 					() => ({ status: "running", checkpoint: { phase: "charge", key: newKey() } }),
@@ -219,7 +218,7 @@ function examples() {
 				}, context);
 			},
 		},
-		// The abort handler decides the outcome; returning without one faults the task.
+		// 由中止处理器决定结果；未提供处理器就返回会导致任务失败。
 		abort: async (task, runtime, context) => {
 			await payments.cancel(task.state.checkpoint);
 			await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted", reason: "user" } }), context);
@@ -237,17 +236,17 @@ function examples() {
 	// ─── Sequences ───────────────────────────────────────────────────────────────
 
 	const sequences = {
-		// Section 2.2: a tool's commit creates a configured child.
+		// 第 2.2 节：工具的提交会创建已配置的子任务。
 		childInToolCommit: async (tx: Tx, api: { readonly taskId: TaskId }) => {
-			// In a tool's commit. The child starts as a copy of this conversation's agent: model, extensions, tools, cwd.
+			// 在工具的提交操作中创建。子任务以当前对话 agent 的副本开始：包含模型、扩展、工具和 cwd。
 			const child = await tx.createConversation({ ownership: { kind: "task", taskId: api.taskId } });
-			// A cheaper model, only the read tool, and its own worktree; everything else stays as copied.
+			// 使用更便宜的模型、仅提供 read 工具并使用独立工作树；其他配置均沿用副本中的设置。
 			await configure(tx, child.id, { model: haiku, tools: [readTool], cwd: worktree });
 		},
 
-		// Section 2.2: settings read live through getters.
+		// 第 2.2 节：设置通过 getter 实时读取。
 		liveSettings: () => {
-			// The user's settings, read live through getters.
+			// 用户设置通过 getter 实时读取。
 			class UserSettings implements HarnessSettings {
 				readonly manager: SettingsManager;
 				constructor(manager: SettingsManager) {
@@ -260,15 +259,15 @@ function examples() {
 					return { enabled: this.manager.get("autoCompact") };
 				}
 			}
-			manager.set("autoCompact", false); // no Session write; every conversation follows at its next threshold check
+			manager.set("autoCompact", false); // 不写入 Session；每个 conversation 会在下次检查阈值时应用该设置。
 			return new UserSettings(manager);
 		},
 
-		// Section 2.2: an environment per conversation.
+		// 第 2.2 节：每个 conversation 使用独立环境。
 		containerEnv: async () => {
 			const registry = createRegistry();
-			// Absent: the conversation runs locally. Only conversations with this document run in a container.
-			// Subagents do not copy it: their creator writes it too when they should run in the container.
+			// 文档不存在时，对话在本地运行。只有包含该文档的对话会在容器中运行。
+			// 子代理不会复制此文档；如果子代理也应在容器中运行，其创建方也必须写入该文档。
 			const ContainerDoc = defineDoc<{ image: string }>({
 				kind: "app.container",
 				version: 1,
@@ -294,7 +293,7 @@ function examples() {
 			return harness;
 		},
 
-		// Sections 2.2 and 7.1: host setup, tool filters, extension selection, plan mode, and reload.
+		// 第 2.2 和 7.1 节：宿主设置、工具筛选、扩展选择、计划模式和重新加载。
 		host: async () => {
 			const registry = createRegistry();
 			for (const extension of [CodingTools, Coding, ContextFiles, Skills, Permissions, Reviewer]) {
@@ -305,43 +304,43 @@ function examples() {
 				{
 					models,
 					registry,
-					// Reviewer is installed but not selected by default: only conversations that select it get its role and hooks.
+					// Reviewer 已安装但默认未选中：只有选择它的对话才会获得其角色和钩子。
 					settings: { extensions: [CodingTools, Coding, ContextFiles, Skills, Permissions] },
 					env: ({ cwd }) => localEnv(cwd ?? process.cwd()), // cached NodeExecutionEnv per directory
 				},
 				context,
 			);
-			// The conversation remembers its model and directory; a restart elsewhere keeps both.
+			// 对话会记住所用模型和目录；即使在其他位置重启，这两项也会保留。
 			const root = await harness.root(context, { agent: { model: sonnet, cwd: process.cwd() } });
 
 			await root.configure({ tools: { remove: [editTool] } }, context);
-			await root.configure({ tools: { remove: [bashTool] } }, context); // edit is offered again
-			await root.configure({ tools: null }, context); // every tool of the selected extensions again
+			await root.configure({ tools: { remove: [bashTool] } }, context); // 再次提供 edit 工具。
+			await root.configure({ tools: null }, context); // 再次提供所选扩展中的全部工具。
 
 			registry.install(Timing);
-			registry.install(Venv); // installed, but not in the default selection
+			registry.install(Venv); // 已安装，但不在默认选择范围内。
 			const conversation = root;
 			await conversation.configure({ extensions: { add: [Venv] } }, context);
 
 			registry.install(PlanMode);
-			// PlanMode is in the default selection; /plan toggles this conversation's state.
+			// PlanMode 默认处于选中状态；/plan 用于切换当前对话的状态。
 			await root.commit(async (tx) => {
 				(await tx.doc(PlanModeDoc, root.id)).enabled = true;
 			}, context);
 
 			registry.install(Subagent);
 			registry.install(Chat);
-			registry.install(SkillsV2); // same name: conversations selecting skills render v2 at their next request
-			registry.uninstall(Skills); // selecting conversations get a system delta removing its section; nothing is rewritten
-			// Restart: the host installs its extensions again; stored names resolve against them.
+			registry.install(SkillsV2); // 名称相同：选择 skills 的 conversation 会在下次请求时渲染 v2。
+			registry.uninstall(Skills); // 选用了该技能的 conversation 会收到移除对应区段的系统增量，不会重写已有内容。
+			// 重启时，宿主会重新安装扩展；存储的名称会根据这些扩展重新解析。
 			return harness;
 		},
 
-		// Section 7.3: a named subagent's spawn commit.
+		// 第 7.3 节：命名子智能体的启动提交。
 		spawn: async (tx: Tx) => {
-			// In subagentTool's spawn commit, after the name checks:
+			// 在 subagentTool 的生成提交中，名称检查之后：
 			const anchor = await tx.createTask(Anchor, null, { ownership: { kind: "conversation" }, background: true });
-			// Owned by a task of the parent: starts as a copy of the parent's agent.
+			// 由父级任务拥有：以父级 agent 的副本开始运行。
 			const child = await tx.createConversation({ ownership: { kind: "task", taskId: anchor } });
 			await configure(tx, child.id, {
 				extensions: { remove: [SubagentTools] },
@@ -349,26 +348,26 @@ function examples() {
 			});
 		},
 
-		// Section 4: table reads before the first table write; documents stay usable.
+		// 第 4 节：首次写入表之前先读取表；文档仍可继续使用。
 		tableRules: async () => {
 			await session.commit(async (tx) => {
-				const conversation = await tx.conversation(conversationId); // table read
+				const conversation = await tx.conversation(conversationId); // 读取表项。
 				const live = await tx.doc(LiveDoc, conversationId);
 
-				await tx.appendEntry(conversationId, message); // first table write
+				await tx.appendEntry(conversationId, message); // 首次写入表项。
 				delete live.generation; // document mutation remains valid
-				await tx.createTask(Follow, {}, { ownership: { kind: "conversation" }, conversationId }); // further table writes are fine
+				await tx.createTask(Follow, {}, { ownership: { kind: "conversation" }, conversationId }); // 后续仍可继续写入表项。
 				void conversation;
 			}, context);
 		},
 
-		// Section 3.4: drafts are revoked after their commit.
+		// 第 3.4 节：草稿在提交后失效。
 		revokedDraft: async () => {
 			let escaped: Draft<LiveState> | undefined;
 			await session.commit(async (tx) => {
 				escaped = await tx.doc(LiveDoc, conversationId);
 			}, context);
-			escaped!.generation = undefined; // throws: the draft was revoked
+			escaped!.generation = undefined; // 草稿已撤销，因此此处会抛出异常。
 		},
 	};
 	return { sequences, Payment };

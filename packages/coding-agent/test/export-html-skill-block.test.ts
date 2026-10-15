@@ -5,36 +5,36 @@ describe("export HTML skill block rendering", () => {
 	const templateJs = readFileSync(new URL("../src/core/export-html/template.js", import.meta.url), "utf-8");
 
 	it("strips skill wrapper XML from user message rendering", () => {
-		// Skill commands store a structural wrapper in the raw user message:
+		// Skill 命令会在原始用户消息中保存结构化包装：
 		//   <skill name="..." location="...">\n...\n</skill>\n\nactual prompt
-		// The export renderer must detect that wrapper and render only the user-visible prompt,
-		// not the Pi-generated <skill>...</skill> XML tags.
+		// 导出渲染器必须识别该包装结构，并且只渲染用户可见的提示，
+		// 而不是 Pi 生成的 <skill>...</skill> XML 标签。
 		expect(templateJs).toMatch(/parseSkillBlock/);
 		expect(templateJs).toMatch(/skillBlock\.userMessage/);
 	});
 
 	it("renders skill invocation and user message as separate sibling blocks", () => {
-		// The skill block and user message should render as separate entry-level elements,
-		// matching the TUI layout where SkillInvocationMessageComponent and
-		// UserMessageComponent are siblings, not nested.
+		// 技能块和用户消息应分别渲染为条目级元素，
+		// 这与 TUI 布局一致：SkillInvocationMessageComponent 和
+		// UserMessageComponent 是同级组件，而非嵌套关系。
 		expect(templateJs).toMatch(/skill-invocation/);
 
-		// When a skill block has a userMessage, the user-message div must be emitted
-		// as a separate block after the skill-invocation div, containing the user-authored text.
-		// Verify the code checks hasUserContent so the user-message div is only omitted
-		// when the skill block has no user prompt and no images.
+		// 技能块包含 userMessage 时，必须生成对应的用户消息 div。
+		// 作为独立区块放在 skill-invocation div 后面，其中包含用户编写的文本。
+		// 验证代码会检查 hasUserContent，只有在
+		// 即使技能区块没有用户提示词和图片，也应如此。
 		expect(templateJs).toMatch(/hasUserContent/);
 	});
 
 	it("renders skill content as markdown, not raw text", () => {
-		// The skill block body is markdown (from the SKILL.md file).
-		// It should be rendered through safeMarkedParse, not escaped as raw text.
+		// 技能块正文是 Markdown（来自 SKILL.md 文件）。
+		// 应通过 safeMarkedParse 渲染，而不是作为原始文本转义。
 		expect(templateJs).toMatch(/safeMarkedParse\(skillBlock\.content\)/);
 	});
 
 	it("shows skill name and user message in the sidebar tree", () => {
-		// The sidebar tree should display both the skill name and the user prompt,
-		// not just one or the other.
+		// 侧边栏树形视图应同时显示技能名称和用户提示，
+		// 两者都要保留，而不能只保留其中之一。
 		expect(templateJs).toMatch(/tree-role-skill/);
 	});
 });

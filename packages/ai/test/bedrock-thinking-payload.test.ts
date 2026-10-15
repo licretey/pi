@@ -156,7 +156,7 @@ describe("Bedrock thinking payload", () => {
 		expect(payload.additionalModelRequestFields?.anthropic_beta).toEqual([THINKING_BINDING_CONTROLS_BETA]);
 	});
 
-	// Bedrock rejects block_binding on 4.6 models: "Extra inputs are not permitted" (#10324)
+	// Bedrock 的 4.6 模型不接受 block_binding，并返回 "Extra inputs are not permitted"（#10324）。
 	it.each(["global.anthropic.claude-opus-4-6-v1", "global.anthropic.claude-sonnet-4-6"] as const)(
 		"omits block_binding for %s",
 		async (modelId) => {
@@ -200,7 +200,7 @@ describe("Bedrock thinking payload", () => {
 });
 
 describe("Bedrock OpenAI reasoning payload", () => {
-	// Regression for #9331: the configured thinking level never reached OpenAI models on Bedrock.
+	// #9331 回归测试：配置的思考级别此前未能传递给 Bedrock 上的 OpenAI 模型。
 	it.each([
 		["minimal", "low"],
 		["low", "low"],
@@ -334,11 +334,11 @@ describe("Application inference profile support", () => {
 			if (event.type === "error") break;
 		}
 
-		// System prompt should have a cache point
+		// 系统提示词应带有缓存点。
 		expect(capturedPayload.system).toHaveLength(2);
 		expect(capturedPayload.system[1]).toHaveProperty("cachePoint");
 
-		// Last user message should have a cache point
+		// 最后一条用户消息应带有缓存点。
 		const lastMsg = capturedPayload.messages[capturedPayload.messages.length - 1];
 		const lastContent = lastMsg.content[lastMsg.content.length - 1];
 		expect(lastContent).toHaveProperty("cachePoint");

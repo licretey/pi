@@ -84,7 +84,7 @@ function task(id: TaskId<JsonValue>, index: number): StoredTask {
 	return { ...common, state: { status, checkpoint: { index, payload: "x".repeat(64) } } };
 }
 
-/** Seed deterministic representative data through only the public `Storage` contract. */
+/** 仅通过公开的 `Storage` 契约播入确定性的代表性数据。 */
 export async function seedStorageBenchmark(
 	storage: Storage,
 	scale: StorageBenchmarkScale = TIMING_SCALE,
@@ -387,7 +387,7 @@ export type StorageWriteBenchmark = {
 	run(storage: Storage): Promise<number>;
 };
 
-/** Seed the common state expected by every write benchmark sample. */
+/** 播入每个写入基准样本所期望的公共状态。 */
 export async function seedStorageWriteBenchmark(storage: Storage): Promise<void> {
 	await storage.commit([{ type: "conversation", value: { id: ROOT_CONVERSATION_ID } }], BACKGROUND_CONTEXT);
 	await storage.commit(

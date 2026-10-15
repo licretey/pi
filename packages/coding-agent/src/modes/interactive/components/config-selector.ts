@@ -1,5 +1,5 @@
 /**
- * TUI component for managing package resources (enable/disable)
+ * 用于管理软件包资源（启用/禁用）的 TUI 组件
  */
 
 import { homedir } from "node:os";
@@ -71,7 +71,7 @@ function formatBaseDir(baseDir: string): string {
 	if (baseDir === homeDir) {
 		displayPath = "~";
 	} else if (baseDir.startsWith(homeDir)) {
-		// Replace home prefix with ~, normalize separators for display
+		// 将主目录前缀替换为 ~，并统一路径分隔符以便显示
 		const rest = baseDir.slice(homeDir.length);
 		displayPath = `~${rest.replace(/\\/g, "/")}`;
 	} else {
@@ -88,7 +88,7 @@ function getGroupLabel(metadata: PathMetadata, agentDir: string): string {
 	if (metadata.source === "builtin") {
 		return metadata.scope === "user" ? "Built-in" : "Built-in (project override)";
 	}
-	// Top-level resources
+	// 顶层资源
 	if (metadata.source === "auto") {
 		if (metadata.baseDir) {
 			return metadata.scope === "user"
@@ -161,7 +161,7 @@ function buildGroups(resolved: ResolvedPaths, agentDir: string): ResourceGroup[]
 	addToGroup(resolved.prompts, "prompts");
 	addToGroup(resolved.themes, "themes");
 
-	// Sort groups: packages first, then top-level; user before project
+	// 对分组排序：软件包在前，顶层资源在后；用户级内容排在项目级内容之前
 	const groups = Array.from(groupMap.values());
 	groups.sort((a, b) => {
 		if (a.origin !== b.origin) {
@@ -173,7 +173,7 @@ function buildGroups(resolved: ResolvedPaths, agentDir: string): ResourceGroup[]
 		return a.source.localeCompare(b.source);
 	});
 
-	// Sort subgroups within each group by type order, and items by name
+	// 每组内按类型顺序对子组排序，再按名称对子组中的项目排序
 	const typeOrder: Record<ResourceType, number> = { extensions: 0, skills: 1, prompts: 2, themes: 3 };
 	for (const group of groups) {
 		group.subgroups.sort((a, b) => typeOrder[a.type] - typeOrder[b.type]);
@@ -267,7 +267,7 @@ class ResourceList implements Component, Focusable {
 		this.writeScope = writeScope;
 		this.inheritedEnabledByKey = this.buildInheritedEnabledMap(groupsByScope.global);
 		this.searchInput = new Input();
-		// 8 lines of chrome: top spacer + top border + spacer + header (2 lines) + spacer + bottom spacer + bottom border
+		// 界面装饰共 8 行：顶部间隔、上边框、间隔、标题（2 行）、间隔、底部间隔和下边框
 		const chrome = 8;
 		this.maxVisible = Math.max(5, (terminalHeight ?? 24) - chrome);
 		this.buildFlatList();
@@ -307,7 +307,7 @@ class ResourceList implements Component, Focusable {
 				}
 			}
 		}
-		// Start selection on first item (not header)
+		// 将选中项定位到第一个资源，而非标题
 		this.selectedIndex = this.flatItems.findIndex((e) => e.type === "item");
 		if (this.selectedIndex < 0) this.selectedIndex = 0;
 	}
@@ -320,7 +320,7 @@ class ResourceList implements Component, Focusable {
 			}
 			idx += direction;
 		}
-		return fromIndex; // Stay at current if no item found
+		return fromIndex; // 未找到匹配项时保持当前位置。
 	}
 
 	private filterItems(query: string): void {
@@ -348,7 +348,7 @@ class ResourceList implements Component, Focusable {
 			}
 		}
 
-		// Find which subgroups and groups contain matching items
+		// 查找包含匹配项目的子组和分组
 		for (const group of this.groups) {
 			for (const subgroup of group.subgroups) {
 				for (const item of subgroup.items) {
@@ -381,7 +381,7 @@ class ResourceList implements Component, Focusable {
 
 	updateItem(item: ResourceItem, enabled: boolean): void {
 		item.enabled = enabled;
-		// Update in groups too
+		// 同时更新分组中的数据
 		for (const group of this.groups) {
 			for (const subgroup of group.subgroups) {
 				const found = subgroup.items.find((i) => i.path === item.path && i.resourceType === item.resourceType);
@@ -398,7 +398,7 @@ class ResourceList implements Component, Focusable {
 	render(width: number): string[] {
 		const lines: string[] = [];
 
-		// Search input
+		// 搜索输入
 		lines.push(...this.searchInput.render(width));
 		lines.push("");
 
@@ -407,7 +407,7 @@ class ResourceList implements Component, Focusable {
 			return lines;
 		}
 
-		// Calculate visible range
+		// 计算可见范围
 		const startIndex = Math.max(
 			0,
 			Math.min(this.selectedIndex - Math.floor(this.maxVisible / 2), this.filteredItems.length - this.maxVisible),
@@ -419,18 +419,18 @@ class ResourceList implements Component, Focusable {
 			const isSelected = i === this.selectedIndex;
 
 			if (entry.type === "group") {
-				// Main group header (no cursor)
+				// 主分组标题（不显示光标）
 				const inherited = this.writeScope === "project" && entry.group.scope === "user";
 				const label = theme.bold(`${entry.group.label}${inherited ? " · inherited global" : ""}`);
 				const groupLine = theme.fg(inherited ? "dim" : "accent", label);
 				lines.push(truncateToWidth(`  ${groupLine}`, width, ""));
 			} else if (entry.type === "subgroup") {
-				// Subgroup header (indented, no cursor)
+				// 子组标题（缩进显示，不显示光标）
 				const color = this.writeScope === "project" && entry.group.scope === "user" ? "dim" : "muted";
 				const subgroupLine = theme.fg(color, entry.subgroup.label);
 				lines.push(truncateToWidth(`    ${subgroupLine}`, width, ""));
 			} else {
-				// Resource item (cursor only on items)
+				// 资源项目（仅项目行显示光标）
 				const item = entry.item;
 				const cursor = isSelected ? "> " : "  ";
 				const dimmed = this.isDimmedItem(item);
@@ -446,7 +446,7 @@ class ResourceList implements Component, Focusable {
 			}
 		}
 
-		// Scroll indicator
+		// 滚动指示器
 		if (startIndex > 0 || endIndex < this.filteredItems.length) {
 			const itemCount = this.filteredItems.filter((e) => e.type === "item").length;
 			const currentItemIndex =
@@ -469,7 +469,7 @@ class ResourceList implements Component, Focusable {
 			return;
 		}
 		if (kb.matches(data, "tui.select.pageUp")) {
-			// Jump up by maxVisible, then find nearest item
+			// 向上跳过 maxVisible 项，再定位到最近的资源项目
 			let target = Math.max(0, this.selectedIndex - this.maxVisible);
 			while (target < this.filteredItems.length && this.filteredItems[target].type !== "item") {
 				target++;
@@ -480,7 +480,7 @@ class ResourceList implements Component, Focusable {
 			return;
 		}
 		if (kb.matches(data, "tui.select.pageDown")) {
-			// Jump down by maxVisible, then find nearest item
+			// 向下跳过 maxVisible 项，再定位到最近的资源项目
 			let target = Math.min(this.filteredItems.length - 1, this.selectedIndex + this.maxVisible);
 			while (target >= 0 && this.filteredItems[target].type !== "item") {
 				target--;
@@ -514,7 +514,7 @@ class ResourceList implements Component, Focusable {
 			return;
 		}
 
-		// Pass to search input
+		// 将按键输入传递给搜索框
 		this.searchInput.handleInput(data);
 		this.filterItems(this.searchInput.getValue());
 	}
@@ -543,12 +543,12 @@ class ResourceList implements Component, Focusable {
 		const arrayKey = item.resourceType as "extensions" | "skills" | "prompts" | "themes";
 		const current = (settings[arrayKey] ?? []) as string[];
 
-		// Generate pattern for this resource
+		// 为此资源生成匹配模式
 		const pattern = this.getResourcePattern(item);
 		const disablePattern = `-${pattern}`;
 		const enablePattern = `+${pattern}`;
 
-		// Filter out existing patterns for this resource
+		// 过滤掉针对该资源的已有模式
 		const updated = current.filter((p) => {
 			const stripped = p.startsWith("!") || p.startsWith("+") || p.startsWith("-") ? p.slice(1) : p;
 			return stripped !== pattern;
@@ -598,22 +598,22 @@ class ResourceList implements Component, Focusable {
 
 		let pkg = packages[pkgIndex];
 
-		// Convert string to object form if needed
+		// 必要时将字符串转换为对象形式
 		if (typeof pkg === "string") {
 			pkg = { source: pkg };
 			packages[pkgIndex] = pkg;
 		}
 
-		// Get the resource array for this type
+		// 获取此类型的资源数组
 		const arrayKey = item.resourceType as "extensions" | "skills" | "prompts" | "themes";
 		const current = (pkg[arrayKey] ?? []) as string[];
 
-		// Generate pattern relative to package root
+		// 生成相对于软件包根目录的匹配模式
 		const pattern = this.getPackageResourcePattern(item);
 		const disablePattern = `-${pattern}`;
 		const enablePattern = `+${pattern}`;
 
-		// Filter out existing patterns for this resource
+		// 过滤掉针对该资源的已有模式
 		const updated = current.filter((p) => {
 			const stripped = p.startsWith("!") || p.startsWith("+") || p.startsWith("-") ? p.slice(1) : p;
 			return stripped !== pattern;
@@ -627,7 +627,7 @@ class ResourceList implements Component, Focusable {
 
 		(pkg as Record<string, unknown>)[arrayKey] = updated.length > 0 ? updated : undefined;
 
-		// Clean up empty filter object
+		// 清理空的过滤器对象
 		const hasFilters = ["extensions", "skills", "prompts", "themes"].some(
 			(k) => (pkg as Record<string, unknown>)[k] !== undefined,
 		);
@@ -685,7 +685,7 @@ class ResourceList implements Component, Focusable {
 			return !(state === "inherit" && this.isInheritedGlobalItem(item) && target === pattern);
 		});
 		if (state !== "inherit") {
-			// Project entries name inherited files to override them. Built-in paths need no entry.
+			// 项目条目通过指定继承文件来覆盖它们；内置路径无需添加条目。
 			if (this.isInheritedGlobalItem(item) && item.metadata.source !== "builtin" && !updated.includes(pattern))
 				updated.push(pattern);
 			updated.push(`${state === "load" ? "+" : "-"}${pattern}`);
@@ -906,7 +906,7 @@ export class ConfigSelectorComponent extends Container implements Focusable {
 			project: buildGroups(resolvedPaths.project, agentDir),
 		};
 
-		// Add header
+		// 添加标题
 		this.addChild(new Spacer(1));
 		this.addChild(new DynamicBorder());
 		this.addChild(new Spacer(1));
@@ -914,7 +914,7 @@ export class ConfigSelectorComponent extends Container implements Focusable {
 		this.addChild(this.header);
 		this.addChild(new Spacer(1));
 
-		// Resource list
+		// 资源列表
 		this.resourceList = new ResourceList(
 			groupsByScope,
 			settingsManager,
@@ -934,7 +934,7 @@ export class ConfigSelectorComponent extends Container implements Focusable {
 		}
 		this.addChild(this.resourceList);
 
-		// Bottom border
+		// 添加下边框
 		this.addChild(new Spacer(1));
 		this.addChild(new DynamicBorder());
 	}

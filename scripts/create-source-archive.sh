@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Create the deterministic source archive uploaded with GitHub releases.
+# 创建随 GitHub 发布上传的确定性源码归档。
 #
-# Usage:
+# 用法：
 #   npm run hydrate:model-data
 #   ./scripts/create-source-archive.sh --version <version> --ref <git-ref> --out <archive.tar.gz>
 
@@ -100,9 +100,8 @@ validation_root="$(mktemp -d "${output}.validation.XXXXXX")"
 rm -f "$temporary_index"
 trap 'rm -f "$temporary_archive" "$temporary_index" "$manifest"; rm -rf "$validation_root"' EXIT
 
-# Add the ignored release model-data snapshot to a temporary index based on the
-# release commit. Archiving the resulting tree keeps the source artifact
-# deterministic for the same commit and generated model data.
+# 将被忽略的发布模型数据快照添加到基于发布提交创建的临时索引中。
+# 对生成的目录树创建归档，可确保相同提交和模型数据始终生成相同的源码产物。
 GIT_INDEX_FILE="$temporary_index" git read-tree "$commit"
 GIT_INDEX_FILE="$temporary_index" git add -f -- "${model_data_files[@]}"
 archive_tree="$(GIT_INDEX_FILE="$temporary_index" git write-tree)"

@@ -50,7 +50,7 @@ describe("RemoteExecutionEnv", () => {
 		expect(delivered + skipped).toBe(total);
 		expect(skipped).toBeGreaterThan(0);
 		expect(delivered).toBeLessThan(total / 10);
-		// After the last skip comes everything to the end, more than the window.
+		// 最后一个跳过位置之后直到结尾的内容超过了窗口长度。
 		const full = "0123456789abcdef\n".repeat(Math.ceil(total / 17)).slice(0, total);
 		expect(full.endsWith(tail)).toBe(true);
 		expect(tail.length > 1000 || tail.split("\n").length - 1 > 20).toBe(true);
@@ -86,7 +86,7 @@ describe("RemoteExecutionEnv", () => {
 		const { pid } = await connection.info();
 		process.kill(pid, "SIGKILL");
 		await new Promise((done) => setTimeout(done, 300));
-		// The new daemon numbers its handles from 1 again.
+		// 新守护进程会从 1 重新开始为句柄编号。
 		const b = getOrThrow(await env.openBinaryReader("b.txt", undefined, context));
 		expect((await connection.info()).pid).not.toBe(pid);
 		const stale = await a.read(0, 3, context);

@@ -13,12 +13,10 @@ function json(response: ServerResponse, status: number, body: unknown, headers: 
 }
 
 /**
- * MCP server protected by OAuth, with its own authorization server (discovery, DCR, PKCE, refresh).
- * `iss` is sent as the `iss` parameter of authorization responses (RFC 9207). `issParameter` advertises
- * that parameter and sends the server's issuer. `cimd` advertises Client ID Metadata Documents.
- * `redirectPath` replaces the path of the redirect URI, like a mixed-up authorization server.
- * The MCP endpoint assigns a session, so closing a connection sends a DELETE. Paths added to `stall`
- * accept requests and never answer them, like an unresponsive server.
+ * 使用 OAuth 保护的 MCP 服务器，并内置授权服务器（发现、动态客户端注册、PKCE 和令牌刷新）。
+ * `iss` 作为授权响应中的 `iss` 参数发送（RFC 9207）；`issParameter` 用于声明支持该参数并发送服务器发行者标识。
+ * `cimd` 用于声明支持客户端 ID 元数据文档。`redirectPath` 会替换重定向 URI 的路径，用于模拟授权服务器混淆攻击。
+ * MCP 端点会分配会话，因此关闭连接时会发送 DELETE 请求。加入 `stall` 的路径会接收请求但不作响应，用于模拟无响应的服务器。
  */
 export async function startOAuthMcpServer(
 	options: { iss?: string; issParameter?: boolean; cimd?: boolean; redirectPath?: string } = {},
@@ -160,18 +158,18 @@ export async function startOAuthMcpServer(
 	return {
 		url: `${origin}/mcp`,
 		log,
-		/** Client metadata of dynamic client registrations. */
+		/** 动态客户端注册时的客户端元数据。 */
 		registrations,
-		/** Query parameters of authorization requests. */
+		/** 授权请求的查询参数。 */
 		authorizations,
-		/** Parameters of token requests. */
+		/** 令牌请求的参数。 */
 		tokenRequests,
-		/** Access tokens of session DELETE requests. */
+		/** 会话 DELETE 请求使用的访问令牌。 */
 		deletes,
 		stall,
-		/** Requests to stalled paths, still open unless the client gave up. */
+		/** 发往挂起路径的请求；除非客户端放弃，否则请求会保持未完成状态。 */
 		stalled,
-		/** Simulates access token expiry. */
+		/** 模拟访问令牌过期。 */
 		expireAccessTokens: () => validTokens.clear(),
 		close: () =>
 			new Promise<void>((resolve) => {

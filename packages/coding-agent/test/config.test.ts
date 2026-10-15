@@ -452,7 +452,7 @@ describe("detectInstallMethod", () => {
 });
 
 describe("detectInstallChange", () => {
-	// Regression test for #10439: a deleted pnpm install must not fall back to a package.json further up.
+	// #10439 回归测试：pnpm 安装目录被删除后，不得回退到上层目录中的 package.json。
 	test("reports a removed install instead of reading a package.json further up", () => {
 		tempDir = mkdtempSync(join(tmpdir(), "pi-install-change-"));
 		const installDir = join(tempDir, "global", "hash");

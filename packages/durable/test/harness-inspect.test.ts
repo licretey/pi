@@ -6,7 +6,7 @@ import { completed, deferred, eventually, openTasks } from "./task-support.ts";
 
 type Step = { phase: "run" };
 
-/** A one-phase task that completes once `gate` resolves; `migrate` runs when an older stored version migrates. */
+/** `gate` 解析后即完成的单阶段任务；旧版本存储记录迁移时会调用 `migrate`。 */
 function task(name: string, version: number, options: { gate?: Promise<void>; migrate?: () => void } = {}) {
 	const migrate = options.migrate;
 	return defineTask<null, Step, null>({
@@ -80,7 +80,7 @@ describe("Harness.inspect()", () => {
 			return {
 				gate: gateId,
 				dependent: await tx.createTask(Dependent, null, { ownership: { kind: "conversation" } }),
-				// Stored by definitions other than the registered ones.
+				// 由未注册的其他定义写入。
 				migrating: await tx.createTask(task("test.migrating", 1), null, { ownership: { kind: "conversation" } }),
 				noMigration: await tx.createTask(task("test.no-migration", 1), null, {
 					ownership: { kind: "conversation" },
@@ -97,7 +97,7 @@ describe("Harness.inspect()", () => {
 		expect(stateOf(paused.tasks, ids.gate)).toEqual({ kind: "ready", migrates: false });
 		expect(stateOf(paused.tasks, ids.dependent)).toEqual({ kind: "ready", migrates: false });
 		expect(stateOf(paused.tasks, ids.migrating)).toEqual({ kind: "ready", migrates: true });
-		// A migration that was never tried is not run to find out.
+		// 不会为了判断迁移结果而执行此前从未尝试过的迁移。
 		expect(stateOf(paused.tasks, ids.failing)).toEqual({ kind: "ready", migrates: true });
 		expect(stateOf(paused.tasks, ids.noMigration)).toMatchObject({
 			kind: "blocked",

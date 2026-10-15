@@ -1,5 +1,5 @@
 /**
- * Chord is a standalone application-composition runtime for agentic applications.
+ * Chord 是用于组合智能体应用的独立运行时。
  */
 export {
 	combineFacetLoaders,

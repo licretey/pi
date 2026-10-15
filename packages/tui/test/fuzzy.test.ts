@@ -17,7 +17,7 @@ describe("fuzzyMatch", () => {
 	it("exact match has good score", () => {
 		const result = fuzzyMatch("test", "test");
 		assert.strictEqual(result.matches, true);
-		assert.ok(result.score < 0); // Should be negative due to consecutive bonuses
+		assert.ok(result.score < 0); // 连续匹配奖励会使分数为负数。
 	});
 
 	it("characters must appear in order", () => {
@@ -79,7 +79,7 @@ describe("fuzzyFilter", () => {
 		const items = ["a_p_p", "app", "application"];
 		const result = fuzzyFilter(items, "app", (x: string) => x);
 
-		// "app" should be first (exact consecutive match at start)
+		// "app" 应排在首位（从开头开始的连续精确匹配）。
 		assert.strictEqual(result[0], "app");
 	});
 

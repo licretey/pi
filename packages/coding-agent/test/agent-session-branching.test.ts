@@ -1,10 +1,10 @@
 /**
- * Tests for AgentSession forking behavior.
+ * 测试 AgentSession 的分支派生行为。
  *
- * These tests verify:
- * - Forking from a single message works
- * - Forking in --no-session mode (in-memory only)
- * - getUserMessagesForForking returns correct entries
+ * 这些测试验证：
+ * - 可以从单条消息派生分支。
+ * - `--no-session` 模式下可以仅在内存中派生分支。
+ * - `getUserMessagesForForking` 会返回正确的条目。
  */
 
 import { existsSync, mkdirSync, rmSync } from "node:fs";

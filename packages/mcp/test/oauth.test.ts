@@ -127,7 +127,7 @@ describe("MCP OAuth", () => {
 			if (url.pathname === "/register") {
 				const metadata = JSON.parse(await readBody(request)) as Record<string, unknown>;
 				response.writeHead(201, { "content-type": "application/json" });
-				// Empty and null optional fields count as absent (#10266).
+				// 空字符串和 null 可选字段均视为未提供（#10266）。
 				response.end(JSON.stringify({ ...metadata, client_id: "test-client", client_secret: "" }));
 				return;
 			}
@@ -192,7 +192,7 @@ describe("MCP OAuth", () => {
 			if (token !== "Bearer first-token" && token !== "Bearer refreshed-token") {
 				await readBody(request);
 				response.writeHead(401, {
-					// An empty scope falls through to the resource metadata's scopes_supported.
+					// scope 为空时，使用资源元数据中的 scopes_supported。
 					"www-authenticate": `Bearer resource_metadata="${serverOrigin}/.well-known/oauth-protected-resource/mcp", scope=""`,
 				});
 				response.end("Unauthorized");
@@ -266,7 +266,7 @@ describe("MCP OAuth", () => {
 				openGetStream: false,
 			}),
 		);
-		// Neither token response names a scope, so the grant has the requested scope.
+		// 两次令牌响应都没有返回 scope，因此授权范围采用请求中指定的值。
 		expect(provider.tokenSet).toEqual({
 			access_token: "refreshed-token",
 			refresh_token: "refresh-token",
@@ -283,7 +283,7 @@ describe("MCP OAuth", () => {
 		const origin = await listen(async (request, response, serverOrigin) => {
 			const url = new URL(request.url ?? "/", serverOrigin);
 			if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
-				// Invalid resource metadata falls back to the server origin instead of failing discovery.
+				// 资源元数据无效时，回退到服务器源地址，而不是让发现流程失败。
 				response.setHeader("content-type", "application/json");
 				response.end(JSON.stringify({ resource: `${serverOrigin}/mcp`, authorization_servers: ["not a url"] }));
 				return;
@@ -292,7 +292,7 @@ describe("MCP OAuth", () => {
 				response.setHeader("content-type", "application/json");
 				response.end(
 					JSON.stringify({
-						// Issuer without the trailing slash that URL parsing adds to the fallback server URL.
+						// 发行者地址不带尾部斜杠；URL 解析会为回退服务器 URL 添加该斜杠。
 						issuer: serverOrigin,
 						authorization_endpoint: `${serverOrigin}/authorize`,
 						token_endpoint: `${serverOrigin}/token`,
@@ -338,7 +338,7 @@ describe("MCP OAuth", () => {
 			token: "a1",
 		});
 		await Promise.all([auth.onUnauthorized?.(unauthorized()), auth.onUnauthorized?.(unauthorized())]);
-		// A late 401 for a request that still carried the old token must not refresh again.
+		// 仍携带旧令牌的请求迟到的 401 不应再次触发刷新。
 		await auth.onUnauthorized?.(unauthorized());
 		expect(grants).toEqual(["r1"]);
 		expect(await auth.token()).toBe("a2");
@@ -380,9 +380,9 @@ describe("MCP OAuth", () => {
 				token: "a1",
 			}),
 		).rejects.toBeInstanceOf(McpOAuthAuthorizationRequiredError);
-		// The challenge may list only the missing scopes; the new grant keeps the old ones too.
+		// 质询可能只列出缺失的 scope；新授权还应保留旧 scope。
 		expect(provider.authorizationUrl?.searchParams.get("scope")).toBe("repo read:org admin");
-		// The working grant is kept until the user authorizes the new scope.
+		// 在用户授权新 scope 之前，继续保留当前可用的授权。
 		expect(provider.tokenSet?.access_token).toBe("a1");
 	});
 
@@ -456,12 +456,12 @@ describe("MCP OAuth", () => {
 			const url = new URL(request.url ?? "/", serverOrigin);
 			response.setHeader("content-type", "application/json");
 			if (url.pathname === "/.well-known/oauth-protected-resource/mcp") {
-				// Names the MCP server itself, which serves no authorization server metadata.
+				// 指向 MCP 服务器本身；该服务器没有提供授权服务器元数据。
 				response.end(JSON.stringify({ resource: `${serverOrigin}/mcp`, authorization_servers: [serverOrigin] }));
 			} else if (url.pathname === "/idp/metadata.json") {
 				response.end(
 					JSON.stringify({
-						// Not derivable from the document URL; a configured document is not checked.
+						// 无法从文档 URL 推导；已配置的文档不会再进行校验。
 						issuer: "https://idp.example",
 						authorization_endpoint: `${serverOrigin}/idp/authorize`,
 						token_endpoint: `${serverOrigin}/idp/token`,
@@ -516,7 +516,7 @@ describe("MCP OAuth", () => {
 		);
 		await expect(exchange("missing", undefined, true)).rejects.toBeInstanceOf(OAuthIssuerMismatchError);
 		expect(await exchange("matching", origin, true)).toBe("AUTHORIZED");
-		// Servers that do not promise the parameter may omit it.
+		// 未承诺提供此参数的服务器可以省略它。
 		expect(await exchange("omitted", undefined, false)).toBe("AUTHORIZED");
 		expect(codes).toEqual(["matching", "omitted"]);
 	});
@@ -524,7 +524,7 @@ describe("MCP OAuth", () => {
 	// #10565
 	it("stops when its signal aborts, without falling back to a redirect", async () => {
 		const stalled: string[] = [];
-		// Accepts every request and never answers.
+		// 接受所有请求，但始终不返回响应。
 		const origin = await listen(async (request, _response, serverOrigin) => {
 			stalled.push(new URL(request.url ?? "/", serverOrigin).pathname);
 		});
@@ -540,12 +540,12 @@ describe("MCP OAuth", () => {
 			return stalled.at(-1);
 		};
 
-		// Discovery.
+		// 服务发现。
 		expect(await run(new TestOAuthProvider("http://127.0.0.1/callback"))).toBe(
 			"/.well-known/oauth-protected-resource/mcp",
 		);
 
-		// A failed refresh otherwise falls back to a new authorization.
+		// 刷新失败时，流程原本会回退到重新授权。
 		const refreshing = new TestOAuthProvider("http://127.0.0.1/callback");
 		refreshing.client = { client_id: "client" };
 		refreshing.tokenSet = { access_token: "a1", refresh_token: "r1", token_type: "Bearer" };

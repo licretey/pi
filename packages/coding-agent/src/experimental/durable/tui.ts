@@ -54,7 +54,7 @@ const SELECT_THEME: SelectListTheme = {
 	noMatch: (text) => theme.fg("warning", text),
 };
 
-/** A filterable list in place of the editor. */
+/** 可筛选列表，用于替代编辑器。 */
 class ListSelector extends Container implements Focusable {
 	readonly #input = new Input();
 	readonly #listContainer = new Container();
@@ -111,7 +111,7 @@ class ListSelector extends Container implements Focusable {
 	}
 }
 
-/** The summary that replaced earlier context: collapsed to one line until expanded. */
+/** 用于替代较早上下文的摘要：折叠时显示为一行，展开后显示完整内容。 */
 class CompactionComponent extends Box {
 	readonly #summary: string;
 
@@ -163,20 +163,20 @@ class DurableTui {
 	readonly #editorContainer = new Container();
 	readonly #editor: CustomEditor;
 	readonly #cwd: string;
-	/** The newest card per call ID; provider call IDs may repeat across turns. */
+	/** 每个调用 ID 对应的最新卡片；提供商可能在不同轮次中重复使用调用 ID。 */
 	readonly #tools = new Map<string, ToolExecutionComponent>();
-	/** Every card shown, also older ones whose call ID a later turn reused. */
+	/** 所有已显示的卡片，也包括调用 ID 后来被复用的旧卡片。 */
 	readonly #cards: ToolExecutionComponent[] = [];
-	/** Call IDs whose cards the streaming answer created; its entry takes them over. */
+	/** 流式回答创建卡片时对应的调用 ID；回答条目会接管这些卡片。 */
 	readonly #streamingCalls = new Set<string>();
 	readonly #summaries: CompactionComponent[] = [];
-	/** Tool output and summaries shown in full; toggled like pi. */
+	/** 完整显示的工具输出和摘要；可像 pi 一样切换显示状态。 */
 	#expanded = false;
 	#renderedEntryIds: number[] = [];
 	#streaming: AssistantMessageComponent | undefined;
 	#indicator: StatusIndicator | undefined;
 	#statusText = "";
-	/** Set when the transcript was rebuilt: the next render repaints the screen and shows the end. */
+	/** 对话记录重建时设为 true；下次渲染会重绘屏幕并显示末尾。 */
 	#rebuilt = false;
 	#transcript: ScrollView;
 
@@ -210,7 +210,7 @@ class DurableTui {
 		this.#editorContainer.addChild(this.#editor);
 		this.#footer.addChild(this.#footerStats);
 		this.#footer.addChild(this.#footerHints);
-		// One empty line between the transcript and everything below it.
+		// 对话记录与下方内容之间保留一个空行。
 		const content = new Container();
 		content.addChild(this.#chat);
 		content.addChild(new Spacer(1));
@@ -256,7 +256,7 @@ class DurableTui {
 		this.#ui.stop();
 	}
 
-	/** Finish every card: a running bash card keeps a timer until it gets a final result. */
+	/** 结束所有卡片：运行中的 Bash 卡片会持续计时，直到收到最终结果。 */
 	#discardTools(): void {
 		for (const component of this.#cards) component.updateResult({ content: [], isError: false }, false);
 		this.#cards.length = 0;
@@ -279,7 +279,7 @@ class DurableTui {
 		const live = (view.conversation.docs["pi.live"] ?? {}) as LiveState;
 		this.#syncTranscript(view.conversation.entries);
 		const message = live.generation?.message as AssistantMessage | undefined;
-		// A partial without its entry was dropped, for example by a retry: render the transcript again.
+		// 部分流式内容若未形成条目（例如重试时被丢弃），则重新渲染对话记录。
 		if (message === undefined && this.#streaming !== undefined) this.#rebuild(view.conversation.entries);
 		if (message !== undefined) this.#syncStreaming(message);
 		for (const slot of live.tools ?? []) {
@@ -315,7 +315,7 @@ class DurableTui {
 		if (graph === undefined) return;
 		const nodes = Object.values(graph.tasks);
 		const lines: string[] = [theme.fg("accent", `Tasks (${nodes.length} live, /tasks to hide)`)];
-		// A conversation-owned task sits under the task that owns its conversation, when that task is live.
+		// 会话拥有的任务会显示在拥有该会话的任务下方（前提是该任务仍处于活动状态）。
 		const owned = new Set(nodes.flatMap((node) => node.conversations));
 		const children = (node: TaskGraphNode) =>
 			nodes.filter(
@@ -404,7 +404,7 @@ class DurableTui {
 	}
 
 	#syncTranscript(entries: readonly EntryRecord[]): void {
-		// Compaction and resets replace the head of the active transcript.
+		// 压缩和重置操作会替换当前对话记录的上下文起点。
 		if (this.#renderedEntryIds.some((id, index) => entries[index]?.id !== id)) this.#rebuild(entries);
 		for (const entry of entries.slice(this.#renderedEntryIds.length)) {
 			this.#addEntry(entry);
@@ -435,12 +435,12 @@ class DurableTui {
 			if (this.#streaming === undefined) this.#chat.addChild(component);
 			this.#streaming = undefined;
 			component.updateContent(message, false);
-			// Only a tool-calling answer runs its calls; an aborted, failed, or truncated one never does.
+			// 只有包含工具调用的回答才会执行调用；已中止、失败或被截断的回答不会执行。
 			const ran = message.stopReason === "toolUse";
 			for (const content of message.content) {
 				if (content.type !== "toolCall") continue;
 				const streamed = this.#streamingCalls.has(content.id);
-				// Only cards the stream already showed are kept for calls that never run.
+				// 对于不会执行的调用，只保留流式输出中已经显示的卡片。
 				if (!ran && !streamed) continue;
 				const card = this.#tool(content.name, content.id, content.arguments, !streamed);
 				card.setArgsComplete();
@@ -482,7 +482,7 @@ class DurableTui {
 		this.#chat.addChild(new Text(theme.fg("muted", text), 1, 0));
 	}
 
-	/** The card of a call; `fresh` starts a new one for a call ID an earlier turn used. */
+	/** 调用对应的卡片；若调用 ID 在较早轮次中用过，`fresh` 会创建新卡片。 */
 	#tool(name: string, callId: string, args?: unknown, fresh = false): ToolExecutionComponent {
 		const existing = fresh ? undefined : this.#tools.get(callId);
 		if (existing !== undefined) {
@@ -546,9 +546,9 @@ function totalUsage(state: UsageState): Usage {
 	return total;
 }
 
-/** Context size from the newest successful answer after the newest compaction; unknown before one. */
+/** 最近一次压缩后最新成功回答的上下文大小；尚无成功回答时为未知。 */
 function contextTokens(entries: readonly EntryRecord[]): number | undefined {
-	// Kept entries follow the summary in the view but are older than it; only later answers measure the new context.
+	// 保留条目在视图中位于摘要之后，但其时间早于摘要；只有之后的回答才会测量新上下文。
 	const compacted = Math.max(0, ...entries.filter((entry) => entry.kind === "pi.compaction").map((entry) => entry.id));
 	for (const entry of [...entries].reverse()) {
 		const message = entry.model?.[0];
@@ -566,7 +566,7 @@ export async function runDurableTui(
 	settings: SettingsManager,
 ): Promise<void> {
 	setCapabilityOverrides(settings.getTerminalCapabilityOverrides());
-	// The system theme until the controller resolves the user's theme against the terminal's colors.
+	// 控制器根据终端颜色解析用户主题之前，先使用系统主题。
 	initTheme();
 	let exit = (): void => {};
 	const exited = new Promise<void>((resolve) => {
@@ -638,7 +638,7 @@ export async function runDurableTui(
 		cycleThinking: () => void controller.cycleThinking(),
 	});
 
-	// pi's theme handling: the theme setting (also light/dark pairs) resolved against the terminal's reported colors.
+	// 遵循 pi 的主题处理方式：根据终端报告的颜色解析主题设置（包括明暗主题配对）。
 	const themes = new InteractiveThemeController(view.ui, {
 		getSettingsManager: () => settings,
 		showError: (message) => console.error(message),

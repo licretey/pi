@@ -1,6 +1,6 @@
 import { createInMemoryModelRegistry } from "./model-runtime-test-utils.ts";
 /**
- * Tests for ExtensionRunner - conflict detection, error handling, tool wrapping.
+ * 测试 ExtensionRunner：冲突检测、错误处理和工具包装。
  */
 
 import * as fs from "node:fs";
@@ -116,11 +116,11 @@ describe("ExtensionRunner", () => {
 			const result = await discoverAndLoadExtensions([], tempDir, tempDir);
 			const runner = new ExtensionRunner(result.extensions, result.runtime, tempDir, sessionManager, modelRegistry);
 
-			// Before bindCore the default is an empty list (never undefined).
+			// bindCore 之前，默认值为空列表（不会是 undefined）。
 			expect(runner.createContext().scopedModels).toEqual([]);
 
-			// After bindCore wires a getScopedModels action, ctx.scopedModels
-			// returns it live (same reference, lazy getter).
+			// bindCore 接入 getScopedModels 操作后，ctx.scopedModels
+			// 返回实时值（引用相同，通过惰性 getter 获取）。
 			const scoped = [{ model: { id: "scoped-test" }, thinkingLevel: "high" }] as unknown as ScopedModel[];
 			runner.bindCore(extensionActions, { ...extensionContextActions, getScopedModels: () => scoped });
 			expect(runner.createContext().scopedModels).toBe(scoped);
@@ -340,7 +340,7 @@ describe("ExtensionRunner", () => {
 		});
 
 		it("warns when two extensions register same shortcut", async () => {
-			// Use a non-reserved shortcut
+			// 使用未保留的快捷键。
 			const extCode1 = `
 				export default function(pi) {
 					pi.registerShortcut("ctrl+shift+x", {
@@ -367,7 +367,7 @@ describe("ExtensionRunner", () => {
 			const shortcuts = runner.getShortcuts(defaultKeybindings);
 
 			expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("shortcut conflict"));
-			// Last one wins
+			// 后注册的设置生效。
 			expect(shortcuts.has("ctrl+shift+x")).toBe(true);
 
 			warnSpy.mockRestore();
@@ -399,7 +399,7 @@ describe("ExtensionRunner", () => {
 			expect(tools.map((t) => t.definition.name).sort()).toEqual(["tool_a", "tool_b"]);
 		});
 
-		// Regression test for #9300.
+		// #9300 的回归测试。
 		it("rejects extension tools without a parameter schema", async () => {
 			const extensionPath = path.join(extensionsDir, "missing-parameters.js");
 			fs.writeFileSync(
@@ -618,7 +618,7 @@ describe("ExtensionRunner", () => {
 				errors.push(err);
 			});
 
-			// Emit context event which will trigger the throwing handler
+			// 发出 context 事件，以触发会抛错的处理器。
 			await runner.emitContext([]);
 
 			expect(errors.length).toBe(1);
@@ -626,7 +626,7 @@ describe("ExtensionRunner", () => {
 			expect(errors[0].event).toBe("context");
 		});
 
-		// Regression test for #9068.
+		// #9068 的回归测试。
 		it("fails closed when a user_bash handler throws", async () => {
 			const extCode = `
 				export default function(pi) {
@@ -648,7 +648,7 @@ describe("ExtensionRunner", () => {
 			expect(errors).toMatchObject([{ event: "user_bash", error: "Routing failed" }]);
 		});
 
-		// Regression test for #9068.
+		// #9068 的回归测试。
 		it.each([
 			["an empty object", "{}"],
 			["null operations", "{ operations: null }"],
@@ -838,10 +838,10 @@ describe("ExtensionRunner", () => {
 			const result = await discoverAndLoadExtensions([], tempDir, tempDir);
 			const runner = new ExtensionRunner(result.extensions, result.runtime, tempDir, sessionManager, modelRegistry);
 
-			// Setting a flag value should not throw
+			// 设置 flag 值不应抛出异常。
 			runner.setFlagValue("--test-flag", true);
 
-			// The flag values are stored in the shared runtime
+			// flag 值存储在共享运行时中。
 			expect(result.runtime.flagValues.get("--test-flag")).toBe(true);
 		});
 	});
@@ -888,7 +888,7 @@ describe("ExtensionRunner", () => {
 		});
 	});
 
-	// Issue #10285: the MCP extension renders calls to tools that are not registered.
+	// 问题 #10285：MCP 扩展会渲染对未注册工具的调用。
 	it("resolves tool renderers in extension load order, each able to defer to the next", async () => {
 		const runtime = createExtensionRuntime();
 		const eventBus = createEventBus();
@@ -1243,7 +1243,7 @@ describe("ExtensionRunner", () => {
 		});
 	});
 
-	// #8967: event handler unsubscription must not disturb other registrations.
+	// #8967：取消事件处理器订阅时不得影响其他注册项。
 	describe("event subscriptions", () => {
 		async function loadSubscriptionExtension(factory: ExtensionFactory) {
 			const runtime = createExtensionRuntime();

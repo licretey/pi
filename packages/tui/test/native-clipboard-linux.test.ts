@@ -96,8 +96,8 @@ describe("native Linux clipboard", { skip: !dependenciesAvailable, timeout: 6000
 			...flags,
 			"-shared",
 			"-fPIC",
-			"-nostdlib", // Match the prebuild's unversioned system-library imports.
-			...(process.arch === "arm64" ? ["-mno-outline-atomics"] : []), // Inline the fixture's allocation counters.
+			"-nostdlib", // 与预构建产物一致，导入未指定版本的系统库。
+			...(process.arch === "arm64" ? ["-mno-outline-atomics"] : []), // 将测试夹具的内存分配计数器内联。
 			"-Wl,-z,nodelete",
 			join(fixtures, "clipboard-worker-test.c"),
 			"-ldl",
@@ -132,8 +132,8 @@ describe("native Linux clipboard", { skip: !dependenciesAvailable, timeout: 6000
 			const server = createServer((socket) => {
 				connections++;
 				sockets.add(socket);
-				socket.on("data", () => {}); // Accept setup bytes without replying.
-				// libxcb owns setup blocking; release it after checking the JS timer.
+				socket.on("data", () => {}); // 接收初始化数据，但不作响应。
+				// libxcb 负责阻塞式初始化；检查完 JavaScript 计时器后再释放该阻塞操作。
 				const timer = setTimeout(() => socket.destroy(), 300);
 				t.after(() => clearTimeout(timer));
 				socket.on("close", () => sockets.delete(socket));

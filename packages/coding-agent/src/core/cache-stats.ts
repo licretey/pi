@@ -2,56 +2,54 @@ import type { AssistantMessage } from "@earendil-works/pi-ai";
 import type { SessionEntry } from "./session-manager.ts";
 
 /**
- * Prompt-cache TTL: idle gaps longer than this are worth mentioning as the
- * likely cause of a miss. Anthropic's default cache TTL is 5 minutes.
+ * 提示缓存的 TTL：空闲间隔超过此时长时，值得将其列为缓存未命中的可能原因。
+ * Anthropic 的默认缓存 TTL 为 5 分钟。
  */
 export const CACHE_TTL_MS = 5 * 60 * 1000;
 
-/** Per-turn misses at or below this are cache breakpoint granularity noise. */
+/** 每轮未命中 token 数不超过此值时，视为缓存断点粒度造成的噪声。 */
 const NOISE_FLOOR_TOKENS = 1024;
 
-/** A counted cache miss on a single assistant message. */
+/** 单条 assistant 消息中统计到的一次缓存未命中。 */
 export interface CacheMiss {
-	/** Prompt tokens that were in the previous turn's prompt but not read from cache. */
+	/** 上一轮提示中包含、但本轮未从缓存读取的提示 token 数。 */
 	missedTokens: number;
-	/** Extra dollars paid vs. a full cache hit; 0 when pricing is unknown. */
+	/** 与完全命中缓存相比多支付的美元金额；价格未知时为 0。 */
 	missedCost: number;
-	/** Milliseconds since the previous request (which last refreshed the cache). */
+	/** 距离上一次请求（也是最近一次刷新缓存的请求）的毫秒数。 */
 	idleMs: number;
-	/** True when the model changed relative to the previous request. */
+	/** 与上一次请求相比是否更换了模型。 */
 	modelChanged: boolean;
 }
 
 export interface CacheWasteTotals {
 	missedTokens: number;
 	missedCost: number;
-	/** Number of counted misses (turns above the noise floor). */
+	/** 统计到的未命中次数（超过噪声阈值的轮数）。 */
 	missCount: number;
 }
 
-/** Minimal pricing lookup, satisfied by ModelRuntime. Cost is $/million tokens. */
+/** 最简价格查询接口，由 ModelRuntime 实现。费用单位为美元/百万 token。 */
 export interface ModelPriceSource {
 	getModel(provider: string, modelId: string): { cost: { cacheRead: number } } | undefined;
 }
 
-/** The last request seen by the scan; everything in its prompt should be cached. */
+/** 扫描中最近一次请求；其提示内容理论上都应已进入缓存。 */
 interface PreviousRequest {
 	promptTokens: number;
 	modelKey: string;
 	timestamp: number;
 	/**
-	 * Sticky: some earlier request in this scan segment reported cache activity.
-	 * Distinguishes a total miss on a cache-read-only provider (OpenAI-style,
-	 * writes unreported) from a provider that never reports caching at all.
+	 * 粘性标记：当前扫描区段中较早的请求曾报告过缓存活动。
+	 * 用于区分仅支持缓存读取的提供商（类似 OpenAI，不报告缓存写入）发生的完全未命中，
+	 * 与从不报告缓存活动的提供商。
 	 */
 	reportedCache: boolean;
 }
 
 /**
- * Compute the cache miss for one assistant message relative to the previous
- * request. Returns undefined when nothing is counted: first turn, after a
- * reset, no cache activity ever reported (provider without cache support), or
- * miss below the noise floor.
+ * 根据上一请求计算单条 assistant 消息的缓存未命中情况。以下情况返回 undefined，不计入统计：
+ * 首轮请求、重置后、从未报告过缓存活动（提供商不支持缓存），或未命中量低于噪声阈值。
  */
 function detectMiss(
 	prev: PreviousRequest | undefined,
@@ -60,9 +58,8 @@ function detectMiss(
 ): CacheMiss | undefined {
 	const usage = message.usage;
 	const promptTokens = usage.input + usage.cacheRead + usage.cacheWrite;
-	// A zero-cache turn only counts when cache activity was reported before:
-	// on cache-read-only providers that is a total miss, while on providers
-	// that never report caching it means nothing.
+	// 只有此前报告过缓存活动时，零缓存轮次才计入统计：
+	// 对仅支持缓存读取的提供商，这表示完全未命中；对从不报告缓存的提供商则没有意义。
 	if (!prev || promptTokens <= 0 || (usage.cacheRead + usage.cacheWrite === 0 && !prev.reportedCache)) {
 		return undefined;
 	}
@@ -70,10 +67,9 @@ function detectMiss(
 	const missedTokens = Math.min(prev.promptTokens, promptTokens) - usage.cacheRead;
 	if (missedTokens <= NOISE_FLOOR_TOKENS) return undefined;
 
-	// Extra cost = missed tokens billed at the actual paid rate (input/cacheWrite,
-	// incl. write premium) instead of the cache-read rate. Missed tokens can only
-	// land in the input or cacheWrite buckets, so the paid rate comes straight
-	// from this message's own cost breakdown.
+	// 额外费用 = 未命中的 token 按实际支付费率（input/cacheWrite，包含写入溢价）计费，
+	// 而不是按缓存读取费率计费。未命中的 token 只会落在 input 或 cacheWrite 计费项中，
+	// 因此实际支付费率可直接从此消息自身的费用明细中计算。
 	const paidTokens = usage.input + usage.cacheWrite;
 	const paidPerToken = paidTokens > 0 ? (usage.cost.input + usage.cost.cacheWrite) / paidTokens : 0;
 	const readPerToken =
@@ -111,9 +107,8 @@ function scan(
 
 	for (const entry of entries) {
 		if (entry.type === "compaction" || entry.type === "branch_summary") {
-			// The context legitimately changed; the next turn's prompt is new content,
-			// not re-billed content. Model switches are NOT exempt: they re-bill the
-			// full prompt and should be counted.
+			// 上下文确实发生了变化；下一轮提示属于新内容，而不是重复计费的内容。
+			// 更换模型不属于豁免情况：完整提示会重新计费，因此仍应统计。
 			prev = undefined;
 			continue;
 		}
@@ -142,17 +137,16 @@ function scan(
 }
 
 /**
- * Cumulative cache waste across a session: prompt tokens that should have been
- * cache reads (they were in the previous turn's prompt) but were re-billed.
+ * 会话中的累计缓存浪费：本应从缓存读取、但被重新计费的提示 token
+ *（这些 token 已出现在上一轮的提示中）。
  */
 export function computeCacheWaste(entries: SessionEntry[], models: ModelPriceSource): CacheWasteTotals {
 	return scan(entries, models).totals;
 }
 
 /**
- * All counted cache misses across a session, keyed by the assistant message
- * (by reference) that paid for them. Used to re-derive transcript notices when
- * rebuilding the chat from entries (resume, post-compaction rebuild).
+ * 会话中统计到的所有缓存未命中，按承担费用的 assistant 消息（引用）作为键。
+ * 从条目重建聊天记录时（恢复会话、压缩后重建）用于重新生成转录提示。
  */
 export function collectCacheMisses(
 	entries: SessionEntry[],
@@ -162,8 +156,8 @@ export function collectCacheMisses(
 }
 
 /**
- * Detect a cache miss on a just-completed assistant message.
- * `entries` must not yet contain `message` (message_end fires before persistence).
+ * 检测刚完成的 assistant 消息是否发生缓存未命中。
+ * `entries` 不能包含 `message`（message_end 会在持久化之前触发）。
  */
 export function detectCacheMiss(
 	entries: SessionEntry[],

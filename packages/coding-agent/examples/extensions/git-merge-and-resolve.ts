@@ -1,14 +1,13 @@
 /**
- * Merge and Resolve
+ * 合并与冲突解决。
  *
- * Keeps the working branch up to date with its upstream tracking ref.
- * After each agent turn, fetches and merges. Clean merges complete
- * silently. When conflicts arise, the working tree is left dirty and
- * the agent receives a follow-up message listing each conflict block
- * with file, line range, and ours/theirs sections so it can resolve them.
- * Also re-sends unresolved conflicts from a previous incomplete merge.
+ * 使当前工作分支与其上游跟踪引用保持同步。
+ * 每轮智能体运行后都会获取并合并上游更改。没有冲突时会静默完成；
+ * 出现冲突时会保留未清理的工作树，并向智能体发送后续消息，列出每个冲突块的
+ * 文件、行范围以及 ours/theirs 内容，以便智能体解决冲突。
+ * 此扩展也会重新发送上次未完成合并中的未解决冲突。
  *
- * Start pi with this extension:
+ * 使用此扩展启动 pi：
  *   pi -e ./examples/extensions/git-merge-and-resolve.ts
  */
 import { createReadStream } from "node:fs";
@@ -23,7 +22,7 @@ interface ConflictBlock {
 	endLine: number;
 }
 
-/** Parse conflict markers from working tree files with unmerged paths. */
+/** 从包含未合并路径的工作树文件中解析冲突标记。 */
 async function findConflicts(pi: ExtensionAPI, cwd: string): Promise<ConflictBlock[]> {
 	const { stdout, code } = await pi.exec("git", ["diff", "--name-only", "--diff-filter=U"]);
 	if (code !== 0 || !stdout.trim()) return [];
@@ -77,10 +76,10 @@ export default function (pi: ExtensionAPI) {
 
 		let ref = "MERGE_HEAD";
 
-		// If not already in a merge, attempt one
+		// 如果当前尚未处于合并过程中，则尝试执行合并。
 		const { code: mergeHeadCode } = await pi.exec("git", ["rev-parse", "MERGE_HEAD"]);
 		if (mergeHeadCode !== 0) {
-			// Only attempt a new merge if the working tree is clean
+			// 只有工作树干净时才尝试开始新的合并。
 			const { stdout: status } = await pi.exec("git", ["status", "--porcelain"]);
 			if (status.trim()) return;
 
@@ -106,7 +105,7 @@ export default function (pi: ExtensionAPI) {
 			if (mergeCode === 0) return;
 		}
 
-		// Either we just merged with conflicts, or we were already in an unfinished merge
+		// 此处可能是刚刚发生合并冲突，也可能是已有未完成的合并。
 		const conflicts = await findConflicts(pi, ctx.cwd);
 		if (conflicts.length === 0) return;
 

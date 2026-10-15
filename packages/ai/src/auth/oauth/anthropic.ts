@@ -1,8 +1,8 @@
 /**
- * Anthropic OAuth flow (Claude Pro/Max)
+ * Anthropic OAuth 授权流程（Claude Pro/Max）。
  *
- * NOTE: This module uses Node.js http.createServer for the OAuth callback server.
- * It is only intended for CLI use, not browser environments.
+ * 注意：此模块使用 Node.js http.createServer 创建 OAuth 回调服务器。
+ * 此模块仅供 CLI 使用，不适用于浏览器环境。
  */
 
 import { getProviderEnvValue } from "../../utils/provider-env.ts";
@@ -15,8 +15,8 @@ const CLIENT_ID = decode("OWQxYzI1MGEtZTYxYi00NGQ5LTg4ZWQtNTk0NGQxOTYyZjVl");
 const AUTHORIZE_URL = "https://claude.ai/oauth/authorize";
 const TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 const CALLBACK_HOST = getProviderEnvValue("PI_OAUTH_CALLBACK_HOST") || "127.0.0.1";
-// Preferred so the port can be forwarded into containers or over SSH. Anthropic accepts any loopback port,
-// so login falls back to a free port when this one cannot be bound (#10571).
+// 优先使用该端口，以便通过容器或 SSH 转发端口。Anthropic 接受任意 loopback 端口，
+// 因此该端口无法绑定时，登录会回退到一个空闲端口（#10571）。
 const CALLBACK_PORT = 53692;
 const CALLBACK_PATH = "/callback";
 const REDIRECT_URI = `http://localhost:${CALLBACK_PORT}${CALLBACK_PATH}`;
@@ -37,7 +37,7 @@ function parseAuthorizationInput(input: string): { code?: string; state?: string
 			state: url.searchParams.get("state") ?? undefined,
 		};
 	} catch {
-		// not a URL
+		// 输入不是 URL，继续按授权码或参数字符串解析。
 	}
 
 	if (value.includes("#")) {
@@ -150,7 +150,7 @@ async function loginAnthropic(interaction: ProviderAuthInteraction): Promise<OAu
 			complete: async (code) => code,
 			signal: interaction.signal,
 		});
-	// Without a callback server, login continues with the pasted redirect URL.
+	// 没有回调服务器时，登录流程会继续等待用户粘贴重定向 URL。
 	const callback = await startCallbackServer(CALLBACK_PORT)
 		.catch(() => startCallbackServer(0))
 		.catch(() => undefined);
@@ -235,7 +235,7 @@ async function loginAnthropicCopyCode(interaction: ProviderAuthInteraction): Pro
 }
 
 /**
- * Refresh Anthropic OAuth token
+ * 刷新 Anthropic OAuth token。
  */
 async function refreshAnthropicToken(refreshToken: string, signal: AbortSignal): Promise<OAuthCredential> {
 	let responseBody: string;

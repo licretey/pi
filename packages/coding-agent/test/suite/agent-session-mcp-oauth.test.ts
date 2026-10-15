@@ -42,10 +42,10 @@ describe("AgentSession MCP OAuth", () => {
 					openUrl: (url) => {
 						opened.push(new URL(url));
 						if (browser === "follow") {
-							// The browser follows the authorization redirect to the loopback callback.
+							// 浏览器会跟随授权重定向，访问本机回环回调地址。
 							void fetch(url);
 						} else {
-							// The browser cannot reach the callback; the user pastes the redirect URL.
+							// 浏览器无法访问回调地址，因此由用户粘贴重定向 URL。
 							redirectLocation = fetch(url, { redirect: "manual" }).then(
 								(response) => response.headers.get("location") ?? "",
 							);
@@ -58,7 +58,7 @@ describe("AgentSession MCP OAuth", () => {
 		await harness.session.bindExtensions({
 			uiContext: createTestUiContext({
 				notify: (message) => notifications.push(message),
-				// The paste prompt waits until sign-in completes unless the user pastes the redirect URL.
+				// 粘贴提示会一直等待登录完成，除非用户粘贴了重定向 URL。
 				input: (_title, _placeholder, opts) =>
 					browser === "paste"
 						? Promise.resolve(redirectLocation)
@@ -88,7 +88,7 @@ describe("AgentSession MCP OAuth", () => {
 		const { harness, server, notifications, backend } = await setup("follow");
 
 		await harness.session.prompt("/mcp");
-		// Startup problems are reported once, pointing to /mcp.
+		// 启动问题只报告一次，并提示用户查看 /mcp。
 		expect(notifications).toContain("MCP servers need attention:\n  issues: needs sign-in\nRun /mcp to fix.");
 		expect(notifications.at(-1)).toBe("issues: needs sign-in, run /mcp login issues (direct)");
 
@@ -99,12 +99,12 @@ describe("AgentSession MCP OAuth", () => {
 
 		expect(getMessageText(await callWhoami(harness))).toBe("token access-1");
 
-		// An expired access token is refreshed without user interaction.
+		// 过期的访问令牌会在无需用户交互的情况下刷新。
 		server.expireAccessTokens();
 		expect(getMessageText(await callWhoami(harness))).toBe("token access-2");
 		expect(server.log.slice(-3)).toEqual(["401 access-1", "token refresh", "call access-2"]);
 
-		// A token past its expiry is refreshed before the request, without a 401 round trip.
+		// 请求发送前会刷新已过期的令牌，无需先经历一次 401 往返。
 		backend.withLock((current) => {
 			const states = JSON.parse(current ?? "{}") as Record<string, { tokensExpireAt?: number }>;
 			for (const state of Object.values(states)) state.tokensExpireAt = Date.now() - 1_000;
@@ -129,7 +129,7 @@ describe("AgentSession MCP OAuth", () => {
 		expect(server.log).toContain("token code");
 	});
 
-	/** Emit session_shutdown like quitting does; resolves to how long the handlers took. */
+	/** 像退出程序时一样发送 session_shutdown；Promise 会返回处理器所用的时间。 */
 	async function shutdown(harness: Harness): Promise<number> {
 		const start = Date.now();
 		await emitSessionShutdownEvent(harness.session.extensionRunner, { type: "session_shutdown", reason: "quit" });
@@ -144,10 +144,10 @@ describe("AgentSession MCP OAuth", () => {
 			const login = harness.session.prompt("/mcp login issues");
 			await vi.waitFor(() => expect(server.stalled).toHaveLength(1), { timeout: 5_000 });
 
-			// Shutdown waits for the sign-in to clean up, which aborting makes immediate.
+			// 关闭过程会等待登录清理；取消登录会使清理立即完成。
 			expect(await shutdown(harness)).toBeLessThan(2_000);
 			await login;
-			// The request is aborted instead of left open, and the ended session reports nothing.
+			// 请求会被中止而非保持打开，已结束的会话也不会报告问题。
 			await vi.waitFor(() => expect(server.stalled[0]?.request.socket.destroyed).toBe(true));
 			expect(notifications.filter((message) => message.startsWith("Sign-in"))).toEqual([]);
 		});
@@ -158,7 +158,7 @@ describe("AgentSession MCP OAuth", () => {
 		const { harness, server, notifications, backend } = await setup("follow");
 		await harness.session.prompt("/mcp login issues");
 		expect(notifications.at(-1)).toBe('Signed in to MCP server "issues" (1 tools).');
-		// Still accepted, but close enough to expiry that the next request would refresh it first.
+		// 令牌仍可接受，但已接近过期；下一个请求会先刷新令牌。
 		backend.withLock((current) => {
 			const states = JSON.parse(current ?? "{}") as Record<string, { tokensExpireAt?: number }>;
 			for (const state of Object.values(states)) state.tokensExpireAt = Date.now() + 10_000;
@@ -201,7 +201,7 @@ describe("AgentSession MCP OAuth", () => {
 		const fallback = await setup("follow");
 		await fallback.harness.session.prompt("/mcp login issues");
 		expect(fallback.server.registrations.map((metadata) => metadata.client_name)).toEqual(["pi"]);
-		// OpenID Connect servers reject the loopback redirect URI of a `web` client (#10493).
+		// OpenID Connect 服务器会拒绝 `web` 客户端的本机回环重定向 URI（#10493）。
 		expect(fallback.server.registrations.map((metadata) => metadata.application_type)).toEqual(["native"]);
 	});
 
@@ -229,7 +229,7 @@ describe("AgentSession MCP OAuth", () => {
 				cwd: agentDir,
 				agentDir,
 				credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
-				// The user never approves in the browser.
+				// 用户始终不会在浏览器中批准授权。
 				openUrl: () => {},
 				log: (line) => output.push(line),
 				error: (line) => output.push(line),
@@ -254,7 +254,7 @@ describe("AgentSession MCP OAuth", () => {
 		cleanups.push(() => rmSync(agentDir, { recursive: true, force: true }));
 		writeFileSync(join(agentDir, "mcp.json"), JSON.stringify({ mcpServers: { issues: { url: server.url } } }));
 
-		// The agent runs `pi mcp login issues` through bash; the user approves in the browser.
+		// 智能体通过 bash 运行 `pi mcp login issues`；用户在浏览器中批准授权。
 		const output: string[] = [];
 		const exitCode = await runMcpCommand(["login", "issues"], {
 			cwd: agentDir,
@@ -267,7 +267,7 @@ describe("AgentSession MCP OAuth", () => {
 		expect(exitCode).toBe(0);
 		expect(output.at(-1)).toBe('Signed in to MCP server "issues" (1 tools).');
 
-		// The session still waits for a sign-in, and reconnects when the next turn starts.
+		// 会话仍在等待登录，并会在下一轮开始时重新连接。
 		expect(getMessageText(await callWhoami(harness))).toBe("token access-1");
 	});
 });

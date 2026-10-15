@@ -51,8 +51,8 @@ static bool append_bytes(property_data* result, const unsigned char* bytes, size
     return true;
 }
 
-// Share one deadline across discovery, replies, and incremental chunks.
-// Connection setup and flushing are libxcb calls on the private thread.
+// 发现目标、等待响应和读取分块共用同一个截止时间。
+// 建立连接和刷新操作会在专用线程中调用 libxcb。
 static bool wait_for_input(x11_clipboard* clipboard) {
     for (;;) {
         int64_t remaining = clipboard->deadline - monotonic_ms();
@@ -142,7 +142,7 @@ static bool request_selection(x11_clipboard* clipboard, xcb_atom_t target, prope
         bool received = event->property != XCB_NONE;
         free(event);
         if (!matches) continue;
-        if (!received) return true; // No owner, or the owner does not offer this target.
+        if (!received) return true; // 没有所有者，或所有者不提供此目标。
         if (!read_property(clipboard, false, result)) return false;
         break;
     }
@@ -232,7 +232,7 @@ static bool preferred_target(x11_clipboard* clipboard, bool image, xcb_atom_t* t
         }
     }
     free(targets.data);
-    // Some owners refuse TARGETS but still serve text directly.
+    // 某些剪贴板所有者不支持 TARGETS 查询，但仍可直接提供文本。
     if (received && !image && targets.type == XCB_NONE) {
         *target = intern_atom(clipboard, "UTF8_STRING");
         return *target != XCB_NONE;

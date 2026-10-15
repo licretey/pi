@@ -152,7 +152,7 @@ describe("OAuth through Models.getAuth (lazy load chain)", () => {
 			type: "oauth",
 			access: "oauth-access-token",
 			refresh: "r",
-			// Keep this beyond getAuth()'s refresh window.
+			// 将过期时间设在 getAuth() 的刷新窗口之外。
 			expires: Date.now() + 10 * 60_000,
 		}));
 		const models = createModels({ credentials });
@@ -171,7 +171,7 @@ describe("OAuth through Models.getAuth (lazy load chain)", () => {
 			type: "oauth",
 			access,
 			refresh: "r",
-			// Keep this beyond getAuth()'s refresh window.
+			// 将过期时间设在 getAuth() 的刷新窗口之外。
 			expires: Date.now() + 10 * 60_000,
 		}));
 		const models = createModels({ credentials });

@@ -4,8 +4,8 @@ import { complete, getModel, getProviders, streamSimple } from "@earendil-works/
 import { Agent, streamProxy } from "@earendil-works/pi-agent-core";
 import { decodeCbor, encodeCbor, PROTOCOL_VERSION } from "@earendil-works/pi-protocol";
 
-// Keep this entry browser-safe. It is bundled by scripts/check-browser-smoke.mjs
-// to catch accidental Node-only runtime imports in browser-facing package exports.
+// 确保此入口可在浏览器中运行。scripts/check-browser-smoke.mjs 会打包它，
+// 用于发现面向浏览器的包导出中误导入 Node 专用运行时模块的情况。
 const model = getModel("google", "gemini-2.5-flash");
 const schema = Type.Object({ prompt: Type.String() });
 const stream = createAssistantMessageEventStream();

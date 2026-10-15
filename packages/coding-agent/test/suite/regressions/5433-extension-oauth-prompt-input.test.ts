@@ -19,7 +19,7 @@ function createDialog(): LoginDialogComponent {
 }
 
 function renderDialog(dialog: LoginDialogComponent): string[] {
-	// stripAnsi keeps APC sequences, so drop the TUI's zero-width cursor markers (e.g. \x1b_pi:fc\x07) first
+	// stripAnsi 会保留 APC 序列，因此先移除 TUI 的零宽光标标记（例如 \x1b_pi:fc\x07）。
 	return stripAnsi(
 		dialog
 			.render(120)

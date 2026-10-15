@@ -1,22 +1,19 @@
 /**
- * The `system` theme: pi's colors derived from the terminal's own theme.
+ * `system` 主题：根据终端自身主题生成 pi 的配色。
  *
- * Every token belongs to a color family (its hue) and has contrast rules: it must reach a contrast level
- * on the background and on the panels it is drawn on. Hue and saturation come from the terminal's palette
- * color for the family's ANSI slot, or from the family's own hue when the terminal reports no palette.
- * Lightness comes from the rules alone. Colors are built in OKHSL, whose saturation is relative to the
- * sRGB gamut, and fade toward gray near black and white. A palette color never gains OKLCH chroma when it
- * moves to another lightness, so pastel palettes stay pastel.
+ * 每个颜色标记都属于一个色彩系列（由色相决定），并遵循对比度规则：在其背景和面板上必须达到指定对比度。
+ * 色相和饱和度取自终端调色板中该系列对应 ANSI 槽位的颜色；若终端未提供调色板，则使用该系列自身的色相。
+ * 明度仅由规则决定。颜色使用 OKHSL 构造，其饱和度相对于 sRGB 色域定义，并会在接近黑色或白色时逐渐变灰。
+ * 调色板颜色改变明度时不会增加 OKLCH 色度，因此粉彩调色板仍会保持粉彩效果。
  *
- * A contrast level is a target-lightness curve: the OKLab lightness a token needs, given the lightness of
- * the surface below it. The curves were fitted to the reference theme design from the "Pi themes: system
- * and light/dark" review. On dark backgrounds they aim for nearly fixed lightness; on light backgrounds the
- * required difference grows as the background darkens.
+ * 对比度级别是一条目标明度曲线：根据底层表面的明度，计算颜色标记在 OKLab 中所需的明度。
+ * 这些曲线依据“Pi themes: system and light/dark”设计评审中的参考主题拟合而成。
+ * 深色背景下，目标明度基本保持不变；浅色背景下，背景越暗，所需的明度差越大。
  *
- * Depending on what the terminal reports, the theme is generated in one of three tiers:
- * - background and palette: hues from the palette, lightness from the background;
- * - background only: the families' own hues, lightness from the background;
- * - nothing: ANSI palette indices and the default colors, which the terminal renders itself.
+ * 根据终端提供的信息，主题按以下三种方式之一生成：
+ * - 同时提供背景和调色板：色相取自调色板，明度取决于背景；
+ * - 仅提供背景：使用各色彩系列自身的色相，明度取决于背景；
+ * - 两者均未提供：使用 ANSI 调色板索引和默认颜色，由终端自行渲染。
  */
 
 import {
@@ -35,14 +32,14 @@ import type { ThemeAppearance, ThemeBg, ThemeColor, ThemeToken } from "./theme.t
 export const SYSTEM_THEME_NAME = "system";
 
 // ============================================================================
-// Recipe: color families and their tokens
+// 配色方案：色彩系列及其颜色标记。
 // ============================================================================
 
-/** A family's OKHSL hue and saturation: `max` at mid lightness, falling toward `min` at black and white. */
+/** 色彩系列在 OKHSL 中的色相和饱和度：中等明度时达到 `max`，接近黑色和白色时降至 `min`。 */
 interface Family {
 	hue: number;
 	saturation: { min: number; max: number };
-	/** ANSI palette slot the family takes its hue and saturation from. */
+	/** 此系列用于获取色相和饱和度的 ANSI 调色板槽位。 */
 	slot: number;
 }
 
@@ -127,17 +124,16 @@ const TOKEN_FAMILIES: Record<ThemeToken, FamilyName> = {
 	thinkingMax: "thinkingRed",
 };
 
-/** Palette slots for tokens that would otherwise share a hue with a similar token. */
+/** 为颜色标记指定调色板槽位，避免与相似标记共用同一色相。 */
 const TOKEN_SLOTS: Partial<Record<ThemeToken, number>> = { syntaxString: 2, syntaxNumber: 5, searchMatchBg: 3 };
 
 // ============================================================================
-// Contrast levels and rules
+// 对比度级别和规则。
 // ============================================================================
 
 /**
- * Target-lightness curves: a polynomial in the surface's OKLab lightness giving the OKLab lightness a token
- * needs on it. `reachable` is the range of surface lightness where the level can be reached; beyond it the
- * level is relaxed.
+ * 目标明度曲线：以表面的 OKLab 明度为自变量的多项式，给出颜色标记在该表面上所需的 OKLab 明度。
+ * `reachable` 表示可以达到此级别的表面明度范围；超出该范围时会放宽级别要求。
  */
 interface Curve {
 	coefficients: number[];
@@ -337,19 +333,19 @@ const RULES: Rule[] = [
 	...THINKING.map((token, index): Rule => ({ token, on: ["background"], level: THINKING_LEVELS[index] })),
 ];
 
-/** Relaxation compresses levels stronger than this one toward it before weakening all levels. */
+/** 放宽对比度时，先将高于此级别的要求压缩到此级别，再统一降低所有级别。 */
 const READABLE_FLOOR: Record<ThemeAppearance, Level> = { dark: "readable", light: "subtle" };
 
-/** Body text uses the terminal's foreground when it reaches this level, which is clearly stronger than muted. */
+/** 正文达到此级别时使用终端前景色；该级别的对比度明显高于 muted。 */
 const FOREGROUND_LEVEL: Level = "emphasis";
 
-/** Text-level tokens that take the terminal's foreground. */
+/** 使用终端前景色的文本类颜色标记。 */
 const FOREGROUND_TOKENS: ThemeColor[] = ["text", "userMessageText", "toolTitle"];
 
-/** WCAG 2 contrast ratio that body text must reach on the surfaces it is drawn on. */
+/** 正文在其所绘制表面上必须达到的 WCAG 2 对比度。 */
 const TEXT_MINIMUM_WCAG_CONTRAST = 4.5;
 
-/** Tokens in dependency order: every surface before the tokens drawn on it. */
+/** 按依赖顺序排列的颜色标记：每个表面都排在绘制于其上的标记之前。 */
 const SOLVE_ORDER: ThemeToken[] = (() => {
 	const order: ThemeToken[] = [];
 	const visit = (token: ThemeToken): void => {
@@ -365,34 +361,34 @@ const SOLVE_ORDER: ThemeToken[] = (() => {
 })();
 
 // ============================================================================
-// Public API
+// 公共 API。
 // ============================================================================
 
 export interface SystemThemeInput {
 	foreground?: RgbColor;
 	background?: RgbColor;
-	/** ANSI colors 0-15. */
+	/** ANSI 颜色 0 到 15。 */
 	palette?: RgbColor[];
-	/** Saturation multiplier from 0 (grayscale) to 1. The first frame renders in grayscale until colors arrive. */
+	/** 饱和度倍率，范围为 0（灰度）到 1。收到颜色信息前，首帧以灰度渲染。 */
 	saturation?: number;
-	/** Appearance when the terminal did not report its background, e.g. from its light/dark report or COLORFGBG. */
+	/** 终端未报告背景色时使用的明暗外观，例如依据其明暗报告或 COLORFGBG 环境变量确定。 */
 	appearanceHint?: ThemeAppearance;
 }
 
 export interface SystemThemeColors {
-	/** Hex colors, ANSI palette indices, or "" for the terminal default. */
+	/** 十六进制颜色、ANSI 调色板索引；空字符串表示使用终端默认颜色。 */
 	colors: Record<ThemeToken, string | number>;
-	/** Foreground tokens rendered faint (SGR 2), for terminals that did not report colors. */
+	/** 对于未报告颜色的终端，以淡化效果（SGR 2）渲染的前景颜色标记。 */
 	dim: ThemeColor[];
 	appearance: ThemeAppearance | undefined;
 }
 
-/** OKLab lightness of an sRGB color, 0-1. */
+/** sRGB 颜色在 OKLab 中的明度，范围为 0 到 1。 */
 function oklabLightness(color: RgbColor): number {
 	return colorToOklch(rgbColor(color.r, color.g, color.b)).l;
 }
 
-/** WCAG 2 relative luminance. */
+/** WCAG 2 相对亮度。 */
 export function relativeLuminance({ r, g, b }: RgbColor): number {
 	const linear = (channel: number) => {
 		const value = channel / 255;
@@ -401,7 +397,7 @@ export function relativeLuminance({ r, g, b }: RgbColor): number {
 	return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b);
 }
 
-/** WCAG 2 contrast ratio, 1-21. */
+/** WCAG 2 对比度，范围为 1 到 21。 */
 export function wcagContrast(first: RgbColor, second: RgbColor): number {
 	const a = relativeLuminance(first);
 	const b = relativeLuminance(second);
@@ -409,9 +405,8 @@ export function wcagContrast(first: RgbColor, second: RgbColor): number {
 }
 
 /**
- * Whether a terminal is dark or light, from its reported colors: the direction of its own foreground
- * when text can be readable that way, otherwise dark when white text has more contrast on the
- * background than black text.
+ * 根据终端报告的颜色判断其属于深色还是浅色：若终端前景色与背景色的明暗关系能保证文本可读，则据此判定；
+ * 否则，若白色文本在背景上的对比度高于黑色文本，则判定为深色主题。
  */
 export function terminalAppearance(background: RgbColor, foreground?: RgbColor): ThemeAppearance {
 	const white = { r: 255, g: 255, b: 255 };
@@ -431,7 +426,7 @@ export function terminalAppearance(background: RgbColor, foreground?: RgbColor):
 }
 
 // ============================================================================
-// Generation
+// 配色生成。
 // ============================================================================
 
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
@@ -440,19 +435,19 @@ function hexOf({ r, g, b }: RgbColor): string {
 	return `#${[r, g, b].map((channel) => Math.round(channel).toString(16).padStart(2, "0")).join("")}`;
 }
 
-/** Saturation weight at a lightness: a Gaussian (center 0.5, sigma 0.25), 0 at black and white, 1 in the middle. */
+/** 给定明度下的饱和度权重：高斯曲线中心为 0.5、标准差为 0.25；黑白两端为 0，中间为 1。 */
 function bellWeight(lightness: number): number {
 	const gaussian = (x: number): number => Math.exp(-((x - 0.5) ** 2) / (2 * 0.25 ** 2));
 	return (gaussian(lightness) - gaussian(0)) / (1 - gaussian(0));
 }
 
-/** A family's saturation curve relative to its maximum: 1 at mid lightness, `min / max` at black and white. */
+/** 色彩系列相对于最大值的饱和度曲线：中等明度时为 1，黑白两端为 `min / max`。 */
 function saturationCurve({ saturation: { min, max } }: Family, lightness: number): number {
 	const floor = max > 0 ? min / max : 1;
 	return floor + (1 - floor) * bellWeight(lightness);
 }
 
-/** The target lightness for a level on a surface, or undefined where the level cannot be reached. */
+/** 某表面上指定级别的目标明度；无法达到该级别时返回 undefined。 */
 function levelTarget(level: Level, appearance: ThemeAppearance, surfaceL: number): number | undefined {
 	const curve: Curve = LEVELS[level][appearance];
 	if (surfaceL < curve.reachable[0] || surfaceL > curve.reachable[1]) return undefined;
@@ -460,7 +455,7 @@ function levelTarget(level: Level, appearance: ThemeAppearance, surfaceL: number
 }
 
 /**
- * Generate the system theme's colors from the terminal's reported colors.
+ * 根据终端报告的颜色生成系统主题配色。
  */
 export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeColors {
 	const saturation = clamp(input.saturation ?? 1, 0, 1);
@@ -474,8 +469,8 @@ export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeC
 	const backgroundL = oklabLightness(background);
 
 	/**
-	 * A token's color at an OKLab lightness. With a palette, the palette color's saturation applies at its
-	 * own lightness and falls off toward black and white along the family's curve, never rising above it.
+	 * 获取颜色标记在指定 OKLab 明度下的颜色。使用调色板时，调色板颜色在自身明度下的饱和度会作为基准，
+	 * 并沿该色彩系列的曲线向黑白两端递减，且不会超过曲线规定的上限。
 	 */
 	const paint = (token: ThemeToken, oklabL: number): RgbColor => {
 		const lightness = oklabToOkhslLightness(oklabL);
@@ -488,8 +483,8 @@ export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeC
 	};
 
 	/**
-	 * The lightness a rule needs on a surface, relaxed by `t`: from 0 to 1, levels stronger than the readable
-	 * floor move toward it; from 1 to 2, all levels move toward the surface itself.
+	 * 规则在表面上所需的明度，并根据 `t` 放宽：`t` 从 0 到 1 时，高于可读性下限的级别向下限靠拢；
+	 * `t` 从 1 到 2 时，所有级别都向表面自身的明度靠拢。
 	 */
 	const target = (level: Level, surfaceL: number, t: number): number | undefined => {
 		const reached = levelTarget(level, appearance, surfaceL);
@@ -502,8 +497,8 @@ export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeC
 	};
 
 	/**
-	 * Keep a panel light enough (or dark enough) that white (or black) text still reaches the body text
-	 * minimum on it. This only matters for backgrounds near mid-gray, where it barely does on the background.
+	 * 限制面板明度，使其足够浅（或足够深），确保白色（或黑色）文本仍能达到正文的最低对比度要求。
+	 * 这只影响接近中灰色的背景，因为在这种背景上正文对比度本就勉强达标。
 	 */
 	const extremeText = lighter ? { r: 255, g: 255, b: 255 } : { r: 0, g: 0, b: 0 };
 	const readable = (color: RgbColor) => wcagContrast(extremeText, color) >= TEXT_MINIMUM_WCAG_CONTRAST;
@@ -540,7 +535,7 @@ export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeC
 	let relaxation = 0;
 	let colors = solve(0);
 	if (!colors) {
-		// Mid-gray backgrounds cannot fit every level: relax as little as possible. Full relaxation always fits.
+		// 中灰色背景无法满足所有对比度级别：尽可能少地放宽要求。完全放宽时总能找到可行结果。
 		let [low, high] = [0, 2];
 		colors = solve(high);
 		for (let index = 0; index < 20; index++) {
@@ -565,8 +560,7 @@ export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeC
 
 	for (const token of FOREGROUND_TOKENS) {
 		const surfaces = surfacesOf(token);
-		// Body text uses the terminal's own foreground where it is clearly stronger than muted text; otherwise
-		// the foreground's hue at just enough lightness.
+		// 终端前景色的对比度明显高于 muted 时，正文直接使用该颜色；否则保留其色相，并调整到刚好满足要求的明度。
 		let text = solved.get(token);
 		if (foreground) {
 			const targets = surfaces.map((surface) => target(FOREGROUND_LEVEL, oklabLightness(surface), relaxation));
@@ -580,7 +574,7 @@ export function generateSystemThemeColors(input: SystemThemeInput): SystemThemeC
 				text = anchored(sourceOf(foreground), FAMILIES.neutral, oklabToOkhslLightness(needed), saturation);
 			}
 		}
-		// Body text keeps at least 4.5:1 on the surfaces it is drawn on, even on relaxed mid-gray backgrounds.
+		// 即使中灰色背景下的对比度要求已放宽，正文在其绘制表面上的对比度仍至少为 4.5:1。
 		if (text) result[token] = hexOf(withTextContrast(text, surfaces, lighter));
 	}
 	return { colors: result, dim: [], appearance };
@@ -590,7 +584,7 @@ function okhslOf({ r, g, b }: RgbColor): OkhslChannels {
 	return colorToOkhsl(rgbColor(r, g, b));
 }
 
-/** A terminal color's OKHSL channels and its OKLCH chroma. */
+/** 终端颜色的 OKHSL 通道及其 OKLCH 色度。 */
 interface SourceColor extends OkhslChannels {
 	chroma: number;
 }
@@ -600,12 +594,12 @@ function sourceOf(color: RgbColor): SourceColor {
 }
 
 /**
- * A source color's hue at another OKHSL lightness. Its saturation applies at its own lightness and falls off
- * toward black and white along the family's saturation curve, never rising above it.
+ * 获取源颜色在另一个 OKHSL 明度下的颜色。源颜色的饱和度适用于其自身明度，并沿色彩系列的饱和度曲线
+ * 向黑白两端递减，且不会超过曲线规定的上限。
  *
- * OKHSL saturation is relative to the most chroma sRGB allows at a lightness, so the same saturation can mean
- * more chroma elsewhere: Catppuccin Frappe's pink #f4b8e4 (chroma 0.089) would become #eb76d1 (0.180) at the
- * lightness the accent needs. Chroma is therefore also capped at the source's, with the same falloff.
+ * OKHSL 饱和度相对于该明度下 sRGB 所允许的最大色度，因此相同饱和度在其他明度下可能代表更高色度：
+ * Catppuccin Frappe 的粉色 #f4b8e4（色度 0.089）在强调色所需的明度下会变为 #eb76d1（色度 0.180）。
+ * 因此，色度也会按相同的衰减曲线限制在源颜色的色度以内。
  */
 function anchored(source: SourceColor, family: Family, lightness: number, saturation: number): RgbColor {
 	const anchor = saturationCurve(family, source.l);
@@ -616,7 +610,7 @@ function anchored(source: SourceColor, family: Family, lightness: number, satura
 	return c <= cap ? color : colorToRgb(oklchColor(l, cap, source.h));
 }
 
-/** Move a text color toward white or black until it reaches the WCAG minimum on every surface. */
+/** 将文本颜色向白色或黑色调整，直到它在所有表面上都达到 WCAG 最低对比度。 */
 function withTextContrast(color: RgbColor, surfaces: RgbColor[], lighter: boolean): RgbColor {
 	const meets = (candidate: RgbColor) =>
 		surfaces.every((surface) => wcagContrast(candidate, surface) >= TEXT_MINIMUM_WCAG_CONTRAST);
@@ -635,9 +629,8 @@ function withTextContrast(color: RgbColor, surfaces: RgbColor[], lighter: boolea
 }
 
 /**
- * Colors for terminals that reported nothing: the terminal renders ANSI indices 0-15 and the default
- * colors with its own theme, so they fit any background. Neutral tokens below body text are faint (SGR 2)
- * instead of bright black, which some themes make nearly invisible. Panels have no background.
+ * 适用于未报告任何颜色信息的终端：ANSI 索引 0 到 15 以及默认颜色由终端主题自行渲染，因此可适配任意背景。
+ * 低于正文级别的中性色标记使用淡化效果（SGR 2），而非亮黑色，避免在某些主题中几乎不可见。面板不设背景色。
  */
 function indexedColors(saturation: number, appearance: ThemeAppearance | undefined): SystemThemeColors {
 	const colors = {} as Record<ThemeToken, string | number>;

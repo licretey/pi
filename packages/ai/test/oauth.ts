@@ -1,8 +1,8 @@
 /**
- * Test helper for resolving API keys from ~/.pi/agent/auth.json
+ * 用于从 ~/.pi/agent/auth.json 解析 API 密钥的测试辅助函数。
  *
- * Supports both API key and OAuth credentials.
- * OAuth tokens are automatically refreshed if expired and saved back to auth.json.
+ * 同时支持 API 密钥和 OAuth 凭据。
+ * OAuth 令牌过期时会自动刷新，并写回 auth.json。
  */
 
 import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
@@ -48,10 +48,10 @@ function saveAuthStorage(storage: AuthStorage): void {
 }
 
 /**
- * Resolve API key for a provider from ~/.pi/agent/auth.json
+ * 从 ~/.pi/agent/auth.json 中解析指定提供商的 API 密钥。
  *
- * For API key credentials, returns the key directly.
- * For OAuth credentials, returns the access token (refreshing if expired and saving back).
+ * API 密钥凭据会直接返回密钥。
+ * OAuth 凭据会返回访问令牌；若令牌过期则先刷新并写回文件。
  *
  */
 export async function resolveApiKey(provider: string): Promise<string | undefined> {

@@ -1,5 +1,5 @@
 /**
- * Verify the documentation example from extensions.md compiles and works.
+ * 验证 extensions.md 中的示例能够通过编译并正常运行。
  */
 
 import { describe, expect, it, vi } from "vitest";
@@ -14,17 +14,17 @@ const { default: customCompactionExtension } = await import("../examples/extensi
 
 describe("Documentation example", () => {
 	it("custom compaction example should type-check correctly", () => {
-		// This is the example from extensions.md - verify it compiles
+		// 这是 extensions.md 中的示例，验证其能够通过编译。
 		const exampleExtension = (pi: ExtensionAPI) => {
 			pi.on("session_before_compact", async (event: SessionBeforeCompactEvent, ctx) => {
-				// All these should be accessible on the event
+				// 这些内容都应能通过事件访问。
 				const { preparation, branchEntries } = event;
-				// sessionManager, modelRegistry, and model come from ctx
+				// sessionManager、modelRegistry 和 model 来自 ctx。
 				const { sessionManager, modelRegistry } = ctx;
 				const { messagesToSummarize, turnPrefixMessages, tokensBefore, firstKeptEntryId, isSplitTurn } =
 					preparation;
 
-				// Verify types
+				// 验证类型。
 				expect(Array.isArray(messagesToSummarize)).toBe(true);
 				expect(Array.isArray(turnPrefixMessages)).toBe(true);
 				expect(typeof isSplitTurn).toBe("boolean");
@@ -39,7 +39,7 @@ describe("Documentation example", () => {
 					.map((m) => `- ${typeof m.content === "string" ? m.content.slice(0, 100) : "[complex]"}`)
 					.join("\n");
 
-				// Extensions return compaction content - SessionManager adds id/parentId
+				// 扩展返回压缩内容，SessionManager 会补充 id/parentId。
 				return {
 					compaction: {
 						summary: `User requests:\n${summary}`,
@@ -50,7 +50,7 @@ describe("Documentation example", () => {
 			});
 		};
 
-		// Just verify the function exists and is callable
+		// 只验证函数存在且可调用。
 		expect(typeof exampleExtension).toBe("function");
 	});
 
@@ -136,7 +136,7 @@ describe("Documentation example", () => {
 	it("compact event should have correct fields", () => {
 		const checkCompactEvent = (pi: ExtensionAPI) => {
 			pi.on("session_compact", async (event: SessionCompactEvent) => {
-				// These should all be accessible
+				// 这些内容都应可访问。
 				const entry = event.compactionEntry;
 				const fromExtension = event.fromExtension;
 

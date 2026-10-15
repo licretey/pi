@@ -15,14 +15,14 @@ import { convertResponsesMessages, convertResponsesTools, processResponsesStream
 import { buildBaseOptions, resolveSamplingParams } from "./simple-options.ts";
 
 const AZURE_TOOL_CALL_PROVIDERS = new Set(["openai", "openai-codex", "opencode", "azure"]);
-// OpenAI Responses rejects max_output_tokens below 16: https://github.com/earendil-works/pi/issues/6265
+// OpenAI Responses 会拒绝小于 16 的 max_output_tokens：https://github.com/earendil-works/pi/issues/6265
 const OPENAI_RESPONSES_MIN_OUTPUT_TOKENS = 16;
 
 function formatAzureOpenAIError(error: unknown): string {
 	return formatProviderError(normalizeProviderError(error), "Azure OpenAI API error");
 }
 
-// Azure OpenAI Responses-specific options
+// Azure OpenAI Responses 专用选项
 export interface AzureOpenAIResponsesOptions extends AzureEndpointOptions {
 	reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 	toolChoice?: ResponseCreateParamsStreaming["tool_choice"];
@@ -30,7 +30,7 @@ export interface AzureOpenAIResponsesOptions extends AzureEndpointOptions {
 }
 
 /**
- * Generate function for Azure OpenAI Responses API
+ * Azure OpenAI Responses API 的生成函数。
  */
 export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIResponsesOptions> = (
 	model: Model<"azure-openai-responses">,
@@ -40,7 +40,7 @@ export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIRespons
 	const stream = new AssistantMessageEventStream();
 	const normalizedContext = resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
 
-	// Start async processing
+	// 开始异步处理。
 	(async () => {
 		const deploymentName = resolveDeploymentName(model, options);
 
@@ -63,7 +63,7 @@ export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIRespons
 		};
 
 		try {
-			// Create Azure OpenAI client
+			// 创建 Azure OpenAI 客户端。
 			const apiKey = options?.apiKey;
 			if (!apiKey) {
 				throw new Error(`No API key for provider: ${model.provider}`);
@@ -115,7 +115,7 @@ export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIRespons
 		} catch (error) {
 			for (const block of output.content) {
 				delete (block as { index?: number }).index;
-				// Streaming scratch buffers are only used during parsing; never persist them.
+				// 流式解析的临时缓冲区仅在解析期间使用，绝不持久化。
 				delete (block as { partialJson?: string }).partialJson;
 				delete (block as { customInput?: unknown }).customInput;
 			}
@@ -239,7 +239,7 @@ function buildParams(
 		}
 	}
 
-	// Last so model and request sampling parameters override named request fields.
+	// 最后合并，使模型和请求中的采样参数覆盖具名请求字段。
 	const samplingParams = resolveSamplingParams(model, reasoningEffort ?? "off", options?.samplingParams);
 	if (samplingParams) {
 		Object.assign(params, samplingParams);

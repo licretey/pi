@@ -1,7 +1,7 @@
 /**
- * Debug script to reproduce streaming rendering issues.
- * Uses real fixture data that caused the bug.
- * Run with: node --import ./src/experimental/source-resolver.ts test/streaming-render-debug.ts
+ * 用于复现流式渲染问题的调试脚本。
+ * 使用曾触发该问题的真实测试数据。
+ * 运行方式：node --import ./src/experimental/source-resolver.ts test/streaming-render-debug.ts
  */
 
 import type { AssistantMessage } from "@earendil-works/pi-ai";
@@ -15,16 +15,16 @@ import { initTheme } from "../src/modes/interactive/theme/theme.ts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Initialize dark theme with full color support
+// 初始化深色主题并启用完整色彩支持。
 process.env.COLORTERM = "truecolor";
 initTheme("dark");
 
-// Load the real fixture that caused the bug
+// 加载曾触发该问题的真实测试数据。
 const fixtureMessage: AssistantMessage = JSON.parse(
 	readFileSync(join(__dirname, "fixtures/assistant-message-with-thinking-code.json"), "utf-8"),
 );
 
-// Extract thinking and text content
+// 提取思考内容和文本内容。
 const thinkingContent = fixtureMessage.content.find((c) => c.type === "thinking");
 const textContent = fixtureMessage.content.find((c) => c.type === "text");
 
@@ -44,7 +44,7 @@ async function main() {
 	const terminal = new ProcessTerminal();
 	const tui: TUI = new TuiMainScreen(terminal);
 
-	// Start with empty message
+	// 从空消息开始。
 	const message = {
 		role: "assistant",
 		content: [{ type: "thinking", thinking: "" }],
@@ -54,14 +54,14 @@ async function main() {
 	tui.addChild(component);
 	tui.start();
 
-	// Simulate streaming thinking content
+	// 模拟思考内容的流式输出。
 	let thinkingBuffer = "";
-	const chunkSize = 10; // characters per "token"
+	const chunkSize = 10; // 每个“令牌”包含的字符数。
 
 	for (let i = 0; i < fullThinkingText.length; i += chunkSize) {
 		thinkingBuffer += fullThinkingText.slice(i, i + chunkSize);
 
-		// Update message content
+		// 更新消息内容。
 		const updatedMessage = {
 			role: "assistant",
 			content: [{ type: "thinking", thinking: thinkingBuffer }],
@@ -70,10 +70,10 @@ async function main() {
 		component.updateContent(updatedMessage);
 		tui.requestRender();
 
-		await sleep(15); // Simulate token delay
+		await sleep(15); // 模拟令牌间隔。
 	}
 
-	// Now add the text content
+	// 接着添加文本内容。
 	await sleep(500);
 
 	const finalMessage = {
@@ -87,7 +87,7 @@ async function main() {
 	component.updateContent(finalMessage);
 	tui.requestRender();
 
-	// Keep alive for a moment to see the result
+	// 暂停片刻，以便观察结果。
 	await sleep(3000);
 
 	tui.stop();

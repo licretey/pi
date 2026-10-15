@@ -19,8 +19,8 @@ import { aborted, completed, deferred, eventually, openTasks } from "./task-supp
 type ParentState = { phase: "spawn" } | { phase: "join"; child: TaskId } | { phase: "finish" };
 
 /**
- * A parent that creates a child task and a conversation it owns, waits for the child, creates a second child, and
- * completes while that child is still live, so its outcome is held as `completing`.
+ * 父任务会创建一个子任务及其拥有的 conversation，等待子任务完成，再创建第二个子任务，并
+ * 完成时其子任务仍在运行，因此结果会暂存为 `completing`。
  */
 function family(gates: { readonly child: Promise<void>; readonly late: Promise<void> }) {
 	const Child = defineTask<{ late: boolean }, { phase: "work" }, null>({
@@ -42,7 +42,7 @@ function family(gates: { readonly child: Promise<void>; readonly late: Promise<v
 		phases: {
 			spawn: async (task, runtime, ctx) => {
 				const ownership = { kind: "task", taskId: task.id } as const;
-				// Two conversations in a commit that leaves the parent's record unchanged.
+				// 同一次提交创建两个 conversation，且不改变父级记录。
 				await runtime.commit(async (tx) => {
 					await tx.createConversation({ ownership });
 					await tx.createConversation({ ownership });
@@ -73,7 +73,7 @@ function gatesNever() {
 	return { child: never, late: never };
 }
 
-/** Node states by task kind, for compact assertions. */
+/** 按任务类型划分的节点状态，用于简洁地编写断言。 */
 function statuses(graph: TaskGraph): Record<string, string> {
 	return Object.fromEntries(
 		Object.values(graph.tasks).map((node) => [`${node.kind}#${node.id}`, node.state.status] as const),
@@ -97,7 +97,7 @@ describe("task graph view", () => {
 		};
 		let graph = await observe();
 		expect(graph.value).toEqual({ tasks: {} });
-		/** The advanced value equals a fresh build from Storage once the last observer left. */
+		/** 最后一位观察者离开后，已推进的值应与从 Storage 重新构建的值相同。 */
 		const rebuild = async () => {
 			const advanced = graph.value;
 			graph.dispose();
@@ -145,11 +145,11 @@ describe("task graph view", () => {
 		await rebuild();
 
 		child.resolve();
-		// The parent completes while the late child lives: its outcome is held.
+		// 父任务在迟到的子任务仍运行时完成：其结果会暂存。
 		await eventually(() => graph.value.tasks[String(parent)]?.state.status === "completing");
 		expect(graph.value.tasks[String(parent)]!.state).toEqual({ status: "completing", outcome: "completed" });
 		expect(graph.value.tasks[String(first)]).toBeUndefined();
-		// Owned conversations stay listed while the owner lives.
+		// 只要所有者仍存在，归属其所有的 conversation 就会继续列出。
 		expect(graph.value.tasks[String(parent)]!.conversations).toEqual(parentNode.conversations);
 		await rebuild();
 
@@ -157,9 +157,9 @@ describe("task graph view", () => {
 		await harness.waitForTask(parent, context);
 		await flush();
 		expect(graph.value).toEqual({ tasks: {} });
-		// Every revision is one commit that changed a node; none repeats its predecessor.
+		// 每个版本对应一次改变节点的提交，且不会与前一个版本重复。
 		for (let index = 1; index < seen.length; index++) expect(seen[index]).not.toEqual(seen[index - 1]);
-		// The commit that created the two conversations published one revision setting them.
+		// 创建这两个 conversation 的提交发布了一个同时包含它们的版本。
 		expect(seen.some((value) => value.tasks[String(parent)]?.conversations.length === 2)).toBe(true);
 		graph.dispose();
 		await harness.close(context);
@@ -202,7 +202,7 @@ describe("task graph view", () => {
 		});
 		await first.harness.close(context);
 
-		// Acquired after reopen: built from the committed records and owner edges; open reconciled running to pending.
+		// 重新打开后获取：根据已提交记录和所有者关系构建；打开时已将 running 状态协调为 pending。
 		const { harness } = await openTasks(await openNodeSqliteStorage(path), [Work]);
 		const watch = await harness.watchTaskGraph(context);
 		expect(statuses(watch.value)).toEqual({
@@ -212,7 +212,7 @@ describe("task graph view", () => {
 		expect(watch.value.tasks[String(foreground)]!.conversations).toEqual([owned as ConversationId]);
 		expect(watch.value.tasks[String(background)]!.background).toBe(true);
 
-		// Exact frames: replaying their operations from the acquisition revision gives each delivered value.
+		// 精确帧：从获取时的版本重放操作，即可得到各自交付的值。
 		let replica: JsonValue = watch.value as unknown as JsonValue;
 		const frames: (readonly Op[])[] = [];
 		watch.start(async (value, ops) => {
@@ -298,7 +298,7 @@ describe("task graph view", () => {
 		held.release();
 		await blocking;
 		await expect(cancelled).rejects.toThrow("cancelled");
-		// No observer kept the mount: each new observer builds a new revision.
+		// 没有观察者保留挂载点：每个新观察者都会构建一个新版本。
 		const first = await harness.taskGraph(context);
 		const value = first.value;
 		first.dispose();
@@ -339,7 +339,7 @@ describe("task graph view", () => {
 		harness.resume();
 		await reached.promise;
 		await flush();
-		// Reservation changed the node; the memo commit did not.
+		// 预留操作改变了节点；备忘录提交没有改变节点。
 		expect(updates).toEqual(["running"]);
 		gate.resolve();
 		await harness.waitForTask(id, context);
@@ -348,7 +348,7 @@ describe("task graph view", () => {
 		const last = first.value;
 		first.dispose();
 		second.dispose();
-		// No observer is left, so the mount was dropped: a new observer builds a new revision.
+		// 已无观察者，因此挂载点已移除；新观察者会构建一个新版本。
 		const rebuilt = await harness.taskGraph(context);
 		expect(rebuilt.value).toEqual(last);
 		expect(rebuilt.value).not.toBe(last);

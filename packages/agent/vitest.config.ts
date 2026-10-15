@@ -10,7 +10,7 @@ export default defineConfig({
 	test: {
 		globals: true,
 		environment: "node",
-		testTimeout: 30000, // 30 seconds for API calls
+		testTimeout: 30000, // API 调用的超时时间为 30 秒。
 		reporters: process.env.GITHUB_ACTIONS ? ["dot", "github-actions"] : ["dot"],
 		silent: "passed-only",
 	},

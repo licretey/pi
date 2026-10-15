@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Isolate user resources, credentials, temporary files, and tool configuration.
+# 隔离用户资源、凭据、临时文件和工具配置。
 temp_parent="${TMPDIR:-/tmp}"
 temp_parent="${temp_parent%/}"
 test_root="$(mktemp -d "$temp_parent/pi-test.XXXXXX")"
@@ -9,10 +9,10 @@ git_askpass="$(type -P false)"
 readonly temp_parent test_root git_askpass
 
 mkdir -p "$test_root/home/.config" "$test_root/tmp" "$test_root/cache/npm"
-# Mark the generated root so cleanup can verify ownership before deleting it.
+# 标记生成的根目录，以便清理前验证其归属。
 touch "$test_root/.pi-test-owned" "$test_root/npm-userconfig" "$test_root/npm-globalconfig"
 
-# Only remove the marked directory created above, never an unverified path.
+# 只删除上方创建且带有标记的目录，绝不删除未经验证的路径。
 cleanup() {
 	local status=$?
 	trap - EXIT
@@ -36,7 +36,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Start from an empty environment and allow only required platform and test settings.
+# 从空环境启动，只保留平台运行和测试所需的设置。
 test_env=(
 	"PATH=$PATH"
 	"PWD=$PWD"
@@ -63,13 +63,13 @@ test_env=(
 	"AWS_EC2_METADATA_DISABLED=true"
 )
 
-# Native Windows needs these inherited values to launch child processes.
+# 原生 Windows 需要继承这些值才能启动子进程。
 for name in SystemRoot SYSTEMROOT WINDIR COMSPEC PATHEXT; do
 	value="${!name-}"
 	[[ -z "$value" ]] || test_env+=("$name=$value")
 done
 
-# Preserve CI detection only for runner behavior and test reporting.
+# 仅为运行器行为和测试报告保留 CI 环境检测结果。
 for name in CI GITHUB_ACTIONS; do
 	value="${!name-}"
 	[[ -z "$value" ]] || test_env+=("$name=$value")

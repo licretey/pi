@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Check for --no-env flag
+# 检查是否传入 --no-env 标志。
 NO_ENV=false
 ARGS=()
 for arg in "$@"; do
@@ -15,7 +15,7 @@ for arg in "$@"; do
 done
 
 if [[ "$NO_ENV" == "true" ]]; then
-  # Unset API keys (see packages/ai/src/env-api-keys.ts)
+# 清除 API 密钥环境变量（参见 packages/ai/src/env-api-keys.ts）。
   unset ANTHROPIC_API_KEY
   unset ANTHROPIC_OAUTH_TOKEN
   unset OPENAI_API_KEY
@@ -54,6 +54,6 @@ if [[ "$NO_ENV" == "true" ]]; then
   echo "Running without API keys..."
 fi
 
-# --import takes a module specifier, so pass the resolver as a file URL (raw paths break on #, ?, %).
+# --import 接受模块说明符，因此将解析器作为 file URL 传入（原始路径中的 #、?、% 会造成解析错误）。
 RESOLVER_URL="$(node -p 'require("node:url").pathToFileURL(process.argv[1]).href' "$SCRIPT_DIR/packages/coding-agent/src/experimental/source-resolver.ts")"
 node --import "$RESOLVER_URL" "$SCRIPT_DIR/packages/coding-agent/src/experimental/cli.ts" ${ARGS[@]+"${ARGS[@]}"}

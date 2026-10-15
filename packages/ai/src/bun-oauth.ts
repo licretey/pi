@@ -9,7 +9,7 @@ import { openRouterOAuth } from "./auth/oauth/openrouter.ts";
 import { createRadiusOAuth } from "./auth/oauth/radius.ts";
 import { xaiOAuth } from "./auth/oauth/xai.ts";
 
-/** Register OAuth flows statically embedded in the standalone Bun binary. */
+/** 注册静态打包进独立 Bun 二进制文件的 OAuth 流程。 */
 export function registerBunOAuthFlows(): void {
 	registerBundledOAuthFlowLoaders({
 		anthropic: () => anthropicOAuth,

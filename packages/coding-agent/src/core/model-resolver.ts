@@ -1,5 +1,5 @@
 /**
- * Model resolution, scoping, and initial selection
+ * 模型解析、作用域限定与初始选择
  */
 
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
@@ -16,7 +16,7 @@ import { isValidThinkingLevel } from "../cli/args.ts";
 import { DEFAULT_THINKING_LEVEL } from "./defaults.ts";
 import type { ModelRuntime } from "./model-runtime.ts";
 
-/** Default chat model IDs for providers with built-in chat models. */
+/** 内置 chat model 的提供商对应的默认 model ID。 */
 export const defaultModelPerProvider: Partial<Record<KnownProvider, string>> = {
 	"amazon-bedrock": "us.anthropic.claude-opus-4-6-v1",
 	"ant-ling": "Ring-2.6-1T",
@@ -63,27 +63,27 @@ export const defaultModelPerProvider: Partial<Record<KnownProvider, string>> = {
 
 export interface ScopedModel {
 	model: Model<Api>;
-	/** Thinking level if explicitly specified in pattern (e.g., "model:high"), undefined otherwise */
+	/** 若模式中显式指定了 thinking level（如 "model:high"）则为其值，否则为 undefined */
 	thinkingLevel?: ThinkingLevel;
 }
 
 /**
- * Helper to check if a model ID looks like an alias (no date suffix)
- * Dates are typically in format: -20241022 or -20250929
+ * 辅助函数：判断 model ID 是否像是别名（无日期后缀）
+ * 日期通常为 -20241022 或 -20250929 这种格式
  */
 function isAlias(id: string): boolean {
-	// Check if ID ends with -latest
+	// 检查 ID 是否以 -latest 结尾
 	if (id.endsWith("-latest")) return true;
 
-	// Check if ID ends with a date pattern (-YYYYMMDD)
+	// 检查 ID 是否以日期模式（-YYYYMMDD）结尾
 	const datePattern = /-\d{8}$/;
 	return !datePattern.test(id);
 }
 
 /**
- * Find an exact model reference match.
- * Supports either a bare model id or a canonical provider/modelId reference.
- * When matching by bare id, ambiguous matches across providers are rejected.
+ * 查找精确匹配的 model 引用。
+ * 支持裸 model id，也支持规范的 provider/modelId 引用。
+ * 按裸 id 匹配时，跨提供商出现歧义匹配会被拒绝。
  */
 export function findExactModelReferenceMatch(
 	modelReference: string,
@@ -130,8 +130,8 @@ export function findExactModelReferenceMatch(
 }
 
 /**
- * Try to match a pattern to a model from the available models list.
- * Returns the matched model or undefined if no match found.
+ * 尝试在可用模型列表中为 pattern 匹配一个模型。
+ * 返回匹配到的模型，未找到则返回 undefined。
  */
 function tryMatchModel(modelPattern: string, availableModels: Model<Api>[]): Model<Api> | undefined {
 	const exactMatch = findExactModelReferenceMatch(modelPattern, availableModels);
@@ -139,7 +139,7 @@ function tryMatchModel(modelPattern: string, availableModels: Model<Api>[]): Mod
 		return exactMatch;
 	}
 
-	// No exact match - fall back to partial matching
+	// 无精确匹配——退回到部分匹配
 	const matches = availableModels.filter(
 		(m) =>
 			m.id.toLowerCase().includes(modelPattern.toLowerCase()) ||
@@ -150,16 +150,16 @@ function tryMatchModel(modelPattern: string, availableModels: Model<Api>[]): Mod
 		return undefined;
 	}
 
-	// Separate into aliases and dated versions
+	// 区分别名与带日期的版本
 	const aliases = matches.filter((m) => isAlias(m.id));
 	const datedVersions = matches.filter((m) => !isAlias(m.id));
 
 	if (aliases.length > 0) {
-		// Prefer alias - if multiple aliases, pick the one that sorts highest
+		// 优先别名——若有多个别名，取排序最高的那个
 		aliases.sort((a, b) => b.id.localeCompare(a.id));
 		return aliases[0];
 	} else {
-		// No alias found, pick latest dated version
+		// 没有别名，则取最新的带日期版本
 		datedVersions.sort((a, b) => b.id.localeCompare(a.id));
 		return datedVersions[0];
 	}
@@ -167,7 +167,7 @@ function tryMatchModel(modelPattern: string, availableModels: Model<Api>[]): Mod
 
 export interface ParsedModelResult {
 	model: Model<Api> | undefined;
-	/** Thinking level if explicitly specified in pattern, undefined otherwise */
+	/** 若模式中显式指定了 thinking level 则为其值，否则为 undefined */
 	thinkingLevel?: ThinkingLevel;
 	warning: string | undefined;
 }
@@ -189,33 +189,33 @@ function buildFallbackModel(provider: string, modelId: string, availableModels: 
 }
 
 /**
- * Parse a pattern to extract model and thinking level.
- * Handles models with colons in their IDs (e.g., OpenRouter's :exacto suffix).
+ * 解析 pattern，提取 model 和 thinking level。
+ * 可处理 ID 中含冒号的模型（如 OpenRouter 的 :exacto 后缀）。
  *
- * Algorithm:
- * 1. Try to match full pattern as a model
- * 2. If found, return it with "off" thinking level
- * 3. If not found and has colons, split on last colon:
- *    - If suffix is valid thinking level, use it and recurse on prefix
- *    - If suffix is invalid, warn and recurse on prefix with "off"
+ * 算法：
+ * 1. 先尝试将完整 pattern 作为一个模型匹配
+ * 2. 若找到，以 "off" thinking level 返回
+ * 3. 若未找到且含冒号，按最后一个冒号拆分：
+ *    - 若后缀是合法的 thinking level，使用它并对前缀递归
+ *    - 若后缀不合法，发出警告并以 "off" 对前缀递归
  *
- * @internal Exported for testing
+ * @internal 为测试而导出。
  */
 export function parseModelPattern(
 	pattern: string,
 	availableModels: Model<Api>[],
 	options?: { allowInvalidThinkingLevelFallback?: boolean },
 ): ParsedModelResult {
-	// Try exact match first
+	// 先尝试精确匹配
 	const exactMatch = tryMatchModel(pattern, availableModels);
 	if (exactMatch) {
 		return { model: exactMatch, thinkingLevel: undefined, warning: undefined };
 	}
 
-	// No match - try splitting on last colon if present
+	// 无匹配——若有冒号则尝试按最后一个冒号拆分
 	const lastColonIndex = pattern.lastIndexOf(":");
 	if (lastColonIndex === -1) {
-		// No colons, pattern simply doesn't match any model
+		// 无冒号，pattern 确实匹配不到任何模型
 		return { model: undefined, thinkingLevel: undefined, warning: undefined };
 	}
 
@@ -223,10 +223,10 @@ export function parseModelPattern(
 	const suffix = pattern.substring(lastColonIndex + 1);
 
 	if (isValidThinkingLevel(suffix)) {
-		// Valid thinking level - recurse on prefix and use this level
+		// 合法的 thinking level——对前缀递归并使用该级别
 		const result = parseModelPattern(prefix, availableModels, options);
 		if (result.model) {
-			// Only use this thinking level if no warning from inner recursion
+			// 仅当内层递归没有产生警告时才使用该 thinking level
 			return {
 				model: result.model,
 				thinkingLevel: result.warning ? undefined : suffix,
@@ -235,15 +235,15 @@ export function parseModelPattern(
 		}
 		return result;
 	} else {
-		// Invalid suffix
+		// 后缀不合法
 		const allowFallback = options?.allowInvalidThinkingLevelFallback ?? true;
 		if (!allowFallback) {
-			// In strict mode (CLI --model parsing), treat it as part of the model id and fail.
-			// This avoids accidentally resolving to a different model.
+			// 严格模式（CLI --model 解析）下，把它当作 model id 的一部分并失败。
+			// 这样可以避免意外解析到另一个模型。
 			return { model: undefined, thinkingLevel: undefined, warning: undefined };
 		}
 
-		// Scope mode: recurse on prefix and warn
+		// 作用域模式：对前缀递归并发出警告
 		const result = parseModelPattern(prefix, availableModels, options);
 		if (result.model) {
 			return {
@@ -257,15 +257,14 @@ export function parseModelPattern(
 }
 
 /**
- * Resolve model patterns to actual Model objects with optional thinking levels
- * Format: "pattern:level" where :level is optional
- * For each pattern, finds all matching models and picks the best version:
- * 1. Prefer alias (e.g., claude-sonnet-4-5) over dated versions (claude-sonnet-4-5-20250929)
- * 2. If no alias, pick the latest dated version
+ * 将 model pattern 解析为实际的 Model 对象，可附带 thinking level
+ * 格式："pattern:level"，其中 :level 可选
+ * 对每个 pattern，找出所有匹配的模型并挑选最佳版本：
+ * 1. 优先别名（如 claude-sonnet-4-5）而非带日期版本（claude-sonnet-4-5-20250929）
+ * 2. 若无别名，取最新的带日期版本
  *
- * Supports models with colons in their IDs (e.g., OpenRouter's model:exacto).
- * The algorithm tries to match the full pattern first, then progressively
- * strips colon-suffixes to find a match.
+ * 支持 ID 中含冒号的模型（如 OpenRouter 的 model:exacto）。
+ * 算法先尝试匹配完整 pattern，再逐步剥离冒号后缀以找到匹配。
  */
 export interface ModelScopeDiagnostic {
 	type: "warning";
@@ -288,9 +287,9 @@ export function resolveModelScopeFromModels(
 	const diagnostics: ModelScopeDiagnostic[] = [];
 
 	for (const pattern of patterns) {
-		// Check if pattern contains glob characters
+		// 检查 pattern 是否包含 glob 字符
 		if (pattern.includes("*") || pattern.includes("?") || pattern.includes("[")) {
-			// Extract optional thinking level suffix (e.g., "provider/*:high")
+			// 提取可选的 thinking level 后缀（如 "provider/*:high"）
 			const colonIdx = pattern.lastIndexOf(":");
 			let globPattern = pattern;
 			let thinkingLevel: ThinkingLevel | undefined;
@@ -311,8 +310,8 @@ export function resolveModelScopeFromModels(
 				continue;
 			}
 
-			// Match against "provider/modelId" format OR just model ID
-			// This allows "*sonnet*" to match without requiring "anthropic/*sonnet*"
+			// 匹配 "provider/modelId" 格式或仅 model ID
+			// 这样 "*sonnet*" 不必写成 "anthropic/*sonnet*" 也能匹配
 			const matchingModels = availableModels.filter((m) => {
 				const fullId = `${m.provider}/${m.id}`;
 				return minimatch(fullId, globPattern, { nocase: true }) || minimatch(m.id, globPattern, { nocase: true });
@@ -352,7 +351,7 @@ export function resolveModelScopeFromModels(
 			continue;
 		}
 
-		// Avoid duplicates
+		// 避免重复
 		if (!scopedModels.find((sm) => modelsAreEqual(sm.model, model))) {
 			scopedModels.push({ model, thinkingLevel });
 		}
@@ -386,22 +385,22 @@ export interface ResolveCliModelResult {
 	thinkingLevel?: ThinkingLevel;
 	warning: string | undefined;
 	/**
-	 * Error message suitable for CLI display.
-	 * When set, model will be undefined.
+	 * 适合在 CLI 中显示的错误信息。
+	 * 设置了此项时 model 为 undefined。
 	 */
 	error: string | undefined;
 }
 
 /**
- * Resolve a single model from CLI flags.
+ * 从 CLI 标志解析单个 model。
  *
- * Supports:
+ * 支持：
  * - --provider <provider> --model <pattern>
  * - --model <provider>/<pattern>
- * - Fuzzy matching (same rules as model scoping: exact id, then partial id/name)
+ * - 模糊匹配（与 model 作用域限定相同的规则：先精确 id，再部分 id/name）
  *
- * Note: This does not apply the thinking level by itself, but it may *parse* and
- * return a thinking level from "<pattern>:<thinking>" so the caller can apply it.
+ * 注意：本函数自身不应用 thinking level，但可能会*解析*并返回
+ * "<pattern>:<thinking>" 中的 thinking level，交给调用方去应用。
  */
 export function resolveCliModel(options: {
 	cliProvider?: string;
@@ -415,8 +414,8 @@ export function resolveCliModel(options: {
 		return { model: undefined, warning: undefined, error: undefined };
 	}
 
-	// Important: use *all* models here, not just models with pre-configured auth.
-	// This allows "--api-key" to be used for first-time setup.
+	// 重要：这里要用*所有*模型，而不是仅用已预配置授权的模型。
+	// 这样 "--api-key" 才能用于首次设置。
 	const availableModels = [...modelRuntime.getModels()];
 	if (availableModels.length === 0) {
 		return {
@@ -426,7 +425,7 @@ export function resolveCliModel(options: {
 		};
 	}
 
-	// Build canonical provider lookup (case-insensitive)
+	// 构建提供商规范名查找表（大小写不敏感）
 	const providerMap = new Map<string, string>();
 	for (const m of availableModels) {
 		providerMap.set(m.provider.toLowerCase(), m.provider);
@@ -441,11 +440,11 @@ export function resolveCliModel(options: {
 		};
 	}
 
-	// If no explicit --provider, try to interpret "provider/model" format first.
-	// When the prefix before the first slash matches a known provider, prefer that
-	// interpretation over matching models whose IDs literally contain slashes
-	// (e.g. "zai/glm-5" should resolve to provider=zai, model=glm-5, not to a
-	// vercel-ai-gateway model with id "zai/glm-5").
+	// 若未显式指定 --provider，先按 "provider/model" 格式解读。
+	// 当第一个斜杠前的前缀匹配已知提供商时，优先采用这种解释，
+	// 而不是去匹配 ID 中确实含斜杠的模型
+	// （例如 "zai/glm-5" 应解析为 provider=zai、model=glm-5，
+	// 而不是 vercel-ai-gateway 下 ID 为 "zai/glm-5" 的模型）。
 	let pattern = cliModel;
 	let inferredProvider = false;
 
@@ -462,11 +461,11 @@ export function resolveCliModel(options: {
 		}
 	}
 
-	// If no provider was inferred from the slash, try exact matches without provider inference.
-	// This handles models whose IDs naturally contain slashes (e.g. OpenRouter-style IDs).
-	// Bare exact IDs can exist in multiple providers, so do not choose by catalog order.
-	// Prefer the sole authenticated provider when there is one; otherwise require an
-	// explicit provider to avoid silently selecting an unusable provider.
+	// 未从斜杠推断出提供商时，先尝试不依赖提供商推断的精确匹配。
+	// 这可以处理 ID 天然含斜杠的模型（如 OpenRouter 风格的 ID）。
+	// 裸的精确 ID 可能存在于多个提供商，所以不要按目录顺序挑选。
+	// 若只有一个已授权的提供商则优先选它；否则要求显式指定提供商，
+	// 避免静默选中一个无法使用的提供商。
 	if (!provider) {
 		const lower = cliModel.toLowerCase();
 		const exactMatches = availableModels.filter(
@@ -504,7 +503,7 @@ export function resolveCliModel(options: {
 	}
 
 	if (cliProvider && provider) {
-		// If both were provided, tolerate --model <provider>/<pattern> by stripping the provider prefix
+		// 两者都提供时，容忍 --model <provider>/<pattern> 写法，剥掉提供商前缀
 		const prefix = `${provider}/`;
 		if (cliModel.toLowerCase().startsWith(prefix.toLowerCase())) {
 			pattern = cliModel.substring(prefix.length);
@@ -517,11 +516,10 @@ export function resolveCliModel(options: {
 	});
 
 	if (model) {
-		// If provider inference matched an unauthenticated provider/model pair, prefer
-		// one exact raw model-id match that is authenticated. This keeps
-		// "provider/model" syntax preferred when usable, but handles models whose
-		// literal id starts with a known provider name (for example
-		// commandcode model id "xiaomi/mimo-v2.5-pro").
+		// 若按提供商推断匹配到了未授权的 provider/model 组合，则优先选择
+		// 一条已授权的裸 model-id 精确匹配。这样既保留 "provider/model"
+		// 语法在可用时的优先地位，又能处理字面 ID 以已知提供商名开头的模型
+		// （例如 commandcode 的模型 id "xiaomi/mimo-v2.5-pro"）。
 		if (inferredProvider) {
 			const rawExactMatches = availableModels.filter(
 				(m) => m.id.toLowerCase() === cliModel.toLowerCase() && !modelsAreEqual(m, model),
@@ -541,10 +539,10 @@ export function resolveCliModel(options: {
 		return { model, thinkingLevel, warning, error: undefined };
 	}
 
-	// If we inferred a provider from the slash but found no match within that provider,
-	// fall back to matching the full input as a raw model id across all models.
-	// This handles OpenRouter-style IDs like "openai/gpt-4o:extended" where "openai"
-	// looks like a provider but the full string is actually a model id on openrouter.
+	// 若从斜杠推断出了提供商但在该提供商下没有匹配，则退回到
+	// 在所有模型中把完整输入当作裸 model id 来匹配。
+	// 这可以处理 "openai/gpt-4o:extended" 这类 OpenRouter 风格的 ID：
+	// "openai" 看起来像提供商，但整个字符串其实是 openrouter 上的 model id。
 	if (inferredProvider) {
 		const lower = cliModel.toLowerCase();
 		const exact = availableModels.find(
@@ -553,7 +551,7 @@ export function resolveCliModel(options: {
 		if (exact) {
 			return { model: exact, warning: undefined, thinkingLevel: undefined, error: undefined };
 		}
-		// Also try parseModelPattern on the full input against all models
+		// 也用完整输入对所有模型尝试 parseModelPattern
 		const fallback = parseModelPattern(cliModel, availableModels, {
 			allowInvalidThinkingLevelFallback: false,
 		});
@@ -568,9 +566,9 @@ export function resolveCliModel(options: {
 	}
 
 	if (provider) {
-		// Parse thinking level suffix from the pattern before building the fallback model,
-		// but only when --thinking is not explicitly provided.
-		// e.g. "zai-org/GLM-5.1-FP8:high" → modelId="zai-org/GLM-5.1-FP8", fallbackThinking="high"
+		// 在构建 fallback 模型前先从 pattern 解析 thinking level 后缀，
+		// 但仅在未显式提供 --thinking 时才解析。
+		// 如 "zai-org/GLM-5.1-FP8:high" → modelId="zai-org/GLM-5.1-FP8"，fallbackThinking="high"
 		let fallbackPattern = pattern;
 		let fallbackThinking: ThinkingLevel | undefined;
 		if (!cliThinking) {
@@ -612,12 +610,12 @@ export interface InitialModelResult {
 }
 
 /**
- * Find the initial model to use based on priority:
- * 1. CLI args (provider + model)
- * 2. First model from scoped models (if not continuing/resuming)
- * 3. Restored from session (if continuing/resuming)
- * 4. Saved default from settings
- * 5. First available model with valid API key
+ * 按以下优先级找到初始 model：
+ * 1. CLI 参数（provider + model）
+ * 2. scoped models 中的第一个模型（非继续/恢复会话时）
+ * 3. 从 session 恢复（继续/恢复会话时）
+ * 4. settings 中保存的默认值
+ * 5. 第一个有有效 API key 的可用模型
  */
 export async function findInitialModel(options: {
 	cliProvider?: string;
@@ -645,7 +643,7 @@ export async function findInitialModel(options: {
 	let model: Model<Api> | undefined;
 	let thinkingLevel: ThinkingLevel = DEFAULT_THINKING_LEVEL;
 
-	// 1. CLI args take priority
+	// 1. CLI 参数优先
 	if (cliProvider && cliModel) {
 		const resolved = resolveCliModel({
 			cliProvider,
@@ -661,7 +659,7 @@ export async function findInitialModel(options: {
 		}
 	}
 
-	// 2. Use first model from scoped models (skip if continuing/resuming)
+	// 2. 使用 scoped models 中的第一个模型（继续/恢复会话时跳过）
 	if (scopedModels.length > 0 && !isContinuing) {
 		const scopedModel = scopedModels[0];
 		const perModel = modelThinkingLevels?.[`${scopedModel.model.provider}/${scopedModel.model.id}`];
@@ -672,7 +670,7 @@ export async function findInitialModel(options: {
 		};
 	}
 
-	// 3. Try saved default from settings if auth is configured.
+	// 3. 若已配置授权，尝试 settings 中保存的默认值。
 	if (defaultProvider && defaultModelId) {
 		const found = modelRuntime.getModel(defaultProvider, defaultModelId);
 		if (found && modelRuntime.hasConfiguredAuth(found.provider)) {
@@ -687,11 +685,11 @@ export async function findInitialModel(options: {
 		}
 	}
 
-	// 4. Try first available model with valid API key
+	// 4. 尝试第一个有有效 API key 的可用模型
 	const availableModels = [...modelRuntime.getAvailableSnapshot()];
 
 	if (availableModels.length > 0) {
-		// Try to find a default model from known providers
+		// 尝试从已知提供商中找默认模型
 		for (const provider of Object.keys(defaultModelPerProvider) as KnownProvider[]) {
 			const defaultId = defaultModelPerProvider[provider];
 			const match = availableModels.find((m) => m.provider === provider && m.id === defaultId);
@@ -700,16 +698,16 @@ export async function findInitialModel(options: {
 			}
 		}
 
-		// If no default found, use first available
+		// 未找到默认值则用第一个可用模型
 		return { model: availableModels[0], thinkingLevel: DEFAULT_THINKING_LEVEL, fallbackMessage: undefined };
 	}
 
-	// 5. No model found
+	// 5. 未找到模型
 	return { model: undefined, thinkingLevel: DEFAULT_THINKING_LEVEL, fallbackMessage: undefined };
 }
 
 /**
- * Restore model from session, with fallback to available models
+ * 从 session 恢复模型，失败时回退到可用模型
  */
 export async function restoreModelFromSession(
 	savedProvider: string,
@@ -720,7 +718,7 @@ export async function restoreModelFromSession(
 ): Promise<{ model: Model<Api> | undefined; fallbackMessage: string | undefined }> {
 	const restoredModel = modelRuntime.getModel(savedProvider, savedModelId);
 
-	// Check if restored model exists and still has auth configured
+	// 检查恢复的模型是否存在且仍配置了授权
 	const hasConfiguredAuth = restoredModel ? modelRuntime.hasConfiguredAuth(restoredModel.provider) : false;
 
 	if (restoredModel && hasConfiguredAuth) {
@@ -730,14 +728,14 @@ export async function restoreModelFromSession(
 		return { model: restoredModel, fallbackMessage: undefined };
 	}
 
-	// Model not found or no API key - fall back
+	// 模型不存在或未配置 API key——回退
 	const reason = !restoredModel ? "model no longer exists" : "no auth configured";
 
 	if (shouldPrintMessages) {
 		console.error(chalk.yellow(`Warning: Could not restore model ${savedProvider}/${savedModelId} (${reason}).`));
 	}
 
-	// If we already have a model, use it as fallback
+	// 已有当前模型则用它作为回退
 	if (currentModel) {
 		if (shouldPrintMessages) {
 			console.log(chalk.dim(`Falling back to: ${currentModel.provider}/${currentModel.id}`));
@@ -748,11 +746,11 @@ export async function restoreModelFromSession(
 		};
 	}
 
-	// Try to find any available model
+	// 尝试找到任意可用模型
 	const availableModels = [...modelRuntime.getAvailableSnapshot()];
 
 	if (availableModels.length > 0) {
-		// Try to find a default model from known providers
+		// 尝试从已知提供商中找默认模型
 		let fallbackModel: Model<Api> | undefined;
 		for (const provider of Object.keys(defaultModelPerProvider) as KnownProvider[]) {
 			const defaultId = defaultModelPerProvider[provider];
@@ -763,7 +761,7 @@ export async function restoreModelFromSession(
 			}
 		}
 
-		// If no default found, use first available
+		// 未找到默认值则用第一个可用模型
 		if (!fallbackModel) {
 			fallbackModel = availableModels[0];
 		}
@@ -778,6 +776,6 @@ export async function restoreModelFromSession(
 		};
 	}
 
-	// No models available
+	// 没有任何可用模型
 	return { model: undefined, fallbackMessage: undefined };
 }

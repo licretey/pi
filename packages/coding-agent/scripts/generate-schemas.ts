@@ -80,7 +80,7 @@ function splitAnnotations(schema: object): {
 	return { shape, annotations };
 }
 
-/** Replace selected repeated schemas with local references while retaining per-use annotations. */
+/** 将选定的重复架构替换为本地引用，同时保留每处使用位置的注解。 */
 function addDefinitions(schema: TSchema, definitions: Readonly<Record<string, TSchema>>): TSchema {
 	const preparedDefinitions = Object.entries(definitions).map(([name, definition]) => {
 		if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(name)) {

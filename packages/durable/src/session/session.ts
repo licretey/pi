@@ -62,37 +62,36 @@ import {
 import { type LoadedDocument, Transaction, type TransactionHost, type TransactionScope } from "./transaction.ts";
 
 /**
- * Open a Session kernel over one storage backend. `now` is the wall clock for task times; default `Date.now`. The first
- * error a Storage method throws fails the Session (`SessionFailed`); see `SessionImpl`.
+ * 在一个存储后端之上打开 Session 内核。`now` 是任务时间所用的墙钟；默认 `Date.now`。
+ * Storage 方法抛出的第一个错误会使 Session 失败（`SessionFailed`）；见 `SessionImpl`。
  */
 export function createSession(storage: Storage, options?: { readonly now?: () => number }): Session {
 	return new SessionImpl(storage, options?.now);
 }
 
 /**
- * Session kernel: one mutation line, the loaded document tracker cache, and committed publication.
+ * Session 内核：一条变更线、已加载文档的 tracker 缓存，以及已提交状态的发布。
  *
- * Only committed state is observable. Every commit callback, preparation, Storage settlement, adoption, and
- * publication enqueue runs while the line is held; listeners run later.
+ * 只有已提交的状态可被观察。每个 commit 回调、预备、Storage 落定、收养与发布入队，都在持有变更线时运行；
+ * 监听器随后运行。
  *
- * Storage failures are final. Every Storage call goes through one guard: the first error a Storage method throws, other
- * than for a cancelled caller, fails the Session, as does a commit it cannot adopt. That call gets the error; every later
- * call and every Storage call still underway gets `SessionFailed`; close listeners run at once with the error, and the
- * Session then closes itself, Storage included, and `closed` settles. Nothing retries: transient errors are the
- * Storage's to retry. Reopening recovers from what was committed.
+ * Storage 失败是终局。每个 Storage 调用都经过同一个守卫：Storage 方法抛出的第一个错误——调用方被取消的
+ * 除外——会使 Session 失败，无法收养的 commit 同样如此。该调用得到那个错误；此后每个调用、以及每一个仍在途的
+ * Storage 调用都会得到 `SessionFailed`；close 监听器立即带着该错误运行，随后 Session 关闭自身——包括 Storage——
+ * 并且 `closed` 落定。没有任何东西会重试：瞬时错误由 Storage 自己去重试。重新打开可从已提交的内容中恢复。
  */
 export class SessionImpl implements Session {
 	readonly #storage: Storage;
 	readonly #documents = new Map<string, LoadedDocument>();
 	readonly #commitListeners = new Set<(publication: CommitPublication, context: Context) => void>();
-	/** The Session's own listeners, such as its scheduler's: they keep memory in step with storage, so a throw fails it. */
+	/** Session 自身的监听器（如其 scheduler 的）：它们让内存与存储保持同步，因此抛错会使 Session 失败。 */
 	readonly #internalListeners = new Set<(publication: CommitPublication, context: Context) => void>();
 	readonly #closeListeners = new Set<() => void>();
 	readonly #host: TransactionHost;
 	#tail: Promise<void> = Promise.resolve();
 	#closing: Promise<void> | undefined;
 	#failure: { readonly error: unknown } | undefined;
-	/** Set when close reaches the backend: calls that fail from then on fail because it closes. */
+	/** close 触达后端时设置：从那时起，失败的调用都因关闭而失败。 */
 	readonly #failed = Promise.withResolvers<never>();
 	readonly #closed = Promise.withResolvers<SessionEnd>();
 
@@ -100,18 +99,18 @@ export class SessionImpl implements Session {
 		return this.#closed.promise;
 	}
 
-	/** Internal: the error that failed the Session, if one did. */
+	/** 内部：使 Session 失败的错误（如果有的话）。 */
 	get failure(): { readonly error: unknown } | undefined {
 		return this.#failure;
 	}
 
-	/** Internal: rejects with `SessionFailed` the moment the Session fails, before work underway has ended; never resolves. */
+	/** 内部：Session 一失败就以 `SessionFailed` reject——先于在途工作结束；永不 resolve。 */
 	get failed(): Promise<never> {
 		return this.#failed.promise;
 	}
 
 	constructor(storage: Storage, now: () => number = Date.now) {
-		// Waits race it; none has to.
+		// 等待方会与它竞速；谁都不必赢。
 		this.#failed.promise.catch(() => {});
 		this.#storage = new GuardedStorage(storage, this);
 		this.#host = {
@@ -129,7 +128,7 @@ export class SessionImpl implements Session {
 		};
 	}
 
-	/** The Storage behind the failure guard; every component reads and writes through it. */
+	/** 失败守卫之后的 Storage；每个组件都通过它读写。 */
 	protected get storage(): Storage {
 		return this.#storage;
 	}
@@ -139,24 +138,22 @@ export class SessionImpl implements Session {
 	}
 
 	/**
-	 * Internal: fail the Session with `error`, the first wins, and report it once. Admission ends, and close listeners run
-	 * now; they read the error from `failure`. The Storage guard calls this; the Harness also calls it for a throw in its
-	 * scheduler's own commits.
+	 * 内部：以 `error` 使 Session 失败——先到者生效——并上报一次。准入随即结束，close 监听器立即运行；
+	 * 它们从 `failure` 读取错误。Storage 守卫会调用它；当 scheduler 自身的 commit 中抛错时，Harness 也会调用它。
 	 */
 	fail(error: unknown): void {
 		if (this.#failure !== undefined) return;
 		this.#failure = { error };
 		this.#failed.reject(new SessionFailed(error));
-		// Seal first, so a report handler that calls back finds the Session failed. Closing runs the close listeners
-		// synchronously; a failing backend close is the caller's to see, and here nobody waits.
+		// 先密封，这样回调进来的上报处理器看到的才是已失败的 Session。关闭过程同步运行 close 监听器；
+		// 后端 close 失败由调用方自己看管，这里没有人等待。
 		this.close(BACKGROUND_CONTEXT).catch(() => {});
 		this.report(error);
 	}
 
 	/**
-	 * Internal commit exposing the concrete transaction and its internal operations, such as the reserved-ID root
-	 * bootstrap and task replacement. `scope` sets the default `tx.createTask()` conversation and the task attributed to
-	 * appended entries.
+	 * 内部 commit，暴露具体事务及其内部操作，例如保留 ID 的根引导与任务替换。`scope` 设定 `tx.createTask()` 的
+	 * 默认 conversation，以及追加 entry 所归属的任务。
 	 */
 	commitWith<T>(change: (tx: Transaction) => T | Promise<T>, context: Context, scope?: TransactionScope): Promise<T> {
 		try {
@@ -167,7 +164,7 @@ export class SessionImpl implements Session {
 		return this.#enqueue(() => this.#runCommit(change, context, scope));
 	}
 
-	/** Internal: run a read-only job on the mutation line so multi-read derivations observe one committed state. */
+	/** 内部：在变更线上运行只读作业，使多次读取的派生观察到同一个已提交状态。 */
 	readOnLine<T>(job: () => Promise<T>): Promise<T> {
 		try {
 			this.assertUsable();
@@ -181,8 +178,8 @@ export class SessionImpl implements Session {
 	}
 
 	/**
-	 * Internal: a conversation document's current incarnation and value, for a job already running on the line (see
-	 * `readOnLine()`). Absent documents are `undefined`.
+	 * 内部：一个 conversation 文档的当前世代与取值，供已在线上运行的作业使用（见 `readOnLine()`）。
+	 * 文档不存在时为 `undefined`。
 	 */
 	async conversationDocumentOnLine(
 		token: ConversationDocToken<JsonObject>,
@@ -418,7 +415,7 @@ export class SessionImpl implements Session {
 	close(context: Context): Promise<void> {
 		if (this.#closing === undefined) {
 			const cleanup = withoutAbortSignal(context);
-			// Seal admission before anything else runs, then stop observers; admitted work settles before Storage closes.
+			// 在其他任何事运行之前先密封准入，然后停下观察者；已准入的工作在 Storage 关闭前落定。
 			this.#closing = Promise.resolve()
 				.then(() => this.beforeClose())
 				.then(() =>
@@ -429,7 +426,7 @@ export class SessionImpl implements Session {
 						try {
 							await this.#storage.close(cleanup);
 						} catch (error) {
-							// A Storage that cannot close is a failed one; an earlier failure stays the cause.
+							// 无法关闭的 Storage 即失败的 Storage；先前的失败仍作为原因保留。
 							if (this.#failure === undefined) {
 								this.#failure = { error };
 								this.report(error);
@@ -449,30 +446,30 @@ export class SessionImpl implements Session {
 		return awaitWithContext(this.#closing, context);
 	}
 
-	/** Run the close listeners once, each on its own: one that fails is reported, and the rest still run. */
+	/** 运行一次各 close 监听器，彼此独立：失败的那个被上报，其余照常运行。 */
 	#notifyClose(): void {
 		const listeners = [...this.#closeListeners];
 		this.#closeListeners.clear();
 		for (const listener of listeners) contained(listener, (error) => this.report(error));
 	}
 
-	/** Internal: the Session's failure, and errors of listeners, which never fail what ran them. A plain Session drops them. */
+	/** 内部：Session 的失败与各监听器的错误；监听器错误绝不会使其运行者失败。朴素的 Session 将其丢弃。 */
 	report(_error: unknown): void {}
 
 	/**
-	 * Runs inside every transaction that creates or forks a conversation, after the conversation record is staged. A
-	 * plain Session stages nothing; a Harness stages its built-in documents.
+	 * 在创建或 fork conversation 的每个事务中运行，位于 conversation 记录暂存之后。朴素的 Session 不暂存任何东西；
+	 * Harness 则暂存它的内置文档。
 	 */
 	protected conversationCreated(_tx: Transaction, _record: ConversationRecord): Promise<void> {
 		return Promise.resolve();
 	}
 
-	/** Runs after close seals admission and before the line closes Storage; must not reject. */
+	/** 在 close 密封准入之后、变更线关闭 Storage 之前运行；绝不 reject。 */
 	protected beforeClose(): Promise<void> {
 		return Promise.resolve();
 	}
 
-	/** Register a synchronous post-adoption listener. It must not block or call Session operations; a throw is reported. */
+	/** 注册同步的收养后监听器。它不得阻塞或调用 Session 操作；抛错会被上报。 */
 	subscribeCommits(listener: (publication: CommitPublication, context: Context) => void): () => void {
 		this.assertUsable();
 		this.#commitListeners.add(listener);
@@ -480,8 +477,8 @@ export class SessionImpl implements Session {
 	}
 
 	/**
-	 * Internal: `subscribeCommits()` for the Session's own components, whose state follows each commit. A throw leaves
-	 * that state behind storage, so it fails the Session instead of being reported. They run before host listeners.
+	 * 内部：为 Session 自身组件提供的 `subscribeCommits()`，它们的状态跟随每次 commit。抛错会让该状态落后于
+	 * 存储，因此那会使 Session 失败，而不是仅被上报。它们在宿主监听器之前运行。
 	 */
 	observeCommits(listener: (publication: CommitPublication, context: Context) => void): () => void {
 		this.assertUsable();
@@ -490,8 +487,8 @@ export class SessionImpl implements Session {
 	}
 
 	/**
-	 * Register a listener called synchronously when close begins, also when a failure closes the Session (`failure` is
-	 * then set). It must not block or call Session operations; a throw is reported.
+	 * 注册一个监听器：close 开始时同步调用；当失败迫使 Session 关闭时同样调用（此时 `failure` 已设置）。
+	 * 它不得阻塞或调用 Session 操作；抛错会被上报。
 	 */
 	subscribeClose(listener: () => void): () => void {
 		this.assertUsable();
@@ -499,7 +496,7 @@ export class SessionImpl implements Session {
 		return () => this.#closeListeners.delete(listener);
 	}
 
-	/** Drop every loaded tracker on the mutation line; later access cold-loads from Storage. */
+	/** 在变更线上丢弃所有已加载的 tracker；之后再访问就从 Storage 冷加载。 */
 	unloadDocuments(): Promise<void> {
 		return this.#enqueue(async () => {
 			this.#documents.clear();
@@ -517,7 +514,7 @@ export class SessionImpl implements Session {
 		let result: T;
 		try {
 			result = await change(tx);
-			// A callback that caught a failed read must not commit, nor succeed as if it had.
+			// 捕获到失败读取的回调既不能提交，也不能装作提交过而成功返回。
 			this.#assertHealthy();
 		} catch (error) {
 			await tx.settleFailure();
@@ -530,10 +527,10 @@ export class SessionImpl implements Session {
 		}
 		let seq: Seq;
 		try {
-			// Once admitted, caller cancellation does not interrupt Storage settlement.
+			// 一旦准入，调用方的取消就不会打断 Storage 落定。
 			seq = await this.#storage.commit(writes, withoutAbortSignal(context));
 		} catch (error) {
-			// The guard has failed the Session.
+			// 守卫已使 Session 失败。
 			tx.discard();
 			throw error;
 		}
@@ -541,7 +538,7 @@ export class SessionImpl implements Session {
 		try {
 			documents = tx.adopt(seq);
 		} catch (error) {
-			// Storage already committed; a failed adoption leaves memory behind durable state.
+			// Storage 已提交；收养失败会让内存落后于持久化状态。
 			this.fail(error);
 			throw error;
 		}
@@ -568,7 +565,7 @@ export class SessionImpl implements Session {
 		}
 		for (const document of documents) changes.push(document);
 		const publication: CommitPublication = { seq, changes };
-		// The commit is durable: a failing listener neither fails the commit nor skips the others.
+		// commit 已持久化：失败的监听器既不会让 commit 失败，也不会跳过其他监听器。
 		for (const listener of [...this.#internalListeners]) {
 			contained(
 				() => listener(publication, context),
@@ -584,8 +581,7 @@ export class SessionImpl implements Session {
 	}
 
 	/**
-	 * Attach an observer to one committed incarnation: check the definition, then forward this incarnation's committed
-	 * changes and close. `detach` removes both subscriptions.
+	 * 将观察者附着一个已提交世代：先校验定义，然后转发该世代的已提交变更与关闭。`detach` 移除两个订阅。
 	 */
 	#attachDocument<O extends CommittedStateSource | CommittedWatch>(
 		definition: AnyDocToken["definition"],
@@ -605,10 +601,10 @@ export class SessionImpl implements Session {
 		unsubscribeCommit = this.observeCommits((publication, context) => {
 			for (const change of publication.changes) {
 				if (change.type !== "document" || change.record.id !== loaded.record.id) continue;
-				// A document state's frames carry no caller cancellation; a watch observes its own cancellation.
+				// document state 的 frame 不携带调用方的取消；watch 自己观察自己的取消。
 				const frameContext = observer instanceof CommittedStateSource ? withoutAbortSignal(context) : context;
 				const ops = observedOperations(observed, change);
-				// A migration-only base changes nothing for an observer of the new version.
+				// 仅迁移的基线对新版本的观察者来说没有任何变化。
 				if (ops.length === 0) continue;
 				observer.advance(change.value, ops, frameContext);
 			}
@@ -624,7 +620,7 @@ export class SessionImpl implements Session {
 		context: Context,
 	): Promise<LoadedDocument | undefined> {
 		const cached = this.#documents.get(addressId);
-		// A tracker serves only tokens of the version its value was materialized for; others reload from Storage.
+		// tracker 只服务其取值被具体化时所针对版本的 token；其他版本从 Storage 重新加载。
 		if (cached?.valueVersion === definition.version) return cached;
 		if (cached !== undefined) this.#documents.delete(addressId);
 		const record = await this.#storage.findDocument(address, "current", context);
@@ -653,7 +649,7 @@ export class SessionImpl implements Session {
 		return run;
 	}
 
-	/** Internal: throw `SessionFailed` when failed, else an error when closing. */
+	/** 内部：已失败时抛 `SessionFailed`，否则在关闭中抛普通错误。 */
 	assertUsable(): void {
 		this.#assertHealthy();
 		if (this.#closing !== undefined) throw new Error("Session is closed");
@@ -665,13 +661,13 @@ export class SessionImpl implements Session {
 }
 
 /**
- * Run a host callback that must not fail its caller: a throw, or a promise it returns that rejects, goes to `onError`,
- * which is not awaited.
+ * 运行一个不得让其调用方失败的宿主回调：抛出的错误、或它返回的 promise 的 reject，都交给 `onError`，
+ * 且不会等待它。
  */
 export function contained(callback: () => unknown, onError: (error: unknown) => void): void {
 	try {
 		const result = callback();
-		// Any thenable, also a promise from another realm; `Promise.resolve` adopts it with handlers of its own.
+		// 任意 thenable，包括来自另一个 realm 的 promise；`Promise.resolve` 会用它自己的 handler 收养它。
 		if (typeof (result as { then?: unknown } | null)?.then === "function") Promise.resolve(result).catch(onError);
 	} catch (error) {
 		onError(error);
@@ -679,8 +675,8 @@ export function contained(callback: () => unknown, onError: (error: unknown) => 
 }
 
 /**
- * Operations an observer applies for one committed change. An observer hydrated under another definition version holds
- * a differently shaped value, so it receives the new value as a root replacement instead of operations for that shape.
+ * 观察者为一次已提交变更应用的操作。以另一个定义版本水合的观察者持有形状不同的取值，因此它收到的
+ * 是以根替换方式给出的新值，而非针对那种形状的操作。
  */
 function observedOperations(
 	observed: { version: number },
@@ -696,23 +692,22 @@ function cancellationError(signal: AbortSignal): Error {
 	return signal.reason instanceof Error ? signal.reason : new DOMException("The operation was aborted", "AbortError");
 }
 
-/** What the guard needs of its Session: the failure so far, and how to fail it. */
+/** 守卫需要 Session 提供的东西：到目前为止的失败，以及使它失败的方法。 */
 type FailureLatch = {
 	readonly failure: { readonly error: unknown } | undefined;
 	fail(error: unknown): void;
 };
 
 /**
- * The Session's Storage behind its failure guard; every component of the Session reads and writes through it. Before a
- * call, a failed Session gets `SessionFailed` without reaching the backend. A call that throws fails the Session and
- * rethrows the backend's error, unless it is a `StorageRequestError` or a read whose caller's context was aborted:
- * neither says the Storage is broken.
- * `close()` always reaches the backend, so a failed Session still closes it.
+ * 失败守卫之后的 Session Storage；Session 的每个组件都通过它读写。调用之前，已失败的 Session 直接得到
+ * `SessionFailed`，不会触达后端。抛错的调用会使 Session 失败并重新抛出后端的错误——除非那是一个
+ * `StorageRequestError`，或调用方 context 已被取消的读取：这两者都不能说明 Storage 已损坏。
+ * `close()` 总会触达后端，因此已失败的 Session 仍会关闭它。
  */
 class GuardedStorage implements Storage {
 	readonly #storage: Storage;
 	readonly #latch: FailureLatch;
-	/** Backend calls underway, also those off the Session line, which close waits for before it closes the backend. */
+	/** 在途的后端调用，包括离开 Session 线的那些；close 会等它们结束再关闭后端。 */
 	readonly #underway = new Set<Promise<unknown>>();
 	#closing = false;
 
@@ -721,7 +716,7 @@ class GuardedStorage implements Storage {
 		this.#latch = latch;
 	}
 
-	/** Never exempt, whatever it throws: once admitted, whether a failed batch committed is unknown. */
+	/** 永不豁免，无论它抛出什么：一旦准入，失败的批次是否已提交就不得而知。 */
 	commit(writes: readonly StorageWrite[], context: Context): Promise<Seq> {
 		return this.#call(undefined, () => this.#storage.commit(writes, context));
 	}
@@ -830,8 +825,8 @@ class GuardedStorage implements Storage {
 	}
 
 	/**
-	 * Close the backend once every call underway has settled, so none outlives it or fails after `closed` settles. New
-	 * calls are refused from here on: a paged read must not start its next page while the backend closes.
+	 * 待每个在途调用落定后关闭后端，使它们既不比后端活得久，也不会在 `closed` 落定之后才失败。
+	 * 从此之后拒绝新调用：分页读取不得在后端关闭期间开始它的下一页。
 	 */
 	async close(context: Context): Promise<void> {
 		this.#closing = true;
@@ -840,22 +835,22 @@ class GuardedStorage implements Storage {
 	}
 
 	/**
-	 * Run one backend call under the guard. `read` is a read's context; `commit()` and `mintId()` pass none, so nothing
-	 * exempts their errors: once a batch is admitted, whether it committed is unknown. A call still underway when another
-	 * fails the Session ends with `SessionFailed` too, whatever it returns: nothing it read or wrote is used.
+	 * 在守卫之下运行一个后端调用。`read` 是读取操作的 context；`commit()` 与 `mintId()` 不传它，因此它们的
+	 * 错误绝无豁免：一旦批次被准入，它是否已提交就不得而知。当另一个调用使 Session 失败时，仍在途的调用
+	 * 也以 `SessionFailed` 结束——无论它返回什么：它读过写过的一切都不再被使用。
 	 */
 	async #call<T>(read: Context | undefined, run: () => Promise<T>): Promise<T> {
 		this.#assertHealthy();
 		if (this.#closing) throw new Error("Session is closed");
 		let result: T;
-		// An async wrapper, so a backend that throws synchronously is guarded too.
+		// 用 async 包装，因此同步抛错的后端同样被守卫覆盖。
 		const call = (async () => run())();
 		this.#underway.add(call);
 		try {
 			result = await call;
 		} catch (error) {
 			this.#assertHealthy();
-			// An invalid read, or one its caller cancelled, says nothing about the Storage; it fails that call only.
+			// 无效读取、或调用方已取消的读取，说明不了 Storage 的问题；它只让那一次调用失败。
 			const exempt =
 				read !== undefined && (error instanceof StorageRequestError || read.abortSignal?.aborted === true);
 			if (!exempt) this.#latch.fail(error);

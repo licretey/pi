@@ -1,13 +1,12 @@
 /**
- * Adapts MCP tools to pi tool definitions.
+ * 把 MCP 工具适配为 pi 工具定义。
  *
- * Results map onto pi's model-facing content (text and images). Text over 20KB keeps its start and
- * end with the middle cut out, like Codex does, and the full text is saved to a temp file the model
- * can read. Binary resources other than images are saved to temp files too, and resource links name
- * the `read_mcp_resource` tool. Codemode scripts receive the whole `CallToolResult` without `_meta`
- * (`content` blocks as sent by the server, `structuredContent`, `isError`), never truncated: it is
- * the tool's `structuredContent`, and every MCP tool declares a `CallToolResult` output schema. MCP
- * errors (`isError`) are error results for the model, but scripts still resolve to the result.
+ * 结果映射到 pi 面向模型的内容（文本与图片）。超过 20KB 的文本像 Codex 一样保留开头与
+ * 结尾、挖去中段，并将全文保存到模型可读的临时文件。图片之外的二进制资源同样保存到临时文件，资源链接则
+ * 指向 `read_mcp_resource` 工具。Codemode 脚本收到不含 `_meta` 的完整 `CallToolResult`
+ * （server 原样发送的 `content` blocks、`structuredContent`、`isError`），绝不截断：它就是
+ * 工具的 `structuredContent`，且每个 MCP 工具都声明了 `CallToolResult` 输出 schema。MCP
+ * 错误（`isError`）对模型是错误结果，但脚本仍会 resolve 到该结果。
  */
 
 import { createHash } from "node:crypto";
@@ -38,32 +37,32 @@ import { writeOutputFile } from "../../utils/output-files.ts";
 import type { McpExposure } from "./config.ts";
 
 /**
- * Tool exposure of an MCP exposure. `codemode` and `deferred` both leave tools out of the codemode
- * description; they differ only in which tool the MCP extension activates to reach them.
+ * MCP exposure 对应的工具 exposure。`codemode` 与 `deferred` 都不把工具放进 codemode
+ * 描述；区别只在于 MCP extension 激活哪个工具来触达它们。
  */
 export function toToolExposure(exposure: McpExposure): ToolExposure {
 	return exposure === "codemode" ? "deferred" : exposure;
 }
 
-/** Provider tool names are limited to 64 characters of `[A-Za-z0-9_-]`. */
+/** provider 的工具名限制为 `[A-Za-z0-9_-]` 的 64 个字符。 */
 const MAX_TOOL_NAME_LENGTH = 64;
-/** Model-facing text of an MCP result beyond this is cut in the middle. */
+/** MCP 结果中面向模型的文本超过此值就在中间截断。 */
 export const MCP_OUTPUT_MAX_BYTES = 20 * 1024;
-/** Visual (wrapped) result lines shown before the output is expanded. */
+/** 输出展开之前显示的结果行数（视觉折行后）。 */
 const OUTPUT_PREVIEW_LINES = 5;
-/** Tool that reads the resources named by resource links. */
+/** 读取资源链接所指资源的工具。 */
 export { READ_MCP_RESOURCE_TOOL };
 
 export interface McpToolDetails {
 	server: string;
 	tool: string;
-	/** Temp file with the full text output, when the model-facing text was truncated. */
+	/** 面向模型的文本被截断后，保存完整文本输出的临时文件。 */
 	fullOutputPath?: string;
 }
 
 /**
- * Saves the full text of a truncated result, or a binary resource, and returns the file path.
- * `extension` includes the dot, for example `.txt`.
+ * 保存被截断结果的完整文本或某个二进制资源，并返回文件路径。
+ * `extension` 含点号，例如 `.txt`。
  */
 export type McpOutputSaver = (data: string | Uint8Array, extension: string) => Promise<string>;
 
@@ -76,10 +75,10 @@ export interface McpToolCaller {
 }
 
 /**
- * `mcp__<server>__<tool>`, sanitized and shortened with a hash suffix when too long. Like Codex,
- * everything but `[A-Za-z0-9_]` becomes `_`, so the name is also the identifier codemode scripts
- * call it by. `isTaken` reports names used by a different MCP tool: sanitizing can map two tools to
- * one name (`a-b` and `a_b`), which then get the hash suffix.
+ * `mcp__<server>__<tool>`，经过净化，过长时追加 hash 后缀缩短。与 Codex 相同，
+ * 除了 `[A-Za-z0-9_]` 之外的一切字符都变成 `_`，因此该名称同时也是 codemode 脚本
+ * 调用它所用的标识符。`isTaken` 报告被另一个 MCP 工具占用的名称：净化可能把两个工具
+ * 映射到同一个名字（`a-b` 与 `a_b`），此时会追加 hash 后缀。
  */
 export function createMcpToolName(
 	server: string,
@@ -100,9 +99,9 @@ function textOf(content: readonly (TextContent | ImageContent)[]): string {
 }
 
 /**
- * Output schema of every MCP tool: the `CallToolResult` scripts receive, with the tool's own output
- * schema as `structuredContent`. Codemode detects this shape to render `CallToolResult<T>`
- * declarations.
+ * 每个 MCP 工具的输出 schema：即脚本收到的 `CallToolResult`，其中工具自身的输出
+ * schema 作为 `structuredContent`。Codemode 检测该形状以渲染 `CallToolResult<T>`
+ * 声明。
  */
 export function createMcpResultSchema(structuredContentSchema: Record<string, unknown> | undefined): TSchema {
 	return {
@@ -118,8 +117,8 @@ export function createMcpResultSchema(structuredContentSchema: Record<string, un
 }
 
 /**
- * Keep model-facing text within {@link MCP_OUTPUT_MAX_BYTES}. Longer text becomes one text block in
- * Codex's truncation format, followed by the path of the file with the full text; images follow it.
+ * 让面向模型的文本保持在 {@link MCP_OUTPUT_MAX_BYTES} 以内。更长的文本会变成一个按
+ * Codex 截断格式组织的文本块，后面跟着保存完整文本的文件路径；图片跟随其后。
  */
 export async function limitMcpContent(
 	content: (TextContent | ImageContent)[],
@@ -145,26 +144,26 @@ export async function limitMcpContent(
 }
 
 export interface ConvertMcpResultOptions {
-	/** Saves truncated text and binary resources. Default: a temp file. */
+	/** 保存被截断的文本与二进制资源。默认：写入临时文件。 */
 	saveOutput?: McpOutputSaver;
-	/** Whether the server's resources can be read with `read_mcp_resource`, which resource links then name. */
+	/** server 的资源能否用 `read_mcp_resource` 读取（资源链接随即指向该工具）。 */
 	readableResources?: boolean;
 }
 
-/** File extension for a saved binary resource: the one its URI ends in, else `.bin`. */
+/** 保存后的二进制资源的文件扩展名：取其 URI 的结尾，否则为 `.bin`。 */
 function extensionOf(uri: string): string {
 	const path = URL.canParse(uri) ? new URL(uri).pathname : uri;
 	return /\.[A-Za-z0-9]{1,8}$/.exec(path)?.[0] ?? ".bin";
 }
 
-/** Blobs of these types are shown as text. */
+/** 这些类型的 blob 按文本显示。 */
 function isTextMimeType(mimeType: string | undefined): boolean {
 	if (!mimeType) return false;
 	const type = mimeType.split(";", 1)[0].trim().toLowerCase();
 	return type.startsWith("text/") || type === "application/json" || type.endsWith("+json") || type.endsWith("+xml");
 }
 
-/** Model-facing content of one block of `server`'s result. */
+/** `server` 结果中单个 block 面向模型的内容。 */
 async function blockToContent(
 	server: string,
 	block: ContentBlock,
@@ -197,7 +196,7 @@ async function blockToContent(
 	return toLlmContent({ content: [block] });
 }
 
-/** Model-facing content of `server`'s content blocks, before the output limit. */
+/** `server` 各 content block 面向模型的内容，在输出上限之前。 */
 export async function toModelContent(
 	server: string,
 	blocks: readonly ContentBlock[],
@@ -206,14 +205,14 @@ export async function toModelContent(
 	return (await Promise.all(blocks.map((block) => blockToContent(server, block, options)))).flat();
 }
 
-/** Convert an MCP result. `isError` results become error results that keep the structured result. */
+/** 转换一个 MCP 结果。`isError` 结果会变成保留结构化结果的错误结果。 */
 export async function convertMcpResult(
 	server: string,
 	tool: string,
 	result: CallToolResult,
 	options: ConvertMcpResultOptions = {},
 ): Promise<AgentToolResult<McpToolDetails>> {
-	// Without content blocks, toLlmContent falls back to the structured content as JSON.
+	// 没有 content blocks 时，toLlmContent 回退为把结构化内容当作 JSON。
 	const converted: (TextContent | ImageContent)[] =
 		result.content.length > 0 ? await toModelContent(server, result.content, options) : toLlmContent(result);
 	if (result.isError && textOf(converted) === "") {
@@ -230,8 +229,8 @@ export async function convertMcpResult(
 }
 
 /**
- * Tool input schemas must be objects. MCP servers may omit `type`, and some providers reject object
- * schemas without `properties`.
+ * 工具输入 schema 必须是对象。MCP server 可能省略 `type`，而有的 provider 会拒绝
+ * 没有 `properties` 的对象 schema。
  */
 function toParameters(schema: Record<string, unknown>): TSchema {
 	return {
@@ -243,7 +242,7 @@ function toParameters(schema: Record<string, unknown>): TSchema {
 
 const ANNOTATION_HINTS = ["readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"] as const;
 
-/** The boolean hints of an MCP tool's annotations, or undefined when it has none. */
+/** MCP 工具 annotations 中的布尔提示（hints），一个都没有时为 undefined。 */
 function toToolAnnotations(tool: McpTool): ToolAnnotations | undefined {
 	const annotations: ToolAnnotations = {};
 	for (const hint of ANNOTATION_HINTS) {
@@ -261,7 +260,7 @@ export function createMcpToolDefinition(options: {
 	namespace: ToolNamespace;
 	timeoutMs: number;
 	getClient: () => Promise<McpToolCaller>;
-	/** Whether `read_mcp_resource` can read the server's resources. */
+	/** `read_mcp_resource` 能否读取该 server 的资源。 */
 	readableResources?: () => boolean;
 }): ToolDefinition<TSchema, McpToolDetails> {
 	const { server, tool } = options;
@@ -294,7 +293,7 @@ export function createMcpToolDefinition(options: {
 	};
 }
 
-/** Renderers of calls to an MCP tool, labeled `server/tool`, also used before the tool is registered. */
+/** MCP 工具调用的 renderer，标签为 `server/tool`；也在工具注册之前使用。 */
 export function createMcpToolRenderers(label: string): ToolRenderers {
 	return {
 		renderCall(args, theme, context) {
@@ -316,7 +315,7 @@ export function createMcpToolRenderers(label: string): ToolRenderers {
 			if (options.expanded) {
 				component.addChild(new Text(styled, 0, 0));
 			} else {
-				// Limit wrapped lines, not logical ones: MCP results are often one long JSON line.
+				// 限制的是折行后的视觉行，而非逻辑行：MCP 结果常常是一整条长 JSON 行。
 				component.addChild(
 					new VisualLinePreview({
 						text: styled,

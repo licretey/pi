@@ -1,5 +1,5 @@
-// A background task that owns a child conversation.
-// Run from packages/durable:
+// 拥有子对话的后台任务。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/03-owned-conversations.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { type ConversationId, createSession, defineDoc, defineTask, MemoryStorage } from "../../src/index.ts";
@@ -7,14 +7,11 @@ import { type ConversationId, createSession, defineDoc, defineTask, MemoryStorag
 const context = BACKGROUND_CONTEXT;
 const session = createSession(new MemoryStorage());
 
-// A typical agent setup: a background task supervises a helper conversation,
-// and the main conversation keeps a registry that maps agent names to their
-// conversations. All three are created in one commit, so after a crash either
-// all of them exist or none do.
+// 一种常见的代理配置：后台任务负责监督辅助对话，主对话保存代理名称到其对话的映射表。
+// 三者在同一事务中创建，因此即使发生崩溃，也会全部存在或全部不存在。
 
-// A task definition needs a name, a version, the task's starting state, a
-// handler for every phase, and an abort handler (12-tasks.ts runs a task).
-// This example only creates the task record; a plain Session never runs it.
+// 任务定义需要包含名称、版本、初始状态、每个阶段的处理器和中止处理器（12-tasks.ts 会运行任务）。
+// 此示例只创建任务记录；普通 Session 不会运行任务。
 const Supervisor = defineTask<null, { phase: "ready" }, null>({
 	name: "example.supervisor",
 	version: 1,
@@ -23,9 +20,8 @@ const Supervisor = defineTask<null, { phase: "ready" }, null>({
 	abort: async () => {},
 });
 
-// "latest" keeps only the current value. "initial" means forks of this
-// conversation start without a registry, so a child doesn't inherit its
-// parent's list of agents.
+// "latest" 只保留当前值。"initial" 表示此对话的分支从空注册表开始，
+// 因此子对话不会继承父对话的代理列表。
 const AgentRegistry = defineDoc<{
 	agents: Record<string, { conversationId: ConversationId; requestId: string }>;
 }>({
@@ -40,21 +36,18 @@ const AgentRegistry = defineDoc<{
 const main = await session.commit((tx) => tx.createConversation({ ownership: { kind: "ownerless" } }), context);
 
 const setup = await session.commit(async (tx) => {
-	// `background: true` means the task is side work: waiting for the main
-	// conversation to finish does not wait for it.
+	// `background: true` 表示这是后台工作：等待主对话完成时，不必等待此任务。
 	const supervisorId = await tx.createTask(Supervisor, null, {
 		ownership: { kind: "conversation" },
 		conversationId: main.id,
 		background: true,
 	});
 
-	// The child records that it belongs to the supervisor task. The task was
-	// created a few lines above in this same commit, which is allowed.
+	// 子对话会记录自己归属于监督任务。该任务在同一事务中创建，因此可以这样引用。
 	const child = await tx.createConversation({ ownership: { kind: "task", taskId: supervisorId } });
 
-	// requestId is a fixed name for the child's first message. Later code sends
-	// that message using this requestId, so a retry after a crash cannot
-	// deliver it twice.
+	// requestId 是子对话首条消息的固定名称。后续代码使用此 ID 发送消息，
+	// 这样崩溃后重试时就不会重复发送。
 	(await tx.doc(AgentRegistry, main.id)).agents.researcher = {
 		conversationId: child.id,
 		requestId: `researcher:first-message:${supervisorId}`,

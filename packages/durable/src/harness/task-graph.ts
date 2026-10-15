@@ -15,7 +15,7 @@ import type {
 } from "../types.ts";
 import { closedError, scanAll } from "./util.ts";
 
-/** A live task's durable status without its checkpoint and outcome payloads (spec §9.5). */
+/** 一个存活任务的持久状态，不含其检查点与结果载荷（规范 §9.5）。 */
 export type TaskGraphState =
 	| { readonly status: "pending" | "running"; readonly phase: string }
 	| {
@@ -24,25 +24,25 @@ export type TaskGraphState =
 			readonly on: readonly TaskId[];
 			readonly policy: JoinPolicy;
 	  }
-	/** Outcome held until its ordinary owned work drains. */
+	/** 结果先扣留到其所属的普通工作排空为止。 */
 	| { readonly status: "completing"; readonly outcome: TaskOutcome<JsonValue>["status"] };
 
 export type TaskGraphNode = {
 	readonly id: TaskId;
 	readonly kind: string;
 	readonly conversationId: ConversationId;
-	/** Owner task; absent for a conversation-owned task. */
+	/** owner 任务；conversation 拥有的任务没有此字段。 */
 	readonly owner?: TaskId;
 	readonly background: boolean;
 	readonly abortRequested: boolean;
 	readonly state: TaskGraphState;
-	/** Conversations this task owns, in ID order. */
+	/** 该任务拥有的 conversation，按 ID 顺序。 */
 	readonly conversations: readonly ConversationId[];
 };
 
-/** Every live task of the Session (spec §9.5). */
+/** 会话中所有存活的任务（规范 §9.5）。 */
 export type TaskGraph = {
-	/** Every live task, keyed by its decimal ID. */
+	/** 所有存活任务，以其十进制 ID 为键。 */
 	readonly tasks: Readonly<Record<string, TaskGraphNode>>;
 };
 
@@ -56,8 +56,8 @@ const LIVE_STATUSES = ["pending", "running", "waiting", "completing"] as const;
 const SCAN_PAGE_SIZE = 256;
 
 /**
- * The Harness's task graph mount: built on the Session line by its first observer and dropped with its last. It
- * advances from the Session's commit publications, which are durable.
+ * Harness 的任务图挂载点：由第一个观察者在会话线上构建，随最后一个观察者移除。
+ * 它从会话的提交发布（这些是持久的）向前推进。
  */
 export class TaskGraphView {
 	readonly #session: SessionImpl;
@@ -83,7 +83,7 @@ export class TaskGraphView {
 		});
 	}
 
-	/** A disposable read-only Chord state of the graph. */
+	/** 图的一次性只读 Chord 状态。 */
 	async state(context: Context): Promise<AttachedReplicatedState<TaskGraph>> {
 		const { observer, detach } = await this.#attach(
 			(value, release) => new CommittedStateSource<TaskGraph>(value, release),
@@ -97,7 +97,7 @@ export class TaskGraphView {
 		}
 	}
 
-	/** A serialized exact-frame watch of the graph; cancelling `context` stops it. */
+	/** 图的序列化精确帧监视；取消 `context` 即停止。 */
 	async watch(context: Context): Promise<TaskGraphWatch> {
 		const { observer } = await this.#attach(
 			(value, release) => new CommittedWatch<TaskGraph>(value, release, (error) => this.#session.report(error)),
@@ -112,7 +112,7 @@ export class TaskGraphView {
 		return observer;
 	}
 
-	/** Register an observer created from the current revision, atomically on the Session line. */
+	/** 在会话线上原子地注册一个从当前版本创建的观察者。 */
 	#attach<O extends Observer>(
 		create: (value: TaskGraph, release: () => void) => O,
 		context: Context,
@@ -124,7 +124,7 @@ export class TaskGraphView {
 				if (mount.observers.size === 0 && this.#mount === mount) this.#mount = undefined;
 			};
 			const observer = create(mount.value, detach);
-			// Close or cancellation may begin while the mount builds; register nothing then.
+			// mount 构建期间可能开始 close 或取消；此时不注册任何东西。
 			if (this.#closed) throw closedError(this.#session);
 			context.abortSignal?.throwIfAborted();
 			this.#mount = mount;
@@ -154,8 +154,8 @@ export class TaskGraphView {
 }
 
 /**
- * Derive the mount's operations from one publication, apply them, and hand the revision to every observer; one that
- * throws is reported through `report`, and the others still get it.
+ * 从一次发布推导出挂载点的操作，应用它们，并把新版本交给每个观察者；抛错者经 `report` 上报，
+ * 其余观察者照常收到。
  */
 function advance(
 	mount: Mount,
@@ -164,7 +164,7 @@ function advance(
 	report: (error: unknown) => void,
 ): void {
 	const ops: Op[] = [];
-	// Nodes this publication set or deleted, over the mount's value.
+	// 本次发布设置或删除的节点，叠加在 mount 的取值之上。
 	const changed = new Map<string, TaskGraphNode | undefined>();
 	const node = (key: string): TaskGraphNode | undefined =>
 		changed.has(key) ? changed.get(key) : mount.value.tasks[key];
@@ -184,8 +184,8 @@ function advance(
 		ops.push(["s", ["tasks", key], next as unknown as JsonValue]);
 		changed.set(key, next);
 	}
-	// After the tasks, so a conversation created with its owner task in one commit finds the owner's node. Change order
-	// within a publication is unspecified, so each owner's list is sorted again.
+	// 放在任务之后处理：同一提交中随属主任务一起创建的对话才能找到属主节点。发布内部的变更顺序并无保证，
+	// 因此每个属主的列表都要再次排序。
 	const created = new Map<string, ConversationId[]>();
 	for (const change of publication.changes) {
 		if (change.type !== "conversation" || change.value.owner === undefined) continue;
@@ -224,7 +224,7 @@ function stateOf(record: AnyTaskRecord): TaskGraphState {
 			return { status: state.status, phase: phaseOf(state.checkpoint) };
 		case "waiting":
 			return { status: "waiting", phase: phaseOf(state.checkpoint), on: [...state.on], policy: state.policy };
-		// Terminal records never reach here: they leave the graph.
+		// 终态记录不会走到这里：它们已离开任务图。
 		case "completing":
 		case "terminal":
 			return { status: "completing", outcome: state.outcome.status };

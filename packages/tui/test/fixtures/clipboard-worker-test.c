@@ -23,7 +23,7 @@ static void tracked_free(void* pointer) {
 #undef calloc
 #undef free
 
-// Exercise the production executor with a controlled blocking callback, without X11.
+// 使用受控的阻塞回调测试生产环境中的执行器，无需启动 X11。
 static void read_clipboard(clipboard_job* job) {
     job->data = tracked_calloc(5, 1);
     assert(job->data);

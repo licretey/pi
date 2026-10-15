@@ -1,31 +1,31 @@
 /**
- * Interactive Shell Commands Extension
+ * 交互式 Shell 命令扩展
  *
- * Enables running interactive commands (vim, git rebase -i, htop, etc.)
- * with full terminal access. The TUI suspends while they run.
+ * 支持在完整终端访问权限下运行交互式命令（vim、git rebase -i、htop 等）。
+ * 命令运行期间，TUI 会暂停。
  *
- * Usage:
+ * 用法：
  *   pi -e examples/extensions/interactive-shell.ts
  *
- *   !vim file.txt        # Auto-detected as interactive
- *   !i any-command       # Force interactive mode with !i prefix
+ *   !vim file.txt        # 自动识别为交互式命令
+ *   !i any-command       # 使用 !i 前缀强制进入交互模式
  *   !git rebase -i HEAD~3
  *   !htop
  *
- * Configuration via environment variables:
- *   INTERACTIVE_COMMANDS - Additional commands (comma-separated)
- *   INTERACTIVE_EXCLUDE  - Commands to exclude (comma-separated)
+ * 通过环境变量配置：
+ *   INTERACTIVE_COMMANDS - 额外的命令（以逗号分隔）
+ *   INTERACTIVE_EXCLUDE  - 要排除的命令（以逗号分隔）
  *
- * Note: This only intercepts user `!` commands, not agent bash tool calls.
- * If the agent runs an interactive command, it will fail (which is fine).
+ * 注意：此扩展只拦截用户输入的 `!` 命令，不拦截 agent 的 bash 工具调用。
+ * agent 运行交互式命令时会失败，这是预期行为。
  */
 
 import { spawnSync } from "node:child_process";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
-// Default interactive commands - editors, pagers, git ops, TUIs
+// 默认交互式命令：编辑器、分页器、Git 操作和 TUI
 const DEFAULT_INTERACTIVE_COMMANDS = [
-	// Editors
+	// 编辑器
 	"vim",
 	"nvim",
 	"vi",
@@ -36,11 +36,11 @@ const DEFAULT_INTERACTIVE_COMMANDS = [
 	"helix",
 	"hx",
 	"kak",
-	// Pagers
+	// 分页器
 	"less",
 	"more",
 	"most",
-	// Git interactive
+	// 交互式 Git 命令
 	"git commit",
 	"git rebase",
 	"git merge",
@@ -58,40 +58,40 @@ const DEFAULT_INTERACTIVE_COMMANDS = [
 	"git checkout --patch",
 	"git difftool",
 	"git mergetool",
-	// System monitors
+	// 系统监视器
 	"htop",
 	"top",
 	"btop",
 	"glances",
-	// File managers
+	// 文件管理器
 	"ranger",
 	"nnn",
 	"lf",
 	"mc",
 	"vifm",
-	// Git TUIs
+	// Git TUI
 	"tig",
 	"lazygit",
 	"gitui",
-	// Fuzzy finders
+	// 模糊查找工具
 	"fzf",
 	"sk",
-	// Remote sessions
+	// 远程会话
 	"ssh",
 	"telnet",
 	"mosh",
-	// Database clients
+	// 数据库客户端
 	"psql",
 	"mysql",
 	"sqlite3",
 	"mongosh",
 	"redis-cli",
-	// Kubernetes/Docker
+	// Kubernetes/Docker 工具
 	"kubectl edit",
 	"kubectl exec -it",
 	"docker exec -it",
 	"docker run -it",
-	// Other
+	// 其他
 	"tmux",
 	"screen",
 	"ncdu",
@@ -112,11 +112,11 @@ function isInteractiveCommand(command: string): boolean {
 
 	for (const cmd of commands) {
 		const cmdLower = cmd.toLowerCase();
-		// Match at start
+		// 匹配命令开头
 		if (trimmed === cmdLower || trimmed.startsWith(`${cmdLower} `) || trimmed.startsWith(`${cmdLower}\t`)) {
 			return true;
 		}
-		// Match after pipe: "cat file | less"
+		// 匹配管道符后的命令，例如 "cat file | less"
 		const pipeIdx = trimmed.lastIndexOf("|");
 		if (pipeIdx !== -1) {
 			const afterPipe = trimmed.slice(pipeIdx + 1).trim();
@@ -133,8 +133,8 @@ export default function (pi: ExtensionAPI) {
 		let command = event.command;
 		let forceInteractive = false;
 
-		// Check for !i prefix (command comes without the leading !)
-		// The prefix parsing happens before this event, so we check if command starts with "i "
+		// 检查 !i 前缀（传入的 command 不包含开头的 !）
+		// 前缀会在触发此事件前解析，因此这里检查 command 是否以 "i " 开头
 		if (command.startsWith("i ") || command.startsWith("i\t")) {
 			forceInteractive = true;
 			command = command.slice(2).trim();
@@ -142,43 +142,43 @@ export default function (pi: ExtensionAPI) {
 
 		const shouldBeInteractive = forceInteractive || isInteractiveCommand(command);
 		if (!shouldBeInteractive) {
-			return; // Let normal handling proceed
+			return; // 继续执行常规处理。
 		}
 
-		// No UI available (print mode, RPC, etc.)
+		// 当前没有可用 UI（例如打印模式或 RPC 模式）
 		if (ctx.mode !== "tui") {
 			return {
 				result: { output: "(interactive commands require TUI)", exitCode: 1, cancelled: false, truncated: false },
 			};
 		}
 
-		// Use ctx.ui.custom() to get TUI access, then run the command
+		// 使用 ctx.ui.custom() 获取 TUI，然后运行命令
 		const exitCode = await ctx.ui.custom<number | null>((tui, _theme, _kb, done) => {
-			// Stop TUI to release terminal
+			// 停止 TUI，以释放终端
 			tui.stop();
 
-			// Clear screen
+			// 清屏
 			process.stdout.write("\x1b[2J\x1b[H");
 
-			// Run command with full terminal access
+			// 在获得完整终端访问权限后运行命令
 			const shell = process.env.SHELL || "/bin/sh";
 			const result = spawnSync(shell, ["-c", command], {
 				stdio: "inherit",
 				env: process.env,
 			});
 
-			// Restart TUI
+			// 重新启动 TUI
 			tui.start();
 			tui.requestRender(true);
 
-			// Signal completion
+			// 通知操作已完成
 			done(result.status);
 
-			// Return empty component (immediately disposed since done() was called)
+			// 返回空组件（done() 已调用，因此该组件会立即释放）
 			return { render: () => [], invalidate: () => {} };
 		});
 
-		// Return result to prevent default bash handling
+		// 返回结果，阻止默认的 bash 处理逻辑
 		const output =
 			exitCode === 0
 				? "(interactive command completed successfully)"

@@ -1,5 +1,5 @@
 /**
- * DOOM key codes (from doomkeys.h)
+ * DOOM 按键码（定义于 doomkeys.h）。
  */
 export const DoomKeys = {
 	KEY_RIGHTARROW: 0xae,
@@ -37,17 +37,17 @@ export const DoomKeys = {
 import { Key, matchesKey, parseKey } from "@earendil-works/pi-tui";
 
 /**
- * Map terminal key input to DOOM key codes
- * Supports both raw terminal input and Kitty protocol sequences
+ * 将终端按键输入映射为 DOOM 按键码。
+ * 同时支持原始终端输入和 Kitty 协议序列。
  */
 export function mapKeyToDoom(data: string): number[] {
-	// Arrow keys
+	// 方向键。
 	if (matchesKey(data, Key.up)) return [DoomKeys.KEY_UPARROW];
 	if (matchesKey(data, Key.down)) return [DoomKeys.KEY_DOWNARROW];
 	if (matchesKey(data, Key.right)) return [DoomKeys.KEY_RIGHTARROW];
 	if (matchesKey(data, Key.left)) return [DoomKeys.KEY_LEFTARROW];
 
-	// WASD - check both raw char and Kitty sequences
+	// WASD：同时检查原始字符和 Kitty 协议序列。
 	if (data === "w" || matchesKey(data, "w")) return [DoomKeys.KEY_UPARROW];
 	if (data === "W" || matchesKey(data, Key.shift("w"))) return [DoomKeys.KEY_UPARROW, DoomKeys.KEY_RSHIFT];
 	if (data === "s" || matchesKey(data, "s")) return [DoomKeys.KEY_DOWNARROW];
@@ -57,21 +57,21 @@ export function mapKeyToDoom(data: string): number[] {
 	if (data === "d" || matchesKey(data, "d")) return [DoomKeys.KEY_STRAFE_R];
 	if (data === "D" || matchesKey(data, Key.shift("d"))) return [DoomKeys.KEY_STRAFE_R, DoomKeys.KEY_RSHIFT];
 
-	// Fire - F key
+	// F 键用于开火。
 	if (data === "f" || data === "F" || matchesKey(data, "f") || matchesKey(data, Key.shift("f"))) {
 		return [DoomKeys.KEY_FIRE];
 	}
 
-	// Use/Open
+	// 使用或打开。
 	if (data === " " || matchesKey(data, Key.space)) return [DoomKeys.KEY_USE];
 
-	// Menu/UI keys
+	// 菜单和界面按键。
 	if (matchesKey(data, Key.enter)) return [DoomKeys.KEY_ENTER];
 	if (matchesKey(data, Key.escape)) return [DoomKeys.KEY_ESCAPE];
 	if (matchesKey(data, Key.tab)) return [DoomKeys.KEY_TAB];
 	if (matchesKey(data, Key.backspace)) return [DoomKeys.KEY_BACKSPACE];
 
-	// Ctrl keys (except Ctrl+C) = fire (legacy support)
+	// Ctrl 按键（Ctrl+C 除外）用于开火（兼容旧行为）。
 	const parsed = parseKey(data);
 	if (parsed?.startsWith("ctrl+") && parsed !== "ctrl+c") {
 		return [DoomKeys.KEY_FIRE];
@@ -80,14 +80,14 @@ export function mapKeyToDoom(data: string): number[] {
 		return [DoomKeys.KEY_FIRE];
 	}
 
-	// Weapon selection (0-9)
+	// 使用数字 0-9 选择武器。
 	if (data >= "0" && data <= "9") return [data.charCodeAt(0)];
 
-	// Plus/minus for screen size
+	// 使用加号和减号调整屏幕尺寸。
 	if (data === "+" || data === "=") return [DoomKeys.KEY_EQUALS];
 	if (data === "-") return [DoomKeys.KEY_MINUS];
 
-	// Y/N for prompts
+	// 提示时使用 Y/N。
 	if (data === "y" || data === "Y" || matchesKey(data, "y") || matchesKey(data, Key.shift("y"))) {
 		return ["y".charCodeAt(0)];
 	}
@@ -95,7 +95,7 @@ export function mapKeyToDoom(data: string): number[] {
 		return ["n".charCodeAt(0)];
 	}
 
-	// Other printable characters (for cheats)
+	// 其他可打印字符（用于输入秘籍）。
 	if (data.length === 1 && data.charCodeAt(0) >= 32) {
 		return [data.toLowerCase().charCodeAt(0)];
 	}

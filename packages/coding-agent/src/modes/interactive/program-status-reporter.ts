@@ -9,21 +9,20 @@ function firstLine(text: string | undefined): string {
 }
 
 /**
- * Reports interactive-mode state to the terminal (OSC 7501): `working` during agent runs and
- * compaction, `blocked` while a dialog waits for the user, then `done`, `error`, or `idle` once the run
- * settles. Messages are limited to the session name, dialog titles, and the first line of errors; prompts
- * and assistant output are never reported.
+ * 将交互模式状态通过 OSC 7501 报告给终端：代理运行或压缩期间为 `working`，对话框等待用户操作时为 `blocked`，
+ * 运行结束后则为 `done`、`error` 或 `idle`。报告内容仅包括会话名称、对话框标题和错误首行；
+ * 不会报告提示词或助手输出。
  */
 export class ProgramStatusReporter {
 	private readonly getTerminal: () => Terminal;
 	private readonly getSessionName: () => string | undefined;
 	private runActive = false;
 	private compacting = false;
-	/** Outcome of the current run, reported once it settles. */
+	/** 当前运行结束后报告的结果。 */
 	private runResult: ProgramStatus = { state: "done" };
-	/** Status while no run is active. */
+	/** 当前没有运行任务时的状态。 */
 	private restingStatus: ProgramStatus = { state: "idle" };
-	/** Open dialogs by source, in the order they opened. The most recent one is reported. */
+	/** 按打开顺序记录各来源的对话框；报告最近打开的对话框。 */
 	private readonly blocked = new Map<string, BlockedStatus>();
 	private lastReport: string | undefined;
 
@@ -39,7 +38,7 @@ export class ProgramStatusReporter {
 				this.runResult = { state: "done" };
 				break;
 			case "message_end":
-				// The latest response decides the outcome, so a retried error is replaced by its successful retry.
+				// 最后一次响应决定运行结果，因此重试成功后会以成功结果取代之前的错误。
 				if (event.message.role !== "assistant") return;
 				this.runResult =
 					event.message.stopReason === "error"
@@ -52,7 +51,7 @@ export class ProgramStatusReporter {
 			case "compaction_end":
 				this.compacting = false;
 				if (this.runActive) {
-					// A failed recovery compaction ends the run unless a later response succeeds.
+					// 恢复期间的上下文压缩失败会结束本次运行，除非后续响应成功。
 					if (event.aborted) this.runResult = { state: "idle" };
 					else if (event.errorMessage) this.runResult = { state: "error", message: firstLine(event.errorMessage) };
 				} else if (event.aborted) {
@@ -68,7 +67,7 @@ export class ProgramStatusReporter {
 				this.restingStatus = event.aborted ? { state: "idle" } : this.runResult;
 				break;
 			case "session_info_changed":
-				// The session name is part of working and done reports.
+				// 会话名称会显示在进行中和已完成的报告中。
 				break;
 			default:
 				return;
@@ -76,14 +75,14 @@ export class ProgramStatusReporter {
 		this.report();
 	}
 
-	/** Report `blocked` for a dialog until it is cleared with `undefined`. Reopening a source replaces it. */
+	/** 对话框关闭前持续报告 `blocked`；传入 `undefined` 可清除状态。同一来源重新打开时会替换原状态。 */
 	setBlocked(source: string, status: BlockedStatus | undefined): void {
 		this.blocked.delete(source);
 		if (status) this.blocked.set(source, status);
 		this.report();
 	}
 
-	/** Forget the previous session's run, for example after switching sessions. */
+	/** 清除上一个会话的运行状态，例如切换会话后调用。 */
 	reset(): void {
 		this.runActive = false;
 		this.compacting = false;

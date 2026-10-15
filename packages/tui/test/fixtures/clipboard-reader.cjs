@@ -24,7 +24,7 @@ try {
 } finally {
 	clearInterval(timer);
 	if (performance.now() - started > 200) assert.ok(ticks > 5, "Clipboard I/O must not block the JS event loop");
-	// Check before Node exits: process exit must not hide a leaked child or zombie.
+	// 在 Node 退出前检查，避免进程退出掩盖泄漏的子进程或僵尸进程。
 	assert.equal(readFileSync(`/proc/self/task/${process.pid}/children`, "utf8").trim(), "");
 }
 

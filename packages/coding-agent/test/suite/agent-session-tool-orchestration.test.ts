@@ -8,8 +8,8 @@ import { createToolSearchExtension } from "../../src/extensions/tool-search/inde
 import { createHarness, type Harness } from "./harness.ts";
 
 /**
- * A tool that calls other tools, built only on the extension API: its own name, exposure, loadout
- * hook, and ctx.executeTool(). Codemode and tool search use the same mechanisms.
+ * 仅通过扩展 API 构建一个会调用其他工具的工具：其名称、暴露方式、可用工具集
+ * hook 以及 ctx.executeTool() 注册。Codemode 和工具搜索也使用相同机制。
  */
 function orchestratorExtension(pi: ExtensionAPI): void {
 	pi.registerTool({
@@ -91,7 +91,7 @@ describe("AgentSession tool orchestration", () => {
 		]);
 		await harness.session.prompt("go");
 
-		// echo stays active, but its declaration is left out of requests.
+		// echo 仍处于启用状态，但其声明不会包含在请求中。
 		expect(requestTools[0]).toEqual(["run_tools"]);
 		const result = harness.session.messages.find(
 			(message): message is ToolResultMessage => message.role === "toolResult",
@@ -105,7 +105,7 @@ describe("AgentSession tool orchestration", () => {
 			[`${parent}/2`, "echo", "ok"],
 			[`${parent}/3`, "run_tools", "error"],
 		]);
-		// The record is persisted with the session.
+		// 该记录会随会话一同持久化。
 		const persisted = harness.sessionManager
 			.getBranch()
 			.find((entry) => entry.type === "message" && entry.message.role === "toolResult");
@@ -121,7 +121,7 @@ describe("AgentSession tool orchestration", () => {
 		);
 		expect(plain.session.getActiveToolNames()).toEqual(["read", "bash", "edit", "write"]);
 
-		// --tools and the defaultTools setting name them explicitly.
+		// --tools 和 defaultTools 设置会显式指定这些工具。
 		const allowed = await createHarness({ allowedToolNames: ["read", "codemode"], extensionFactories });
 		harnesses.push(allowed);
 		expect(allowed.session.getActiveToolNames()).toEqual(["read", "codemode"]);

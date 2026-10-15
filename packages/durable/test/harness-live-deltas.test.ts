@@ -18,8 +18,8 @@ import { context, documentChanges } from "./session-support.ts";
 type Action = (api: ToolExecutionApi) => void | Promise<void>;
 
 /**
- * Drive one tool call step by step and capture the exact Chord operations of every `pi.live` commit. Each `step()`
- * runs one action inside the tool and returns the operations of the commit it caused.
+ * 逐步驱动一次工具调用，并捕获每次 `pi.live` 提交产生的确切 Chord 操作。每次调用 `step()`
+ * 都会在工具中执行一个操作，并返回该操作触发的提交内容。
  */
 async function drive(outputLimits: ToolRegistration["outputLimits"] = {}) {
 	const setup = chatSetup();
@@ -66,7 +66,7 @@ async function drive(outputLimits: ToolRegistration["outputLimits"] = {}) {
 	return {
 		harness,
 		commits,
-		/** Operations of every `pi.live` commit so far. */
+		/** 目前每次 `pi.live` 提交产生的操作。 */
 		async step(action: Action): Promise<readonly Op[]> {
 			const before = commits.length;
 			push(async (api) => {
@@ -76,7 +76,7 @@ async function drive(outputLimits: ToolRegistration["outputLimits"] = {}) {
 			await waitFor(() => commits.length > before);
 			return commits.at(-1)!;
 		},
-		/** Let the tool return and the run finish; returns the commits made meanwhile. */
+		/** 等待工具返回且运行结束，并返回此期间产生的提交。 */
 		async finish(): Promise<readonly Op[][]> {
 			const before = commits.length;
 			push(async () => false);
@@ -127,29 +127,29 @@ describe("pi.live deltas", () => {
 		const entries = await root.entries({}, 10, undefined, context);
 		const result = entries.items.find((entry) => entry.kind === "pi.tool-result")!.id;
 		expect(commits).toEqual([
-			// submission
+			// 提交阶段。
 			[["s", ["run"], { taskId: firstGeneration, inputs: [expect.any(Number)] }]],
-			// request
+			// 请求阶段。
 			[["s", ["generation"], { attempt: 1 }]],
-			// the generation starts its tool round and keeps the run
+			// generation 开始工具轮次，并保持运行状态
 			expect.arrayContaining([
 				["d", ["generation"]],
 				["s", ["tools"], [{ callId: "c1", name: "noop", taskId: tool, status: "pending" }]],
 			]),
-			// intent
+			// 意图阶段。
 			[["s", ["tools", 0, "status"], "running"]],
-			// result
+			// 结果阶段。
 			expect.arrayContaining([
 				["s", ["tools", 0, "status"], "done"],
 				["s", ["tools", 0, "entry"], result],
 			]),
-			// the generation's tools phase hands the run to the next generation
+			// generation 的工具阶段将运行交给下一个 generation
 			expect.arrayContaining([
 				["d", ["tools"]],
 				["s", ["run", "taskId"], secondGeneration],
 			]),
 			[["s", ["generation"], { attempt: 1 }]],
-			// the answer ends the run
+			// 答案使运行结束
 			expect.arrayContaining([
 				["d", ["run"]],
 				["d", ["generation"]],
@@ -165,7 +165,7 @@ describe("pi.live deltas", () => {
 		const run = await drive({ maxLines: 2 });
 		expect(await run.step((api) => api.output("one\n"))).toEqual([["s", OUTPUT, "one\n"]]);
 		expect(await run.step((api) => api.output("two\n"))).toEqual([["a", OUTPUT, "two\n"]]);
-		// The window is full: the retained text stays; only the counts change.
+		// 窗口已满：保留文本不变，只更新丢弃内容的计数。
 		expect(await run.step((api) => api.output("three\n"))).toEqual([
 			["s", ["tools", 0, "droppedBytes"], 6],
 			["s", ["tools", 0, "droppedLines"], 1],
@@ -189,7 +189,7 @@ describe("pi.live deltas", () => {
 			["s", ["tools", 0, "droppedBytes"], 7],
 			["s", ["tools", 0, "droppedLines"], 1],
 		]);
-		// The buffer keeps only the window, and later slides stay minimal and exact.
+		// 缓冲区只保留窗口内的内容，后续滑动窗口时产生的操作仍精简且准确。
 		expect(await run.step((api) => api.output("line 5\nline 6\n"))).toEqual([
 			["t", OUTPUT, 14],
 			["a", OUTPUT, "line 5\nline 6\n"],
@@ -202,7 +202,7 @@ describe("pi.live deltas", () => {
 	});
 
 	it("writes the whole window when Chord's overlap search cannot find the shared part", async () => {
-		// A retained window beyond the 64 KiB overlap scan.
+		// 保留窗口超出 64 KiB 的重叠扫描范围。
 		const wide = await drive({ maxBytes: 100 * 1024, maxLines: 1_000_000, retain: "tail" });
 		const line = (index: number) => `${String(index).padStart(10, "0")} ${"x".repeat(989)}\n`;
 		let text = "";
@@ -213,8 +213,7 @@ describe("pi.live deltas", () => {
 		await wide.finish();
 		await wide.harness.close(context);
 
-		// Repetitive output still finds an overlap here; Chord's bounded candidate search can give up on other inputs
-		// and then writes one window.
+		// 此处的重复输出仍可找到重叠部分；对于其他输入，Chord 的候选搜索有界，可能放弃查找并改为写入整个窗口。
 		const repetitive = await drive({ maxLines: 50, retain: "tail" });
 		await repetitive.step((api) => api.output("y\n".repeat(50)));
 		const repeated = await repetitive.step((api) => api.output("z\n"));
@@ -244,7 +243,7 @@ describe("pi.live deltas", () => {
 		const second = { severity: "warn", message: "second" } as const;
 		expect(await run.step((api) => api.diagnostic(first))).toEqual([["s", diagnostics, [first]]]);
 		expect(await run.step((api) => api.diagnostic(second))).toEqual([["p", diagnostics, 1, 0, [second]]]);
-		// Settlement moves everything into the result entry and keeps the slot small.
+		// 结算时会将所有内容移入结果条目，并保持槽位精简。
 		const [settled] = await run.finish();
 		expect(settled).toEqual(
 			expect.arrayContaining([
@@ -277,7 +276,7 @@ describe("pi.live deltas", () => {
 	});
 
 	it("stores a complete base exactly in the commits where nothing runs", async () => {
-		// Storage that remembers whether each commit wrote pi.live as a base or a delta.
+		// 记录每次提交将 pi.live 写为完整基线还是增量的存储。
 		const written = new Map<number, "base" | "delta">();
 		let liveId: number | undefined;
 		class RecordingStorage extends MemoryStorage {
@@ -334,7 +333,7 @@ describe("pi.live deltas", () => {
 			expect(kind === "base").toBe(nothingRuns(values.get(seq)!));
 			return kind;
 		});
-		// Bases at the handover, after each sequential tool, after the round, and when the run ends.
+		// 完整基线分别写于交接时、每个顺序执行的工具结束后、本轮结束后以及运行结束时。
 		expect(kinds.filter((kind) => kind === "base").length).toBeGreaterThanOrEqual(5);
 		expect(kinds).toContain("delta");
 		await harness.close(context);
@@ -348,7 +347,7 @@ describe("pi.live deltas", () => {
 				name: "bad",
 				description: "bad",
 				parameters: Type.Object({}),
-				// Not strict JSON: the result commit throws and the scheduler faults the task.
+				// 不是严格 JSON：结果提交会抛出异常，调度器会将任务标记为故障。
 				execute: async () => ({ output: [], details: { fn: (() => 1) as never } }),
 			}),
 		);
@@ -377,7 +376,7 @@ describe("pi.live deltas", () => {
 				{ callId: "b", name: "bad", taskId: expect.any(Number), status: "pending" },
 			],
 		]);
-		// The fault cleanup writes only the status.
+		// 故障清理只写入状态。
 		expect(commits).toContainEqual([["s", ["tools", 1, "status"], "done"]]);
 		await harness.close(context);
 	});

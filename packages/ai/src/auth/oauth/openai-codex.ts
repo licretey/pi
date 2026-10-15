@@ -1,11 +1,11 @@
 /**
- * OpenAI Codex (ChatGPT OAuth) flow
+ * OpenAI Codex（ChatGPT OAuth）授权流程。
  *
- * NOTE: This module uses Node.js crypto and http (via callback-server.ts) for the OAuth callback.
- * It is only intended for CLI use, not browser environments.
+ * 注意：此模块使用 Node.js crypto 和 http（通过 callback-server.ts）处理 OAuth 回调。
+ * 此模块仅供 CLI 使用，不适用于浏览器环境。
  */
 
-// NEVER convert to top-level imports - breaks browser/Vite builds
+// 绝不能改为顶层导入，否则会破坏浏览器/Vite 构建。
 let _randomBytes: typeof import("node:crypto").randomBytes | null = null;
 if (typeof process !== "undefined" && (process.versions?.node || process.versions?.bun)) {
 	import("node:crypto").then((m) => {
@@ -77,7 +77,7 @@ function parseAuthorizationInput(input: string): { code?: string; state?: string
 			state: url.searchParams.get("state") ?? undefined,
 		};
 	} catch {
-		// not a URL
+		// 输入不是 URL，继续按授权码或参数字符串解析。
 	}
 
 	if (value.includes("#")) {
@@ -361,7 +361,7 @@ async function loginOpenAICodex(
 	options?: LoginOptions,
 ): Promise<OAuthCredential> {
 	const { verifier, state, url } = await createAuthorizationFlow(options?.agentName);
-	// Port 1455 is shared with the Codex CLI; when it is taken, fall back to the pasted redirect URL.
+	// 端口 1455 与 Codex CLI 共用；端口被占用时，回退为让用户粘贴重定向 URL。
 	const callback = await startOAuthCallbackServer({
 		providerName: "OpenAI",
 		host: getCallbackHost(),
@@ -400,7 +400,7 @@ async function loginOpenAICodex(
 }
 
 /**
- * Refresh OpenAI Codex OAuth token
+ * 刷新 OpenAI Codex OAuth token。
  */
 async function refreshOpenAICodexToken(refreshToken: string, signal: AbortSignal): Promise<OAuthCredential> {
 	return credentialsFromToken(await refreshAccessToken(refreshToken, signal));

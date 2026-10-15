@@ -123,7 +123,7 @@ describe("skills", () => {
 				source: "test",
 			});
 
-			// no-frontmatter has no description, so it should be skipped
+			// no-frontmatter 没有描述，因此应跳过。
 			expect(skills).toHaveLength(0);
 			expect(diagnostics.some((d: ResourceDiagnostic) => d.message.includes("description is required"))).toBe(true);
 		});
@@ -166,9 +166,9 @@ describe("skills", () => {
 				source: "test",
 			});
 
-			// Should load all skills that have descriptions (even with warnings)
-			// valid-skill, name-mismatch, invalid-name-chars, long-name, unknown-field, nested/child-skill, consecutive-hyphens
-			// NOT: missing-description, no-frontmatter (both missing descriptions)
+			// 应加载所有包含描述的技能（即使同时存在警告）。
+			// valid-skill、name-mismatch、invalid-name-chars、long-name、unknown-field、nested/child-skill、consecutive-hyphens
+			// 不应包含：missing-description、no-frontmatter（这两项均缺少描述）。
 			expect(skills.length).toBeGreaterThanOrEqual(6);
 		});
 
@@ -183,9 +183,9 @@ describe("skills", () => {
 		});
 
 		it("should use parent directory name when name not in frontmatter", () => {
-			// The no-frontmatter fixture has no name in frontmatter, so it should use "no-frontmatter"
-			// But it also has no description, so it won't load
-			// Let's test with a valid skill that relies on directory name
+			// no-frontmatter 测试样例的 frontmatter 中没有名称，因此应使用 "no-frontmatter"。
+			// 但它同样没有描述，因此不会加载。
+			// 再测试一个依赖目录名称的有效技能。
 			const { skills } = loadSkillsFromDir({
 				dir: join(fixturesDir, "valid-skill"),
 				source: "test",
@@ -204,7 +204,7 @@ describe("skills", () => {
 			expect(skills).toHaveLength(1);
 			expect(skills[0].name).toBe("disable-model-invocation");
 			expect(skills[0].disableModelInvocation).toBe(true);
-			// Should not warn about unknown field
+			// 不应针对未知字段发出警告。
 			expect(diagnostics.some((d: ResourceDiagnostic) => d.message.includes("unknown frontmatter field"))).toBe(
 				false,
 			);
@@ -392,7 +392,7 @@ describe("skills", () => {
 
 	describe("collision handling", () => {
 		it("should detect name collisions and keep first skill", () => {
-			// Load from first directory
+			// 从第一个目录加载。
 			const first = loadSkillsFromDir({
 				dir: join(collisionFixturesDir, "first"),
 				source: "first",
@@ -403,7 +403,7 @@ describe("skills", () => {
 				source: "second",
 			});
 
-			// Simulate the collision behavior from loadSkills()
+			// 模拟 loadSkills() 中的名称冲突行为。
 			const skillMap = new Map<string, Skill>();
 			const collisionWarnings: Array<{ skillPath: string; message: string }> = [];
 

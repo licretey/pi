@@ -5,11 +5,11 @@ import { DatabaseSync } from "node:sqlite";
 import type { SqliteDatabase, SqliteExecutor, SqliteValue } from "./database.ts";
 import { SqliteStorage } from "./storage.ts";
 
-/** Node SQLite connection settings for a durable storage file. */
+/** 持久存储文件的 Node SQLite 连接设置。 */
 export type NodeSqliteStorageOptions = {
-	/** SQLite WAL auto-checkpoint threshold. SQLite and this adapter default to 1,000 pages; 0 disables it. */
+	/** SQLite WAL 自动检查点阈值。SQLite 和本适配器默认 1,000 页；0 表示禁用。 */
 	readonly walAutoCheckpointPages?: number;
-	/** Time SQLite waits for a competing file lock. SQLite defaults to 0; this adapter defaults to 5,000 ms. */
+	/** SQLite 等待竞争文件锁的时长。SQLite 默认 0；本适配器默认 5,000 毫秒。 */
 	readonly busyTimeoutMs?: number;
 };
 
@@ -21,8 +21,8 @@ type TransactionScope = { active: boolean };
 const ignore = (): void => {};
 
 /**
- * Runs operations in call order. An operation starts immediately when nothing is running or waiting;
- * otherwise it waits for everything before it. An asynchronous operation holds the queue until it settles.
+ * 按调用顺序运行操作。没有正在运行或排队的操作时立即开始；否则等所有先前的操作完成。
+ * 一个异步操作会占住队列直到它落定。
  */
 class SerialOperationQueue {
 	private tail: Promise<void> = Promise.resolve();
@@ -40,7 +40,7 @@ class SerialOperationQueue {
 	runAsync<T>(operation: () => Promise<T>): Promise<T> {
 		if (this.pending > 0) return this.enqueue(operation);
 		this.pending++;
-		// Publish the barrier before the operation starts, so calls it makes synchronously wait behind it.
+		// 在操作开始之前先发布屏障，使它同步发起的调用排到屏障之后等待。
 		const { promise: barrier, resolve: releaseBarrier } = Promise.withResolvers<void>();
 		this.tail = barrier;
 		let started: Promise<T>;
@@ -70,8 +70,7 @@ class SerialOperationQueue {
 }
 
 /**
- * Executes SQL on one connection. Prepared statements are cached per connection by SQL text, so the
- * database and its transaction handles share them across transactions.
+ * 在单个连接上执行 SQL。预编译语句按 SQL 文本在每个连接上缓存，因此数据库与其事务句柄可以跨事务共享它们。
  */
 abstract class NodeSqliteExecutor implements SqliteExecutor {
 	protected readonly database: DatabaseSync;
@@ -128,7 +127,7 @@ class NodeSqliteTransaction extends NodeSqliteExecutor {
 	}
 }
 
-/** `SqliteDatabase` adapter backed by Node's built-in `node:sqlite`. */
+/** 由 Node 内置 `node:sqlite` 支持的 `SqliteDatabase` 适配器。 */
 export class NodeSqliteDatabase extends NodeSqliteExecutor implements SqliteDatabase {
 	private readonly access = new SerialOperationQueue();
 	private closed = false;
@@ -176,7 +175,7 @@ export class NodeSqliteDatabase extends NodeSqliteExecutor implements SqliteData
 	}
 }
 
-/** Open and configure a Node-backed SQLite database facade. */
+/** 打开并配置由 Node 支持的 SQLite 数据库门面。 */
 export async function openNodeSqliteDatabase(
 	path: string,
 	options: NodeSqliteStorageOptions = {},
@@ -195,13 +194,13 @@ export async function openNodeSqliteDatabase(
 		try {
 			await adapter.close();
 		} catch {
-			// Preserve the configuration failure.
+			// 保留配置失败的错误。
 		}
 		throw error;
 	}
 }
 
-/** Open or create file-backed durable storage using Node's built-in SQLite. */
+/** 使用 Node 内置 SQLite 打开或创建基于文件的持久存储。 */
 export async function openNodeSqliteStorage(
 	path: string,
 	options: NodeSqliteStorageOptions = {},

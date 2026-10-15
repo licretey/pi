@@ -3,11 +3,11 @@ import type { Usage } from "@earendil-works/pi-ai";
 import { defineDoc } from "../documents.ts";
 import type { ConversationId, Tx } from "../types.ts";
 
-/** Ledger of one conversation's own spend: its entries, and compaction summarization attempts, which have none. */
+/** 单个对话自身开销的账本：其各条目，以及没有使用的压缩摘要尝试。 */
 export type UsageState = {
-	/** Assistant entries and summarization attempts, keyed `provider/modelId`. */
+	/** 助手条目与摘要尝试，以 `provider/modelId` 为键。 */
 	models: Record<string, JsonRepresentation<Usage>>;
-	/** Tool results, keyed by tool name; their usage has no model identity. */
+	/** 工具结果，以工具名为键；其用量没有模型身份。 */
 	tools: Record<string, JsonRepresentation<Usage>>;
 };
 
@@ -21,7 +21,7 @@ export const UsageDoc = defineDoc<UsageState>({
 	checkpointWhen: () => true,
 });
 
-/** Add `usage` to one bucket of the conversation's `pi.usage`, in the commit that records the response. */
+/** 在记录该响应的提交中，把 `usage` 计入对话 `pi.usage` 的某个桶。 */
 export async function recordUsage(
 	tx: Tx,
 	conversationId: ConversationId,
@@ -30,15 +30,15 @@ export async function recordUsage(
 	usage: Usage,
 ): Promise<void> {
 	const totals = (await tx.doc(UsageDoc, conversationId))[bucket];
-	// Own keys only: a tool may be called `toString`.
+	// 只用自有键：工具可能就叫 `toString`。
 	const total = Object.hasOwn(totals, key) ? totals[key] : undefined;
-	// Providers may leave optional counters `undefined`; drafts take strict JSON.
+	// 提供方可能让可选计数器保持 `undefined`；草稿要求严格的 JSON。
 	if (total === undefined)
 		totals[key] = copyJson(usage, { omitUndefinedProperties: true }) as JsonRepresentation<Usage>;
 	else addUsage(total, usage);
 }
 
-/** Add every counter of `usage` to `total`; optional counters are added once either side reports them. */
+/** 把 `usage` 的每个计数器加到 `total`；只要任一方报告了可选计数器，就累加一次。 */
 export function addUsage(total: Draft<Usage> | Usage, usage: Usage): void {
 	total.input += usage.input;
 	total.output += usage.output;
@@ -54,12 +54,12 @@ export function addUsage(total: Draft<Usage> | Usage, usage: Usage): void {
 	total.cost.total += usage.cost.total;
 }
 
-/** Add every bucket of `state` into `sum`. */
+/** 把 `state` 的每个桶累加进 `sum`。 */
 export function addUsageState(sum: UsageState, state: Readonly<UsageState>): void {
 	for (const bucket of ["models", "tools"] as const) {
 		for (const [key, usage] of Object.entries(state[bucket])) {
 			const total = Object.hasOwn(sum[bucket], key) ? sum[bucket][key] : undefined;
-			// Define rather than assign: assigning a tool named `__proto__` would set the prototype.
+			// 用 define 而不是赋值：赋值给名为 `__proto__` 的工具会设置原型。
 			if (total !== undefined) addUsage(total, usage);
 			else
 				Object.defineProperty(sum[bucket], key, {

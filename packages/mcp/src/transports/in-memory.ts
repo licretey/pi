@@ -31,7 +31,7 @@ export class InMemoryTransport extends TransportEvents implements McpTransport {
 		await this.peer?.close();
 	}
 
-	/** Exposed so tests can simulate transport-level failures. */
+	/** 对外提供此属性，以便测试模拟传输层故障。 */
 	override emitError(error: unknown): void {
 		super.emitError(error);
 	}

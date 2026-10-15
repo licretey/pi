@@ -1,5 +1,5 @@
 /**
- * CLI argument parsing and help display
+ * CLI 参数解析和帮助信息显示。
  */
 
 import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
@@ -53,7 +53,7 @@ export interface Args {
 	projectTrustOverride?: boolean;
 	messages: string[];
 	fileArgs: string[];
-	/** Unknown flags (potentially extension flags) - map of flag name to value */
+	/** 未知标志（可能是扩展标志）到其值的映射。 */
 	unknownFlags: Map<string, boolean | string>;
 	diagnostics: Array<{ type: "warning" | "error"; message: string }>;
 }
@@ -216,7 +216,7 @@ export function parseArgs(args: string[]): Args {
 		} else if (arg === "--no-context-files" || arg === "-nc") {
 			result.noContextFiles = true;
 		} else if (arg === "--list-models") {
-			// Check if next arg is a search pattern (not a flag or file arg)
+			// 检查下一个参数是否为搜索模式（而非选项或文件参数）。
 			if (i + 1 < args.length && !args[i + 1].startsWith("-") && !args[i + 1].startsWith("@")) {
 				result.listModels = args[++i];
 			} else {
@@ -245,7 +245,7 @@ export function parseArgs(args: string[]): Args {
 		} else if (arg === "--offline") {
 			result.offline = true;
 		} else if (arg.startsWith("@")) {
-			result.fileArgs.push(arg.slice(1)); // Remove @ prefix
+			result.fileArgs.push(arg.slice(1)); // 移除 @ 前缀。
 		} else if (arg.startsWith("--")) {
 			const eqIndex = arg.indexOf("=");
 			if (eqIndex !== -1) {
@@ -375,37 +375,37 @@ ${chalk.bold("Examples:")}
   # Continue previous session
   ${APP_NAME} --continue "What did we discuss?"
 
-  # Start a named session
+  # 启动命名会话
   ${APP_NAME} --name "Refactor auth module"
 
-  # Use different model
+  # 使用其他模型
   ${APP_NAME} --provider openai --model gpt-4o-mini "Help me refactor this code"
 
-  # Use model with provider prefix (no --provider needed)
+  # 使用带提供方前缀的模型（无需指定 --provider）
   ${APP_NAME} --model openai/gpt-4o "Help me refactor this code"
 
-  # Use model with thinking level shorthand
+  # 使用思考级别简写指定模型
   ${APP_NAME} --model sonnet:high "Solve this complex problem"
 
-  # Limit model cycling to specific models
+  # 将模型切换范围限制为指定模型
   ${APP_NAME} --models claude-sonnet,claude-haiku,gpt-4o
 
-  # Limit to a specific provider with glob pattern
+  # 使用 glob 模式将范围限制为指定提供方
   ${APP_NAME} --models "github-copilot/*"
 
-  # Cycle models with fixed thinking levels
+  # 按固定思考级别切换模型
   ${APP_NAME} --models sonnet:high,haiku:low
 
-  # Start with a specific thinking level
+  # 以指定思考级别启动
   ${APP_NAME} --thinking high "Solve this complex problem"
 
-  # Read-only mode (no file modifications possible)
+  # 只读模式（无法修改文件）
   ${APP_NAME} --tools read,grep,find,ls -p "Review the code in src/"
 
-  # Add codemode to the default tools
+  # 将 codemode 添加到默认工具列表
   ${APP_NAME} --tools +codemode
 
-  # Codemode with only the tools of one MCP server
+  # Codemode 仅使用一个 MCP 服务器提供的工具
   ${APP_NAME} --tools read,bash,codemode,'mcp__radius__*'
 
   # Disable one tool while keeping the rest available

@@ -1,7 +1,7 @@
 import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 
-/** Frame types (docs/protocol.md). */
+/** 帧类型（参见 docs/protocol.md）。 */
 const REQUEST = 1;
 const RESULT = 2;
 const ERROR = 3;
@@ -11,14 +11,14 @@ const PING = 6;
 
 const MAX_FRAME = 16 * 1024 * 1024;
 const PING_INTERVAL_MS = 5000;
-/** The daemon pings every five seconds; this much silence means the connection is gone. */
+/** 守护进程每五秒发送一次心跳；超过此时长没有消息即视为连接已断开。 */
 const SILENCE_LIMIT_MS = 30_000;
-/** How long starting the daemon and its `hello` may take. */
+/** 启动守护进程并等待其发送 `hello` 消息的最长时长。 */
 const START_TIMEOUT_MS = 60_000;
 
 export type Json = Record<string, unknown>;
 
-/** A failure reported by the daemon, with its Node-style code. */
+/** 守护进程报告的失败，包含 Node 风格的错误代码。 */
 export class RemoteError extends Error {
 	readonly code: string;
 	readonly path?: string;
@@ -33,7 +33,7 @@ export class RemoteError extends Error {
 	}
 }
 
-/** What `hello` reports about the remote machine. */
+/** `hello` 消息报告的远程机器信息。 */
 export interface RemoteInfo {
 	protocol: number;
 	version: string;
@@ -41,30 +41,30 @@ export interface RemoteInfo {
 	arch: string;
 	home: string;
 	tmpdir: string;
-	/** Path separator: `/`, or `\\` on Windows. */
+	/** 路径分隔符：`/`；Windows 上为 `\\`。 */
 	separator: string;
-	/** The daemon's working directory, where Node's `path.resolve` would fall back to `process.cwd()`. */
+	/** 守护进程的工作目录；Node 的 `path.resolve` 会以此作为 `process.cwd()` 的回退值。 */
 	cwd: string;
-	/** Windows: per-drive working directories (`C:` → `C:\\work`) of the `=C:` variables. */
+	/** Windows 各驱动器的工作目录（如 `C:` → `C:\\work`），取自 `=C:` 等环境变量。 */
 	driveCwds: Record<string, string>;
 	pid: number;
 }
 
 export interface ConnectionOptions {
 	/**
-	 * Command that starts the daemon, before its `serve --token <hex>` arguments, e.g. `["ssh", "-T", "--", "host",
-	 * "~/.pi/mobile/tools/pi-env"]`. A function computes it at each start (detecting and deploying first, for example);
-	 * its failure fails that start, and the next request tries again.
+	 * 启动守护进程的命令，不包含后续的 `serve --token <hex>` 参数，例如 `["ssh", "-T", "--", "host",
+	 * "~/.pi/mobile/tools/pi-env"]`。也可以传入函数，在每次启动时计算命令（例如先检测并部署）；
+	 * 函数失败会导致本次启动失败，后续请求会重试。
 	 */
 	command: readonly string[] | (() => Promise<readonly string[]>);
-	/** Receives the daemon's and the transport's diagnostic output. */
+	/** 接收守护进程和传输层的诊断输出。 */
 	onLog?: (text: string) => void;
 }
 
 export interface Reply {
 	json: Json;
 	payload: Uint8Array;
-	/** The daemon session that answered; handles from it are only valid while it lives. */
+	/** 响应请求的守护进程会话；该会话存续期间，其句柄才有效。 */
 	session: number;
 }
 
@@ -76,20 +76,20 @@ type Pending = {
 
 export interface RequestOptions {
 	payload?: Uint8Array;
-	/** Aborting sends `cancel`; the request still settles with the daemon's result or error. */
+	/** 中止时发送 `cancel`；请求仍会以守护进程返回的结果或错误结束。 */
 	signal?: AbortSignal;
-	/** Progress events of the request, such as `exec` output. */
+	/** 此请求的进度事件，例如 `exec` 输出。 */
 	onEvent?: (json: Json, payload: Uint8Array) => void;
-	/** The request's id and session, for `kill`. */
+	/** 供 `kill` 使用的请求 ID 和会话。 */
 	onStart?: (id: number, session: number) => void;
 	/**
-	 * Only run in this daemon session, for requests on handles it opened. After the connection was lost and started
-	 * again, such requests fail instead of reaching a daemon that never opened the handle.
+	 * 仅在此守护进程会话中执行，并且只用于该会话打开的句柄。连接断开并重新启动后，此类请求会直接失败，
+	 * 不会发送给从未打开该句柄的新守护进程。
 	 */
 	session?: number;
 }
 
-/** Lone surrogates become U+FFFD, as Node encodes strings for system calls. */
+/** Node 为系统调用编码字符串时，会将孤立代理项替换为 U+FFFD。 */
 function wellFormed(_key: string, value: unknown): unknown {
 	return typeof value === "string" ? value.toWellFormed() : value;
 }
@@ -104,12 +104,12 @@ function frame(type: number, id: number, json: Json, payload: Uint8Array = new U
 	return Buffer.concat([header, body, payload]);
 }
 
-/** The connection failed or ended; a request may succeed once it is started again. */
+/** 连接失败或已结束；重新建立连接后，请求可能成功。 */
 function lost(message: string): RemoteError {
 	return new RemoteError({ code: "unknown", message, lost: true });
 }
 
-/** Whether an error means the connection was lost, not that the daemon refused the request. */
+/** 判断错误是否表示连接已断开，而不是守护进程拒绝了请求。 */
 export function isConnectionLost(error: unknown): boolean {
 	return error instanceof RemoteError && error.fields.lost === true;
 }
@@ -118,13 +118,13 @@ function closed(): RemoteError {
 	return new RemoteError({ code: "unknown", message: "Connection closed" });
 }
 
-/** One running daemon. */
+/** 一个正在运行的守护进程。 */
 class Session {
 	readonly id: number;
 	readonly child: ChildProcessWithoutNullStreams;
 	readonly token: string;
 	readonly pending = new Map<number, Pending>();
-	/** Received bytes not yet parsed, without concatenating on every chunk. */
+	/** 已接收但尚未解析的字节；避免每次收到数据块时都进行拼接。 */
 	chunks: Buffer[] = [];
 	buffered = 0;
 	synced = false;
@@ -138,7 +138,7 @@ class Session {
 		this.token = token;
 	}
 
-	/** The first `length` buffered bytes as one buffer, without consuming them. */
+	/** 将缓冲区开头的 `length` 个字节作为单个缓冲区返回，但不移除这些字节。 */
 	peek(length: number): Buffer {
 		if (this.chunks[0]!.length < length) {
 			this.chunks = [Buffer.concat(this.chunks)];
@@ -162,8 +162,8 @@ class Session {
 }
 
 /**
- * One connection to a pi-env daemon: started lazily on the first request and started again after it is lost. Requests
- * in flight when it is lost fail with code `unknown`; for mutations their outcome is then unknown.
+ * 到 pi-env 守护进程的单个连接：首次收到请求时才启动，断开后会重新启动。连接断开时仍在进行的请求会以
+ * `unknown` 错误码失败；对于变更操作，其执行结果也无法确定。
  */
 export class Connection {
 	readonly #options: ConnectionOptions;
@@ -177,12 +177,12 @@ export class Connection {
 		this.#options = options;
 	}
 
-	/** Connect if needed and return what the daemon reported about its machine. */
+	/** 必要时建立连接，并返回守护进程报告的机器信息。 */
 	async info(): Promise<RemoteInfo> {
 		return (await this.#connect()).info;
 	}
 
-	/** Connect if needed and return the live session's id. */
+	/** 必要时建立连接，并返回当前活动会话的 ID。 */
 	async session(): Promise<number> {
 		return (await this.#connect()).session.id;
 	}
@@ -199,13 +199,13 @@ export class Connection {
 		return this.#send(session, op, json, options);
 	}
 
-	/** Stop the daemon; it kills everything it started. */
+	/** 停止守护进程；它会终止自己启动的所有进程。 */
 	close(): void {
 		this.#closed = true;
 		if (this.#session) this.#teardown(this.#session, closed());
 	}
 
-	/** Kill one `exec` without aborting it. */
+	/** 终止一项 `exec` 操作，但不将其标记为中止。 */
 	kill(id: number, session: number): void {
 		const current = this.#session;
 		if (current?.id === session && current.live) this.#write(current, frame(CANCEL, id, { mode: "kill" }));
@@ -216,7 +216,7 @@ export class Connection {
 		if (this.#ready === undefined) {
 			const ready = this.#start();
 			this.#ready = ready;
-			// A failed start is not remembered: the next request tries again.
+			// 不会记住启动失败；下一个请求会重新尝试。
 			ready.catch(() => {
 				if (this.#ready === ready) this.#ready = undefined;
 			});
@@ -325,7 +325,7 @@ export class Connection {
 		session.chunks.push(chunk);
 		session.buffered += chunk.length;
 		if (!session.synced) {
-			// Shell startup files may print before the daemon runs; skip everything before its sync line.
+			// shell 启动文件可能会在守护进程运行前输出内容；跳过同步标记行之前的所有输出。
 			const marker = Buffer.from(`PI-ENV ${session.token}\n`, "utf8");
 			const all = session.peek(session.buffered);
 			const index = all.indexOf(marker);
@@ -362,7 +362,7 @@ export class Connection {
 				this.#teardown(session, lost("Corrupt frame from pi-env"));
 				return;
 			}
-			// A plain Uint8Array copy, like `NodeExecutionEnv`'s reader results, not a view of the receive buffer.
+			// 创建普通 Uint8Array 副本，与 `NodeExecutionEnv` 的读取结果一致；不能使用接收缓冲区的视图。
 			const payload = new Uint8Array(body.subarray(9 + jsonLength));
 			session.consume(4 + length);
 			this.#dispatch(session, type, id, json, payload);

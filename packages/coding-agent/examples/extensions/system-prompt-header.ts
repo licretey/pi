@@ -1,7 +1,7 @@
 /**
- * Displays a status widget showing the system prompt length.
+ * 显示系统提示词长度的状态组件。
  *
- * Demonstrates ctx.getSystemPrompt() for accessing the effective system prompt.
+ * 演示如何使用 ctx.getSystemPrompt() 获取实际生效的系统提示词。
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 

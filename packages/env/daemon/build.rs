@@ -1,4 +1,4 @@
-//! Exposes the npm package version as `PI_ENV_VERSION`, so `hello` reports the release the daemon shipped with.
+//! 将 npm 包版本写入 `PI_ENV_VERSION`，以便 hello 命令报告此守护进程随附的版本。
 
 fn main() {
     println!("cargo:rerun-if-changed=../package.json");

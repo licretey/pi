@@ -2,7 +2,7 @@ import type { Context } from "@earendil-works/chord";
 import { SessionFailed } from "../errors.ts";
 import type { Cursor, Page } from "../types.ts";
 
-/** Pending waits by key. Each settles once: through `resolve`, `rejectAll`, or cancellation of its context. */
+/** 按键管理的等待者。每个等待只结算一次：通过 `resolve`、`rejectAll` 或其 context 被取消。 */
 export class Waiters<K, T> {
 	readonly #sets = new Map<K, Set<PromiseWithResolvers<T>>>();
 
@@ -42,7 +42,7 @@ export class Waiters<K, T> {
 	}
 }
 
-/** Every item of a paginated scan, in page order. */
+/** 分页扫描的全部条目，按页序排列。 */
 export async function scanAll<T>(scan: (cursor: Cursor | undefined) => Promise<Page<T, Cursor>>): Promise<T[]> {
 	const items: T[] = [];
 	let cursor: Cursor | undefined;
@@ -54,7 +54,7 @@ export async function scanAll<T>(scan: (cursor: Cursor | undefined) => Promise<P
 	return items;
 }
 
-/** What a closed Harness rejects with: `SessionFailed` with the cause when it closed because the Session failed. */
+/** 已关闭 Harness 的拒绝原因：若它是因为会话失败而关闭，则返回携带原因的 `SessionFailed`。 */
 export function closedError(session: { readonly failure: { readonly error: unknown } | undefined }): Error {
 	const failure = session.failure;
 	return failure === undefined ? new Error("Harness is closed") : new SessionFailed(failure.error);

@@ -9,7 +9,7 @@ interface FlashEntry {
 	timer: NodeJS.Timeout;
 }
 
-/** Transient messages composited by the alternate-screen renderer. */
+/** 由备用屏幕渲染器合成显示的临时消息。 */
 export class AltScreenFlashContainer implements Component {
 	private readonly entries: FlashEntry[] = [];
 	private nextId = 0;

@@ -25,7 +25,7 @@ function seedHistory(harness: Harness, totalTokens = 650): string {
 	return recentUserId;
 }
 
-// Regression coverage for #8133.
+// #8133 回归测试。
 describe("AgentSession compaction model overrides", () => {
 	const harnesses: Harness[] = [];
 	afterEach(() => {
@@ -163,7 +163,7 @@ describe("AgentSession compaction model overrides", () => {
 		harness.setResponses([fauxAssistantMessage("small response"), fauxAssistantMessage("big response")]);
 		await harness.session.prompt("continue on small");
 		expect(harness.eventsOfType("compaction_start")).toHaveLength(0);
-		// Retain usage from the small model: the next check must use the active big model's policy.
+		// 保留小模型的用量数据：下一次检查必须采用当前大模型的策略。
 		seedHistory(harness, 2500);
 		await harness.session.setModel(harness.getModel("big")!);
 		await harness.session.prompt("continue on big");

@@ -1,11 +1,11 @@
 /**
- * Armin says hi! A fun easter egg with animated XBM art.
+ * Armin 向你问好！这是一个使用 XBM 图像制作的趣味动画彩蛋。
  */
 
 import type { Component, TUI } from "@earendil-works/pi-tui";
 import { theme } from "../theme/theme.ts";
 
-// XBM image: 31x36 pixels, LSB first, 1=background, 0=foreground
+// XBM 图像：31×36 像素，低位在前，1 表示背景，0 表示前景。
 export const ARMIN_WIDTH = 31;
 export const ARMIN_HEIGHT = 36;
 const WIDTH = ARMIN_WIDTH;
@@ -22,13 +22,13 @@ const BITS = [
 ];
 
 const BYTES_PER_ROW = Math.ceil(WIDTH / 8);
-const DISPLAY_HEIGHT = Math.ceil(HEIGHT / 2); // Half-block rendering
+const DISPLAY_HEIGHT = Math.ceil(HEIGHT / 2); // 使用半块字符渲染。
 
 type Effect = "typewriter" | "scanline" | "rain" | "fade" | "crt" | "glitch" | "dissolve";
 
 const EFFECTS: Effect[] = ["typewriter", "scanline", "rain", "fade", "crt", "glitch", "dissolve"];
 
-// Get pixel at (x, y): true = foreground, false = background
+// 获取 (x, y) 处的像素：true 表示前景，false 表示背景。
 export function isArminPixel(x: number, y: number): boolean {
 	if (y >= HEIGHT) return false;
 	const byteIndex = y * BYTES_PER_ROW + Math.floor(x / 8);
@@ -36,7 +36,7 @@ export function isArminPixel(x: number, y: number): boolean {
 	return ((BITS[byteIndex] >> bitIndex) & 1) === 0;
 }
 
-// Get the character for a cell (2 vertical pixels packed)
+// 获取单元格对应的字符；每个字符合并表示垂直方向上的 2 个像素。
 function getChar(x: number, row: number): string {
 	const upper = isArminPixel(x, row * 2);
 	const lower = isArminPixel(x, row * 2 + 1);
@@ -46,7 +46,7 @@ function getChar(x: number, row: number): string {
 	return " ";
 }
 
-// Build the final image grid
+// 构建最终图像网格。
 function buildFinalGrid(): string[][] {
 	const grid: string[][] = [];
 	for (let row = 0; row < DISPLAY_HEIGHT; row++) {
@@ -94,13 +94,13 @@ export class ArminComponent implements Component {
 		const availableWidth = width - padding;
 
 		this.cachedLines = this.currentGrid.map((row) => {
-			// Clip row to available width before applying color
+			// 先将行裁剪到可用宽度，再应用颜色。
 			const clipped = row.slice(0, availableWidth).join("");
 			const padRight = Math.max(0, width - padding - clipped.length);
 			return ` ${theme.fg("accent", clipped)}${" ".repeat(padRight)}`;
 		});
 
-		// Add "ARMIN SAYS HI" at the end
+		// 在末尾添加 "ARMIN SAYS HI"。
 		const message = "ARMIN SAYS HI";
 		const msgPadRight = Math.max(0, width - padding - message.length);
 		this.cachedLines.push(` ${theme.fg("accent", message)}${" ".repeat(msgPadRight)}`);
@@ -124,7 +124,7 @@ export class ArminComponent implements Component {
 				this.effectState = { row: 0 };
 				break;
 			case "rain":
-				// Track falling position for each column
+				// 记录每一列中落下像素的位置。
 				this.effectState = {
 					drops: Array.from({ length: WIDTH }, () => ({
 						y: -Math.floor(Math.random() * DISPLAY_HEIGHT * 2),
@@ -133,14 +133,14 @@ export class ArminComponent implements Component {
 				};
 				break;
 			case "fade": {
-				// Shuffle all pixel positions
+				// 打乱所有像素的位置。
 				const positions: [number, number][] = [];
 				for (let row = 0; row < DISPLAY_HEIGHT; row++) {
 					for (let x = 0; x < WIDTH; x++) {
 						positions.push([row, x]);
 					}
 				}
-				// Fisher-Yates shuffle
+				// 使用 Fisher–Yates 算法打乱顺序。
 				for (let i = positions.length - 1; i > 0; i--) {
 					const j = Math.floor(Math.random() * (i + 1));
 					[positions[i], positions[j]] = [positions[j], positions[i]];
@@ -155,14 +155,14 @@ export class ArminComponent implements Component {
 				this.effectState = { phase: 0, glitchFrames: 8 };
 				break;
 			case "dissolve": {
-				// Start with random noise
+				// 先用随机噪点填充画面。
 				this.currentGrid = Array.from({ length: DISPLAY_HEIGHT }, () =>
 					Array.from({ length: WIDTH }, () => {
 						const chars = [" ", "░", "▒", "▓", "█", "▀", "▄"];
 						return chars[Math.floor(Math.random() * chars.length)];
 					}),
 				);
-				// Shuffle positions for gradual resolve
+				// 打乱位置顺序，让图像逐渐显现。
 				const dissolvePositions: [number, number][] = [];
 				for (let row = 0; row < DISPLAY_HEIGHT; row++) {
 					for (let x = 0; x < WIDTH; x++) {
@@ -237,7 +237,7 @@ export class ArminComponent implements Component {
 		const state = this.effectState as { row: number };
 		if (state.row >= DISPLAY_HEIGHT) return true;
 
-		// Copy row
+		// 复制整行。
 		for (let x = 0; x < WIDTH; x++) {
 			this.currentGrid[state.row][x] = this.finalGrid[state.row][x];
 		}
@@ -256,19 +256,19 @@ export class ArminComponent implements Component {
 		for (let x = 0; x < WIDTH; x++) {
 			const drop = state.drops[x];
 
-			// Draw settled pixels
+			// 绘制已落定的像素。
 			for (let row = DISPLAY_HEIGHT - 1; row >= DISPLAY_HEIGHT - drop.settled; row--) {
 				if (row >= 0) {
 					this.currentGrid[row][x] = this.finalGrid[row][x];
 				}
 			}
 
-			// Check if this column is done
+			// 检查当前列是否已完成。
 			if (drop.settled >= DISPLAY_HEIGHT) continue;
 
 			allSettled = false;
 
-			// Find the target row for this column (lowest non-space pixel)
+			// 查找当前列的目标行，即最靠下的非空格像素。
 			let targetRow = -1;
 			for (let row = DISPLAY_HEIGHT - 1 - drop.settled; row >= 0; row--) {
 				if (this.finalGrid[row][x] !== " ") {
@@ -277,17 +277,17 @@ export class ArminComponent implements Component {
 				}
 			}
 
-			// Move drop down
+			// 让落下的像素向下移动。
 			drop.y++;
 
-			// Draw falling drop
+			// 绘制正在下落的像素。
 			if (drop.y >= 0 && drop.y < DISPLAY_HEIGHT) {
 				if (targetRow >= 0 && drop.y >= targetRow) {
-					// Settle
+					// 像素落定。
 					drop.settled = DISPLAY_HEIGHT - targetRow;
 					drop.y = -Math.floor(Math.random() * 5) - 1;
 				} else {
-					// Still falling
+					// 像素仍在下落。
 					this.currentGrid[drop.y][x] = "▓";
 				}
 			}
@@ -315,7 +315,7 @@ export class ArminComponent implements Component {
 
 		this.currentGrid = this.createEmptyGrid();
 
-		// Draw from middle expanding outward
+		// 从中间开始向上下两侧扩展绘制。
 		const top = midRow - state.expansion;
 		const bottom = midRow + state.expansion;
 
@@ -333,18 +333,18 @@ export class ArminComponent implements Component {
 		const state = this.effectState as { phase: number; glitchFrames: number };
 
 		if (state.phase < state.glitchFrames) {
-			// Glitch phase: show corrupted version
+			// 故障阶段：显示受干扰的图像。
 			this.currentGrid = this.finalGrid.map((row) => {
 				const offset = Math.floor(Math.random() * 7) - 3;
 				const glitchRow = [...row];
 
-				// Random horizontal offset
+				// 随机水平偏移。
 				if (Math.random() < 0.3) {
 					const shifted = glitchRow.slice(offset).concat(glitchRow.slice(0, offset));
 					return shifted.slice(0, WIDTH);
 				}
 
-				// Random vertical swap
+				// 随机交换垂直位置。
 				if (Math.random() < 0.2) {
 					const swapRow = Math.floor(Math.random() * DISPLAY_HEIGHT);
 					return [...this.finalGrid[swapRow]];
@@ -356,7 +356,7 @@ export class ArminComponent implements Component {
 			return false;
 		}
 
-		// Final frame: show clean image
+		// 最后一帧：显示未失真的图像。
 		this.currentGrid = this.finalGrid.map((row) => [...row]);
 		return true;
 	}

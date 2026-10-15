@@ -2,10 +2,10 @@ import { applyExifOrientation } from "./exif-orientation.ts";
 import { loadPhoton } from "./photon.ts";
 
 export interface ImageResizeOptions {
-	maxWidth?: number; // Default: 2000
-	maxHeight?: number; // Default: 2000
-	maxBytes?: number; // Default: 4.5MB of base64 payload (below Anthropic's 5MB limit)
-	jpegQuality?: number; // Default: 80
+	maxWidth?: number; // 默认值：2000。
+	maxHeight?: number; // 默认值：2000。
+	maxBytes?: number; // Base64 编码数据的默认上限为 4.5 MB（低于 Anthropic 的 5 MB 限制）。
+	jpegQuality?: number; // 默认值：80。
 }
 
 export interface ResizedImage {
@@ -19,8 +19,8 @@ export interface ResizedImage {
 }
 
 /**
- * Tag on image resize worker replies. Node can post its own messages on the worker channel
- * (for example `{ "watch:require": [...] }` under `node --watch`), so replies must be identifiable.
+ * 图像缩放工作线程响应的标记。Node 也可能在工作线程通道上发送自己的消息
+ *（例如 `node --watch` 下的 `{ "watch:require": [...] }`），因此必须能识别工作线程响应。
  */
 export const IMAGE_RESIZE_WORKER_RESPONSE_TYPE = "pi:image-resize-response";
 
@@ -54,17 +54,16 @@ function encodeCandidate(buffer: Uint8Array, mimeType: string): EncodedCandidate
 }
 
 /**
- * Resize an image to fit within the specified max dimensions and encoded file size.
- * Returns null if the image cannot be resized below maxBytes.
+ * 缩放图像，使其符合指定的最大尺寸和编码后文件大小限制。
+ * 如果无法将图像缩小到 maxBytes 以下，则返回 null。
  *
- * Uses Photon (Rust/WASM) for image processing. If Photon is not available,
- * returns null.
+ * 使用 Photon（Rust/WASM）处理图像。Photon 不可用时返回 null。
  *
- * Strategy for staying under maxBytes:
- * 1. First resize to maxWidth/maxHeight
- * 2. Try both PNG and JPEG formats, pick the smaller one
- * 3. If still too large, try JPEG with decreasing quality
- * 4. If still too large, progressively reduce dimensions until 1x1
+ * 控制在 maxBytes 限制内的策略：
+ * 1. 先缩放至 maxWidth/maxHeight。
+ * 2. 分别尝试 PNG 和 JPEG 格式，并选择较小的结果。
+ * 3. 如果仍然过大，逐步降低 JPEG 质量并重试。
+ * 4. 如果仍然过大，逐步缩小尺寸，直到 1x1。
  */
 export async function resizeImageInProcess(
 	inputBytes: Uint8Array,
@@ -89,7 +88,7 @@ export async function resizeImageInProcess(
 		const originalHeight = image.get_height();
 		const format = mimeType.split("/")[1] ?? "png";
 
-		// Check if already within all limits (dimensions AND encoded size)
+		// 检查图像是否已同时符合尺寸和编码后大小限制。
 		if (originalWidth <= opts.maxWidth && originalHeight <= opts.maxHeight && inputBase64Size < opts.maxBytes) {
 			return {
 				data: Buffer.from(inputBytes).toString("base64"),
@@ -102,7 +101,7 @@ export async function resizeImageInProcess(
 			};
 		}
 
-		// Calculate initial dimensions respecting max limits
+		// 计算符合最大尺寸限制的初始尺寸。
 		let targetWidth = originalWidth;
 		let targetHeight = originalHeight;
 

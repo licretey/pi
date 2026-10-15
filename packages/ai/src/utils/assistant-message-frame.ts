@@ -2,8 +2,7 @@ import type { AssistantMessage, AssistantMessageEvent, TextContent, ThinkingCont
 import { parseStreamingJson } from "./json-parse.ts";
 
 /**
- * Compact, replayable assistant-message progress. Terminal settlement is
- * intentionally excluded and must be persisted separately.
+ * 紧凑且可重放的 assistant 消息进度。终态信息有意排除在外，必须单独持久化。
  */
 export type AssistantMessageFrame =
 	| { type: "start"; partial: AssistantMessage }
@@ -132,9 +131,8 @@ function isJsonPrefix(snapshot: unknown, current: unknown): boolean {
 }
 
 /**
- * Encodes one assistant stream. `partial` remains a shared live accumulator;
- * the encoder uses per-block offsets to avoid replaying deltas already visible
- * when an older queued event is consumed.
+ * 编码一条 assistant 数据流。`partial` 仍是共享的实时累积对象；编码器按内容块记录偏移量，
+ * 避免消费较早排队事件时重复播放已经显示的增量。
  */
 export class AssistantMessageFrameEncoder {
 	private started = false;
@@ -246,9 +244,8 @@ export class AssistantMessageFrameEncoder {
 				state.catchupJson += event.delta;
 				const argumentsValue = parseStreamingJson<ToolCall["arguments"]>(state.catchupJson);
 				if (serializedArguments(argumentsValue) !== state.snapshotArguments) {
-					// Legacy grammar calls include the initial input in toolcall_start, but their
-					// JSON delta stream still begins at an empty input. Its parsed arguments can
-					// therefore extend, rather than exactly reproduce, the start snapshot.
+					// 旧版 grammar 调用会在 toolcall_start 中包含初始输入，但其 JSON 增量流仍从空输入开始。
+					// 因此解析后的参数可能是在起始快照基础上扩展，而非与其完全一致。
 					const snapshotArguments = parseStreamingJson<ToolCall["arguments"]>(state.snapshotArguments);
 					if (!isJsonPrefix(snapshotArguments, argumentsValue)) return undefined;
 				}
@@ -366,8 +363,7 @@ function activeBlock(
 }
 
 /**
- * Replay compact frames without mutating them. Returns `undefined` when the
- * iterable contains no start frame.
+ * 重放紧凑帧，且不修改帧内容。如果迭代器中没有 start 帧，则返回 `undefined`。
  */
 export function reduceAssistantMessageFrames(frames: Iterable<AssistantMessageFrame>): AssistantMessage | undefined {
 	let message: AssistantMessage | undefined;

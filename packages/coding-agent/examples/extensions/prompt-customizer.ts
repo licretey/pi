@@ -1,12 +1,12 @@
 /**
- * Prompt Customizer Extension
+ * 提示词定制扩展。
  *
- * Demonstrates using systemPromptOptions to add context-aware prompt sections
- * without replacing or reparsing the complete rendered prompt.
+ * 演示如何使用 systemPromptOptions 添加与上下文相关的提示词区段，
+ * 而无需替换或重新解析完整的渲染后提示词。
  *
- * Usage:
- * 1. Copy this file to ~/.pi/agent/extensions/ or your project's .pi/extensions/
- * 2. Use the extension — it automatically adapts to your active tools and skills
+ * 用法：
+ * 1. 将此文件复制到 ~/.pi/agent/extensions/ 或项目的 .pi/extensions/ 目录
+ * 2. 加载扩展后，它会根据当前启用的工具和技能自动调整
  */
 
 import type { BuildSystemPromptOptions, ExtensionAPI } from "@earendil-works/pi-coding-agent";

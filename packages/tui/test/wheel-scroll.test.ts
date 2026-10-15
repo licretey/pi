@@ -6,7 +6,7 @@ function scroll(accelerator: WheelScrollAccelerator, times: number[], direction:
 	return times.map((time) => accelerator.next(direction, time));
 }
 
-// #9758: fullscreen wheel scrolling was one line per notch on terminals that do not accelerate wheels.
+// #9758：在不会加速滚轮输入的终端中，全屏滚动每个滚轮刻度只移动一行。
 describe("WheelScrollAccelerator", () => {
 	it("uses fixed line counts regardless of timing", () => {
 		const accelerator = new WheelScrollAccelerator(3, true);

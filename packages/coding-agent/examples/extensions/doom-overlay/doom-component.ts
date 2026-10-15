@@ -1,8 +1,8 @@
 /**
- * DOOM Component for overlay mode
+ * 覆盖层模式的 DOOM 组件。
  *
- * Renders DOOM frames using half-block characters (▀) with 24-bit color.
- * Height is calculated from width to maintain DOOM's aspect ratio.
+ * 使用半块字符（▀）和 24 位颜色渲染 DOOM 画面。
+ * 根据宽度计算高度，以保持 DOOM 的画面比例。
  */
 
 import type { Component } from "@earendil-works/pi-tui";
@@ -50,7 +50,7 @@ export class DoomOverlayComponent implements Component {
 	private interval: ReturnType<typeof setInterval> | null = null;
 	private onExit: () => void;
 
-	// Opt-in to key release events for smooth movement
+	// 启用按键释放事件，以实现平滑移动。
 	wantsKeyRelease = true;
 
 	constructor(tui: TUI, engine: DoomEngine, onExit: () => void, resume = false) {
@@ -58,7 +58,7 @@ export class DoomOverlayComponent implements Component {
 		this.engine = engine;
 		this.onExit = onExit;
 
-		// Unpause if resuming
+		// 恢复运行时取消暂停。
 		if (resume) {
 			this.engine.pushKey(true, DoomKeys.KEY_PAUSE);
 			this.engine.pushKey(false, DoomKeys.KEY_PAUSE);
@@ -73,7 +73,7 @@ export class DoomOverlayComponent implements Component {
 				this.engine.tick();
 				this.tui.requestRender();
 			} catch {
-				// WASM error (e.g., exit via DOOM menu) - treat as quit
+				// WASM 错误（例如通过 DOOM 菜单退出）按正常退出处理。
 				this.dispose();
 				this.onExit();
 			}
@@ -81,9 +81,9 @@ export class DoomOverlayComponent implements Component {
 	}
 
 	handleInput(data: string): void {
-		// Q to pause and exit (but not on release)
+		// 按 Q 暂停并退出（松开按键时不触发）。
 		if (!isKeyRelease(data) && (data === "q" || data === "Q")) {
-			// Send DOOM's pause key before exiting
+			// 退出前先向 DOOM 发送暂停按键。
 			this.engine.pushKey(true, DoomKeys.KEY_PAUSE);
 			this.engine.pushKey(false, DoomKeys.KEY_PAUSE);
 			this.dispose();
@@ -102,10 +102,10 @@ export class DoomOverlayComponent implements Component {
 	}
 
 	render(width: number): string[] {
-		// DOOM renders at 640x400 (1.6:1 ratio)
-		// With half-block characters, each terminal row = 2 pixels
-		// So effective ratio is 640:200 = 3.2:1 (width:height in terminal cells)
-		// Add 1 row for footer
+		// DOOM 的渲染分辨率为 640×400（宽高比 1.6:1）。
+		// 使用半块字符时，终端每一行对应 2 个像素。
+		// 在终端单元格中，相当于 640:200，即宽高比 3.2:1。
+		// 为页脚增加 1 行。
 		const ASPECT_RATIO = 3.2;
 		const MIN_HEIGHT = 10;
 		const height = Math.max(MIN_HEIGHT, Math.floor(width / ASPECT_RATIO));

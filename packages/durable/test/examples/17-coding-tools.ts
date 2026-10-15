@@ -1,7 +1,6 @@
-// A coding-agent tool turn on JSONL storage: the model reads, edits, and runs commands, then answers. A hook times a
-// `cat` of /tmp/1gb.txt (create it first to measure; without it that call ends in an error result). The storage
-// directory is left behind for inspection.
-// Run from packages/durable:
+// 展示 coding-agent 工具如何使用 JSONL 存储完成一轮操作：模型读取和编辑文件、运行命令，然后作答。
+// 钩子会统计 `cat /tmp/1gb.txt` 的耗时（需先创建该文件才能测量；否则调用会返回错误结果）。存储目录会保留以供检查。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/17-coding-tools.ts
 import { mkdtemp, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -27,7 +26,7 @@ const context = BACKGROUND_CONTEXT;
 const directory = await mkdtemp(join(tmpdir(), "pi-durable-example-"));
 await writeFile(join(directory, "notes.txt"), "hello world\n");
 
-// The faux provider plays the model: four tool-calling answers, then a final answer.
+// 模拟提供商扮演模型：先返回四个调用工具的回答，再返回最终回答。
 const faux = fauxProvider();
 const models = createModels();
 models.setProvider(faux.provider);
@@ -41,7 +40,7 @@ faux.setResponses([
 	fauxAssistantMessage([fauxText("The file now greets durable.")]),
 ]);
 
-// Hooks see every call before and after execution; these time the big `cat`.
+// 钩子会在每次调用执行前后收到通知；此处用于统计大型 `cat` 命令的耗时。
 const isBigCat = (call: { name: string; arguments: unknown }) =>
 	call.name === "bash" && (call.arguments as BashToolInput).command.includes("1gb.txt");
 let start = 0;
@@ -61,12 +60,11 @@ const Timing = defineExtension({
 	],
 });
 const registry = createRegistry();
-// CodingTools brings read, write, edit, and bash. Tools reach files and processes only through the environment the
-// Harness builds for each call.
+// CodingTools 提供 read、write、edit 和 bash。工具只能通过 Harness 为每次调用创建的环境访问文件和进程。
 registry.install(CodingTools);
 registry.install(Timing);
 
-// The environment is built per use and follows the conversation's agent `cwd`.
+// 执行环境会在每次使用时创建，并遵循对话代理的 `cwd`。
 const storage = await openNodeJsonlStorage(directory, context);
 const harness = await Harness.open(
 	storage,
@@ -75,7 +73,8 @@ const harness = await Harness.open(
 );
 const root = await harness.root(context, { agent: { model: { provider: "faux", modelId: "faux-1" }, cwd: directory } });
 
-// Each tool call runs as a durable pi.tool task owned by the generation, which waits for them and continues the run with the next generation.
+// 每次工具调用都会作为由本轮生成任务拥有的持久化 pi.tool 任务运行。生成任务会等待这些工具任务完成，
+// 然后继续下一轮生成。
 const settled = await (await root.submit({ type: "input", content: "Greet durable instead." }, context)).wait(context);
 console.log("status:", settled.status);
 const transcript = await root.entries({}, 20, undefined, context);

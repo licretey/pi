@@ -46,16 +46,16 @@ export function isAppleTerminalSession(): boolean {
 }
 
 /**
- * Refresh terminal dimensions on POSIX platforms by sending SIGWINCH to this process.
- * Best-effort: some environments (restricted seccomp or LSM policies) return EACCES
- * for `kill(2)`; in that case the dimensions refresh is skipped rather than crashing.
+ * 在 POSIX 平台上向本进程发送 SIGWINCH 以刷新终端尺寸。
+ * 尽力而为：某些环境（受限的 seccomp 或 LSM 策略）调用 `kill(2)` 会返回 EACCES，
+ * 此时跳过尺寸刷新而不是崩溃。
  */
 export function refreshTerminalDimensions(): void {
 	if (process.platform === "win32" || process.pid <= 0) return;
 	try {
 		process.kill(process.pid, "SIGWINCH");
 	} catch {
-		// Signal delivery not permitted in this environment; ignore.
+		// 此环境不允许发送信号；忽略。
 	}
 }
 
@@ -73,54 +73,54 @@ export function normalizeAppleTerminalInput(data: string, isAppleTerminal: boole
 }
 
 /**
- * Minimal terminal interface for TUI
+ * TUI 所需的最小终端接口
  */
 export interface Terminal {
-	// Start the terminal with input and resize handlers
+	// 启动终端并挂载输入与 resize 处理器
 	start(onInput: (data: string) => void, onResize: () => void): void;
 
-	// Stop the terminal and restore state
+	// 停止终端并恢复原有状态
 	stop(): void;
 
 	/**
-	 * Drain stdin before exiting to prevent Kitty key release events from
-	 * leaking to the parent shell over slow SSH connections.
-	 * @param maxMs - Maximum time to drain (default: 1000ms)
-	 * @param idleMs - Exit early if no input arrives within this time (default: 50ms)
+	 * 退出前先排空 stdin，防止 Kitty 按键释放事件在慢速 SSH 连接上
+	 * 泄漏到父 shell。
+	 * @param maxMs - 排空的最长时间（默认：1000ms）
+	 * @param idleMs - 超过该时间仍无输入则提前结束（默认：50ms）
 	 */
 	drainInput(maxMs?: number, idleMs?: number): Promise<void>;
 
-	// Write output to terminal
+	// 向终端写入输出
 	write(data: string): void;
 
-	// Get terminal dimensions
+	// 获取终端尺寸
 	get columns(): number;
 	get rows(): number;
 
-	// Whether Kitty keyboard protocol is active
+	// Kitty 键盘协议是否处于激活状态。
 	get kittyProtocolActive(): boolean;
 
-	// Cursor positioning (relative to current position)
-	moveBy(lines: number): void; // Move cursor up (negative) or down (positive) by N lines
+	// 光标定位（相对当前位置）
+	moveBy(lines: number): void; // 将光标上移（负数）或下移（正数）N 行
 
-	// Cursor visibility
-	hideCursor(): void; // Hide the cursor
-	showCursor(): void; // Show the cursor
+	// 光标可见性
+	hideCursor(): void; // 隐藏光标
+	showCursor(): void; // 显示光标
 
-	// Clear operations
-	clearLine(): void; // Clear current line
-	clearFromCursor(): void; // Clear from cursor to end of screen
-	clearScreen(): void; // Clear entire screen and move cursor to (0,0)
+	// 清除操作
+	clearLine(): void; // 清除当前行
+	clearFromCursor(): void; // 清除从光标到屏幕末尾的内容
+	clearScreen(): void; // 清除整个屏幕并把光标移到 (0,0)
 
-	// Title operations
-	setTitle(title: string): void; // Set terminal window title
+	// 标题操作
+	setTitle(title: string): void; // 设置终端窗口标题
 
-	// Progress indicator (OSC 9;4)
+	// 进度指示器（OSC 9;4）
 	setProgress(active: boolean): void;
 
 	/**
-	 * Report what the program is doing (OSC 7501). Sent only to terminals that support it; the latest
-	 * status is re-sent when support is confirmed or the terminal restarts.
+	 * 上报程序当前正在做什么（OSC 7501）。只发给支持该特性的终端；当支持被确认
+	 * 或终端重启后，会重新发送最新状态。
 	 */
 	setProgramStatus(status: ProgramStatus): void;
 }
@@ -129,9 +129,8 @@ const DEFAULT_ESCAPE_TIMEOUT_MS = 10;
 const DEFAULT_SSH_ESCAPE_TIMEOUT_MS = 100;
 
 /**
- * Resolve how long to wait for the rest of an escape sequence before
- * dispatching a lone ESC as the Escape key. Legacy Alt+key input is ESC plus
- * another byte, so high-latency transports need a longer reassembly window.
+ * 决定在把孤立 ESC 当作 Escape 键分发之前，等待转义序列剩余部分的时长。
+ * 旧式 Alt+按键输入是 ESC 加另一个字节，因此高延迟的传输层需要更长的重组窗口。
  */
 export function resolveEscapeTimeoutMs(env: NodeJS.ProcessEnv = process.env): number {
 	const configured = Number(env.PI_TUI_ESC_TIMEOUT);
@@ -145,7 +144,7 @@ export function resolveEscapeTimeoutMs(env: NodeJS.ProcessEnv = process.env): nu
 }
 
 /**
- * Real terminal using process.stdin/stdout
+ * 基于 process.stdin/stdout 的真实终端
  */
 export class ProcessTerminal implements Terminal {
 	private wasRaw = false;
@@ -154,18 +153,18 @@ export class ProcessTerminal implements Terminal {
 	private _kittyProtocolActive = false;
 	private _modifyOtherKeysActive = false;
 	private keyboardProtocolPushed = false;
-	/** DA1 replies owed to keyboard protocol queries. Later DA1 replies answer other queries and are forwarded. */
+	/** 尚欠 DA1 回复的 keyboard protocol 查询数。后续到来的 DA1 回复若超出此数，则属于其他查询，会被转发。 */
 	private pendingKeyboardProtocolDeviceAttributes = 0;
 	private keyboardProtocolNegotiationBuffer = "";
 	private keyboardProtocolBufferFlushTimer?: ReturnType<typeof setTimeout>;
 	private stdinBuffer?: StdinBuffer;
 	private stdinDataHandler?: (data: string) => void;
 	private progressInterval?: ReturnType<typeof setInterval>;
-	/** Latest program status, kept across stop() so start() can report it again. */
+	/** 最近一次的程序状态，跨 stop() 保留，以便 start() 时重新上报。 */
 	private programStatus?: ProgramStatus;
-	/** Whether the terminal confirmed OSC 7501 support since the last start(), or `PI_PROGRAM_STATUS=1`. */
+	/** 自上次 start() 以来终端是否确认支持 OSC 7501，或设置了 `PI_PROGRAM_STATUS=1`。 */
 	private programStatusSupported = false;
-	/** The support query was sent and its DA1 sentinel has not arrived yet. */
+	/** 支持查询已发送，其 DA1 哨兵响应尚未到达。 */
 	private programStatusQueryPending = false;
 	private writeLogPath = (() => {
 		const env = process.env.PI_TUI_WRITE_LOG || "";
@@ -177,7 +176,7 @@ export class ProcessTerminal implements Terminal {
 				return path.join(env, `tui-${ts}-${process.pid}.log`);
 			}
 		} catch {
-			// Not an existing directory - use as-is (file path)
+			// 不是已存在的目录 - 原样使用（作为文件路径）
 		}
 		return env;
 	})();
@@ -194,7 +193,7 @@ export class ProcessTerminal implements Terminal {
 		this.inputHandler = onInput;
 		this.resizeHandler = onResize;
 
-		// Save previous state and enable raw mode
+		// 保存先前状态并启用 raw mode
 		this.wasRaw = process.stdin.isRaw || false;
 		if (process.stdin.setRawMode) {
 			process.stdin.setRawMode(true);
@@ -202,39 +201,39 @@ export class ProcessTerminal implements Terminal {
 		process.stdin.setEncoding("utf8");
 		process.stdin.resume();
 
-		// Enable bracketed paste mode - terminal will wrap pastes in \x1b[200~ ... \x1b[201~
+		// 启用 bracketed paste 模式——终端会用 \x1b[200~ ... \x1b[201~ 包裹粘贴内容
 		process.stdout.write("\x1b[?2004h");
 
-		// Set up resize handler immediately
+		// 立即挂载 resize 处理器
 		process.stdout.on("resize", this.resizeHandler);
 
-		// Refresh terminal dimensions - they may be stale after suspend/resume
-		// (SIGWINCH is lost while process is stopped). Unix only, best-effort.
+		// 刷新终端尺寸——挂起/恢复后尺寸可能已过期
+		// （进程被挂起时 SIGWINCH 会丢失）。仅 Unix，尽力而为。
 		refreshTerminalDimensions();
 
-		// On Windows, enable ENABLE_VIRTUAL_TERMINAL_INPUT so the console sends
-		// VT escape sequences (e.g. \x1b[Z for Shift+Tab) instead of raw console
-		// events that lose modifier information. Must run AFTER setRawMode(true)
-		// since that resets console mode flags.
+		// 在 Windows 上启用 ENABLE_VIRTUAL_TERMINAL_INPUT，让控制台发送
+		// VT 转义序列（例如 Shift+Tab 的 \x1b[Z），而不是丢失修饰键信息的
+		// 原始控制台事件。必须在 setRawMode(true) 之后执行，
+		// 因为后者会重置控制台模式标志。
 		this.enableWindowsVTInput();
 
-		// Query Kitty keyboard protocol and fall back to modifyOtherKeys when DA confirms no Kitty response.
-		// See: https://sw.kovidgoyal.net/kitty/keyboard-protocol/
+		// 查询 Kitty keyboard protocol；当 DA 确认没有 Kitty 响应时回退到 modifyOtherKeys。
+		// 参见：https://sw.kovidgoyal.net/kitty/keyboard-protocol/
 		this.queryAndEnableKittyProtocol();
 	}
 
 	/**
-	 * Set up StdinBuffer to split batched input into individual sequences.
-	 * This ensures components receive single events, making matchesKey/isKeyRelease work correctly.
+	 * 设置 StdinBuffer，把成批到达的输入拆分为一条条独立序列。
+	 * 这保证组件收到的是单个事件，让 matchesKey/isKeyRelease 得以正确工作。
 	 *
-	 * Also watches for Kitty protocol response and enables it when detected.
-	 * This is done here (after stdinBuffer parsing) rather than on raw stdin
-	 * to handle the case where the response arrives split across multiple events.
+	 * 同时监听 Kitty protocol 的响应，检测到后启用该协议。
+	 * 在这里（stdinBuffer 解析之后）而不是在原始 stdin 上做，
+	 * 是为了处理响应被拆分到多个事件的情况。
 	 */
 	private setupStdinBuffer(): void {
 		this.stdinBuffer = new StdinBuffer({ escapeTimeout: resolveEscapeTimeoutMs() });
 
-		// Forward individual sequences to the input handler
+		// 把单条序列转发给输入处理器
 		this.stdinBuffer.on("data", (sequence) => {
 			if (isProgramStatusReply(sequence)) {
 				if (this.programStatusQueryPending) {
@@ -247,7 +246,7 @@ export class ProcessTerminal implements Terminal {
 			const negotiation = this.readKeyboardProtocolNegotiationSequence(sequence);
 			if (negotiation === "pending") {
 				this.scheduleKeyboardProtocolNegotiationBufferFlush();
-				return; // Wait briefly for the rest of a split Kitty response.
+				return; // 稍候被拆分的 Kitty 响应的剩余部分。
 			}
 			if (negotiation && this.handleKeyboardProtocolNegotiationSequence(negotiation.parsed)) {
 				return;
@@ -256,34 +255,34 @@ export class ProcessTerminal implements Terminal {
 			this.forwardInputSequence(negotiation?.sequence ?? sequence);
 		});
 
-		// Re-wrap paste content with bracketed paste markers for existing editor handling
+		// 用 bracketed paste 标记重新包裹粘贴内容，以兼容现有的 editor 处理逻辑
 		this.stdinBuffer.on("paste", (content) => {
 			if (this.inputHandler) {
 				this.inputHandler(`\x1b[200~${content}\x1b[201~`);
 			}
 		});
 
-		// Handler that pipes stdin data through the buffer
+		// 让 stdin 数据先经过缓冲区再转发的处理器
 		this.stdinDataHandler = (data: string) => {
 			this.stdinBuffer!.process(data);
 		};
 	}
 
 	/**
-	 * Query terminal for Kitty keyboard protocol support and enable it if available.
+	 * 向终端查询 Kitty keyboard protocol 支持情况，可用则启用该协议。
 	 *
-	 * Kitty's progressive enhancement detection requires requesting the desired
-	 * flags before querying them. The trailing DA query is a sentinel supported by
-	 * terminals that do not know Kitty keyboard protocol; receiving DA before a
-	 * Kitty response enables modifyOtherKeys fallback without a startup timeout.
+	 * Kitty 的渐进增强探测要求先请求期望的标志位，再查询它们。末尾的 DA 查询
+	 * 是一个哨兵，不认识 Kitty keyboard protocol 的终端也会响应它；若在收到
+	 * 若在 Kitty 响应前先收到 DA，就能直接启用 modifyOtherKeys 回退，
+	 * 而无需启动超时。
 	 *
-	 * The requested flags are:
-	 * - 1 = disambiguate escape codes
-	 * - 2 = report event types (press/repeat/release)
-	 * - 4 = report alternate keys (shifted key, base layout key)
+	 * 请求的 flags 为：
+	 * - 1 = disambiguate escape codes（转义码消歧）
+	 * - 2 = report event types（按下/重复/释放）
+	 * - 4 = report alternate keys（上报 alternate keys：shifted key、base layout key）
 	 *
-	 * The OSC 7501 program status query shares the DA sentinel: a terminal that supports it replies
-	 * before DA. `PI_PROGRAM_STATUS=1` or `0` skips the query.
+	 * OSC 7501 程序状态查询与 DA 哨兵共用探测：支持它的终端会先于 DA 回复。
+	 * `PI_PROGRAM_STATUS=1` 或 `0` 可跳过该查询。
 	 */
 	private queryAndEnableKittyProtocol(): void {
 		this.setupStdinBuffer();
@@ -306,8 +305,8 @@ export class ProcessTerminal implements Terminal {
 		if (negotiationSequence.type === "device-attributes") {
 			if (this.pendingKeyboardProtocolDeviceAttributes === 0) return false;
 			this.pendingKeyboardProtocolDeviceAttributes -= 1;
-			// The last owed DA answers the latest query, which got no program status reply first. Earlier DA
-			// replies belong to queries from before a restart.
+			// 最后一个欠下的 DA 回答的是最近一次查询——它此前没有先收到程序状态回复。
+			// 更早的 DA 回复属于重启之前的查询。
 			if (this.pendingKeyboardProtocolDeviceAttributes === 0) this.programStatusQueryPending = false;
 		}
 		if (negotiationSequence.type === "kitty-flags") {
@@ -329,7 +328,7 @@ export class ProcessTerminal implements Terminal {
 		return true;
 	}
 
-	/** Returns the parsed negotiation reply with its full (possibly reassembled) sequence. */
+	/** 返回解析后的协商回复及其完整（可能已重组）的序列。 */
 	private readKeyboardProtocolNegotiationSequence(
 		sequence: string,
 	): { parsed: KeyboardProtocolNegotiationSequence; sequence: string } | "pending" | undefined {
@@ -412,17 +411,17 @@ export class ProcessTerminal implements Terminal {
 	}
 
 	/**
-	 * On Windows, add ENABLE_VIRTUAL_TERMINAL_INPUT (0x0200) to the stdin
-	 * console handle so the terminal sends VT sequences for modified keys
-	 * (e.g. \x1b[Z for Shift+Tab). Without this, libuv's ReadConsoleInputW
-	 * discards modifier state and Shift+Tab arrives as plain \t.
+	 * 在 Windows 上为 stdin 控制台句柄添加 ENABLE_VIRTUAL_TERMINAL_INPUT（0x0200），
+	 * 使终端对组合键发送 VT 序列（例如 Shift+Tab 的 \x1b[Z）。
+	 * 若不这样做，libuv 的 ReadConsoleInputW 会丢弃修饰键状态，
+	 * Shift+Tab 会以普通制表符（\t）的形式到达。
 	 */
 	private enableWindowsVTInput(): void {
 		if (process.platform !== "win32") return;
 		try {
 			getNativePlatformHelper()?.enableVirtualTerminalInput?.();
 		} catch {
-			// Native helper not available — Shift+Tab won't be distinguishable from Tab.
+			// 原生助手不可用——Shift+Tab 将无法与 Tab 区分。
 		}
 	}
 
@@ -430,8 +429,8 @@ export class ProcessTerminal implements Terminal {
 		const shouldDisableKittyProtocol = this.keyboardProtocolPushed || this._kittyProtocolActive;
 		this.clearKeyboardProtocolNegotiationBuffer();
 		if (shouldDisableKittyProtocol) {
-			// Disable Kitty keyboard protocol first so any late key releases
-			// do not generate new Kitty escape sequences.
+			// 先禁用 Kitty keyboard protocol，避免迟到的按键释放事件
+			// 再生成新的 Kitty 转义序列。
 			process.stdout.write("\x1b[<u");
 			this.keyboardProtocolPushed = false;
 			this._kittyProtocolActive = false;
@@ -468,20 +467,20 @@ export class ProcessTerminal implements Terminal {
 		if (this.clearProgressInterval()) {
 			process.stdout.write(TERMINAL_PROGRESS_CLEAR_SEQUENCE);
 		}
-		// Remove the status while stopped, for example after exit or while suspended. start() reports it again.
+		// 已停止时清掉状态，例如退出后或挂起期间。start() 会重新上报。
 		if (this.programStatusSupported && this.programStatus) {
 			process.stdout.write(formatProgramStatus({ state: "clear" }));
 		}
 		this.programStatusSupported = false;
 		this.programStatusQueryPending = false;
 
-		// Disable bracketed paste mode
+		// 禁用 bracketed paste 模式
 		process.stdout.write("\x1b[?2004l");
 
 		const shouldDisableKittyProtocol = this.keyboardProtocolPushed || this._kittyProtocolActive;
 		this.clearKeyboardProtocolNegotiationBuffer();
 
-		// Disable Kitty keyboard protocol if not already done by drainInput()
+		// 若 drainInput() 尚未禁用 Kitty keyboard protocol，则在此禁用
 		if (shouldDisableKittyProtocol) {
 			process.stdout.write("\x1b[<u");
 			this.keyboardProtocolPushed = false;
@@ -490,13 +489,13 @@ export class ProcessTerminal implements Terminal {
 		}
 		this.disableModifyOtherKeys();
 
-		// Clean up StdinBuffer
+		// 清理 StdinBuffer
 		if (this.stdinBuffer) {
 			this.stdinBuffer.destroy();
 			this.stdinBuffer = undefined;
 		}
 
-		// Remove event handlers
+		// 移除事件处理器
 		if (this.stdinDataHandler) {
 			process.stdin.removeListener("data", this.stdinDataHandler);
 			this.stdinDataHandler = undefined;
@@ -507,12 +506,12 @@ export class ProcessTerminal implements Terminal {
 			this.resizeHandler = undefined;
 		}
 
-		// Pause stdin to prevent any buffered input (e.g., Ctrl+D) from being
-		// re-interpreted after raw mode is disabled. This fixes a race condition
-		// where Ctrl+D could close the parent shell over SSH.
+		// 暂停 stdin，防止已缓冲的输入（例如 Ctrl+D）在关闭 raw mode 后
+		// 被重新解释。这修复了一个竞态条件：SSH 场景下 Ctrl+D
+		// 可能因此关闭父 shell。
 		process.stdin.pause();
 
-		// Restore raw mode state
+		// 恢复 raw mode 状态
 		if (process.stdin.setRawMode) {
 			process.stdin.setRawMode(this.wasRaw);
 		}
@@ -524,7 +523,7 @@ export class ProcessTerminal implements Terminal {
 			try {
 				fs.appendFileSync(this.writeLogPath, data, { encoding: "utf8" });
 			} catch {
-				// Ignore logging errors
+				// 忽略日志写入错误
 			}
 		}
 	}
@@ -539,13 +538,13 @@ export class ProcessTerminal implements Terminal {
 
 	moveBy(lines: number): void {
 		if (lines > 0) {
-			// Move down
+			// 向下移动
 			process.stdout.write(`\x1b[${lines}B`);
 		} else if (lines < 0) {
-			// Move up
+			// 向上移动
 			process.stdout.write(`\x1b[${-lines}A`);
 		}
-		// lines === 0: no movement
+		// lines === 0：不移动
 	}
 
 	hideCursor(): void {
@@ -565,11 +564,11 @@ export class ProcessTerminal implements Terminal {
 	}
 
 	clearScreen(): void {
-		process.stdout.write("\x1b[2J\x1b[H"); // Clear screen and move to home (1,1)
+		process.stdout.write("\x1b[2J\x1b[H"); // 清屏并回到起始位置 (1,1)
 	}
 
 	setTitle(title: string): void {
-		// OSC 0;title BEL - set terminal window title
+		// OSC 0;title BEL - 设置终端窗口标题
 		process.stdout.write(`\x1b]0;${title}\x07`);
 	}
 
@@ -586,7 +585,7 @@ export class ProcessTerminal implements Terminal {
 
 	setProgress(active: boolean): void {
 		if (active) {
-			// OSC 9;4;3 - indeterminate progress
+			// OSC 9;4;3 - 不定进度
 			process.stdout.write(TERMINAL_PROGRESS_ACTIVE_SEQUENCE);
 			if (!this.progressInterval) {
 				this.progressInterval = setInterval(() => {
@@ -595,7 +594,7 @@ export class ProcessTerminal implements Terminal {
 			}
 		} else {
 			this.clearProgressInterval();
-			// OSC 9;4;0 - clear progress
+			// OSC 9;4;0 - 清除进度
 			process.stdout.write(TERMINAL_PROGRESS_CLEAR_SEQUENCE);
 		}
 	}

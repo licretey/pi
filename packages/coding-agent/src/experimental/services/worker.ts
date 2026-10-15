@@ -23,12 +23,12 @@ import { createTranscriptServiceFacet } from "./transcript-provider.ts";
 
 export interface SessionWorkerRuntime {
 	readonly harness: Harness;
-	/** The root conversation the services expose. */
+	/** 服务对外提供的根会话。 */
 	readonly conversation: Conversation;
 	readonly modelRuntime?: ModelRuntime;
 	readonly settingsManager?: SettingsManager;
 	readonly facetLoader?: FacetLoader;
-	/** Release resources the Harness does not own, such as execution environments, after it closed. */
+	/** Harness 关闭后释放其不拥有的资源，例如执行环境。 */
 	cleanup?(context: Context): Promise<void>;
 }
 

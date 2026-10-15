@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Validates lockstep versions for published packages, then synchronizes
- * internal dependency versions in all workspace packages, including private ones.
+ * 验证需要统一版本号的已发布包，然后同步工作区内所有包（包括私有包）的内部依赖版本。
  */
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -48,8 +47,8 @@ for (const pkg of workspacePackages) {
 		}
 
 		for (const [dependencyName, currentSpecifier] of Object.entries(dependencies)) {
-			// Registry aliases such as `npm:@earendil-works/pi-ai@0.1.2` are never workspace-linked,
-			// so lockstep bumping them would point at a version that is not published yet.
+			// `npm:@earendil-works/pi-ai@0.1.2` 这类注册表别名不会链接到工作区；
+			// 若随统一版本号一起升级，就会指向尚未发布的版本。
 			const version = versionMap.get(dependencyName);
 			const newSpecifier = version ? `^${version}` : null;
 			if (!newSpecifier || currentSpecifier === newSpecifier) {

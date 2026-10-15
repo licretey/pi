@@ -14,9 +14,8 @@ on:
       - 'packages/ai/**'
       - 'scripts/model-catalog-protocol.ts'
       - 'scripts/publish-model-catalog.mjs'
-  # GitHub schedules use UTC. Run hourly candidates across the CET/CEST
-  # boundaries; the publish job only uploads at 10:17, 12:17, and 14:17
-  # Europe/Vienna time.
+  # GitHub 定时任务使用 UTC。跨越 CET/CEST 时区边界每小时触发候选任务；发布任务仅在
+  # Europe/Vienna 时间 10:17、12:17 和 14:17 上传。
   schedule:
     - cron: '17 8-13 * * 1-5'
   workflow_dispatch:

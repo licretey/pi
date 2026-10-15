@@ -70,8 +70,8 @@ export interface CallToolResult {
 }
 
 /**
- * Tool result content in the shape LLM APIs accept: text and base64 images. Matches the
- * `TextContent` and `ImageContent` types of `@earendil-works/pi-ai`.
+ * 将工具结果转换为 LLM API 接受的内容格式：文本和 Base64 图片。与
+ * `@earendil-works/pi-ai` 中的 `TextContent` 和 `ImageContent` 类型。
  */
 export type LlmContent = { type: "text"; text: string } | { type: "image"; data: string; mimeType: string };
 
@@ -102,11 +102,10 @@ function blockToLlmContent(block: ContentBlock): LlmContent {
 }
 
 /**
- * Convert a tool result to text and image content for a model. Text and images pass through,
- * embedded text resources become text, embedded image resources become images, and other blocks
- * (audio, resource links, binary resources) become a short text placeholder. A result without
- * content blocks but with `structuredContent` becomes its JSON, since servers should, but do not
- * always, mirror structured results as text.
+ * 将工具结果转换为模型使用的文本和图片内容。文本和图片会直接传递；嵌入的文本资源转换为文本，
+ * 嵌入的图片资源转换为图片，音频、资源链接和二进制资源等其他内容块会转换为简短的文本占位符。
+ * 如果工具结果没有内容块，但包含 `structuredContent`，则将其转换为 JSON，因为服务器并不总是会
+ * 将结构化结果同时写入文本内容。
  */
 export function toLlmContent(result: Pick<CallToolResult, "content" | "structuredContent">): LlmContent[] {
 	const content = (result.content ?? []).map(blockToLlmContent);

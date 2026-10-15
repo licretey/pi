@@ -20,7 +20,7 @@ export interface OklchColorValue {
 	readonly h: number;
 }
 
-/** A concrete color. Every color can be converted to sRGB, so color math never fails. */
+/** 具体颜色值。所有颜色都能转换为 sRGB，因此颜色运算不会失败。 */
 export type Color = IndexedColor | RgbColorValue | OklchColorValue;
 export type TerminalColorMode = "256color" | "truecolor";
 export type ColorMixSpace = "oklch" | "srgb";
@@ -32,8 +32,8 @@ export interface OklchChannels {
 }
 
 /**
- * OKHSL channels: hue in degrees, saturation and lightness 0-1. Saturation is relative to the most the
- * sRGB gamut allows at that hue and lightness, so every value is in gamut.
+ * OKHSL 通道：色相以度为单位，饱和度和亮度的范围为 0-1。饱和度以该色相和亮度下 sRGB 色域允许的最大值为基准，
+ * 因此所有取值都位于色域内。
  */
 export interface OkhslChannels {
 	h: number;
@@ -98,11 +98,11 @@ const OKHSL_PATTERN = new RegExp(
 );
 
 /**
- * An OKHSL color, converted to sRGB. Saturation is relative to the sRGB gamut at the hue and lightness,
- * so equal saturation looks equally colorful across hues and lightness.
- * @param h Hue in degrees.
- * @param s Saturation, 0-1.
- * @param l Lightness, 0-1.
+ * OKHSL 颜色，转换为 sRGB。饱和度相对于该色相和亮度下的 sRGB 色域定义，
+ * 因此不同色相和亮度下相同的饱和度看起来同样鲜艳。
+ * @param h 色相，单位为度。
+ * @param s 饱和度，范围为 0-1。
+ * @param l 亮度，范围为 0-1。
  */
 export function okhslColor(h: number, s: number, l: number): RgbColorValue {
 	requireFinite(h, "h");
@@ -188,7 +188,7 @@ function isInSrgbGamut(linear: number[]): boolean {
 }
 
 function oklchToRgb({ l, c, h }: OklchChannels): RgbColor {
-	// Gamut mapping keeps the hue fixed, so its direction is computed once and scaled by chroma.
+	// 色域映射会保持色相不变，因此只需计算一次方向，再按色度缩放。
 	const radians = (h * Math.PI) / 180;
 	const cos = Math.cos(radians);
 	const sin = Math.sin(radians);
@@ -197,8 +197,8 @@ function oklchToRgb({ l, c, h }: OklchChannels): RgbColor {
 	const direct = atChroma(c);
 	if (isInSrgbGamut(direct)) return linearSrgbToRgb(direct);
 
-	// Reduce chroma until the color fits. The achromatic color is always in gamut, so it is the
-	// fallback when no bisection step fits, e.g. `oklch(100% 0.3 150)` must map to white.
+	// 逐步降低色度，直到颜色落入色域。无彩色始终在色域内，因此若二分步骤均不适用，
+	// 就以无彩色为回退值；例如 `oklch(100% 0.3 150)` 必须映射为白色。
 	let linear = atChroma(0);
 	let low = 0;
 	let high = c;
@@ -324,8 +324,8 @@ export function styleText(text: string, options: TextStyle, mode: TerminalColorM
 }
 
 /**
- * Like `styleText()`, but with precomputed color escape sequences, e.g. cached theme colors.
- * Colors in `options` are ignored.
+ * 与 `styleText()` 类似，但使用预先计算好的颜色转义序列，例如缓存的主题颜色。
+ * 会忽略 `options` 中的颜色设置。
  */
 export function styleTextWithAnsi(
 	text: string,
@@ -333,7 +333,7 @@ export function styleTextWithAnsi(
 	bgAnsi: string | undefined,
 	options: TextAttributes,
 ): string {
-	// Resets are prepended so they close in reverse order of the opening sequences.
+	// 将重置序列放在前面，使其按开启序列的相反顺序关闭样式。
 	let prefix = "";
 	let suffix = "";
 	if (fgAnsi) {

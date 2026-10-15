@@ -1,6 +1,6 @@
 import { type Context, defineService, type JsonValue } from "@earendil-works/chord";
 
-/** Server-built plugin generations available to presentations. */
+/** 可供呈现层使用、由服务器构建的插件版本。 */
 export interface PresentationPlugins {
 	prepareSession(
 		request: { readonly sessionId: string; readonly packagePaths: readonly string[] | null },
@@ -11,7 +11,7 @@ export interface PresentationPlugins {
 
 export const PresentationPlugins = defineService<PresentationPlugins>("pi.presentation-plugins");
 
-/** Plugin facets hosted in the currently attached Session worker. */
+/** 当前已连接会话工作进程托管的插件功能面。 */
 export interface SessionPlugins {
 	reload(context: Context): Promise<void>;
 }

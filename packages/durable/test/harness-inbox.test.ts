@@ -49,7 +49,7 @@ function answer(text: string): AssistantMessage {
 	return fauxAssistantMessage([fauxText(text)]);
 }
 
-/** A faux response held until `release` or cancellation; `reached` resolves when the request is sent. */
+/** 暂停模拟响应，直到 `release` 被调用或请求取消；请求发出时解析 `reached`。 */
 function gated(message: AssistantMessage): { step: FauxResponseStep; reached: Promise<void>; release: () => void } {
 	const reached = deferred();
 	const gate = deferred();
@@ -61,7 +61,7 @@ function gated(message: AssistantMessage): { step: FauxResponseStep; reached: Pr
 	return { step, reached: reached.promise, release: () => gate.resolve() };
 }
 
-/** Register a `hold` tool whose calls wait for `gate` and then return `result`. */
+/** 注册 `hold` 工具；调用会等待 `gate`，随后返回 `result`。 */
 function holdTool(setup: ChatSetup, gate: Deferred, result: ToolExecutionResult = { output: [] }): void {
 	addTool(
 		setup.registry,
@@ -83,7 +83,7 @@ async function status(submission: Submission): Promise<SubmissionRecord> {
 	return submission.status(context);
 }
 
-/** Kind and text of each entry, skipping system entries. */
+/** 返回每个条目的类型和文本，并跳过系统条目。 */
 function transcript(entries: readonly EntryRecord[]): string[] {
 	return entries
 		.filter((entry) => entry.kind !== "pi.system")
@@ -178,7 +178,7 @@ describe("inbox", () => {
 		await first.reached;
 		const f1 = await root.submit({ type: "input", content: "f1" }, context);
 		const f2 = await root.submit({ type: "input", content: "f2" }, context);
-		// Occupy the line, let the answer queue its boundary commit behind it, then change the mode.
+		// 占用执行链，让回答的边界提交排在其后，然后再切换模式。
 		const held = storage.holdCommits();
 		const Marker = defineDoc<{ n: number }>({
 			kind: "test.marker",
@@ -256,7 +256,7 @@ describe("inbox", () => {
 		]);
 		const reset = (await allEntries(root)).find((entry) => ResetEntry.is(entry))!;
 		expect(reset.head).toBe(reset.id);
-		// The follow-up's request starts at the reset: the complete system baseline after the cut leads the follow-up.
+		// follow-up 请求从 reset 处开始：截断点后的完整 system 基线位于 follow-up 之前。
 		expect(requests).toEqual([["system:", "user:f"]]);
 		expect(setup.faux.state.callCount).toBe(2);
 		await harness.close(context);
@@ -316,8 +316,8 @@ describe("inbox", () => {
 		expect(await status(fresh)).toMatchObject({ status: "done" });
 		expect(await inbox(harness, root)).toEqual([]);
 
-		// The fresh summary's marker starts the range at the reset: a target inside the range is not stale, even when
-		// it is older than the marker itself. A reset placed earlier in the same boundary makes it stale.
+		// 新摘要的标记会将范围起点设为 reset：范围内的目标不会被视为过期，即使
+		// 即使目标早于标记本身也不算过期；若同一边界中更早放置了 reset，则目标会变为过期。
 		const inside = (await allEntries(root)).find((entry) => entry.kind === "pi.user")!;
 		const second = await root.submit({ type: "input", content: "b" }, context);
 		const kept = await root.submit({ type: "write", entry: { kind: "summary", head: inside.id } }, context);
@@ -415,7 +415,7 @@ describe("inbox", () => {
 		expect((await status(f)).status).toBe("queued");
 		expect(await inbox(harness, root)).toEqual([[f.id, "followUp"]]);
 
-		// Idle with a queued item: the new input queues behind it, and a final boundary places the older one first.
+		// 空闲时已有一项排队：新输入排在其后，最终边界会将较早的输入放在前面。
 		const g = await root.submit({ type: "input", content: "g", whenBusy: "reject" }, context);
 		await g.wait(context);
 		expect(await status(f)).toMatchObject({ status: "done" });
@@ -475,7 +475,7 @@ describe("inbox", () => {
 		]);
 		first.release();
 		await input.wait(context);
-		// Every write and the first follow-up leave; only f2 at index 3 remains. No retained value is carried.
+		// 所有写入和第一个 follow-up 均已移除；只剩索引 3 处的 f2，且不会携带任何保留值。
 		expect(ops[5]!.every((op) => op[0] === "p" && (op[4] as unknown[]).length === 0)).toBe(true);
 		expect(ops[5]).toContainEqual(["p", ["items"], 4, 1, []]);
 		expect(JSON.stringify(ops[5])).not.toContain("f2");
@@ -495,7 +495,7 @@ describe("inbox", () => {
 		expect(await idle.wait(context)).toMatchObject({ status: "unanswered", reason: "stale" });
 		expect(await allEntries(root)).toHaveLength(before);
 
-		// After a failed run, a follow-up waits; a stale write queues behind it and the boundary rejects it.
+		// 运行失败后，follow-up 会继续等待；过期写入排在其后，并会在边界处被拒绝。
 		const input = await root.submit({ type: "input", content: "a" }, context);
 		await failing.reached;
 		const f = await root.submit({ type: "input", content: "f" }, context);
@@ -751,7 +751,7 @@ describe("inbox", () => {
 		first.release();
 		await input.wait(context);
 		await f2.wait(context);
-		// The inbox ID is learned from the f1 push; later writes: the f2 push, removing f1, and emptying the inbox.
+		// 从 f1 推送中获取收件箱 ID；后续写入依次为推送 f2、移除 f1 和清空收件箱。
 		expect(written).toEqual([
 			{ kind: "delta", empty: false },
 			{ kind: "delta", empty: false },
@@ -804,7 +804,7 @@ describe("usage", () => {
 		const result = entries.find((entry) => entry.kind === "pi.tool-result")!.model![0] as ToolResultMessage;
 		expect(result.usage).toEqual(spent);
 
-		// A fork starts at zero; the Session total adds every conversation once.
+		// 分支的用量从零开始；Session 总量将每个会话的用量各累加一次。
 		const fork = await root.fork(entries.at(-1)!.id, { ownership: { kind: "ownerless" } }, context);
 		expect(await harness.snapshot(UsageDoc, fork.id, context)).toEqual({ models: {}, tools: {} });
 		await (await fork.submit({ type: "input", content: "b" }, context)).wait(context);
@@ -836,7 +836,7 @@ describe("usage", () => {
 		await (await root.submit({ type: "input", content: "a" }, context)).wait(context);
 		expect((await harness.snapshot(UsageDoc, root.id, context))!.tools).toEqual({ hold: spent });
 
-		// A partial committed while streaming becomes an aborted entry on abort; its usage counts too.
+		// 流式输出期间提交的部分响应会在中止时转为中止条目，其用量也会计入。
 		const input = await root.submit({ type: "input", content: "b" }, context);
 		await waitFor(async () => (await harness.snapshot(LiveDoc, root.id, context))?.generation?.message !== undefined);
 		await harness.abortTask((await harness.snapshot(LiveDoc, root.id, context))!.run!.taskId, context);
@@ -884,7 +884,7 @@ describe("usage", () => {
 		await waitFor(
 			async () => (await live.snapshot(LiveDoc, opened.root.id, context))?.generation?.message !== undefined,
 		);
-		// Closing mid-stream keeps the committed partial; the reopened request converts it into an aborted entry.
+		// 流处理中途关闭会保留已提交的部分内容；重新打开后，请求会将其转换为中止条目。
 		await opened.harness.close(context);
 		opened = await openChat(await openNodeSqliteStorage(path), setup);
 		opened.harness.resume();

@@ -12,7 +12,7 @@ export class ModelsError extends Error {
 	}
 }
 
-/** Callers surface `error.message` only, so keep the underlying reason in it. */
+/** 调用方只展示 `error.message`，因此要把底层原因保留在其中。 */
 function withCauseDetail(message: string, cause: unknown): string {
 	if (cause === undefined || cause === null) return message;
 	const detail = formatThrownValue(cause).trim();

@@ -11,12 +11,12 @@ import type {
 	SettledTask,
 } from "./harness/types.ts";
 
-/** JSON object used as the root of every durable document. */
+/** 用作每个 durable document 根的 JSON 对象。 */
 export type JsonObject = { [key: string]: JsonValue };
 
 declare const idBrand: unique symbol;
 
-/** Erased nominal number identifying one durable record kind. */
+/** 已擦除的标称数字，标识一种 durable record 类别。 */
 export type Id<Kind extends string, Type = unknown> = number & {
 	readonly [idBrand]: {
 		readonly kind: Kind;
@@ -32,55 +32,55 @@ export type DocumentId = Id<"document">;
 
 declare const seqBrand: unique symbol;
 
-/** Strictly increasing sequence assigned to one atomic storage commit; gaps are permitted. */
+/** 分配给一次原子 storage commit 的严格递增序列；允许出现空洞。 */
 export type Seq = number & { readonly [seqBrand]: "sequence" };
 
-/** The root conversation always uses this reserved ID. */
+/** 根 conversation 始终使用该保留 ID。 */
 export const ROOT_CONVERSATION_ID = 1 as ConversationId;
 
-/** Conversation document that retains only its current state. */
+/** 只保留当前状态的 conversation document。 */
 export type LatestConversationSemantics = {
 	readonly scope: "conversation";
 	readonly history: "latest";
 	readonly fork: "current" | "initial";
 };
 
-/** Conversation document whose history remains addressable for as-of reads. */
+/** 历史仍可寻址、支持 as-of 读取的 conversation document。 */
 export type RewindableConversationSemantics = {
 	readonly scope: "conversation";
 	readonly history: "rewindable";
 	readonly fork: "asOf" | "current" | "initial";
 };
 
-/** Ownership and lifetime of a document; only conversation documents declare history and fork behavior. */
+/** document 的归属与生命周期；只有 conversation document 声明 history 与 fork 行为。 */
 export type DocumentSemantics =
 	| { readonly scope: "session"; readonly history?: never; readonly fork?: never }
 	| LatestConversationSemantics
 	| RewindableConversationSemantics
 	| { readonly scope: "task"; readonly history?: never; readonly fork?: never };
 
-/** Stored replay state supplied to a document's checkpoint predicate. */
+/** 提供给 document checkpoint 谓词的已存重放状态。 */
 export type CheckpointInfo = {
-	/** Deltas already stored after the newest base, excluding the change being evaluated. */
+	/** newest base 之后已存储的 delta 数量，不含正在评估的变更。 */
 	readonly deltasSinceBase: number;
 };
 
-/** Definition fields shared by singleton documents and document families. */
+/** 单例 document 与 document family 共有的定义字段。 */
 export type CommonDocDefinition<T extends JsonObject> = {
-	/** Stable persisted kind; part of the public protocol. */
+	/** 稳定且持久化的 kind；属于公开协议的一部分。 */
 	readonly kind: string;
-	/** Positive integer version of the stored value shape. */
+	/** 存储值形状的正整数版本号。 */
 	readonly version: number;
 	initial(): T;
 	migrate?(value: JsonObject, fromVersion: number): T;
-	/** Return true to store this ordinary change as a complete base instead of a delta. */
+	/** 返回 true 时，将本次普通变更存储为完整 base 而非 delta。 */
 	checkpointWhen?(value: Readonly<T>, ops: readonly Op[], info: CheckpointInfo): boolean;
 };
 
-/** Singleton document definition. */
+/** 单例 document 定义。 */
 export type DocDefinition<T extends JsonObject> = CommonDocDefinition<T> & DocumentSemantics;
 
-/** Keyed document family definition; `initial(seed)` runs only when a member is absent. */
+/** 键控 document family 定义；`initial(seed)` 仅在成员不存在时执行。 */
 export type DocFamilyDefinition<T extends JsonObject, I extends JsonValue> = Omit<CommonDocDefinition<T>, "initial"> &
 	DocumentSemantics & {
 		readonly family: true;
@@ -89,13 +89,13 @@ export type DocFamilyDefinition<T extends JsonObject, I extends JsonValue> = Omi
 
 declare const docType: unique symbol;
 
-/** Typed singleton document token passed explicitly to typed access. */
+/** 传给类型化访问的显式单例 document token。 */
 export interface DocToken<T extends JsonObject, D extends DocDefinition<T>> {
 	readonly definition: D;
 	readonly [docType]?: T;
 }
 
-/** Typed document family token passed explicitly to typed access. */
+/** 传给类型化访问的显式 document family token。 */
 export interface DocFamilyToken<T extends JsonObject, I extends JsonValue, D extends DocFamilyDefinition<T, I>> {
 	readonly definition: D;
 	readonly [docType]?: T;
@@ -133,20 +133,20 @@ export type TaskDocFamilyToken<T extends JsonObject, I extends JsonValue> = DocF
 	DocFamilyDefinition<T, I> & { readonly scope: "task" }
 >;
 
-/** Live task record reserved by one invocation. */
+/** 被一次 invocation 预留的活跃 task record。 */
 export type RunningTask<I, S, R> = TaskRecord<I, S, R> & {
 	readonly state: Extract<TaskState<S, R>, { readonly status: "running" }>;
 };
 
 /**
- * Next state a task commits for itself: a replacement checkpoint, a wait, or its outcome. A returned `terminal` state is
- * stored as `completing` while ordinary owned work below the task is live (spec §5.5).
+ * task 为自身提交的下一个状态：替换 checkpoint、进入等待，或其最终结果。当 task 之下的普通 owned work 仍在运行时，
+ * 返回的 `terminal` 状态会以 `completing` 形式存储（spec §5.5）。
  */
 export type NextTaskState<S, R> = Extract<TaskState<S, R>, { readonly status: "running" | "waiting" | "terminal" }>;
 
 /**
- * Runs one checkpoint phase. It must commit a changed checkpoint or a terminal outcome through `runtime.commit()`;
- * returning without durable progress faults the task.
+ * 运行一个 checkpoint 阶段。它必须通过 `runtime.commit()` 提交变更后的 checkpoint 或终态结果；
+ * 未产生持久化进度就返回会触发 task fault。
  */
 export type PhaseHandler<I, P, S, R, H extends object> = (
 	task: RunningTask<I, P, R>,
@@ -154,44 +154,43 @@ export type PhaseHandler<I, P, S, R, H extends object> = (
 	context: Context,
 ) => Promise<void>;
 
-/** Dispatches one hook of a task to every matching registered handler, in registry order of the phase snapshot. */
+/** 按 phase snapshot 的注册表顺序，将 task 的一个 hook 分发给每个匹配的已注册 handler。 */
 export interface HookRunner<H extends object> {
 	/**
-	 * Call `invoke` with each matching handler named `name`. An ordinary throw from `invoke` is reported and the next
-	 * handler runs; once the invocation is signalled, the error propagates. Composition happens inside `invoke`.
+	 * 以每个名为 `name` 的匹配 handler 调用 `invoke`。`invoke` 的普通抛错会被上报并继续执行下一个
+	 * handler；一旦 invocation 已被 signal，错误则向外传播。组合逻辑发生在 `invoke` 内部。
 	 */
 	each<K extends keyof H>(name: K, invoke: (handler: NonNullable<H[K]>) => void | Promise<void>): Promise<void>;
 }
 
 /**
- * Operations of one task invocation. Every operation rejects after the invocation ends; watches acquired through it
- * stop at invocation end.
+ * 一次 task invocation 的操作集合。invocation 结束后每个操作都会 reject；通过它获取的
+ * watch 在 invocation 结束时停止。
  */
 export interface TaskRuntime<I, S, R, H extends object> extends DocumentObserver, DocumentReader {
 	readonly taskId: TaskId<R>;
 	readonly conversationId: ConversationId;
 	/**
-	 * Aborted when the run is signalled by `abortTask()`, the Harness closes, or the invocation ends. Work still using it
-	 * after the invocation ended, such as a detached wait, is cancelled; it could not write anything anyway.
+	 * 在 `abortTask()` signal 该 run、Harness 关闭或 invocation 结束时被 abort。invocation 结束后仍在使用它的
+	 * 工作（例如 detached wait）会被取消；反正它们也无法再写入任何内容。
 	 */
 	readonly signal: AbortSignal;
-	/** Registry snapshot of the current phase; refreshed at every phase boundary. */
+	/** 当前 phase 的注册表快照；在每个 phase 边界刷新。 */
 	readonly registry: RegistrySnapshot;
-	/** The task's conversation's agent, resolved at most once per phase, at first use, and fixed for the phase. */
+	/** task 所属 conversation 的 agent，每个 phase 至多解析一次（首次使用时），且在该 phase 内固定不变。 */
 	agent(context: Context): Promise<Agent>;
-	/** `HarnessOptions.settings`, resolved at each access. */
+	/** `HarnessOptions.settings`，每次访问时重新解析。 */
 	readonly settings: Settings;
 	readonly models: Models;
-	/** Calls `HarnessOptions.env` for the task's conversation; rejects with its error. */
+	/** 为 task 的 conversation 调用 `HarnessOptions.env`；出错时以该错误 reject。 */
 	env(context: Context): Promise<ExecutionEnv | undefined>;
-	/** Handlers of this task's name from the extensions its conversation selects, in extension order. */
+	/** 来自该 conversation 所选扩展的、与 task 同名的各 handler，按扩展顺序排列。 */
 	readonly hooks: HookRunner<H>;
 
 	/**
-	 * Commit on the Session line after rereading the task. Rejects when the task is terminal, the invocation ended, the
-	 * Harness is closing, or, in a run invocation, the task carries an abort mark. A returned state replaces the task's
-	 * state in the same commit; returning nothing leaves it unchanged. `tx.createTask()` defaults to the task's
-	 * conversation.
+	 * 在重新读取 task 后，于 Session mutation line 上提交。task 已终态、invocation 已结束、Harness 正在关闭，
+	 * 或（run invocation 中）task 带有 abort mark 时会 reject。返回的状态会在同一次提交中替换 task 的
+	 * 状态；不返回任何内容则保持不变。`tx.createTask()` 默认使用 task 的 conversation。
 	 */
 	commit(
 		change: (
@@ -200,55 +199,55 @@ export interface TaskRuntime<I, S, R, H extends object> extends DocumentObserver
 		) => NextTaskState<S, R> | undefined | Promise<NextTaskState<S, R> | undefined>,
 		context: Context,
 	): Promise<void>;
-	/** Read a durable memo of this task. */
+	/** 读取该 task 的一条持久化 memo。 */
 	memo<T extends JsonValue>(name: string, context: Context): Promise<T | undefined>;
-	/** Store `candidate` unless a memo already exists; return the durable winner. */
+	/** 若 memo 已存在则不存储 `candidate`；返回持久化后的胜出者。 */
 	memo<T extends JsonValue>(name: string, candidate: T, context: Context): Promise<T>;
-	/** Committed task record. */
+	/** 已提交的 task record。 */
 	getTask<T>(id: TaskId<T>, context: Context): Promise<TaskRecord<JsonValue, JsonValue, T> | undefined>;
-	/** Resolve with the task's terminal receipt; rejects when the invocation ends. */
+	/** 以该 task 的终态回执 resolve；invocation 结束时 reject。 */
 	waitForTask<T>(id: TaskId<T>, context: Context): Promise<SettledTask<T>>;
 	/**
-	 * Abort a task this task owns, as `Harness.abortTask()` does, and resolve once it is terminal. Rejects for a task
-	 * another owns; resolves at once for a terminal one.
+	 * 像 `Harness.abortTask()` 那样 abort 该 task 拥有的 task，并在其到达终态后 resolve。
+	 * abort 他人拥有的 task 会 reject；已是终态的 task 立即 resolve。
 	 */
 	abortOwned(id: TaskId, context: Context): Promise<void>;
-	/** Outcomes of terminal tasks, in order; rejects when one is missing or not terminal. Used after a wait. */
+	/** 按顺序返回终态 task 的 outcome；任一缺失或未终态都会 reject。通常在等待之后使用。 */
 	outcomes<T>(ids: readonly TaskId<T>[], context: Context): Promise<TaskOutcome<T>[]>;
 	/**
-	 * Invocation-bound handle of an existing conversation, for example one this task owns; `undefined` when absent. Its
-	 * operations and the submissions it returns reject after the invocation ends; admitted work stays durable.
+	 * 已有 conversation 的 invocation 绑定句柄，例如该 task 拥有的 conversation；不存在时为 `undefined`。
+	 * invocation 结束后其操作及返回的 submission 都会 reject；已接纳的工作保持持久化。
 	 */
 	conversation(id: ConversationId, context: Context): Promise<ConversationHandle | undefined>;
-	/** Committed entry visible from the task's conversation. */
+	/** 从该 task 的 conversation 可见的已提交 entry。 */
 	entry(id: EntryId, context: Context): Promise<EntryRecord | undefined>;
-	/** Undefined when the entry is absent, not visible, or has another kind. */
+	/** entry 不存在、不可见或 kind 不同时为 undefined。 */
 	entry<D extends JsonValue>(token: Entry<D>, id: EntryId, context: Context): Promise<TypedEntry<D> | undefined>;
-	/** Committed raw active transcript and model context, optionally cut off at the visible entry `at`. */
+	/** 已提交的原始活跃 transcript 与 model context，可选地在可见 entry `at` 处截断。 */
 	context(conversationId: ConversationId, context: Context, options?: { readonly at?: EntryId }): Promise<ContextView>;
-	/** The Harness clock. */
+	/** Harness 的时钟。 */
 	now(): number;
-	/** Forward a non-fatal failure to `HarnessOptions.onReport`. */
+	/** 将非致命失败转发给 `HarnessOptions.onReport`。 */
 	report(error: unknown): void;
-	/** Resolve once the Harness clock reaches `until`; rejects when the invocation or `context` is cancelled. */
+	/** Harness 时钟到达 `until` 时 resolve；invocation 或 `context` 被取消时 reject。 */
 	sleep(until: number, context: Context): Promise<void>;
 }
 
-/** Executable durable state machine definition, registered in the registry by `name`. */
+/** 可执行的 durable 状态机定义，以 `name` 注册到注册表中。 */
 export type TaskDefinition<I, S extends { phase: string }, R, H extends object> = {
-	/** Registered task kind persisted in `TaskRecord.kind`. */
+	/** 持久化在 `TaskRecord.kind` 中的已注册 task kind。 */
 	readonly name: string;
-	/** Definition version persisted with live input and checkpoints. */
+	/** 与活跃输入和 checkpoint 一起持久化的定义版本号。 */
 	readonly version: number;
-	/** First durable checkpoint for a newly created task. */
+	/** 新建 task 的首个持久化 checkpoint。 */
 	initial(input: I): S;
-	/** Exhaustive phase map; each handler receives the task narrowed to its phase. */
+	/** 穷尽的 phase 映射；每个 handler 收到的 task 已收窄到对应 phase。 */
 	readonly phases: {
 		readonly [P in S["phase"]]: PhaseHandler<I, Extract<S, { phase: P }>, S, R, H>;
 	};
-	/** Runs in a fresh invocation after an abort mark and must commit a terminal outcome. */
+	/** 在 abort mark 之后由全新 invocation 运行，且必须提交一个终态结果。 */
 	abort(task: RunningTask<I, S, R>, runtime: TaskRuntime<I, S, R, H>, context: Context): Promise<void>;
-	/** Convert a record stored by any older supported version; runs at reservation. */
+	/** 转换任意更旧的支持版本所存的 record；在保留（reservation）时运行。 */
 	migrate?(
 		input: JsonValue,
 		checkpoint: JsonValue,
@@ -260,57 +259,57 @@ export type TaskDefinition<I, S extends { phase: string }, R, H extends object> 
 	readonly hooks?: H;
 };
 
-/** Typed executable task definition. */
+/** 类型化的可执行 task 定义。 */
 export interface Task<I, S extends { phase: string }, R, H extends object> {
 	readonly definition: TaskDefinition<I, S, R, H>;
 }
 
-/** Who owns a task: its conversation (a top-level task) or another task of the same conversation (a child task). */
+/** task 的归属者：其 conversation（顶层 task）或同一 conversation 的另一 task（子 task）。 */
 export type TaskOwnership = { readonly kind: "conversation" } | { readonly kind: "task"; readonly taskId: TaskId };
 
-/** How a waiting task treats the tasks it waits on (spec §5.5). */
+/** 等待中的 task 如何对待它所等待的 task（spec §5.5）。 */
 export type JoinPolicy = "failFast" | "allSettled";
 
-/** Creation options for a durable task. */
+/** 创建 durable task 的选项。 */
 export type TaskOptions = {
-	/** Required: a task always names its owner (spec §5.5). */
+	/** 必填：task 总是声明它的归属者（spec §5.5）。 */
 	readonly ownership: TaskOwnership;
 	/**
-	 * Default: the owner task's conversation, or the transaction's bound conversation; required for conversation-owned
-	 * tasks created by Session commits that are not bound to a conversation.
+	 * 默认：owner task 的 conversation，或事务绑定的 conversation；对于由 Session 提交创建、但未绑定到
+	 * conversation 的 conversation-owned task 则为必填。
 	 */
 	readonly conversationId?: ConversationId;
-	/** Conversation-owned tasks only: excluded from ordinary idle waits, conversation aborts, and cascades. */
+	/** 仅限 conversation-owned task：排除在普通 idle 等待、conversation abort 与级联之外。 */
 	readonly background?: boolean;
 	/**
-	 * Its creator awaits it only in memory and does not resume after a restart, so it is pointless once the Harness that
-	 * created it is gone. When scheduling starts in a later Harness, the task, if still live, is abort-marked with reason
-	 * `restart`, and the mark cascades to its ordinary owned work, before any of it runs again.
+	 * 其创建者只在内存中等待它，重启后不会恢复，因此创建它的 Harness 消失后该选项就失去意义。
+	 * 调度在更晚的 Harness 中启动时，若该 task 仍存活，会被以 `restart` 为原因标记 abort，
+	 * 且该标记在其任何 owned work 重新运行之前级联到全部普通 owned work。
 	 */
 	readonly abandonOnRestart?: boolean;
 };
 
-/** Ownership selected explicitly whenever a conversation is created. */
+/** 创建 conversation 时显式选择的归属。 */
 export type ConversationOwnership = { readonly kind: "ownerless" } | { readonly kind: "task"; readonly taskId: TaskId };
 
-/** Immutable identity, history ancestry, and task ownership of a transcript scope. */
+/** transcript scope 的不可变身份、历史谱系与 task 归属。 */
 export type ConversationRecord = {
 	readonly id: ConversationId;
-	/** Fork source and inclusive parent entry through which history is inherited. */
+	/** fork 来源及其包含的父 entry，历史经由此继承。 */
 	readonly parent?: {
 		readonly conversationId: ConversationId;
 		readonly at: EntryId;
 	};
-	/** Creator edge used for attribution, subtree abort, and subtree idle waits. */
+	/** 用于归属、子树 abort 和子树 idle 等待的创建者边。 */
 	readonly owner?: {
 		readonly conversationId: ConversationId;
 		readonly taskId: TaskId;
 	};
 };
 
-/** An immutable override of one visible entry's contribution to model context. */
+/** 对一个可见 entry 在 model context 中的贡献所做的不可变覆盖。 */
 export type ContextEdit = {
-	/** Entry whose model messages are omitted or replaced. */
+	/** 其 model 消息被省略或替换的 entry。 */
 	readonly target: EntryId;
 } & (
 	| {
@@ -319,64 +318,64 @@ export type ContextEdit = {
 	  }
 	| {
 			readonly action: "replace";
-			/** Messages contributed instead of the target entry's model messages. */
+			/** 用来替换目标 entry 的 model 消息的消息。 */
 			readonly messages: readonly Message[];
 	  }
 );
 
-/** Immutable transcript event with separate model-facing and application-facing payloads. */
+/** 不可变的 transcript 事件，model 视角与应用视角的负载相互分离。 */
 export type EntryRecord = {
 	readonly id: EntryId;
 	readonly conversationId: ConversationId;
-	/** Application-defined entry discriminator. */
+	/** 应用自定义的 entry 判别符。 */
 	readonly kind: string;
-	/** Messages contributed to model context; absent for display or bookkeeping entries. */
+	/** 进入 model context 的消息；展示或记账类 entry 没有该字段。 */
 	readonly model?: readonly Message[];
-	/** JSON payload consumed by views, extensions, or bookkeeping logic. */
+	/** 由视图、扩展或记账逻辑消费的 JSON 负载。 */
 	readonly data?: JsonValue;
-	/** First entry in the active context selected by this entry. */
+	/** 该 entry 选中为活跃 context 起点的第一个 entry。 */
 	readonly head?: EntryId;
-	/** Context-only overrides of earlier visible entries. */
+	/** 对更早可见 entry 的仅限 context 的覆盖。 */
 	readonly edits?: readonly ContextEdit[];
-	/** Task that appended this entry, when it was produced by durable work. */
+	/** 追加该 entry 的 task（当它由 durable work 产生时）。 */
 	readonly byTaskId?: TaskId;
 };
 
-/** Entry content supplied before the Session assigns identity and task attribution. */
+/** 在 Session 赋予身份与 task 归属前提供的 entry 内容。 */
 export type EntryDraft = Omit<EntryRecord, "id" | "conversationId" | "byTaskId" | "head"> & {
-	/** `"self"` starts active context at the newly assigned entry ID. */
+	/** `"self"` 让活跃 context 从新分配的 entry ID 开始。 */
 	readonly head?: EntryId | "self";
 };
 
-/** Entry whose `data` has type `D`; `never` means the kind carries no data. */
+/** `data` 类型为 `D` 的 entry；`never` 表示该 kind 不携带数据。 */
 export type TypedEntry<D extends JsonValue> = Omit<EntryRecord, "data"> &
 	([D] extends [never] ? { readonly data?: never } : { readonly data: D });
 
-/** Entry content of a typed kind; the token supplies `kind`. */
+/** 类型化 kind 的 entry 内容；token 提供 `kind`。 */
 export type TypedEntryDraft<D extends JsonValue> = Omit<EntryDraft, "kind" | "data"> &
 	([D] extends [never] ? { readonly data?: never } : { readonly data: D });
 
-/** Typed entry kind with a narrowing guard. */
+/** 带类型收窄守卫的类型化 entry kind。 */
 export interface Entry<D extends JsonValue = never> {
 	readonly kind: string;
 	is(entry: EntryRecord | undefined): entry is TypedEntry<D>;
 }
 
-/** Identity fields shared by every durable submission state. */
+/** 每个 durable submission 状态共有的身份字段。 */
 type SubmissionRecordBase = {
 	readonly id: SubmissionId;
 	readonly conversationId: ConversationId;
-	/** Host-provided deduplication key, scoped to the conversation. */
+	/** host 提供的去重键，作用域为 conversation。 */
 	readonly requestId?: string;
 };
 
-/** Durable lifecycle of one admitted user input or passive entry write. */
+/** 一次被接纳的用户输入或被动 entry 写入的持久化生命周期。 */
 export type SubmissionRecord =
 	| (SubmissionRecordBase & {
 			readonly type: "input";
 	  } & (
 				| {
-						/** Admitted but not yet represented in the transcript. */
+						/** 已被接纳，但尚未出现在 transcript 中。 */
 						readonly status: "queued";
 						readonly entry?: never;
 						readonly answer?: never;
@@ -384,7 +383,7 @@ export type SubmissionRecord =
 						readonly detail?: never;
 				  }
 				| {
-						/** Added to the transcript and owned by an active run. */
+						/** 已进入 transcript 并由活跃 run 持有。 */
 						readonly status: "placed";
 						readonly entry: EntryId;
 						readonly answer?: never;
@@ -392,7 +391,7 @@ export type SubmissionRecord =
 						readonly detail?: never;
 				  }
 				| {
-						/** Successfully answered user input. */
+						/** 已成功回答的用户输入。 */
 						readonly status: "done";
 						readonly entry: EntryId;
 						readonly answer: EntryId;
@@ -400,7 +399,7 @@ export type SubmissionRecord =
 						readonly detail?: never;
 				  }
 				| {
-						/** Terminal input that can no longer receive an answer. */
+						/** 不再可能收到回答的终态输入。 */
 						readonly status: "unanswered";
 						readonly entry?: EntryId;
 						readonly answer?: never;
@@ -412,7 +411,7 @@ export type SubmissionRecord =
 			readonly type: "write";
 	  } & (
 				| {
-						/** Admitted but not yet appended to the transcript. */
+						/** 已被接纳，但尚未追加到 transcript。 */
 						readonly status: "queued";
 						readonly entry?: never;
 						readonly answer?: never;
@@ -420,7 +419,7 @@ export type SubmissionRecord =
 						readonly detail?: never;
 				  }
 				| {
-						/** Successfully appended passive entry. */
+						/** 已成功追加的被动 entry。 */
 						readonly status: "done";
 						readonly entry: EntryId;
 						readonly answer?: never;
@@ -428,7 +427,7 @@ export type SubmissionRecord =
 						readonly detail?: never;
 				  }
 				| {
-						/** Terminal passive write that could not be placed. */
+						/** 未能落位的终态被动写入。 */
 						readonly status: "unanswered";
 						readonly entry?: never;
 						readonly answer?: never;
@@ -437,26 +436,26 @@ export type SubmissionRecord =
 				  }
 			));
 
-/** Terminal status staged for a submission; identity, type, and entry come from its current record. */
+/** 为 submission 暂存的终态；身份、类型与 entry 来自其当前 record。 */
 export type SubmissionSettlement =
 	| { readonly status: "done"; readonly answer: EntryId }
 	| { readonly status: "unanswered"; readonly reason: string; readonly detail?: JsonValue };
 
-/** Submission fields supplied before the Session assigns an ID. */
+/** 在 Session 赋予 ID 之前提供的 submission 字段。 */
 export type SubmissionCreate = SubmissionRecord extends infer Record
 	? Record extends SubmissionRecord
 		? Omit<Record, "id">
 		: never
 	: never;
 
-/** JSON-safe error snapshot persisted instead of a runtime `Error` object. */
+/** 持久化以替代运行时 `Error` 对象的 JSON 安全错误快照。 */
 export type TaskOutcomeError = {
 	readonly message: string;
-	/** Optional structured diagnostic data for inspection or recovery. */
+	/** 可选的结构化诊断数据，用于检查或恢复。 */
 	readonly detail?: JsonValue;
 };
 
-/** Durable reason and optional result recorded when a task becomes terminal. */
+/** task 变为终态时记录的持久化原因与可选结果。 */
 export type TaskOutcome<R> =
 	| {
 			readonly status: "completed";
@@ -464,28 +463,28 @@ export type TaskOutcome<R> =
 			readonly error?: never;
 			readonly reason?: never;
 	  }
-	/** Expected task or domain failure explicitly committed by its implementation. */
+	/** 由实现显式提交的预期 task 或领域失败。 */
 	| {
 			readonly status: "failed";
 			readonly error: TaskOutcomeError;
 			readonly result?: R;
 			readonly reason?: never;
 	  }
-	/** Explicit cancellation handled by the task's abort protocol. */
+	/** 由 task 的 abort 协议处理的显式取消。 */
 	| {
 			readonly status: "aborted";
 			readonly reason?: string;
 			readonly result?: R;
 			readonly error?: never;
 	  }
-	/** Task that cannot resume because its definition or migration is unavailable. */
+	/** 因定义或迁移不可用而无法恢复的 task。 */
 	| {
 			readonly status: "orphaned";
 			readonly reason: string;
 			readonly result?: never;
 			readonly error?: never;
 	  }
-	/** Runtime-detected contract failure, such as an uncaught throw or no durable progress. */
+	/** 运行时检测到的契约破坏，例如未捕获的抛错或无持久化进度。 */
 	| {
 			readonly status: "faulted";
 			readonly error: TaskOutcomeError;
@@ -493,24 +492,24 @@ export type TaskOutcome<R> =
 			readonly reason?: never;
 	  };
 
-/** Complete durable execution state of a task. */
+/** 一个 task 的完整持久化执行状态。 */
 export type TaskState<S, R> =
 	| {
-			/** Eligible for scheduling. */
+			/** 可被调度。 */
 			readonly status: "pending";
-			/** Complete durable state from which execution resumes. */
+			/** 执行恢复所依据的完整持久化状态。 */
 			readonly checkpoint: S;
 			readonly outcome?: never;
 	  }
 	| {
-			/** Reserved by one in-memory task invocation. */
+			/** 由一次内存中的 task invocation 预留。 */
 			readonly status: "running";
-			/** Complete durable state from which execution resumes. */
+			/** 执行恢复所依据的完整持久化状态。 */
 			readonly checkpoint: S;
 			readonly outcome?: never;
 	  }
 	| {
-			/** Parked without an invocation until every task in `on` is terminal; then resumes at `checkpoint`. */
+			/** 在 `on` 中每个 task 都终态之前无 invocation 停泊；之后从 `checkpoint` 恢复。 */
 			readonly status: "waiting";
 			readonly checkpoint: S;
 			readonly on: readonly TaskId[];
@@ -518,58 +517,57 @@ export type TaskState<S, R> =
 			readonly outcome?: never;
 	  }
 	| {
-			/** Outcome decided; becomes terminal once no ordinary owned work below is live. Runs no more code. */
+			/** 结果已决定；一旦下方不再有存活的普通 owned work 即变终态。不再执行任何代码。 */
 			readonly status: "completing";
 			readonly checkpoint?: never;
 			readonly outcome: TaskOutcome<R>;
 	  }
 	| {
-			/** Permanently settled durable result receipt. */
+			/** 已永久落定的持久化结果回执。 */
 			readonly status: "terminal";
 			readonly checkpoint?: never;
 			readonly outcome: TaskOutcome<R>;
 	  };
 
-/** Identity, definition, and scheduling fields shared by every task state. */
+/** 每个 task 状态共有的身份、定义与调度字段。 */
 type TaskRecordBase<I, R> = {
 	readonly id: TaskId<R>;
 	readonly conversationId: ConversationId;
-	/** Registered task definition name. */
+	/** 注册的 task 定义名称。 */
 	readonly kind: string;
-	/** Definition version used to migrate live input and checkpoints. */
+	/** 用于迁移活跃输入与 checkpoint 的定义版本号。 */
 	readonly version: number;
-	/** Original task input retained while the task is live or terminal. */
+	/** task 存活或已终态期间保留的原始 task 输入。 */
 	readonly input: I;
-	/** Owning task of a child task; absent for a task its conversation owns. Immutable. */
+	/** 子 task 的归属 task；由其 conversation 拥有的 task 没有该字段。不可变。 */
 	readonly owner?: TaskId;
-	/** Whether this conversation-owned task is excluded from ordinary idle waits, conversation aborts, and cascades. */
+	/** 该 conversation-owned task 是否排除在普通 idle 等待、conversation abort 与级联之外。 */
 	readonly background: boolean;
-	/** Durable abort mark checked before run-mode progress is committed. */
+	/** 在 run 模式进度提交前检查的持久化 abort mark。 */
 	readonly abortRequested: boolean;
 	/**
-	 * Why the mark was set when not by an abort request: `restart` for a task abandoned after a restart
-	 * (`TaskOptions.abandonOnRestart`) or below one. Such a task waits for its definition instead of becoming `orphaned`.
-	 * A later abort request clears it.
+	 * 标记并非因 abort 请求而设置时的原因：`restart` 表示在重启后被放弃的 task
+	 * （`TaskOptions.abandonOnRestart`）或其下属。这类 task 会等待自己的定义，而不是变成 `orphaned`。
+	 * 后续的 abort 请求会清除它。
 	 */
 	readonly abortReason?: "restart";
-	/** Set from `TaskOptions.abandonOnRestart`. Immutable. */
+	/** 由 `TaskOptions.abandonOnRestart` 设置。不可变。 */
 	readonly abandonOnRestart?: true;
 	/**
-	 * Wall-clock milliseconds of the first change to `running`, stamped by the Session. Kept through waits and recovery,
-	 * so the span to `endedAt` includes them. Absent before the task first runs, and on records written by earlier
-	 * versions.
+	 * 首次变为 `running` 的墙钟毫秒时间，由 Session 打上。等待与恢复期间保留，
+	 * 因此到 `endedAt` 的时间跨度包含它们。task 首次运行之前和更早版本写入的 record 中不存在。
 	 */
 	readonly startedAt?: number;
-	/** Wall-clock milliseconds of the change to `terminal`, stamped by the Session; absent while live. */
+	/** 变为 `terminal` 的墙钟毫秒时间，由 Session 打上；存活期间不存在。 */
 	readonly endedAt?: number;
 };
 
-/** Complete replacement record for one durable task state machine. */
+/** 一个 durable task 状态机的完整替换 record。 */
 export type TaskRecord<I, S, R> = TaskRecordBase<I, R> &
 	(
 		| {
 				readonly state: Extract<TaskState<S, R>, { readonly status: "pending" | "running" | "waiting" }>;
-				/** Small first-writer-wins values retained while the task can run. */
+				/** task 尚能运行期间保留的小型首写者胜出值。 */
 				readonly memos?: Readonly<Record<string, JsonValue>>;
 		  }
 		| {
@@ -578,17 +576,17 @@ export type TaskRecord<I, S, R> = TaskRecordBase<I, R> &
 		  }
 	);
 
-/** Persisted lifecycle record for one create-to-retire document incarnation. */
+/** 一个从创建到退役的 document 实例（incarnation）的持久化生命周期 record。 */
 export type DocumentRecord = {
-	/** Unique incarnation ID; never reused when the same logical document is recreated. */
+	/** 唯一的 instance ID；同一逻辑 document 被重建时不会复用。 */
 	readonly id: DocumentId;
-	/** Stable document definition kind. */
+	/** 稳定的 document 定义 kind。 */
 	readonly kind: string;
-	/** Family member key; absent for singleton documents. */
+	/** family 成员键；单例 document 没有该字段。 */
 	readonly key?: string;
-	/** Commit that created the incarnation, stamped by storage. */
+	/** 创建该 incarnation 的提交，由 storage 打上。 */
 	readonly createdAt: Seq;
-	/** Commit that retired the incarnation; absent while it is current. */
+	/** 退役该 incarnation 的提交；仍是当前版本时没有该字段。 */
 	readonly retiredAt?: Seq;
 } & (
 	| {
@@ -598,15 +596,15 @@ export type DocumentRecord = {
 	  }
 	| ({ readonly scope: { readonly kind: "conversation"; readonly conversationId: ConversationId } } & (
 			| {
-					/** Retain only current state. */
+					/** 只保留当前状态。 */
 					readonly history: "latest";
-					/** Initialize a fork from current source state or the definition's initial value. */
+					/** 从当前源状态或定义初始值初始化 fork。 */
 					readonly fork: "current" | "initial";
 			  }
 			| {
-					/** Retain history needed for as-of reads. */
+					/** 保留 as-of 读取所需的历史。 */
 					readonly history: "rewindable";
-					/** Initialize a fork at its cutoff, from current state, or from the initial value. */
+					/** 在其截断点、从当前状态或从初始值初始化 fork。 */
 					readonly fork: "asOf" | "current" | "initial";
 			  }
 	  ))
@@ -617,85 +615,85 @@ export type DocumentRecord = {
 	  }
 );
 
-/** Fields supplied when storage creates and stamps a new `DocumentRecord`. */
+/** storage 创建并盖章新 `DocumentRecord` 时提供的字段。 */
 export type DocumentCreate = DocumentRecord extends infer Record
 	? Record extends DocumentRecord
 		? Omit<Record, "createdAt" | "retiredAt">
 		: never
 	: never;
 
-/** One ordered scan result and its optional continuation state. */
+/** 一个有序扫描结果及其可选的续传状态。 */
 export type Page<T, C> = {
 	readonly items: readonly T[];
 	readonly next?: C;
 };
 
 /**
- * Backend-owned JSON continuation state that callers only round-trip to the same scan. It carries the scan's order: a
- * scan given a cursor continues in that order, and rejects a different `order` in its query.
+ * 后端所有的 JSON 续传状态，调用方只应在同一扫描上原样往返使用。它携带扫描的排序：
+ * 带 cursor 的扫描按该排序继续，并在查询中出现不同 `order` 时 reject。
  */
 export type Cursor = Readonly<Record<string, JsonValue>>;
 
-/** ID order of a scan: `ascending` is oldest first, `descending` newest first. */
+/** 扫描的 ID 排序：`ascending` 最旧在前，`descending` 最新在前。 */
 export type ScanOrder = "ascending" | "descending";
 
-/** Optional filters for an ordered conversation scan. */
+/** 有序 conversation 扫描的可选过滤条件。 */
 export type ConversationQuery = {
 	readonly ownerConversationId?: ConversationId;
 	readonly ownerTaskId?: TaskId;
-	/** Default `ascending`; with a cursor, the cursor's order. */
+	/** 默认 `ascending`；带 cursor 时为 cursor 的排序。 */
 	readonly order?: ScanOrder;
 };
 
-/** Inclusive ID bounds for a scan of one conversation's fork-aware history. */
+/** 扫描一个 conversation 的感知 fork 的历史时的包含 ID 边界。 */
 export type EntryQuery = {
 	readonly conversationId: ConversationId;
-	/** Oldest entry ID that may be returned. */
+	/** 可能返回的最旧 entry ID。 */
 	readonly minEntryId?: EntryId;
-	/** Newest entry ID that may be returned. */
+	/** 可能返回的最新 entry ID。 */
 	readonly maxEntryId?: EntryId;
-	/** Default `descending`; with a cursor, the cursor's order. */
+	/** 默认 `descending`；带 cursor 时为 cursor 的排序。 */
 	readonly order?: ScanOrder;
 };
 
-/** Optional filters for an ordered scan of durable task records. */
+/** 有序扫描 durable task record 时的可选过滤条件。 */
 export type TaskQuery = {
 	readonly conversationId?: ConversationId;
 	readonly kind?: string;
 	readonly status?: TaskState<JsonValue, JsonValue>["status"];
 	readonly abortRequested?: boolean;
 	readonly background?: boolean;
-	/** Default `ascending`; with a cursor, the cursor's order. */
+	/** 默认 `ascending`；带 cursor 时为 cursor 的排序。 */
 	readonly order?: ScanOrder;
 };
 
-/** Optional filters for an ordered scan of submission records. */
+/** 有序扫描 submission record 时的可选过滤条件。 */
 export type SubmissionQuery = {
 	readonly conversationId?: ConversationId;
 	readonly status?: SubmissionRecord["status"];
-	/** Default `ascending`; with a cursor, the cursor's order. */
+	/** 默认 `ascending`；带 cursor 时为 cursor 的排序。 */
 	readonly order?: ScanOrder;
 };
 
-/** Current state or one historical commit sequence used for document membership and content reads. */
+/** 当前状态，或用于 document 归属与内容读取的某个历史提交序列。 */
 export type DocumentPoint = Seq | "current";
 
-/** Exact logical identity of a singleton or one keyed family member. */
+/** 单例或某个键控 family 成员的精确逻辑身份。 */
 export type DocumentAddress = {
 	readonly kind: string;
 	readonly scope: DocumentRecord["scope"];
-	/** Absent selects the singleton; present selects one family member. */
+	/** 缺省时选中单例；出现时选中一个 family 成员。 */
 	readonly key?: string;
 };
 
-/** Ordered scan of document incarnations alive in one exact scope at one point. */
+/** 在同一精确 scope、同一时间点对存活 document incarnation 的有序扫描。 */
 export type DocumentQuery = {
 	readonly scope: DocumentRecord["scope"];
 	readonly at: DocumentPoint;
 	readonly kind?: string;
 };
 
-/** Complete checkpoint or Chord operation batch selected by the owning Session. */
+/** 由所属 Session 选择的完整 checkpoint 或 Chord 操作批次。 */
 export type DocumentContent =
 	| {
 			readonly version: number;
@@ -708,22 +706,22 @@ export type DocumentContent =
 			readonly ops: readonly Op[];
 	  };
 
-/** Exact persisted source selected for a definition-free document copy. */
+/** 复制无定义 document 时选中的精确持久化来源。 */
 export type DocumentCopySource = {
 	readonly id: DocumentId;
 	readonly at: DocumentPoint;
 };
 
-/** Detached materialized value and stored definition version at a selected point. */
+/** 在选中时间点上具体的物化值与已存定义版本。 */
 export type StoredDocument = {
 	readonly record: DocumentRecord;
 	readonly version: number;
 	readonly value: JsonObject;
-	/** Deltas replayed after the selected base to materialize `value`. */
+	/** 在选中的 base 之后重放以物化 `value` 的 delta 数量。 */
 	readonly deltasSinceBase: number;
 };
 
-/** One record or document mutation in an atomic storage commit. */
+/** 一次原子存储提交中的一条 record 或 document 变更。 */
 export type StorageWrite =
 	| { readonly type: "conversation"; readonly value: ConversationRecord }
 	| { readonly type: "entry"; readonly value: EntryRecord }
@@ -742,29 +740,29 @@ export type StorageWrite =
 	  }
 	| { readonly type: "document.retire"; readonly id: DocumentId };
 
-/** Committed change of one document incarnation. */
+/** 已提交的 document incarnation 变更。 */
 export type DocumentCommitChange =
 	| {
 			readonly type: "document";
 			readonly record: DocumentRecord;
-			/** Conversation owning the document; task documents derive it from their task record. Undefined only for Session documents. */
+			/** 拥有该 document 的 conversation；task document 从其 task record 推导而来。仅 Session document 未定义。 */
 			readonly conversationId: ConversationId | undefined;
-			/** Definition version of `value`; absent when this commit retired the incarnation. */
+			/** `value` 的定义版本号；本次提交退役该 incarnation 时不存在。 */
 			readonly version: number | undefined;
-			/** Exact adopted immutable revision, or `null` when this commit retired the incarnation. */
+			/** 精确采用的不可变 revision；本次提交退役该 incarnation 时为 `null`。 */
 			readonly value: JsonObject | null;
-			/** Exact adopted operations for an ordinary update; empty for creation and retirement. */
+			/** 普通 update 精确采用的操作；创建与退役时为空。 */
 			readonly ops: readonly Op[];
 	  }
 	| {
-			/** Definition-free child initialization; consumers hydrate through state or watch acquisition. */
+			/** 无定义子节点初始化；消费者通过状态或 watch 获取来水合（hydrate）。 */
 			readonly type: "document.copy";
 			readonly record: DocumentRecord;
 			readonly conversationId: ConversationId;
 			readonly source: DocumentCopySource;
 	  };
 
-/** Complete table record committed without another publication copy. */
+/** 未连同其他发布副本一起提交的完整表 record。 */
 export type TableCommitChange = Extract<
 	StorageWrite,
 	{ readonly type: "conversation" | "entry" | "task" | "submission" }
@@ -772,20 +770,20 @@ export type TableCommitChange = Extract<
 
 export type CommitChange = TableCommitChange | DocumentCommitChange;
 
-/** Every immutable change from one successful Session commit. Change order is unspecified. */
+/** 一次成功 Session 提交产生的全部不可变变更。变更顺序未定义。 */
 export type CommitPublication = {
 	readonly seq: Seq;
 	readonly changes: readonly CommitChange[];
 };
 
 /**
- * Transaction surface of one Session commit callback.
- * Table reads and creation results are trusted immutable values and may be shared with internal commit state.
+ * 一次 Session 提交回调的事务接口。
+ * 表读取与创建结果是可信的不可变值，可以与内部提交状态共享。
  */
 export interface Tx {
 	conversation(id: ConversationId): Promise<ConversationRecord | undefined>;
 	entry(id: EntryId): Promise<EntryRecord | undefined>;
-	/** Undefined when the entry is absent or has another kind. */
+	/** entry 不存在或 kind 不同时为 undefined。 */
 	entry<D extends JsonValue>(token: Entry<D>, id: EntryId): Promise<TypedEntry<D> | undefined>;
 	task(id: TaskId): Promise<TaskRecord<JsonValue, JsonValue, JsonValue> | undefined>;
 	scanConversations(
@@ -794,27 +792,27 @@ export interface Tx {
 		cursor?: Cursor,
 	): Promise<Page<ConversationRecord, Cursor>>;
 	scanEntries(query: EntryQuery, limit: number, cursor?: Cursor): Promise<Page<EntryRecord, Cursor>>;
-	/** Newest visible entry of the conversation that carries a `head`. */
+	/** 该 conversation 中携带 `head` 的最新可见 entry。 */
 	latestHeadMarker(conversationId: ConversationId): Promise<(EntryRecord & { readonly head: EntryId }) | undefined>;
 	scanTasks(
 		query: TaskQuery,
 		limit: number,
 		cursor?: Cursor,
 	): Promise<Page<TaskRecord<JsonValue, JsonValue, JsonValue>, Cursor>>;
-	/** Committed submission with a conversation-scoped request ID. */
+	/** 带有 conversation 作用域请求 ID 的已提交 submission。 */
 	submissionByRequest(conversationId: ConversationId, requestId: string): Promise<SubmissionRecord | undefined>;
 
-	/** Create a conversation with explicitly selected ownership. */
+	/** 以显式选择的归属创建 conversation。 */
 	createConversation(options: { readonly ownership: ConversationOwnership }): Promise<ConversationRecord>;
-	/** Create a history fork at one concrete visible entry with explicitly selected ownership. */
+	/** 在一个具体可见 entry 处创建历史 fork，并显式选择归属。 */
 	forkConversation(
 		parentConversationId: ConversationId,
 		at: EntryId,
 		options: { readonly ownership: ConversationOwnership },
 	): Promise<ConversationRecord>;
-	/** Returned records are Session-owned immutable values and may be shared with commit listeners. */
+	/** 返回的 record 是 Session 所有的不可变值，可与提交监听器共享。 */
 	appendEntry(conversationId: ConversationId, value: EntryDraft): Promise<EntryRecord>;
-	/** The token supplies `kind` and types `data`. */
+	/** token 提供 `kind` 并为 `data` 提供类型。 */
 	appendEntry<D extends JsonValue>(
 		token: Entry<D>,
 		conversationId: ConversationId,
@@ -826,19 +824,19 @@ export interface Tx {
 		options: TaskOptions,
 	): Promise<TaskId<R>>;
 	/**
-	 * Create a raw submission record with a fresh ID. No admission rules apply: no busy check, no inbox queueing, no
-	 * placement. Use `Conversation.submit()` or a conversation handle unless the caller implements admission itself.
+	 * 用全新 ID 创建原始 submission record。不应用任何接纳规则：没有 busy 检查、没有 inbox 排队、
+	 * 也没有落位。除非调用方自行实现接纳逻辑，否则请使用 `Conversation.submit()` 或 conversation 句柄。
 	 */
 	createSubmission(create: SubmissionCreate): Promise<SubmissionRecord>;
 	/**
-	 * Settle a queued or placed submission; only a placed input can be answered, and a settled submission stays
-	 * unchanged. Resolved against this transaction's latest record of the submission, so it works after table writes.
-	 * Run tasks settle the inputs they answer.
+	 * 结算排队中或已落位的 submission；只有已落位的输入才能被回答，且已结算的 submission 保持不变。
+	 * 会针对该事务中最新的 submission record 解析，因此在表写入之后仍然有效。
+	 * run task 会结算它们回答的输入。
 	 */
 	settleSubmission(id: SubmissionId, settlement: SubmissionSettlement): void;
 	/**
-	 * Place a queued submission at `entry`: an input becomes `placed`, a write `done`. Resolved like
-	 * `settleSubmission()`. Inbox boundaries place the submissions they select.
+	 * 将排队的 submission 落位到 `entry`：input 变为 `placed`，write 变为 `done`。与
+	 * `settleSubmission()` 一样解析。Inbox 边界会落位它选中的 submission。
 	 */
 	placeSubmission(id: SubmissionId, entry: EntryId): void;
 
@@ -879,34 +877,34 @@ export interface Tx {
 	): Promise<void>;
 }
 
-/** Disposable, read-only Chord state bound to one committed document incarnation. */
+/** 绑定到一个已提交 document incarnation 的可弃置只读 Chord 状态。 */
 export type DocumentState<T extends JsonObject> = AttachedReplicatedState<Readonly<T> | null>;
 
-/** Terminal result of one document watch. */
+/** 一个 document watch 的终态结果。 */
 export type WatchEnd =
 	| { readonly reason: "stopped" | "cancelled" | "session_closed" | "retired" }
 	| { readonly reason: "listener_error"; readonly error: Error }
-	/** The Session failed; `error` is what failed it, usually a storage error (see `SessionFailed`). */
+	/** Session 失败了；`error` 是导致失败的原因，通常是 storage 错误（见 `SessionFailed`）。 */
 	| { readonly reason: "session_failed"; readonly error: unknown };
 
-/** Serialized exact-frame observation of an immutable value with bounded pending delivery. */
+/** 不可变值的序列化精确帧（exact-frame）观察，带有有界的待投递队列。 */
 export interface WatchHandle<T> {
-	/** Acquisition revision before start; latest delivered immutable revision afterward. */
+	/** 启动前为获取时刻的 revision；之后为最新投递的不可变 revision。 */
 	readonly value: T;
-	/** Install the sole asynchronous listener. Never invokes it inline. */
+	/** 安装唯一的异步监听器。绝不内联调用它。 */
 	start(listener: (value: T, ops: readonly Op[], context: Context) => Promise<void>): void;
-	/** Idempotently stop future callbacks and return this watch's terminal result. */
+	/** 幂等地停掉后续回调，并返回该 watch 的终态结果。 */
 	stop(): Promise<WatchEnd>;
-	/** Settle when the watch terminates; an already-running callback remains caller-owned. */
+	/** watch 终止时 settle；已经在运行的回调仍归调用方所有。 */
 	readonly closed: Promise<WatchEnd>;
 }
 
 export type DocumentWatch<T extends JsonObject> = WatchHandle<Readonly<T> | null>;
 
-/** Committed document reads. */
+/** 已提交的 document 读取。 */
 export type DocumentReader = Pick<Session, "snapshot" | "snapshotAsOf">;
 
-/** Non-creating document watch acquisition shared by Session and later invocation APIs. */
+/** Session 与后续 invocation API 共享的非创建型 document watch 获取。 */
 export interface DocumentObserver {
 	watchDoc<T extends JsonObject>(token: SessionDocToken<T>, context: Context): Promise<DocumentWatch<T> | undefined>;
 	watchDoc<T extends JsonObject>(
@@ -938,25 +936,25 @@ export interface DocumentObserver {
 	): Promise<DocumentWatch<T> | undefined>;
 }
 
-/** Why a Session ended: `close()`, or a failed Storage call, whose error it carries. */
+/** Session 结束的原因：`close()`，或携带其错误的某次失败 Storage 调用。 */
 export type SessionEnd = { readonly reason: "closed" } | { readonly reason: "failed"; readonly error: unknown };
 
-/** Owner of one mutation line, its records, and its tracked documents. */
+/** 一条 mutation line 及其 record 与被跟踪 document 的所有者。 */
 export interface Session extends DocumentObserver {
-	/** Run one atomic transaction on the Session mutation line. */
+	/** 在 Session mutation line 上运行一次原子事务。 */
 	commit<T>(change: (tx: Tx) => T | Promise<T>, context: Context): Promise<T>;
-	/** Seal admission, settle admitted commits, then close storage. */
+	/** 封锁接纳、结算已接纳的提交，然后关闭 storage。 */
 	close(context: Context): Promise<void>;
 	/**
-	 * Settles once the Session has closed, Storage included: after `close()`, or after the first failed Storage call,
-	 * which closes the Session itself. A failed Session is reopened from Storage; nothing else is left to clean up.
+	 * 在 Session 已关闭（含 Storage）后 settle：在 `close()` 之后，或在第一次失败的 Storage 调用
+	 * （它会自行关闭 Session）之后。失败的 Session 会从 Storage 重新打开；没有其他需要清理的内容。
 	 */
 	readonly closed: Promise<SessionEnd>;
-	/** Observe complete commits synchronously after adoption. The listener must not block or call Session APIs. */
+	/** 采用之后同步观察完整提交。监听器不得阻塞或调用 Session API。 */
 	subscribeCommits(listener: (publication: CommitPublication, context: Context) => void): () => void;
 	/**
-	 * Observe close synchronously when it begins, also when a failed Storage call closes the Session. The listener must
-	 * not block or call Session APIs.
+	 * 在关闭开始时同步观察，包括失败的 Storage 调用关闭 Session 的情形。监听器不得
+	 * 阻塞或调用 Session API。
 	 */
 	subscribeClose(listener: () => void): () => void;
 
@@ -1037,34 +1035,32 @@ export interface Session extends DocumentObserver {
 }
 
 /**
- * Atomic persistence boundary for Session records.
+ * Session record 的原子持久化边界。
  *
- * Storage trusts the owning Session to supply semantically valid records, references,
- * ancestry, and transitions. Implementations enforce atomicity, global ID ownership,
- * immutable conversation/entry creation, document record consistency, and detached values;
- * Session serializes commits.
+ * Storage 信任所属 Session 提供语义上合法的 record、引用、谱系与状态转换。实现负责保证原子性、全局 ID
+ * 归属、conversation/entry 创建的不可变性、document record 一致性以及分离值；Session 负责提交的序列化。
  *
- * An error a method throws is final: it fails the Session, which nothing retries, so retry transient failures inside
- * the method. Two errors of a read fail only that read: a `StorageRequestError` for an invalid request (an unknown
- * conversation, a foreign or malformed cursor, history a document does not keep), which must have no durable effect, and a
- * rejection because its caller's context was aborted. Any error from `commit()` or `mintId()` is fatal.
+ * 方法抛出的错误是终态的：它会直接使 Session 失败，且任何东西都不会重试，
+ * 因此瞬时故障应在方法内部重试。读操作的两种错误只让该读失败：`StorageRequestError`（无效请求——未知的
+ * conversation、外来或格式错误的 cursor、document 未保留的历史），不得产生任何持久化影响；
+ * 以及因调用方 context 被取消而导致的 reject。`commit()` 或 `mintId()` 抛出的任何错误都是致命的。
  */
 export interface Storage {
 	/**
-	 * Atomically persist one batch and return its sequence. Once resolved, later reads through this storage observe it.
+	 * 原子化持久化一个批次并返回其序列号。一旦 resolve，之后经由此 storage 的读取都能观察到它。
 	 */
 	commit(writes: readonly StorageWrite[], context: Context): Promise<Seq>;
 
 	/**
-	 * Return a fresh branded candidate from the Session-global numeric ID namespace, greater than every ID minted or stored
-	 * before, also across reopen: scans order by ID as creation order, and the Harness relies on it.
+	 * 从 Session 全局数字 ID 命名空间返回一个全新的 branded 候选，大于之前铸造或存储过的每个 ID，
+	 * 重新打开后也成立：扫描按 ID（即创建顺序）排序，Harness 依赖这一点。
 	 */
 	mintId<I extends Id<string>>(): Promise<I>;
 
-	/** Look up one conversation by exact ID. */
+	/** 按精确 ID 查找一个 conversation。 */
 	conversation(id: ConversationId, context: Context): Promise<ConversationRecord | undefined>;
 
-	/** Scan conversations in `query.order` (default ascending) by ID. */
+	/** 按 ID 以 `query.order`（默认升序）扫描 conversations。 */
 	scanConversations(
 		query: ConversationQuery,
 		limit: number,
@@ -1072,9 +1068,9 @@ export interface Storage {
 		context: Context,
 	): Promise<Page<ConversationRecord, Cursor>>;
 
-	/** Look up one global entry and the sequence of the commit that persisted it. */
+	/** 按 ID 查找一条全局 entry 以及持久化它的提交序列。 */
 	entry(id: EntryId, context: Context): Promise<{ readonly entry: EntryRecord; readonly commitSeq: Seq } | undefined>;
-	/** Look up one entry only when it is visible through the requested conversation's ancestry. */
+	/** 只有当 entry 通过所请求 conversation 的祖先谱系可见时才查找它。 */
 	entry(
 		conversationId: ConversationId,
 		id: EntryId,
@@ -1082,8 +1078,8 @@ export interface Storage {
 	): Promise<{ readonly entry: EntryRecord; readonly commitSeq: Seq } | undefined>;
 
 	/**
-	 * Return the newest visible entry with a `head` at or below the optional inclusive cutoff.
-	 * The returned entry is the marker; its `head` value is the range's actual lower bound.
+	 * 返回带有 `head` 的最新可见 entry，位置不晚于可选的包含性截断点。
+	 * 返回的 entry 就是标记本身；其 `head` 值才是该范围的实际下界。
 	 */
 	findLatestHeadMarker(
 		conversationId: ConversationId,
@@ -1091,7 +1087,7 @@ export interface Storage {
 		context: Context,
 	): Promise<(EntryRecord & { readonly head: EntryId }) | undefined>;
 
-	/** Scan the inclusive visible range in `query.order` (default descending), returning at most `limit` entries. */
+	/** 以 `query.order`（默认降序）扫描包含性可见范围，最多返回 `limit` 条 entry。 */
 	scanEntries(
 		query: EntryQuery,
 		limit: number,
@@ -1099,10 +1095,10 @@ export interface Storage {
 		context: Context,
 	): Promise<Page<EntryRecord, Cursor>>;
 
-	/** Look up the latest complete record for one task. */
+	/** 查找一个 task 的最新完整 record。 */
 	task(id: TaskId, context: Context): Promise<TaskRecord<JsonValue, JsonValue, JsonValue> | undefined>;
 
-	/** Scan task records matching every supplied filter in `query.order` (default ascending) by ID. */
+	/** 按 ID 以 `query.order`（默认升序）扫描满足全部所给过滤条件的 task record。 */
 	scanTasks(
 		query: TaskQuery,
 		limit: number,
@@ -1110,10 +1106,10 @@ export interface Storage {
 		context: Context,
 	): Promise<Page<TaskRecord<JsonValue, JsonValue, JsonValue>, Cursor>>;
 
-	/** Look up the latest complete record for one admitted submission. */
+	/** 查找一条被接纳 submission 的最新完整 record。 */
 	submission(id: SubmissionId, context: Context): Promise<SubmissionRecord | undefined>;
 
-	/** Scan submissions matching every supplied filter in `query.order` (default ascending) by ID. */
+	/** 按 ID 以 `query.order`（默认升序）扫描满足全部所给过滤条件的 submission。 */
 	scanSubmissions(
 		query: SubmissionQuery,
 		limit: number,
@@ -1121,20 +1117,20 @@ export interface Storage {
 		context: Context,
 	): Promise<Page<SubmissionRecord, Cursor>>;
 
-	/** Find a submission by its conversation-scoped host deduplication key. */
+	/** 按 conversation 作用域的 host 去重键查找 submission。 */
 	submissionByRequest(
 		conversationId: ConversationId,
 		requestId: string,
 		context: Context,
 	): Promise<SubmissionRecord | undefined>;
 
-	/** Resolve the incarnation occupying one exact logical address at the selected point. */
+	/** 解析在选中时间点占据该精确逻辑地址的 incarnation。 */
 	findDocument(address: DocumentAddress, at: DocumentPoint, context: Context): Promise<DocumentRecord | undefined>;
 
-	/** Materialize one specific incarnation by ID at the selected point without following a replacement at its address. */
+	/** 按 ID 在选中时间点物化一个特定 incarnation，不追踪其地址上的替代版本。 */
 	document(id: DocumentId, at: DocumentPoint, context: Context): Promise<StoredDocument | undefined>;
 
-	/** Scan incarnations alive in one exact scope at the selected point. */
+	/** 扫描在选中时间点于一个精确 scope 内存活的 incarnation。 */
 	scanDocuments(
 		query: DocumentQuery,
 		limit: number,
@@ -1142,6 +1138,6 @@ export interface Storage {
 		context: Context,
 	): Promise<Page<DocumentRecord, Cursor>>;
 
-	/** Release backend resources; all later operations must reject. */
+	/** 释放后端资源；之后的所有操作都必须 reject。 */
 	close(context: Context): Promise<void>;
 }

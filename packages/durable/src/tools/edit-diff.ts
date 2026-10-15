@@ -1,5 +1,5 @@
 /**
- * Shared diff computation utilities for the edit and similar tools.
+ * edit 及类似工具共用的 diff 计算工具。
  */
 
 import * as Diff from "diff";
@@ -21,31 +21,31 @@ export function restoreLineEndings(text: string, ending: "\r\n" | "\n"): string 
 }
 
 /**
- * Normalize text for fuzzy matching. Applies progressive transformations:
- * - Strip trailing whitespace from each line
- * - Normalize smart quotes to ASCII equivalents
- * - Normalize Unicode dashes/hyphens to ASCII hyphen
- * - Normalize special Unicode spaces to regular space
+ * 为模糊匹配规范化文本。逐级应用以下变换：
+ * - 去除每行末尾的空白
+ * - 将弯引号规范化为 ASCII 等价字符
+ * - 将 Unicode 破折号/连字符规范化为 ASCII 连字符
+ * - 将特殊 Unicode 空格规范化为普通空格
  */
 export function normalizeForFuzzyMatch(text: string): string {
 	return (
 		text
 			.normalize("NFKC")
-			// Strip trailing whitespace per line
+			// 去除每行末尾空白
 			.split("\n")
 			.map((line) => line.trimEnd())
 			.join("\n")
-			// Smart single quotes → '
+			// 弯单引号 → '
 			.replace(/[\u2018\u2019\u201A\u201B]/g, "'")
-			// Smart double quotes → "
+			// 弯双引号 → "
 			.replace(/[\u201C\u201D\u201E\u201F]/g, '"')
-			// Various dashes/hyphens → -
-			// U+2010 hyphen, U+2011 non-breaking hyphen, U+2012 figure dash,
-			// U+2013 en-dash, U+2014 em-dash, U+2015 horizontal bar, U+2212 minus
+			// 各种破折号/连字符 → -
+			// U+2010 连字符、U+2011 不换行连字符、U+2012 数字短横、
+			// U+2013 短破折号、U+2014 长破折号、U+2015 水平线、U+2212 减号
 			.replace(/[\u2010\u2011\u2012\u2013\u2014\u2015\u2212]/g, "-")
-			// Special spaces → regular space
-			// U+00A0 NBSP, U+2002-U+200A various spaces, U+202F narrow NBSP,
-			// U+205F medium math space, U+3000 ideographic space
+			// 特殊空格 → 普通空格
+			// U+00A0 不换行空格、U+2002-U+200A 各类空格、U+202F 窄不换行空格、
+			// U+205F 中等数学空格、U+3000 全角空格
 			.replace(/[\u00A0\u2002-\u200A\u202F\u205F\u3000]/g, " ")
 	);
 }
@@ -116,14 +116,12 @@ function applyReplacements(content: string, replacements: TextReplacement[], off
 }
 
 /**
- * Apply replacements matched against `baseContent` to `originalContent` while
- * preserving unchanged line blocks from the original.
+ * 将针对 `baseContent` 匹配到的替换应用到 `originalContent`，同时保留原始内容中
+ * 未变更的行块。
  *
- * This is useful when `baseContent` is a normalized view of the original. Each
- * replacement is widened to the lines it actually touches, those touched lines
- * are rewritten from the normalized base, and all other lines are copied back
- * from `originalContent`. The actual replacement ranges drive preservation so
- * duplicate normalized lines cannot be aligned to the wrong occurrence.
+ * 当 `baseContent` 是原始内容的规范化视图时很有用。每个替换会扩展到它实际触及的
+ * 行，这些被触及的行按规范化基底重写，其余所有行从 `originalContent` 原样拷回。
+ * 保留与否则由实际替换范围决定，因此重复的规范化行不会对齐到错误的出现位置。
  */
 export function applyReplacementsPreservingUnchangedLines(
 	originalContent: string,
@@ -169,17 +167,17 @@ export function applyReplacementsPreservingUnchangedLines(
 }
 
 export interface FuzzyMatchResult {
-	/** Whether a match was found */
+	/** 是否找到了匹配 */
 	found: boolean;
-	/** The index where the match starts (in the content that should be used for replacement) */
+	/** 匹配起始索引（在应用于替换的内容中） */
 	index: number;
-	/** Length of the matched text */
+	/** 匹配文本的长度 */
 	matchLength: number;
-	/** Whether fuzzy matching was used (false = exact match) */
+	/** 是否使用了模糊匹配（false = 精确匹配） */
 	usedFuzzyMatch: boolean;
 	/**
-	 * The content to use for replacement operations.
-	 * When exact match: original content. When fuzzy match: normalized content.
+	 * 用于替换操作的内容。
+	 * 精确匹配时为原始内容；模糊匹配时为规范化内容。
 	 */
 	contentForReplacement: string;
 }
@@ -195,13 +193,12 @@ export interface AppliedEditsResult {
 }
 
 /**
- * Find oldText in content, trying exact match first, then fuzzy match.
- * When fuzzy matching is used, the returned contentForReplacement is the
- * fuzzy-normalized version of the content (trailing whitespace stripped,
- * Unicode quotes/dashes normalized to ASCII).
+ * 在内容中查找 oldText，先尝试精确匹配，再尝试模糊匹配。
+ * 使用模糊匹配时，返回的 contentForReplacement 是内容的模糊规范化版本
+ * （去除了末尾空白，Unicode 引号/破折号规范化为 ASCII）。
  */
 export function fuzzyFindText(content: string, oldText: string): FuzzyMatchResult {
-	// Try exact match first
+	// 先尝试精确匹配
 	const exactIndex = content.indexOf(oldText);
 	if (exactIndex !== -1) {
 		return {
@@ -213,7 +210,7 @@ export function fuzzyFindText(content: string, oldText: string): FuzzyMatchResul
 		};
 	}
 
-	// Try fuzzy match - work entirely in normalized space
+	// 尝试模糊匹配——完全在规范化空间内进行
 	const fuzzyContent = normalizeForFuzzyMatch(content);
 	const fuzzyOldText = normalizeForFuzzyMatch(oldText);
 	const fuzzyIndex = fuzzyContent.indexOf(fuzzyOldText);
@@ -228,9 +225,8 @@ export function fuzzyFindText(content: string, oldText: string): FuzzyMatchResul
 		};
 	}
 
-	// When fuzzy matching, return offsets in normalized space. Callers can use
-	// the normalized content to compute replacements, then decide how much of
-	// that normalized output should be written back.
+	// 模糊匹配时返回规范化空间中的偏移。调用方可用规范化内容计算替换，
+	// 再决定把多少规范化输出写回。
 	return {
 		found: true,
 		index: fuzzyIndex,
@@ -240,7 +236,7 @@ export function fuzzyFindText(content: string, oldText: string): FuzzyMatchResul
 	};
 }
 
-/** Strip UTF-8 BOM if present, return both the BOM (if any) and the text without it */
+/** 若存在 UTF-8 BOM 则剥离；返回 BOM（若有）与去除后的文本两者 */
 export function stripBom(content: string): { bom: string; text: string } {
 	return content.startsWith("\uFEFF") ? { bom: "\uFEFF", text: content.slice(1) } : { bom: "", text: content };
 }
@@ -290,13 +286,11 @@ function getNoChangeError(path: string, totalEdits: number): Error {
 }
 
 /**
- * Apply one or more exact-text replacements to LF-normalized content.
+ * 对 LF 规范化的内容应用一个或多个精准文本替换。
  *
- * All edits are matched against the same original content. Replacements are
- * then applied in reverse order so offsets remain stable. If any edit needs
- * fuzzy matching, the operation runs in fuzzy-normalized content space and then
- * overlays those line-level changes onto the original content so unchanged line
- * blocks keep their original bytes.
+ * 所有编辑都针对同一份原始内容匹配。随后按逆序应用替换，使偏移保持稳定。
+ * 若任一编辑需要模糊匹配，操作会在模糊规范化的内容空间中进行，然后再把这些行级变更
+ * 覆盖回原始内容，使未变更的行块保持原字节。
  */
 export function applyEditsToNormalizedContent(
 	normalizedContent: string,
@@ -362,7 +356,7 @@ export function applyEditsToNormalizedContent(
 	return { baseContent, newContent };
 }
 
-/** Generate a standard unified patch. */
+/** 生成标准的统一格式补丁。 */
 export function generateUnifiedPatch(path: string, oldContent: string, newContent: string, contextLines = 4): string {
 	return Diff.createTwoFilesPatch(path, path, oldContent, newContent, undefined, undefined, {
 		context: contextLines,
@@ -371,8 +365,8 @@ export function generateUnifiedPatch(path: string, oldContent: string, newConten
 }
 
 /**
- * Generate a display-oriented diff string with line numbers and context.
- * Returns both the diff string and the first changed line number (in the new file).
+ * 生成面向展示、带行号与上下文的 diff 字符串。
+ * 同时返回 diff 字符串与第一个变更行的行号（新文件中）。
  */
 export function generateDiffString(
 	oldContent: string,
@@ -400,19 +394,19 @@ export function generateDiffString(
 		}
 
 		if (part.added || part.removed) {
-			// Capture the first changed line (in the new file)
+			// 记录第一个变更行（新文件中）
 			if (firstChangedLine === undefined) {
 				firstChangedLine = newLineNum;
 			}
 
-			// Show the change
+			// 展示变更
 			for (const line of raw) {
 				if (part.added) {
 					const lineNum = String(newLineNum).padStart(lineNumWidth, " ");
 					output.push(`+${lineNum} ${line}`);
 					newLineNum++;
 				} else {
-					// removed
+					// 已删除
 					const lineNum = String(oldLineNum).padStart(lineNumWidth, " ");
 					output.push(`-${lineNum} ${line}`);
 					oldLineNum++;
@@ -420,7 +414,7 @@ export function generateDiffString(
 			}
 			lastWasChange = true;
 		} else {
-			// Context lines - only show a few before/after changes
+			// 上下文行——只在变更前后各展示几行
 			const nextPartIsChange = i < parts.length - 1 && (parts[i + 1].added || parts[i + 1].removed);
 			const hasLeadingChange = lastWasChange;
 			const hasTrailingChange = nextPartIsChange;
@@ -487,7 +481,7 @@ export function generateDiffString(
 					newLineNum++;
 				}
 			} else {
-				// Skip these context lines entirely
+				// 完全跳过这些上下文行
 				oldLineNum += raw.length;
 				newLineNum += raw.length;
 			}

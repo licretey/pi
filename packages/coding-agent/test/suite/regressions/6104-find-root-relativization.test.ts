@@ -3,13 +3,11 @@ import { describe, expect, it } from "vitest";
 import { createFindToolDefinition, relativizeFindResultPath } from "../../../src/core/tools/find.ts";
 
 /**
- * Regression test for https://github.com/earendil-works/pi/issues/6104
+ * https://github.com/earendil-works/pi/issues/6104 的回归测试。
  *
- * path.resolve() preserves a trailing separator when resolving to a root path,
- * such as POSIX / or Windows I:\\. The find tool used to slice absolute
- * results at searchPath.length + 1, which dropped the first character of the
- * first path segment for root searches. Windows directory results that ended in
- * backslash also gained an extra slash.
+ * path.resolve() 解析根路径（例如 POSIX 的 / 或 Windows 的 I:\\）时会保留末尾分隔符。
+ * find 工具曾从 searchPath.length + 1 处截取绝对路径结果，导致搜索根目录时
+ * 第一个路径片段的首字符被删掉。Windows 目录结果以反斜杠结尾时还会多出一个斜杠。
  */
 describe("issue #6104 find relativizes root search paths", () => {
 	describe("Windows drive root", () => {
@@ -80,7 +78,7 @@ describe("issue #6104 find relativizes root search paths", () => {
 					glob: () => ["/home/user/project/", "/home/user/project/file.txt"],
 				},
 			});
-			// The find tool implementation does not touch ctx; pass a minimal stub.
+			// find 工具实现不会访问 ctx；此处传入最小化桩对象。
 			const ctx = {} as Parameters<typeof def.execute>[4];
 			const result = (await def.execute("call-1", { pattern: "**" }, undefined, undefined, ctx)) as {
 				content: Array<{ type: string; text?: string }>;

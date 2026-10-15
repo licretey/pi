@@ -10,8 +10,8 @@ import {
 type SqlValue = ArrayBuffer | string | number | null;
 
 /**
- * A stand-in for a SQLite-backed Durable Object's `ctx.storage` over `node:sqlite`, with its value types: `BLOB`
- * bindings and results are `ArrayBuffer`s, and `exec()` without bindings may run several statements.
+ * 使用 `node:sqlite` 模拟基于 SQLite 的 Durable Object 的 `ctx.storage`，并覆盖其值类型：
+ * BLOB 绑定值和结果均为 `ArrayBuffer`；不带绑定参数的 `exec()` 可以执行多条语句。
  */
 function durableObjectStorage(database = new DatabaseSync(":memory:")): DurableObjectSqliteStorage {
 	const toNode = (value: SqlValue) => (value instanceof ArrayBuffer ? new Uint8Array(value) : value);

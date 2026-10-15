@@ -1,14 +1,11 @@
 /**
- * Worker thread entry. One worker runs one script inside a fresh QuickJS VM
- * (a separate wasm instance), relays tool calls and output to the host, and
- * reports the result. The host terminates the worker when the script settles,
- * times out, or is aborted; the worker exists so that a spinning script never
- * blocks the host thread.
+ * 工作线程入口。每个工作线程都会在全新的 QuickJS 虚拟机（独立的 wasm 实例）中运行一个脚本，
+ * 将工具调用和输出转发给宿主，并报告运行结果。脚本结束、超时或被中止时，宿主会终止工作线程；
+ * 使用工作线程是为了避免死循环脚本阻塞宿主线程。
  *
- * Importing this module starts the worker. Hosts that bundle their code (for
- * example a Bun compiled executable) add a file that imports
- * `@earendil-works/pi-codemode/worker` as a separate entrypoint and pass its URL
- * or embedded-module string specifier as `workerUrl`.
+ * 导入此模块会启动工作线程。将代码打包的宿主（例如 Bun 编译的可执行文件）需要添加一个文件，
+ * 将 `@earendil-works/pi-codemode/worker` 作为独立入口导入，并将该入口的 URL
+ * 或内嵌模块字符串说明符作为 `workerUrl` 传入。
  */
 import { parentPort, workerData } from "node:worker_threads";
 import { JSException, type JSValueHandle, MAX_STACK_SIZE, QuickJS } from "quickjs-wasi";
@@ -24,10 +21,8 @@ function crash(error: unknown): void {
 }
 
 /**
- * QuickJS writes engine diagnostics to fd 1 and 2, which the default shim
- * forwards to the host's stdout and stderr. That output belongs to the host
- * application (for example a TUI), so it is discarded. Reporting every byte as
- * written keeps libc from retrying.
+ * QuickJS 会将引擎诊断信息写入文件描述符 1 和 2，默认 shim 会将其转发到宿主的 stdout 和 stderr。
+ * 这些输出属于宿主应用（例如 TUI），因此应丢弃。报告所有字节均已写入，可避免 libc 重试。
  */
 function discardOutput(memory: { readonly buffer: ArrayBufferLike }) {
 	return {
@@ -54,14 +49,13 @@ async function main(data: WorkerData): Promise<void> {
 	const vm = await QuickJS.create({
 		wasm: data.wasm,
 		memoryLimit: data.memoryLimitBytes,
-		// Without a guard, deep recursion overflows the wasm stack and traps instead of throwing a
-		// catchable RangeError.
+		// 如果没有此限制，深层递归会导致 wasm 栈溢出并触发陷阱，而不是抛出可捕获的 RangeError。
 		maxStackSize: MAX_STACK_SIZE,
 		interruptHandler: () => Atomics.load(interrupt, 0) !== 0,
 		wasi: discardOutput,
 	});
 
-	// Called from the prelude with primitives only.
+	// 由 prelude 调用，参数仅为原始类型。
 	const bridge = vm.newFunction("bridge", (kind, a, b, c) => {
 		switch (kind.toString()) {
 			case "call":
@@ -101,7 +95,7 @@ async function main(data: WorkerData): Promise<void> {
 		return vm.undefined;
 	});
 
-	// The VM lives until the host terminates the worker, so these handles are never disposed.
+	// 虚拟机会一直存活到宿主终止工作线程，因此这些句柄不会被释放。
 	const api = vm.withScope((scope) =>
 		scope.escape(
 			vm.callFunction(
@@ -117,7 +111,7 @@ async function main(data: WorkerData): Promise<void> {
 	const settle = api.getProp("settle");
 	const run = api.getProp("run");
 	const stalled = api.getProp("stalled");
-	/** Run queued jobs, then fail a script that waits on nothing that can ever resume it. */
+	/** 运行排队的任务；随后使等待着且永远不会恢复的脚本失败。 */
 	const drain = () => {
 		vm.executePendingJobs();
 		vm.callFunction(stalled, api).dispose();
@@ -141,8 +135,7 @@ async function main(data: WorkerData): Promise<void> {
 		}
 	});
 
-	// The prefix shares the first line with the script so reported line numbers
-	// match the script as written.
+	// 前缀与脚本共用第一行，使报告的行号与脚本原文一致。
 	let fn: JSValueHandle;
 	try {
 		fn = vm.evalCode(`(async (tools, console) => {${data.code}\n})`, "codemode.js");

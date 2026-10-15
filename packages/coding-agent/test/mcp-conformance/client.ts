@@ -1,14 +1,13 @@
 /**
- * Client under test for the official MCP client conformance suite. The suite starts a scenario server
- * and runs this script with the server URL as the last argument, the scenario name in
- * `MCP_CONFORMANCE_SCENARIO`, and scenario data in `MCP_CONFORMANCE_CONTEXT`.
+ * 官方 MCP 客户端一致性测试套件的被测客户端。该套件会启动场景服务器，
+ * 并以服务器 URL 作为最后一个参数运行此脚本，将场景名称放入
+ * `MCP_CONFORMANCE_SCENARIO`，场景数据则放入 `MCP_CONFORMANCE_CONTEXT`。
  *
- * It drives the code pi runs for an `mcp.json` HTTP server: `McpServerConnection` connects and calls
- * tools, and `signInMcpServer` runs the OAuth sign-in that `/mcp` starts. The browser is simulated: the
- * authorization URL is fetched without following its redirect, and the redirect is delivered to pi's
- * loopback callback server. Credentials stay in memory.
+ * 此脚本会驱动 pi 处理 `mcp.json` HTTP 服务器时使用的代码：`McpServerConnection` 负责连接并调用
+ * 工具，`signInMcpServer` 则执行 `/mcp` 启动的 OAuth 登录流程。浏览器行为由脚本模拟：获取授权 URL 时
+ * 不跟随重定向，再将重定向请求发送到 pi 的本地回环回调服务器。凭据仅保存在内存中。
  *
- * Run through run.ts, which writes the outcome to `PI_MCP_CONFORMANCE_REPORT`.
+ * 通过 run.ts 执行；该脚本会将结果写入 `PI_MCP_CONFORMANCE_REPORT`。
  */
 
 import { writeFileSync } from "node:fs";
@@ -24,9 +23,8 @@ import {
 } from "../../src/extensions/mcp/runtime.ts";
 
 /**
- * Sign-ins pi asks the user for are not limited, so a user who keeps approving them would loop
- * forever against a server that never accepts the granted scope. This simulated user gives up after
- * three, the limit `auth/scope-retry-limit` checks.
+ * pi 请求用户登录的次数没有上限，因此如果用户不断批准，而服务器始终不接受已授予的权限范围，流程就会无限循环。
+ * 此处模拟的用户最多批准三次，与 `auth/scope-retry-limit` 检查的上限一致。
  */
 const MAX_SIGN_INS = 3;
 const REQUEST_TIMEOUT_SECONDS = 20;
@@ -36,7 +34,7 @@ interface ToolCall {
 	arguments: Record<string, unknown>;
 }
 
-/** Tool calls of a scenario after connecting. `undefined` for scenarios this client does not know. */
+/** 场景连接后的工具调用；对于此客户端未知的场景，值为 `undefined`。 */
 function toolCalls(scenario: string, connection: McpServerConnection): ToolCall[] | undefined {
 	if (scenario.startsWith("auth/")) return [{ name: "test-tool", arguments: {} }];
 	switch (scenario) {
@@ -49,7 +47,7 @@ function toolCalls(scenario: string, connection: McpServerConnection): ToolCall[
 		case "elicitation-sep1034-client-defaults":
 			return [{ name: "test_client_elicitation_defaults", arguments: {} }];
 		case "json-schema-2020-12-preservation": {
-			// The server compares the echoed schema with the one it listed, to detect dropped keywords.
+			// 服务器会将回显的架构与先前列出的架构比较，以检测是否有关键字丢失。
 			const tool = connection.tools.find((candidate) => candidate.name === "json_schema_2020_12_tool");
 			if (!tool) throw new Error("json_schema_2020_12_tool was not listed");
 			return [{ name: "json_schema_echo", arguments: { schema: tool.inputSchema } }];
@@ -81,7 +79,7 @@ function isLoopback(url: URL): boolean {
 	return ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
 }
 
-/** What a browser does with the authorization URL when the user approves at once. */
+/** 用户立即批准时，浏览器对授权 URL 的处理方式。 */
 async function visitAuthorizationUrl(url: URL): Promise<void> {
 	const response = await fetch(url, { redirect: "manual" });
 	const location = response.headers.get("location");
@@ -105,7 +103,7 @@ function simulatedBrowser(): McpSignInPrompt {
 			try {
 				await visit;
 			} catch (error) {
-				// Cancels the sign-in instead of waiting for a callback that never comes.
+				// 取消登录，而不是等待永远不会到来的回调。
 				log(`browser failed: ${errorMessage(error)}`);
 				return undefined;
 			}
@@ -121,7 +119,7 @@ async function run(serverUrl: string, scenario: string): Promise<void> {
 	const context = readContext();
 	const config: McpHttpServerConfig = { url: serverUrl, timeout: REQUEST_TIMEOUT_SECONDS };
 	if (typeof context.client_id === "string") {
-		// Pre-registered clients are configured in `mcp.json`.
+		// 预注册客户端在 `mcp.json` 中配置。
 		config.oauth = {
 			clientId: context.client_id,
 			clientSecret: typeof context.client_secret === "string" ? context.client_secret : undefined,
@@ -138,7 +136,7 @@ async function run(serverUrl: string, scenario: string): Promise<void> {
 	});
 
 	let signIns = 0;
-	/** Run `operation`, signing in like a user answering `/mcp` whenever the server asks for it. */
+	/** 运行 `operation`；服务器每次要求认证时，都模拟用户响应 `/mcp` 登录。 */
 	const withSignIn = async <T>(operation: () => Promise<T>): Promise<T> => {
 		for (;;) {
 			try {
@@ -196,5 +194,5 @@ async function main(): Promise<number> {
 	return report.success ? 0 : 1;
 }
 
-// Exit explicitly: a failed scenario can leave sockets of the server under test open.
+// 显式退出：场景失败时，被测服务器的套接字可能仍处于打开状态。
 process.exit(await main());

@@ -11,7 +11,7 @@ describe("SettingsManager", () => {
 	const projectDir = join(testDir, "project");
 
 	beforeEach(() => {
-		// Clean up and create fresh directories
+		// 清理并重新创建目录。
 		if (existsSync(testDir)) {
 			rmSync(testDir, { recursive: true });
 		}
@@ -27,7 +27,7 @@ describe("SettingsManager", () => {
 
 	describe("preserves externally added settings", () => {
 		it("should preserve enabledModels when changing thinking level", async () => {
-			// Create initial settings file
+			// 创建初始设置文件。
 			const settingsPath = join(agentDir, "settings.json");
 			writeFileSync(
 				settingsPath,
@@ -37,19 +37,19 @@ describe("SettingsManager", () => {
 				}),
 			);
 
-			// Create SettingsManager (simulates pi starting up)
+			// 创建 SettingsManager（模拟 pi 启动）。
 			const manager = SettingsManager.create(projectDir, agentDir);
 
-			// Simulate user editing settings.json externally to add enabledModels
+			// 模拟用户在外部编辑 settings.json，添加 enabledModels。
 			const currentSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 			currentSettings.enabledModels = ["claude-opus-4-5", "gpt-5.2-codex"];
 			writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2));
 
-			// User changes thinking level via Shift+Tab
+			// 用户通过 Shift+Tab 更改思考级别。
 			manager.setDefaultThinkingLevel("high");
 			await manager.flush();
 
-			// Verify enabledModels is preserved
+			// 验证 enabledModels 已保留。
 			const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 			expect(savedSettings.enabledModels).toEqual(["claude-opus-4-5", "gpt-5.2-codex"]);
 			expect(savedSettings.defaultThinkingLevel).toBe("high");
@@ -68,17 +68,17 @@ describe("SettingsManager", () => {
 
 			const manager = SettingsManager.create(projectDir, agentDir);
 
-			// User adds custom settings externally
+			// 用户在外部添加自定义设置。
 			const currentSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 			currentSettings.shellPath = "/bin/zsh";
 			currentSettings.extensions = ["/path/to/extension.ts"];
 			writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2));
 
-			// User changes theme
+			// 用户更改主题。
 			manager.setTheme("light");
 			await manager.flush();
 
-			// Verify all settings preserved
+			// 验证所有设置均已保留。
 			const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 			expect(savedSettings.shellPath).toBe("/bin/zsh");
 			expect(savedSettings.extensions).toEqual(["/path/to/extension.ts"]);
@@ -96,16 +96,16 @@ describe("SettingsManager", () => {
 
 			const manager = SettingsManager.create(projectDir, agentDir);
 
-			// User externally sets thinking level to "low"
+			// 用户在外部将思考级别设为 "low"。
 			const currentSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 			currentSettings.defaultThinkingLevel = "low";
 			writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2));
 
-			// But then changes it via UI to "high"
+			// 随后又通过界面将其改为 "high"。
 			manager.setDefaultThinkingLevel("high");
 			await manager.flush();
 
-			// In-memory change should win
+			// 应以程序内存中的更改为准。
 			const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 			expect(savedSettings.defaultThinkingLevel).toBe("high");
 		});
@@ -310,44 +310,44 @@ describe("SettingsManager", () => {
 
 	describe("project settings directory creation", () => {
 		it("should not create .pi folder when only reading project settings", () => {
-			// Create agent dir with global settings, but NO .pi folder in project
+			// 创建包含全局设置的 agent 目录，但项目中不应存在 .pi 目录。
 			const settingsPath = join(agentDir, "settings.json");
 			writeFileSync(settingsPath, JSON.stringify({ theme: "dark" }));
 
-			// Delete the .pi folder that beforeEach created
+			// 删除 beforeEach 创建的 .pi 目录。
 			rmSync(join(projectDir, ".pi"), { recursive: true });
 
-			// Create SettingsManager (reads both global and project settings)
+			// 创建 SettingsManager（读取全局设置和项目设置）。
 			const manager = SettingsManager.create(projectDir, agentDir);
 
-			// .pi folder should NOT have been created just from reading
+			// 仅执行读取不应创建 .pi 目录。
 			expect(existsSync(join(projectDir, ".pi"))).toBe(false);
 
-			// Settings should still be loaded from global
+			// 仍应从全局设置中加载配置。
 			expect(manager.getTheme()).toBe("dark");
 		});
 
 		it("should create .pi folder when writing project settings", async () => {
-			// Create agent dir with global settings, but NO .pi folder in project
+			// 创建包含全局设置的 agent 目录，但项目中不应存在 .pi 目录。
 			const settingsPath = join(agentDir, "settings.json");
 			writeFileSync(settingsPath, JSON.stringify({ theme: "dark" }));
 
-			// Delete the .pi folder that beforeEach created
+			// 删除 beforeEach 创建的 .pi 目录。
 			rmSync(join(projectDir, ".pi"), { recursive: true });
 
 			const manager = SettingsManager.create(projectDir, agentDir);
 
-			// .pi folder should NOT exist yet
+			// 此时 .pi 目录不应存在。
 			expect(existsSync(join(projectDir, ".pi"))).toBe(false);
 
-			// Write a project-specific setting
+			// 写入一项项目级设置。
 			manager.setProjectPackages([{ source: "npm:test-pkg" }]);
 			await manager.flush();
 
-			// Now .pi folder should exist
+			// 此时 .pi 目录应已存在。
 			expect(existsSync(join(projectDir, ".pi"))).toBe(true);
 
-			// And settings file should be created
+			// 同时应已创建设置文件。
 			expect(existsSync(join(projectDir, ".pi", "settings.json"))).toBe(true);
 		});
 	});
@@ -533,7 +533,7 @@ describe("SettingsManager", () => {
 		expect(reloadedManager.getFullscreenCopyOnSelect()).toBe(true);
 	});
 
-	// #9758: wheel scrolling defaults to auto, persists line counts, and ignores invalid values.
+	// #9758：滚轮滚动默认使用 auto，行数会持久化，并忽略无效值。
 	it("persists fullscreen wheel scroll lines", async () => {
 		const manager = SettingsManager.create(projectDir, agentDir);
 		expect(manager.getFullscreenWheelScrollLines()).toBe("auto");

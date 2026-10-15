@@ -18,7 +18,7 @@ export interface RadiusProviderOptions {
 	gateway?: string;
 }
 
-/** Radius gateway provider with a persisted, dynamically refreshed catalog. */
+/** Radius 网关提供商，目录持久化保存并动态刷新。 */
 export function radiusProvider(options: RadiusProviderOptions = {}): Provider<"pi-messages"> {
 	const id = options.id ?? "radius";
 	const name = options.name ?? "Radius";
@@ -27,8 +27,8 @@ export function radiusProvider(options: RadiusProviderOptions = {}): Provider<"p
 		gateway === normalizeRadiusGatewayUrl(DEFAULT_RADIUS_GATEWAY)
 			? Object.values(RADIUS_MODELS).map((model) => ({ ...model, provider: id }))
 			: [];
-	// Gateway catalog for this account. Radius org owners can disable models, so once known it replaces
-	// the shipped baseline instead of overlaying it. The baseline only covers the time before any catalog exists.
+	// 该账号的网关目录。Radius 组织管理员可以禁用模型，因此一旦拿到目录就用它
+	// 整体替换随包分发的基线，而不是叠加。基线只在还没有任何目录时生效。
 	let dynamicModels: Model<"pi-messages">[] | undefined;
 	const streams = piMessagesApi();
 
@@ -55,7 +55,7 @@ export function radiusProvider(options: RadiusProviderOptions = {}): Provider<"p
 				}
 			}
 
-			// Import catalogs cached by the pre-ModelsStore Radius implementation.
+			// 导入早期（ModelsStore 之前）Radius 实现缓存的目录。
 			if (!stored && context.credential?.type === "oauth") {
 				const legacy = getRadiusModels(id, context.credential);
 				if (legacy.length > 0) {

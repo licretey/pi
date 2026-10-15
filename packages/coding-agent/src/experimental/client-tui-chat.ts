@@ -8,7 +8,7 @@ import { ToolExecutionComponent, type ToolRenderers } from "../modes/interactive
 import { UserMessageComponent } from "../modes/interactive/components/user-message.ts";
 import { theme } from "../modes/interactive/theme/theme.ts";
 
-/** The `pi.live` document of a view: the active run, the streaming answer, and running tools. */
+/** 视图的 `pi.live` 文档：当前运行、流式回答和正在执行的工具。 */
 export function liveOf(view: ConversationView): LiveState {
 	return (view.docs["pi.live"] ?? {}) as LiveState;
 }
@@ -21,7 +21,7 @@ function userText(content: UserMessage["content"]): string {
 		.join("");
 }
 
-/** Renders the root conversation's durable view for the service-only experimental presentation. */
+/** 为纯服务实验性呈现界面渲染根会话的持久化视图。 */
 export class ExperimentalChatView {
 	static readonly #renderers: Record<string, ToolRenderers> = createAllToolRenderers();
 
@@ -30,11 +30,11 @@ export class ExperimentalChatView {
 	readonly status = new Container();
 	readonly #ui: TUI;
 	readonly #cwd: string;
-	/** The newest card per call ID; provider call IDs may repeat across turns. */
+	/** 每个调用 ID 对应的最新卡片；提供商可能在不同轮次中重复使用调用 ID。 */
 	readonly #tools = new Map<string, ToolExecutionComponent>();
-	/** Every card shown, also older ones whose call ID a later turn reused. */
+	/** 所有已显示的卡片，也包括调用 ID 后来被复用的旧卡片。 */
 	readonly #cards: ToolExecutionComponent[] = [];
-	/** Call IDs whose cards the streaming answer created; its entry takes them over. */
+	/** 流式回答创建卡片时对应的调用 ID；回答条目会接管这些卡片。 */
 	readonly #streamingCalls = new Set<string>();
 	#renderedEntryIds: number[] = [];
 	#streaming: AssistantMessageComponent | undefined;
@@ -50,7 +50,7 @@ export class ExperimentalChatView {
 		const live = liveOf(view);
 		this.#syncTranscript(view.entries);
 		const message = live.generation?.message as AssistantMessage | undefined;
-		// A partial without its entry was dropped, for example by a retry: render the transcript again.
+		// 部分流式内容若未形成条目（例如重试时被丢弃），则重新渲染对话记录。
 		if (message === undefined && this.#streaming !== undefined) this.#rebuild(view.entries);
 		if (message !== undefined) this.#syncStreaming(message);
 		for (const slot of live.tools ?? []) {
@@ -87,7 +87,7 @@ export class ExperimentalChatView {
 		this.#indicator?.dispose();
 	}
 
-	/** Finish every card: a running bash card keeps a timer until it gets a final result. */
+	/** 结束所有卡片：运行中的 Bash 卡片会持续计时，直到收到最终结果。 */
 	#discardTools(): void {
 		for (const component of this.#cards) component.updateResult({ content: [], isError: false }, false);
 		this.#cards.length = 0;
@@ -132,7 +132,7 @@ export class ExperimentalChatView {
 	}
 
 	#syncTranscript(entries: readonly EntryRecord[]): void {
-		// Compaction and resets replace the head of the active transcript.
+		// 压缩和重置操作会替换当前对话记录的上下文起点。
 		if (this.#renderedEntryIds.some((id, index) => entries[index]?.id !== id)) this.#rebuild(entries);
 		for (const entry of entries.slice(this.#renderedEntryIds.length)) {
 			this.#addEntry(entry);
@@ -161,7 +161,7 @@ export class ExperimentalChatView {
 			if (this.#streaming === undefined) this.transcript.addChild(component);
 			this.#streaming = undefined;
 			component.updateContent(message, false);
-			// Only a tool-calling answer runs its calls; an aborted, failed, or truncated one never does.
+			// 只有包含工具调用的回答才会执行调用；已中止、失败或被截断的回答不会执行。
 			const ran = message.stopReason === "toolUse";
 			for (const content of message.content) {
 				if (content.type !== "toolCall") continue;
@@ -199,7 +199,7 @@ export class ExperimentalChatView {
 		}
 	}
 
-	/** The card of a call; `fresh` starts a new one for a call ID an earlier turn used. */
+	/** 调用对应的卡片；若调用 ID 在较早轮次中用过，`fresh` 会创建新卡片。 */
 	#tool(toolName: string, toolCallId: string, args?: unknown, fresh = false): ToolExecutionComponent {
 		const existing = fresh ? undefined : this.#tools.get(toolCallId);
 		if (existing !== undefined) {

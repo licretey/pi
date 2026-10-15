@@ -6,10 +6,10 @@ import type { AnyTask, Extension, PromptSection, Registry, RegistrySnapshot, Too
 
 const SECTION_KEY = /^[a-z][a-z0-9_-]*$/;
 
-/** Built-in task definitions every registry holds; they are not an extension and cannot be removed or replaced. */
+/** 每个注册表都持有的内建任务定义；它们不是扩展，不可移除或替换。 */
 export const BUILTIN_TASKS: readonly AnyTask[] = [GenerationTask, ToolTask, CompactionTask];
 
-/** Immutable published registry state. */
+/** 不可变的、已发布的注册表状态。 */
 class RegistryState<Tool extends ToolRegistration> implements RegistrySnapshot<Tool> {
 	readonly #extensions: readonly Extension<Tool>[];
 	readonly #byName: ReadonlyMap<string, Extension<Tool>>;
@@ -85,14 +85,14 @@ class RegistryImpl<Tool extends ToolRegistration> implements Registry<Tool> {
 		this.#publish(current.filter((installed) => installed.name !== extension.name));
 	}
 
-	/** Build and validate the next state, which throws on a task name collision, then publish it synchronously. */
+	/** 构建并校验下一个状态（任务名冲突时抛错），然后同步地发布它。 */
 	#publish(extensions: readonly Extension<Tool>[]): void {
 		this.#current = new RegistryState(extensions);
 		for (const listener of [...this.#listeners]) listener();
 	}
 }
 
-/** Unique tool names and section keys within one extension; valid, unreserved section keys. */
+/** 单个扩展内工具名与 section 键必须唯一；section 键必须有效且未被保留。 */
 function validateExtension(extension: Extension): void {
 	const tools = new Set<string>();
 	for (const tool of extension.tools ?? []) {
@@ -108,7 +108,7 @@ function validateExtension(extension: Extension): void {
 	}
 }
 
-/** Create an application-owned registry holding only the built-in tasks. */
+/** 创建一个应用自有的 registry，其中只包含内建任务。 */
 export function createRegistry<Tool extends ToolRegistration = ToolRegistration>(): Registry<Tool> {
 	return new RegistryImpl<Tool>();
 }

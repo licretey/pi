@@ -1,13 +1,11 @@
 /**
- * Virtual models are catalog entries that route each request to a physical model.
+ * 虚拟模型是目录中的条目，会将每个请求路由到一个实体模型。
  *
- * The selection (`model_change`, `agent.state.model`, `ctx.model`) may name a virtual model.
- * Everything below the routing step only sees physical models: providers stream them and
- * assistant messages record them. A virtual model never reaches a provider.
+ * 当前选择（`model_change`、`agent.state.model`、`ctx.model`）可以指向虚拟模型。
+ * 路由之后的流程只接触实体模型：由提供商处理其流式响应，并将其记录在助手消息中。虚拟模型不会传递给提供商。
  *
- * Virtual models belong to a provider id but are not provider models. `ModelRuntime` keeps them
- * separately and adds them to the provider's catalog with `withVirtualModels()`, so any provider,
- * including one with physical models, can list several virtual models.
+ * 虚拟模型归属一个提供商 ID，但本身并非提供商模型。`ModelRuntime` 会单独保存它们，并通过
+ * `withVirtualModels()` 将其添加到提供商目录，因此任何提供商（包括已有实体模型的提供商）都可以列出多个虚拟模型。
  */
 import type { AgentMessage } from "@earendil-works/pi-agent-core";
 import {
@@ -25,13 +23,13 @@ import {
 } from "@earendil-works/pi-ai";
 import type { SessionEntry } from "./session-manager.ts";
 
-/** API id of virtual catalog entries. Requests for it fail unless routed first. */
+/** 虚拟目录条目的 API ID；请求必须先完成路由，否则会失败。 */
 export const VIRTUAL_MODEL_API = "pi-virtual";
 
-/** Custom entry type that stores router state on the session branch. */
+/** 用于在会话分支中保存路由器状态的自定义条目类型。 */
 export const VIRTUAL_MODEL_STATE_ENTRY = "pi.virtual-model-state";
 
-/** Data of a `pi.virtual-model-state` custom entry. */
+/** `pi.virtual-model-state` 自定义条目中的数据。 */
 export interface VirtualModelStateData<TState = unknown> {
 	provider: string;
 	modelId: string;
@@ -41,72 +39,70 @@ export interface VirtualModelStateData<TState = unknown> {
 const THINKING_LEVELS: readonly ModelThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
 
 /**
- * Why a request is being routed.
- * - `user`: first request after a message the user wrote (prompt, steering, or follow-up)
- * - `continuation`: any other request in the agent loop, e.g. after tool results or extension messages
- * - `retry`: automatic retry after a failed request, including after compaction for a context overflow
- * - `direct`: a request outside the agent loop, e.g. a compaction summary or an extension call
+ * 请求被路由的原因。
+ * - `user`：用户输入消息（提示词、引导内容或后续输入）后的首次请求
+ * - `continuation`：代理循环中的其他请求，例如工具结果或扩展消息之后的请求
+ * - `retry`：请求失败后的自动重试，包括上下文溢出并压缩后发起的重试
+ * - `direct`：代理循环之外的请求，例如压缩摘要或扩展调用
  */
 export type ModelRouteReason = "user" | "continuation" | "retry" | "direct";
 
 export interface ModelRouteRequest<TState = unknown> {
-	/** The selected virtual model. */
+	/** 当前选中的虚拟模型。 */
 	model: Model<Api>;
-	/** The selected thinking level. Its meaning is up to the router. */
+	/** 当前选中的思考级别；具体含义由路由器决定。 */
 	thinkingLevel: ModelThinkingLevel;
 	reason: ModelRouteReason;
-	/** Physical model and thinking level of the latest successful response in `messages`. */
+	/** `messages` 中最近一次成功响应所使用的实体模型和思考级别。 */
 	previous?: { model: Model<Api>; thinkingLevel?: ModelThinkingLevel };
 	/**
-	 * For `retry`: the failed request, which `messages` no longer contains. `message` carries its
-	 * `stopReason` and `errorMessage`. Absent when the router itself failed.
+	 * 对于 `retry`：失败的请求，该请求已不包含在 `messages` 中。`message` 保存其 `stopReason` 和 `errorMessage`。
+	 * 若路由器本身失败，则此字段不存在。
 	 */
 	failed?: { model: Model<Api>; thinkingLevel?: ModelThinkingLevel; message: AssistantMessage };
-	/** Router state last returned on this session branch. Undefined before the first state and for `direct` requests. */
+	/** 此会话分支上路由器最近返回的状态。首次返回状态之前及 `direct` 请求中为 undefined。 */
 	state?: TState;
-	/** Conversation for this request, including system messages. */
+	/** 此请求对应的对话，包含系统消息。 */
 	messages: readonly Message[];
 	signal?: AbortSignal;
 }
 
-/** Physical model and thinking level for one request. */
+/** 单个请求使用的实体模型和思考级别。 */
 export interface ModelRoute<TState = unknown> {
 	model: Model<Api>;
 	thinkingLevel: ModelThinkingLevel;
 	/**
-	 * New router state, stored on the session branch unless it is `request.state` itself. Return
-	 * `request.state` or undefined to keep the current state. Must be JSON-serializable. Ignored for
-	 * `direct` requests.
+	 * 新的路由器状态，除非与 `request.state` 相同，否则会存入会话分支。
+	 * 返回 `request.state` 或 undefined 可保留当前状态。该值必须可序列化为 JSON。`direct` 请求会忽略此字段。
 	 */
 	state?: TState;
 }
 
 export interface VirtualModelDefinition<TState = unknown> {
-	/** Provider the virtual model is listed under. May be a provider with physical models. */
+	/** 列出此虚拟模型的提供商。该提供商也可以拥有实体模型。 */
 	provider: string;
-	/** Model id. Must not be the id of a physical model of `provider`. */
+	/** 模型 ID。不能与 `provider` 的实体模型 ID 相同。 */
 	id: string;
 	name: string;
-	/** Thinking levels offered for selection. Defaults to `["off"]`. */
+	/** 可供选择的思考级别。默认为 `["off"]`。 */
 	thinkingLevels?: readonly ModelThinkingLevel[];
 	/**
-	 * Limits shown before the first response. Afterwards, Pi uses the limits of the physical model
-	 * that answered. Unset limits are unknown (0).
+	 * 首次响应前显示的限制。之后，Pi 使用实际作答的实体模型限制。未设置的限制视为未知（0）。
 	 */
 	contextWindow?: number;
 	maxTokens?: number;
-	/** Input types accepted for selection. Defaults to text and images; routed models without image support get placeholders. */
+	/** 可选择的输入类型。默认为文本和图像；路由到不支持图像的模型时会使用占位内容。 */
 	input?: ("text" | "image")[];
-	/** Pick the physical model, which must have credentials, and thinking level for one request. */
+	/** 为单个请求选择实体模型和思考级别；所选模型必须已配置凭据。 */
 	route(request: ModelRouteRequest<TState>): ModelRoute<TState> | Promise<ModelRoute<TState>>;
 }
 
-/** Whether a model or message names a virtual model. Failed routing leaves the virtual model on its message. */
+/** 判断模型或消息是否指向虚拟模型。路由失败时，消息仍保留虚拟模型信息。 */
 export function isVirtualModel(model: { api: string }): boolean {
 	return model.api === VIRTUAL_MODEL_API;
 }
 
-/** Latest successful response. Its model is physical: failed or aborted requests, including failed routing, are skipped. */
+/** 最近一次成功响应。其模型为实体模型；失败或中止的请求（包括路由失败）都会跳过。 */
 export function findLatestResponse(messages: readonly AgentMessage[]): AssistantMessage | undefined {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const message = messages[i];
@@ -118,12 +114,11 @@ export function findLatestResponse(messages: readonly AgentMessage[]): Assistant
 }
 
 /**
- * The model selection a session branch records. A virtual `model_change` holds until the next
- * `model_change`, because responses name the physical models it routed to. Otherwise the latest
- * physical response wins, as in sessions without virtual models. A virtual model that is no longer
- * registered does not hold, so the selection falls back to the physical model that answered last.
+ * 会话分支记录的模型选择。虚拟 `model_change` 会一直生效到下一条 `model_change`，因为响应记录的是
+ * 它实际路由到的实体模型。其他情况下，以最近一次实体模型响应为准，与未使用虚拟模型的会话相同。
+ * 如果虚拟模型已不再注册，则不再沿用该选择，而是回退到最近作答的实体模型。
  *
- * Only the last `model_change` can hold, so this looks up at most one model in the catalog.
+ * 只有最近一条 `model_change` 可能继续生效，因此最多只需在目录中查找一个模型。
  */
 export function getBranchSelection(
 	branch: readonly SessionEntry[],
@@ -155,7 +150,7 @@ function findLastModelChange(
 	return undefined;
 }
 
-/** Latest router state a session branch stores for a virtual model. */
+/** 会话分支为虚拟模型保存的最新路由器状态。 */
 export function getVirtualModelState(branch: readonly SessionEntry[], provider: string, modelId: string): unknown {
 	for (let i = branch.length - 1; i >= 0; i--) {
 		const entry = branch[i];
@@ -166,7 +161,7 @@ export function getVirtualModelState(branch: readonly SessionEntry[], provider: 
 	return undefined;
 }
 
-/** Build the catalog entry of a virtual model. */
+/** 构造虚拟模型的目录条目。 */
 export function createVirtualModel(definition: Omit<VirtualModelDefinition, "route">): Model<Api> {
 	const levels = definition.thinkingLevels ?? ["off"];
 	const thinkingLevelMap: ThinkingLevelMap = {};
@@ -186,7 +181,7 @@ export function createVirtualModel(definition: Omit<VirtualModelDefinition, "rou
 	};
 }
 
-/** Stream for a virtual model that was not routed, e.g. `stream()` with API-specific options. */
+/** 未经路由的虚拟模型所使用的流，例如带有 API 专属选项的 `stream()` 调用。 */
 function unroutedStream(model: Model<Api>): AssistantMessageEventStream {
 	return lazyStream(model, async () => {
 		throw new Error(`Virtual model ${model.provider}/${model.id} must be routed before streaming`);
@@ -194,9 +189,8 @@ function unroutedStream(model: Model<Api>): AssistantMessageEventStream {
 }
 
 /**
- * Add virtual models to a provider's catalog. Without a provider, the result is a keyless provider
- * that only lists the virtual models. A virtual model hides a physical chat model with the same id,
- * which a catalog refresh can add after registration. Availability follows the provider's auth.
+ * 将虚拟模型添加到提供商目录中。若未指定提供商，则生成一个无密钥提供商，仅列出这些虚拟模型。
+ * 虚拟模型会隐藏相同 ID 的实体聊天模型；目录刷新可能会在注册后添加该实体模型。模型是否可用取决于提供商的认证状态。
  */
 export function withVirtualModels(
 	providerId: string,

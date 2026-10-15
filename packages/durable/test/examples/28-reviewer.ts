@@ -1,6 +1,5 @@
-// A reviewer agent next to the main one: a cheaper model, a review role and loop, read-only tools, and its own
-// checkout of the project.
-// Run from packages/durable:
+// 在主代理旁运行一个审查代理：使用成本较低的模型、审查角色和审查循环、只读工具，以及项目的独立检出目录。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/28-reviewer.ts
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -26,10 +25,10 @@ const context = BACKGROUND_CONTEXT;
 const textOf = (message: AssistantMessage) =>
 	message.content.flatMap((part) => (part.type === "text" ? [part.text] : [])).join("");
 
-// ─── Product code: the reviewer extension ───────────────────────────────────
+// ─── 产品代码：审查器扩展 ──────────────────────────────────────────────────
 
 const DONE = "No further findings.";
-// A role and a review loop: every answer that still has findings gets a second pass.
+// 角色和审查循环：回答中仍有待解决问题时，会再次审查。
 const Reviewer = defineExtension({
 	name: "reviewer",
 	sections: [section("role", () => `You review diffs. Report problems as a list. Never edit files.`)],
@@ -45,7 +44,7 @@ const Reviewer = defineExtension({
 
 // ─── Host setup ─────────────────────────────────────────────────────────────
 
-// The reviewer works in its own checkout, in practice a `git worktree add`.
+// 审查代理在独立的项目检出目录中工作；实际使用时可通过 `git worktree add` 创建。
 const worktree = await mkdtemp(join(tmpdir(), "pi-durable-review-"));
 await writeFile(join(worktree, "user.ts"), "export const name = (user) => user.name;\n");
 
@@ -63,7 +62,7 @@ registry.install(CodingTools);
 registry.install(Reviewer);
 const harness = await Harness.open(
 	new MemoryStorage(),
-	// The main agent selects only CodingTools; the reviewer opts in.
+	// 主代理只选择 CodingTools；审查代理会显式启用 Reviewer。
 	{
 		models,
 		registry,
@@ -74,8 +73,8 @@ const harness = await Harness.open(
 );
 await harness.root(context, { agent: { model: { provider: "faux", modelId: "big" } } });
 
-// Everything the reviewer is, stored on its conversation: the model, exactly these extensions in this order, only
-// the read tool, and its directory. A restart keeps all of it.
+// Reviewer 的完整配置都保存在其对话中：模型、按此顺序选择的扩展，以及仅
+// read 工具及其工作目录。重启后这些设置都会保留。
 const reviewer = await harness.createConversation(
 	{
 		ownership: { kind: "ownerless" },

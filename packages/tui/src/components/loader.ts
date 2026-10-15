@@ -2,9 +2,9 @@ import type { TUI } from "../tui.ts";
 import { Text } from "./text.ts";
 
 export interface LoaderIndicatorOptions {
-	/** Animation frames. Use an empty array to hide the indicator. */
+	/** 动画帧。使用空数组可隐藏指示器。 */
 	frames?: string[];
-	/** Frame interval in milliseconds for animated indicators. */
+	/** 动画指示器的帧间隔，单位为毫秒。 */
 	intervalMs?: number;
 }
 
@@ -12,7 +12,7 @@ const DEFAULT_FRAMES = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", 
 const DEFAULT_INTERVAL_MS = 80;
 
 /**
- * Loader component that updates with an optional spinning animation.
+ * 可选择显示旋转动画并持续更新的加载指示器组件。
  */
 export class Loader extends Text {
 	private frames = [...DEFAULT_FRAMES];

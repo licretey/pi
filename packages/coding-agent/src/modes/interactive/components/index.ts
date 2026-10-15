@@ -1,4 +1,4 @@
-// UI Components for extensions
+// 扩展使用的 UI 组件。
 export { ArminComponent } from "./armin.ts";
 export { AssistantMessageComponent } from "./assistant-message.ts";
 export { BashExecutionComponent } from "./bash-execution.ts";

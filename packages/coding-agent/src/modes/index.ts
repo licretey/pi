@@ -1,5 +1,5 @@
 /**
- * Run modes for the coding agent.
+ * coding-agent 的运行模式。
  */
 
 export { InteractiveMode, type InteractiveModeOptions } from "./interactive/interactive-mode.ts";

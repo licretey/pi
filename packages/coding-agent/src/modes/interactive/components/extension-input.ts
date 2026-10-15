@@ -1,5 +1,5 @@
 /**
- * Simple text input component for extensions.
+ * 扩展使用的简单文本输入组件。
  */
 
 import { Container, type Focusable, getKeybindings, Input, Spacer, Text, type TUI } from "@earendil-works/pi-tui";
@@ -23,7 +23,7 @@ export class ExtensionInputComponent extends Container implements Focusable {
 	private baseTitle: string;
 	private countdown: CountdownTimer | undefined;
 
-	// Focusable implementation - propagate to input for IME cursor positioning
+	// 实现 Focusable 接口：将焦点状态传递给输入框，以正确定位输入法光标。
 	private _focused = false;
 	get focused(): boolean {
 		return this._focused;

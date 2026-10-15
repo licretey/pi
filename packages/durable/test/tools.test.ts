@@ -1,5 +1,5 @@
-// Ported from packages/agent/test/harness/tools.test.ts and adapted to ToolRegistration: tools take the environment
-// from `api.env`, stream through `api.output()`, and report notices as diagnostics instead of content text.
+// 从 packages/agent/test/harness/tools.test.ts 移植并适配 ToolRegistration：工具从 `api.env` 获取环境，
+// 通过 `api.output()` 输出，并将通知作为诊断信息报告，而不是作为内容文本。
 import { appendFileSync, mkdirSync, rmSync } from "node:fs";
 import { symlink } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -55,7 +55,7 @@ function createEnv(): NodeExecutionEnv {
 	return new NodeExecutionEnv({ cwd: createTempDir() });
 }
 
-/** A minimal execution API: the environment, collected output and diagnostics, and nothing durable. */
+/** 最简执行 API：仅包含环境、收集的输出和诊断信息，不包含持久化能力。 */
 function fakeApi(env: ExecutionEnv | undefined): {
 	api: ToolExecutionApi;
 	output: string[];
@@ -73,7 +73,7 @@ function fakeApi(env: ExecutionEnv | undefined): {
 		retainedOutput: () => ({ text: output.join(""), truncated: false }),
 		diagnostic: (diagnostic: ToolDiagnostic) => diagnostics.push(diagnostic),
 		details: async () => {},
-		// No model: `read` treats it as one that sees images.
+		// 未指定模型时，`read` 会按支持图像输入的模型处理。
 		agent: async () => ({}),
 	} as unknown as ToolExecutionApi;
 	return { api, output, diagnostics };
@@ -89,7 +89,7 @@ async function run(
 	return { ...(await tool.execute(args, api, context)), streamed: output, reported: diagnostics };
 }
 
-/** Run a tool expected to throw; returns the error with what it streamed and reported first. */
+/** 运行预期会抛错的工具，并返回错误以及此前已输出和报告的内容。 */
 async function runFailing(
 	tool: ToolRegistration,
 	args: JsonValue,
@@ -262,7 +262,7 @@ describe("durable tools", () => {
 			getOrThrow(await env.writeFile("long.txt", `${"é".repeat(40_000)}\nnext\n`, BACKGROUND_CONTEXT));
 			const result = await run(createReadTool(), { path: "long.txt" }, env);
 			const text = textOutput(result);
-			// Two-byte characters: the cut lands on a character boundary at or below the limit.
+			// 双字节字符：截断位置落在不超过限制的字符边界上。
 			expect(text).toBe("é".repeat(25_600));
 			expect(diagnosticText(result)).toBe(
 				"Line 1 is 78.1KB, exceeds the 50.0KB limit; showing its first 50.0KB. Use bash: sed -n '1p' long.txt | tail -c +51201",
@@ -288,7 +288,7 @@ describe("durable tools", () => {
 			const env = createEnv();
 			getOrThrow(await env.writeFile("app.log", "one\ntwo\n", BACKGROUND_CONTEXT));
 			const logPath = join(env.cwd, "app.log");
-			// Every read appends, as a busy writer would; the scanned lines stay as they were.
+			// 每次读取期间都有写入追加，模拟繁忙的写入方；已扫描的行保持不变。
 			const growing = Object.create(env) as NodeExecutionEnv;
 			growing.openBinaryReader = async (path, options, context) => {
 				const opened = await env.openBinaryReader(path, options, context);
@@ -547,7 +547,7 @@ describe("durable tools", () => {
 	});
 
 	describe("powershell", () => {
-		/** An environment where only the listed programs exist; it records each command and prints `output`. */
+		/** 只提供所列程序的环境；会记录每条命令并输出 `output`。 */
 		function programsEnv(installed: readonly string[], output: string, exitCode = 0) {
 			const commands: (string | readonly string[])[] = [];
 			class ProgramsEnv extends NodeExecutionEnv {
@@ -704,7 +704,7 @@ describe("durable tools", () => {
 					execution.env = { PI_BASH_PREPARE_EXPLICIT: "explicit" };
 					execution.inheritEnv = false;
 					execution.command += `\n: > prepared-cwd\nprintf '%s:%s:%s' "$prefix" "\${PI_BASH_PREPARE_INHERITED-}" "$PI_BASH_PREPARE_EXPLICIT"`;
-					// Git Bash on Windows reports $PWD as an MSYS path, so only POSIX compares it.
+					// Windows 上的 Git Bash 会将 $PWD 报告为 MSYS 路径，因此这里只在 POSIX 系统上比较。
 					if (process.platform !== "win32") execution.command += `\nprintf ':%s' "$PWD"`;
 				},
 			});

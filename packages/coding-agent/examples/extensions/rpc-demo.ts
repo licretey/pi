@@ -1,20 +1,19 @@
 /**
- * RPC Extension UI Demo
+ * RPC 扩展界面演示。
  *
- * Purpose-built extension that exercises all RPC-supported extension UI methods.
- * Designed to be loaded alongside the rpc-extension-ui-example.ts script to
- * demonstrate the full extension UI protocol.
+ * 专门用于测试所有受 RPC 支持的扩展界面方法。
+ * 应与 rpc-extension-ui-example.ts 脚本一起加载，以演示完整的扩展界面协议。
  *
- * UI methods exercised:
- * - select() - on tool_call for dangerous bash commands
- * - confirm() - on session_before_switch
- * - input() - via /rpc-input command
- * - editor() - via /rpc-editor command
- * - notify() - after each dialog completes
- * - setStatus() - on turn_start/turn_end
- * - setWidget() - on session_start
- * - setTitle() - on session_start
- * - setEditorText() - via /rpc-prefill command
+ * 测试的界面方法：
+ * - select()：在 tool_call 阶段确认危险的 bash 命令
+ * - confirm()：在 session_before_switch 阶段确认
+ * - input()：通过 /rpc-input 命令调用
+ * - editor()：通过 /rpc-editor 命令调用
+ * - notify()：每个对话框结束后发送通知
+ * - setStatus()：在 turn_start/turn_end 阶段调用
+ * - setWidget()：在 session_start 阶段调用
+ * - setTitle()：在 session_start 阶段调用
+ * - setEditorText()：通过 /rpc-prefill 命令调用
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
@@ -22,7 +21,7 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 export default function (pi: ExtensionAPI) {
 	let turnCount = 0;
 
-	// -- setTitle, setWidget, setStatus on session lifecycle --
+	// -- 在会话生命周期中调用 setTitle、setWidget 和 setStatus --
 
 	pi.on("session_start", async (event, ctx) => {
 		ctx.ui.setTitle(event.reason === "new" ? "pi RPC Demo (new session)" : "pi RPC Demo");
@@ -30,7 +29,7 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.setStatus("rpc-demo", `Turns: ${turnCount}`);
 	});
 
-	// -- setStatus on turn lifecycle --
+	// -- 在轮次生命周期中调用 setStatus --
 
 	pi.on("turn_start", async (_event, ctx) => {
 		turnCount++;
@@ -41,7 +40,7 @@ export default function (pi: ExtensionAPI) {
 		ctx.ui.setStatus("rpc-demo", `Turn ${turnCount} done`);
 	});
 
-	// -- select on dangerous tool calls --
+	// -- 对危险工具调用使用 select --
 
 	pi.on("tool_call", async (event, ctx) => {
 		if (event.toolName !== "bash") return undefined;

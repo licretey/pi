@@ -55,7 +55,7 @@ function eventsWithCacheCreation(
 	];
 }
 
-// claude-opus-4-8: input 5, cacheWrite (5m) 6.25 per Mtok. 1h write = 2x input = 10.
+// claude-opus-4-8：输入价格为每百万令牌 5，5 分钟缓存写入价格为 6.25；1 小时写入价格是输入价格的 2 倍，即 10。
 const context = normalizeContext({ messages: [{ role: "user", content: "hi", timestamp: Date.now() }] });
 
 describe("Anthropic 1h cache write cost", () => {
@@ -70,11 +70,11 @@ describe("Anthropic 1h cache write cost", () => {
 
 		expect(result.usage.cacheWrite).toBe(1_000_000);
 		expect(result.usage.cacheWrite1h).toBe(400_000);
-		// 600k * 6.25/Mtok + 400k * 10/Mtok = 3.75 + 4.0 = 7.75
+		// 600k * 6.25/百万令牌 + 400k * 10/百万令牌 = 3.75 + 4.0 = 7.75。
 		expect(result.usage.cost.cacheWrite).toBeCloseTo(7.75, 10);
 	});
 
-	// Regression for #9210: Vercel AI Gateway sends cache usage in message_delta, not message_start.
+	// #9210 回归测试：Vercel AI Gateway 在 message_delta 中发送缓存用量，而不是在 message_start 中发送。
 	it("prices 1h cache writes reported only in message_delta", async () => {
 		const model = getModel("vercel-ai-gateway", "anthropic/claude-haiku-4.5");
 		const response = createSseResponse([
@@ -118,7 +118,7 @@ describe("Anthropic 1h cache write cost", () => {
 
 		expect(result.usage.cacheWrite).toBe(1_000_000);
 		expect(result.usage.cacheWrite1h ?? 0).toBe(0);
-		// 1M * 6.25/Mtok = 6.25
+		// 1M * 6.25/百万令牌 = 6.25。
 		expect(result.usage.cost.cacheWrite).toBeCloseTo(6.25, 10);
 	});
 });

@@ -4,11 +4,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { createHarness, type Harness } from "../harness.ts";
 
 /**
- * Regression for #6647: compaction runs a single non-retried summarization call, so a
- * transient mid-stream socket death (`terminated`) failed the whole compaction.
- * Verifies that summarization now reuses `settings.retry` (bounded retries with
- * exponential backoff gated on isRetryableAssistantError), emits
- * `summarization_retry_*` events, and that aborts / non-retryable errors are not retried.
+ * #6647 回归测试：压缩只执行一次不重试的摘要调用，因此
+ * 流式传输中途连接断开（`terminated`）会导致整个压缩失败。
+ * 本测试验证摘要生成现在会复用 `settings.retry`（受限重试，采用指数退避，
+ * 并由 isRetryableAssistantError 判断是否重试），会发出 `summarization_retry_*` 事件，
+ * 且不会重试中止操作或不可重试的错误。
  */
 describe("#6647 compaction retries transient summarization failures", () => {
 	const harnesses: Harness[] = [];
@@ -51,7 +51,7 @@ describe("#6647 compaction retries transient summarization failures", () => {
 		harness.session.agent.state.messages = harness.sessionManager.buildSessionContext().messages;
 	}
 
-	/** streamFn that responds with the given sequence of assistant messages across calls. */
+	/** streamFn 在多次调用中按给定顺序返回 assistant 消息。 */
 	function useScriptedStreamFn(harness: Harness, script: AssistantMessage[]): () => number {
 		let callCount = 0;
 		const streamFunction: StreamFn = (model) => {
@@ -107,7 +107,7 @@ describe("#6647 compaction retries transient summarization failures", () => {
 		expect(starts[0]).toMatchObject({ attempt: 1, maxAttempts: 3, errorMessage: "terminated" });
 		expect(starts[1]).toMatchObject({ attempt: 2, maxAttempts: 3 });
 		expect(ends[0]).toMatchObject({ type: "summarization_retry_finished" });
-		// model.* referenced to keep imports honest
+		// 引用 model.*，确保相关导入确实有用途。
 		expect(model.id).toBeTruthy();
 	});
 
@@ -179,12 +179,12 @@ describe("#6647 compaction retries transient summarization failures", () => {
 		useScriptedStreamFn(harness, [error, error, error]);
 
 		const compactPromise = harness.session.compact();
-		// Let the first error resolve and the retry backoff sleep start.
+		// 等待第一个错误处理完成，并开始重试退避等待。
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		harness.session.abortCompaction();
 
-		// The aborted retry backoff is normalized to an aborted assistant message,
-		// which compaction classifies as aborted.
+		// 已中止的重试退避会规范化为已中止的 assistant 消息，
+		// 压缩逻辑会将其判定为已中止。
 		await expect(compactPromise).rejects.toThrow();
 		const compactionEnd = harness.eventsOfType("compaction_end").at(-1);
 		expect(compactionEnd).toMatchObject({ aborted: true });

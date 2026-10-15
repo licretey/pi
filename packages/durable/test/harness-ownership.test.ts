@@ -26,7 +26,7 @@ import { addTask, addTool } from "./harness-support.ts";
 import { ControlledStorage, context } from "./session-support.ts";
 import { aborted, type Deferred, deferred, openTasks, settled } from "./task-support.ts";
 
-/** Outcome a held task commits once its gate opens. */
+/** 等待门闩打开后，阻塞中的任务提交的结果。 */
 type Ending = "completed" | "failed";
 const gates = new Map<string, Deferred<Ending>>();
 
@@ -39,12 +39,12 @@ function gate(name: string): Deferred<Ending> {
 	return found;
 }
 
-/** How often each named task started its run phase. */
+/** 每个具名任务启动 run 阶段的次数。 */
 const runs = new Map<string, number>();
 
 /**
- * A task that holds until its named gate opens or it is aborted. With `slowAbort`, its abort handler first waits for
- * the gate `abort.<name>`.
+ * 任务会一直等待，直到对应名称的门闩打开或任务被中止。启用 `slowAbort` 时，中止处理器会先等待
+ * `abort.<name>` 门闩。
  */
 const Hold = defineTask<{ name: string; slowAbort?: boolean }, { phase: "hold" }, null>({
 	name: "test.hold",
@@ -69,7 +69,7 @@ const Hold = defineTask<{ name: string; slowAbort?: boolean }, { phase: "hold" }
 	},
 });
 
-/** Waits on the tasks in its input, then completes; its abort handler ends it `aborted`. */
+/** 等待输入中的任务后完成；其中止处理器会将其结束状态设为 `aborted`。 */
 const Waiter = defineTask<{ on: TaskId[] }, { phase: "wait" } | { phase: "done" }, null>({
 	name: "test.waiter",
 	version: 1,
@@ -86,7 +86,7 @@ const Waiter = defineTask<{ on: TaskId[] }, { phase: "wait" } | { phase: "done" 
 		runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), ctx),
 });
 
-/** Never registered: aborting it can only orphan it. */
+/** 从未注册；中止它只会使其成为孤儿任务。 */
 const Unregistered = defineTask<{ name: string }, { phase: "hold" }, null>({
 	name: "test.unregistered",
 	version: 1,
@@ -109,7 +109,7 @@ afterEach(async () => {
 
 type Tree = { owner: TaskId; child: ConversationId; inner: TaskId };
 
-/** In `parent`, stage task `owner` and a conversation it owns holding task `inner`, in one commit. */
+/** 在 `parent` 中通过一次提交暂存任务 `owner`，以及由它拥有、并包含阻塞任务 `inner` 的对话。 */
 async function ownedChild(
 	parent: Conversation,
 	name: string,
@@ -131,7 +131,7 @@ async function ownedChild(
 	}, context);
 }
 
-/** A faux response held until `release` or cancellation; `reached` resolves when the request is sent. */
+/** 模拟响应会一直等待，直到调用 `release` 或被取消；请求发出时 `reached` 会兑现。 */
 function gated(message: AssistantMessage) {
 	const reached = deferred();
 	const gate = deferred();
@@ -150,7 +150,7 @@ async function waitUntil(check: () => Promise<boolean>): Promise<void> {
 	if (!(await check())) throw new Error("Condition was not reached");
 }
 
-/** Mark a conversation busy with `task` standing in for its run, so submissions queue. */
+/** 将 `task` 作为对话当前运行任务，使对话处于忙碌状态并让新提交进入队列。 */
 async function busy(conversation: Conversation, task: TaskId): Promise<void> {
 	await conversation.commit(async (tx) => {
 		(await tx.doc(LiveDoc, conversation.id)).run = { taskId: task, inputs: [] };
@@ -189,7 +189,7 @@ describe("ownership", () => {
 		const tree = await ownedChild(root, "background", { background: true });
 		await root.waitForIdle(context);
 		await harness.waitForIdle(context);
-		// The background child is its own scope.
+		// 后台子任务拥有独立作用域。
 		const child = (await harness.conversation(tree.child, context))!;
 		expect(await settled(child.waitForIdle(context))).toBe(false);
 		await child.abort(context);
@@ -202,14 +202,14 @@ describe("ownership", () => {
 		const nested = await harness.conversation(tree.child, context);
 		const deeper = await ownedChild(nested!, "deeper");
 		const shielded = await ownedChild(nested!, "shielded", { background: true });
-		// Busy conversations queue submissions; the inner task stands in for the child's run.
+		// 忙碌中的对话会将提交排队；内部任务用于模拟子任务的运行。
 		await busy(nested!, tree.inner);
 		const queued = (await nested!.submit({ type: "input", content: "later" }, context)).id;
 		expect(await harness.abortTask(tree.owner, context)).toBe("marked");
 		for (const id of [tree.owner, tree.inner, deeper.owner, deeper.inner]) {
 			expect((await harness.waitForTask(id, context)).state.outcome.status).toBe("aborted");
 		}
-		// A nested background owner is a boundary.
+		// 嵌套的后台所有者构成边界。
 		expect((await status(harness, shielded.owner)).status).not.toBe("terminal");
 		expect((await status(harness, shielded.inner)).status).not.toBe("terminal");
 		expect(await (await harness.submission(queued, context))!.status(context)).toMatchObject({
@@ -275,7 +275,7 @@ describe("ownership", () => {
 		expect((await harness.waitForTask(during, context)).state.outcome.status).toBe("aborted");
 		open("abort.owner.inner", "completed");
 		expect((await harness.waitForTask(tree.owner, context)).state.outcome.status).toBe("failed");
-		// A terminal owner never cascades: interrogating its conversation runs normally.
+		// 终态所有者不会触发级联：查询其对话会正常执行。
 		const after = await create("after");
 		open("after", "completed");
 		expect((await harness.waitForTask(after, context)).state.outcome.status).toBe("completed");
@@ -325,18 +325,18 @@ describe("ownership", () => {
 		const background = await ownedChild(opened.root, "bg", { background: true });
 		open("fg", "completed");
 		open("fg2", "completed");
-		// Both owners hold their outcomes while the work below them runs.
+		// 下层工作运行期间，两个所有者都保持其结果状态。
 		await waitUntil(async () => (await status(opened.harness, foreground.owner)).status === "completing");
 		await waitUntil(async () => (await status(opened.harness, deeper.owner)).status === "completing");
 		await opened.harness.close(context);
 
 		opened = await openHarness(await openNodeSqliteStorage(path));
-		// Two levels below completed foreground owners, the inner tasks keep the root busy.
+		// 在已完成的前台所有者下方两层，内部任务仍会使根任务保持忙碌。
 		expect(await settled(opened.root.waitForIdle(context))).toBe(false);
 		expect(await settled(opened.harness.waitForIdle(context))).toBe(false);
 		open("fg.inner", "completed");
 		open("fg2.inner", "completed");
-		// The background subtree does not count.
+		// 后台子树不计入其中。
 		await opened.root.waitForIdle(context);
 		await opened.harness.waitForIdle(context);
 		expect((await status(opened.harness, foreground.owner)).status).toBe("terminal");
@@ -357,7 +357,7 @@ describe("ownership", () => {
 			const directory = await mkdtemp(join(tmpdir(), "pi-durable-ownership-"));
 			directories.add(directory);
 			const path = join(directory, "session.sqlite");
-			// Without a Harness, nothing derives marks: a cancelled owner with a live task below it.
+			// 没有 Harness 时不会派生标记：所有者已取消，但其下仍有运行中的任务。
 			const session = createSession(await openNodeSqliteStorage(path));
 			const tree = await session.commit(async (tx) => {
 				const root = await tx.createConversation({ ownership: { kind: "ownerless" } });
@@ -384,7 +384,7 @@ describe("ownership", () => {
 
 			const { harness } = await openHarness(await openNodeSqliteStorage(path));
 			expect((await harness.waitForTask(tree.inner, context)).state.outcome.status).toBe("aborted");
-			// The owner finishes only after the work below it.
+			// 所有者要等下层工作完成后才会结束。
 			const outcome = (await harness.waitForTask(tree.owner, context)).state.outcome.status;
 			expect(outcome).toBe(abortRequested ? "aborted" : "failed");
 			await harness.close(context);
@@ -395,7 +395,7 @@ describe("ownership", () => {
 		const { harness, root } = await openHarness();
 		const tree = await ownedChild(root, "owner", { slowInner: true });
 		const child = (await harness.conversation(tree.child, context))!;
-		// The inner task stands in for the child's run, which stays busy after the cascade.
+		// 内部任务用于模拟子任务运行；级联后它仍保持忙碌。
 		await busy(child, tree.inner);
 		open("owner", "failed");
 		await waitUntil(async () => (await harness.getTask(tree.inner, context))!.abortRequested);
@@ -414,11 +414,11 @@ describe("ownership", () => {
 		const tree = await ownedChild(opened.root, "owner", { slowOwner: true });
 		open("owner.inner", "completed");
 		await opened.harness.waitForTask(tree.inner, context);
-		// The owner stays live and cancelled in its slow abort handler.
+		// 所有者在缓慢执行的中止处理器中仍处于运行且已取消状态。
 		await opened.harness.abortTask(tree.owner, context);
 		await opened.harness.close(context);
 
-		// The child is empty at open, so nothing loads its edge until new work arrives.
+		// 打开时子任务为空，因此在新工作到来前不会加载其依赖边。
 		opened = await openHarness(await openNodeSqliteStorage(path));
 		const child = (await opened.harness.conversation(tree.child, context))!;
 		const late = await child.commit(
@@ -467,7 +467,7 @@ describe("ownership", () => {
 		await expect(idle).rejects.toThrow("stop waiting");
 		expect((await status(harness, tree.inner)).status).not.toBe("terminal");
 
-		// Cancelling an abort after its commit leaves the marks in place.
+		// 中止提交后再取消中止操作，标记仍会保留。
 		const slow = await ownedChild(root, "slow");
 		await root.commit(async (tx) => {
 			const record = (await tx.task(slow.owner))!;
@@ -503,7 +503,7 @@ describe("ownership", () => {
 		}, context);
 		await waitUntil(async () => runs.get("dependency") === 1 && runs.get("owner") === 1);
 		await waitUntil(async () => (await status(harness, blocked)).status === "waiting");
-		// One commit completes the dependency and marks the owner.
+		// 一次提交即可完成依赖并标记所有者。
 		await root.commit(async (tx) => {
 			const setTask = (value: unknown) => (tx as unknown as { setTask(value: unknown): void }).setTask(value);
 			const completedDependency = (await tx.task(dependency))!;
@@ -548,12 +548,12 @@ describe("ownership", () => {
 			rejectMark = id;
 			return id;
 		}, context);
-		// The failed cascade commit fails the Harness. `closed` settles once its invocations have ended, and the owner's
-		// abort handler ignores its signal: let it return.
+		// 级联提交失败会导致 Harness 失败。所有调用结束后，`closed` 才会完成；所有者的
+		// 中止处理器会忽略其 signal，因此让该处理器自行返回。
 		open("abort.owner", "completed");
 		expect(await opened.harness.closed).toMatchObject({ reason: "failed" });
 		await opened.harness.close(context);
-		// Reopening derives the mark again.
+		// 重新打开时会再次派生该标记。
 		opened = await openHarness(await openNodeSqliteStorage(path));
 		expect((await opened.harness.waitForTask(late, context)).state.outcome.status).toBe("aborted");
 		await opened.harness.close(context);
@@ -628,14 +628,14 @@ describe("owned conversations from tools and supervisors", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		expect(missing).toBeUndefined();
-		// The call ended: the handle and its submission reject, while the submission record remains.
+		// 调用已结束：句柄和提交都会拒绝，但提交记录仍会保留。
 		await expect(handle!.submit({ type: "input", content: "again" }, context)).rejects.toThrow(
 			"invocation has ended",
 		);
 		await expect(handle!.waitForIdle(context)).rejects.toThrow("invocation has ended");
 		await expect(handle!.abort(context)).rejects.toThrow("invocation has ended");
 		await expect(submission!.wait(context)).rejects.toThrow("invocation has ended");
-		// Nothing was admitted or marked after the call ended.
+		// 调用结束后，没有新内容被接纳或标记。
 		const childConversation = (await harness.conversation(handle!.id, context))!;
 		const childEntries = (await childConversation.entries({}, 100, undefined, context)).items;
 		expect(childEntries.filter((entry) => entry.kind === "pi.user")).toHaveLength(1);
@@ -666,8 +666,8 @@ describe("owned conversations from tools and supervisors", () => {
 					const handle = (await api.conversation(child, callContext))!;
 					ready.resolve({ child, taskId: api.taskId });
 					await go.promise;
-					// Called while the invocation is alive, with a context that is not the call's: the handle binds it to the
-					// invocation. It reaches the line only after the abort mark.
+					// 调用发生时 invocation 仍有效，且传入的 context 不属于该调用：句柄会将其绑定到此
+					// invocation。只有在中止标记写入后，调用才会执行到这一行。
 					const submitting = handle.submit({ type: "input", content: "late" }, context);
 					submitting.catch(() => {});
 					queued.resolve({ submitting });
@@ -681,7 +681,7 @@ describe("owned conversations from tools and supervisors", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		await root.submit({ type: "input", content: "go" }, context);
 		const { child, taskId } = await ready.promise;
-		// Hold the Session line, queue the abort mark behind it, then let the tool queue its submit.
+		// 阻塞 Session 队列，将中止标记排在其后，再让工具将提交排队。
 		const release = deferred();
 		const holding = root.commit(async () => {
 			await release.promise;
@@ -828,7 +828,7 @@ describe("owned conversations from tools and supervisors", () => {
 		);
 		expect((await opened.harness.waitForTask(children[0]!, context)).state.outcome.status).toBe("aborted");
 
-		// The second call hangs until the process stops; on reopen it is interrupted.
+		// 第二次调用会一直挂起到进程停止；重新打开时会中断该调用。
 		const second = (await opened.root.submit({ type: "input", content: "two" }, context)).id;
 		await toolRunning.promise;
 		await opened.harness.close(context);
@@ -950,7 +950,7 @@ describe("owned conversations from tools and supervisors", () => {
 			return { supervisor, child: created.id };
 		}, context);
 		opened.harness.resume();
-		// The submission is admitted and its generation requested; then the process stops.
+		// 提交已被接纳并开始请求生成；随后进程停止。
 		await first.reached;
 		await opened.harness.close(context);
 
@@ -961,7 +961,7 @@ describe("owned conversations from tools and supervisors", () => {
 		const childConversation = (await opened.harness.conversation(child, context))!;
 		const entries = (await childConversation.entries({}, 100, undefined, context)).items;
 		expect(entries.filter((entry) => entry.kind === "pi.user")).toHaveLength(1);
-		// The root never waited for the background supervisor.
+		// 根任务从未等待后台监控器。
 		await opened.root.waitForIdle(context);
 		await opened.harness.close(context);
 	});

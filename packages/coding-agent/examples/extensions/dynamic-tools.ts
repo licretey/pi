@@ -1,10 +1,10 @@
 /**
- * Dynamic Tools Extension
+ * 动态工具扩展。
  *
- * Demonstrates registering tools after session initialization.
+ * 演示如何在会话初始化后注册工具。
  *
- * - Registers one tool during session_start
- * - Registers additional tools at runtime via /add-echo-tool <name>
+ * - 在 session_start 期间注册一个工具
+ * - 通过 /add-echo-tool <name> 在运行时注册其他工具
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

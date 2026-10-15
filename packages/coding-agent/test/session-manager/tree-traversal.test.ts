@@ -206,7 +206,7 @@ describe("SessionManager append and tree traversal", () => {
 			const id2 = session.appendMessage(assistantMsg("2"));
 			const id3 = session.appendMessage(userMsg("3"));
 
-			// Branch from id2, add new path: 2 -> 4
+			// 从 id2 分支并添加新路径：2 -> 4。
 			session.branch(id2);
 			const id4 = session.appendMessage(userMsg("4-branch"));
 
@@ -219,7 +219,7 @@ describe("SessionManager append and tree traversal", () => {
 
 			const node2 = root.children[0];
 			expect(node2.entry.id).toBe(id2);
-			expect(node2.children).toHaveLength(2); // id3 and id4 are siblings
+			expect(node2.children).toHaveLength(2); // id3 和 id4 是同级节点。
 
 			const childIds = node2.children.map((c) => c.entry.id).sort();
 			expect(childIds).toEqual([id3, id4].sort());
@@ -231,15 +231,15 @@ describe("SessionManager append and tree traversal", () => {
 			const _id1 = session.appendMessage(userMsg("root"));
 			const id2 = session.appendMessage(assistantMsg("response"));
 
-			// Branch A
+			// 分支 A。
 			session.branch(id2);
 			const idA = session.appendMessage(userMsg("branch-A"));
 
-			// Branch B
+			// 分支 B。
 			session.branch(id2);
 			const idB = session.appendMessage(userMsg("branch-B"));
 
-			// Branch C
+			// 分支 C。
 			session.branch(id2);
 			const idC = session.appendMessage(userMsg("branch-C"));
 
@@ -255,24 +255,24 @@ describe("SessionManager append and tree traversal", () => {
 		it("handles deep branching", () => {
 			const session = SessionManager.inMemory();
 
-			// Main path: 1 -> 2 -> 3 -> 4
+			// 主路径：1 -> 2 -> 3 -> 4。
 			const _id1 = session.appendMessage(userMsg("1"));
 			const id2 = session.appendMessage(assistantMsg("2"));
 			const id3 = session.appendMessage(userMsg("3"));
 			const _id4 = session.appendMessage(assistantMsg("4"));
 
-			// Branch from 2: 2 -> 5 -> 6
+			// 从 2 创建分支：2 -> 5 -> 6。
 			session.branch(id2);
 			const id5 = session.appendMessage(userMsg("5"));
 			const _id6 = session.appendMessage(assistantMsg("6"));
 
-			// Branch from 5: 5 -> 7
+			// 从 5 创建分支：5 -> 7。
 			session.branch(id5);
 			const _id7 = session.appendMessage(userMsg("7"));
 
 			const tree = session.getTree();
 
-			// Verify structure
+			// 验证结构。
 			const node2 = tree[0].children[0];
 			expect(node2.children).toHaveLength(2); // id3 and id5
 
@@ -413,12 +413,12 @@ describe("SessionManager append and tree traversal", () => {
 			const id2 = session.appendMessage(assistantMsg("msg2"));
 			session.appendMessage(userMsg("msg3"));
 
-			// Branch from 2: 2 -> 4
+			// 从 2 创建分支：2 -> 4。
 			session.branch(id2);
 			session.appendMessage(assistantMsg("msg4-branch"));
 
 			const ctx = session.buildSessionContext();
-			expect(ctx.messages).toHaveLength(3); // msg1, msg2, msg4-branch (not msg3)
+			expect(ctx.messages).toHaveLength(3); // 包含 msg1、msg2、msg4-branch，不包含 msg3。
 
 			expect((ctx.messages[0] as any).content).toBe("msg1");
 			expect((ctx.messages[1] as any).content[0].text).toBe("msg2");
@@ -444,15 +444,15 @@ describe("createBranchedSession", () => {
 		const id3 = session.appendMessage(userMsg("3"));
 		session.appendMessage(assistantMsg("4"));
 
-		// Branch from 3: 3 -> 5
+		// 从 3 创建分支：3 -> 5。
 		session.branch(id3);
 		const _id5 = session.appendMessage(userMsg("5"));
 
-		// Create branched session from id2 (should only have 1 -> 2)
+		// 从 id2 创建分支会话（只应包含 1 -> 2）。
 		const result = session.createBranchedSession(id2);
 		expect(result).toBeUndefined(); // in-memory returns null
 
-		// Session should now only have entries 1 and 2
+		// 此时会话中应只包含条目 1 和 2。
 		const entries = session.getEntries();
 		expect(entries).toHaveLength(2);
 		expect(entries[0].id).toBe(id1);
@@ -467,12 +467,12 @@ describe("createBranchedSession", () => {
 		const id2 = session.appendMessage(assistantMsg("2"));
 		session.appendMessage(userMsg("3"));
 
-		// Branch from 2: 2 -> 4 -> 5
+		// 从 2 创建分支：2 -> 4 -> 5。
 		session.branch(id2);
 		const id4 = session.appendMessage(userMsg("4"));
 		const id5 = session.appendMessage(assistantMsg("5"));
 
-		// Create branched session from id5 (should have 1 -> 2 -> 4 -> 5)
+		// 从 id5 创建分支会话应包含 1 -> 2 -> 4 -> 5。
 		session.createBranchedSession(id5);
 
 		const entries = session.getEntries();
@@ -485,27 +485,27 @@ describe("createBranchedSession", () => {
 		mkdirSync(tempDir, { recursive: true });
 
 		try {
-			// Create a persisted session with a couple of turns
+			// 创建一个包含几轮对话的持久化会话。
 			const session = SessionManager.create(tempDir, tempDir);
 			const modelChangeId = session.appendModelChange("anthropic", "claude-sonnet-4-5");
 			session.appendMessage(userMsg("first question"));
 			session.appendMessage(assistantMsg("first answer"));
 
-			// Fork from a setup entry (no user or assistant message in the branched path)
+			// 从初始化条目创建分支（分支路径中没有用户或助手消息）。
 			const newFile = session.createBranchedSession(modelChangeId);
 			expect(newFile).toBeDefined();
 
-			// Nothing to save yet, so the file is created later by the first user message
+			// 当前没有内容可保存，因此文件会在第一条用户消息到达后创建。
 			expect(existsSync(newFile!)).toBe(false);
 
 			session.appendMessage(userMsg("new question"));
 			expect(existsSync(newFile!)).toBe(true);
 
-			// Simulate extension adding entry before assistant (like preset on turn_start)
+			// 模拟扩展在 assistant 条目之前添加条目（类似在 turn_start 阶段应用预设）。
 			session.appendCustomEntry("preset-state", { name: "plan" });
 			session.appendMessage(assistantMsg("new answer"));
 
-			// Exactly one header and each entry written once
+			// 仅写入一个文件头，且每个条目都只写入一次。
 			expect(readSessionFileRoles(newFile!)).toEqual(["session", "model_change", "user", "custom", "assistant"]);
 		} finally {
 			rmSync(tempDir, { recursive: true, force: true });

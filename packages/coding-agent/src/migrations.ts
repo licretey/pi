@@ -1,5 +1,5 @@
 /**
- * One-time migrations that run on startup.
+ * 启动时执行的一次性迁移。
  */
 
 import chalk from "chalk";
@@ -14,9 +14,9 @@ const MIGRATION_GUIDE_URL =
 const EXTENSIONS_DOC_URL = "https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/extensions.md";
 
 /**
- * Migrate legacy oauth.json and settings.json apiKeys to auth.json.
+ * 将旧版 oauth.json 和 settings.json 中的 apiKeys 迁移到 auth.json。
  *
- * @returns Array of provider names that were migrated
+ * @returns 已迁移的提供商名称列表。
  */
 export function migrateAuthToAuthJson(): string[] {
 	const agentDir = getAgentDir();
@@ -24,13 +24,13 @@ export function migrateAuthToAuthJson(): string[] {
 	const oauthPath = join(agentDir, "oauth.json");
 	const settingsPath = join(agentDir, "settings.json");
 
-	// Skip if auth.json already exists
+	// 如果 auth.json 已存在，则跳过迁移。
 	if (existsSync(authPath)) return [];
 
 	const migrated: Record<string, unknown> = {};
 	const providers: string[] = [];
 
-	// Migrate oauth.json
+	// 迁移 oauth.json。
 	if (existsSync(oauthPath)) {
 		try {
 			const oauth = JSON.parse(stripBom(readFileSync(oauthPath, "utf-8")));
@@ -40,11 +40,11 @@ export function migrateAuthToAuthJson(): string[] {
 			}
 			renameSync(oauthPath, `${oauthPath}.migrated`);
 		} catch {
-			// Skip on error
+			// 出错时跳过。
 		}
 	}
 
-	// Migrate settings.json apiKeys
+	// 迁移 settings.json 中的 apiKeys。
 	if (existsSync(settingsPath)) {
 		try {
 			const content = readFileSync(settingsPath, "utf-8");
@@ -60,7 +60,7 @@ export function migrateAuthToAuthJson(): string[] {
 				writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
 			}
 		} catch {
-			// Skip on error
+			// 出错时跳过。
 		}
 	}
 
@@ -73,18 +73,18 @@ export function migrateAuthToAuthJson(): string[] {
 }
 
 /**
- * Migrate sessions from ~/.pi/agent/*.jsonl to proper session directories.
+ * 将 ~/.pi/agent/*.jsonl 中的会话迁移到正确的会话目录。
  *
- * Bug in v0.30.0: Sessions were saved to ~/.pi/agent/ instead of
- * ~/.pi/agent/sessions/<encoded-cwd>/. This migration moves them
- * to the correct location based on the cwd in their session header.
+ * v0.30.0 中存在一个问题：会话被保存到了 ~/.pi/agent/，而不是
+ * ~/.pi/agent/sessions/<encoded-cwd>/。此迁移会根据会话头中的 cwd
+ * 将文件移动到正确位置。
  *
  * See: https://github.com/earendil-works/pi-mono/issues/320
  */
 export function migrateSessionsFromAgentRoot(): void {
 	const agentDir = getAgentDir();
 
-	// Find all .jsonl files directly in agentDir (not in subdirectories)
+	// 查找 agentDir 目录下的所有 .jsonl 文件（不包含子目录）。
 	let files: string[];
 	try {
 		files = readdirSync(agentDir)
@@ -98,7 +98,7 @@ export function migrateSessionsFromAgentRoot(): void {
 
 	for (const file of files) {
 		try {
-			// Read first line to get session header
+			// 读取首行以获取会话头信息。
 			const content = readFileSync(file, "utf8");
 			const firstLine = content.split("\n")[0];
 			if (!firstLine?.trim()) continue;
@@ -108,31 +108,31 @@ export function migrateSessionsFromAgentRoot(): void {
 
 			const cwd: string = header.cwd;
 
-			// Compute the correct session directory (same encoding as session-manager.ts)
+			// 计算正确的会话目录（编码方式与 session-manager.ts 相同）。
 			const safePath = `--${cwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
 			const correctDir = join(agentDir, "sessions", safePath);
 
-			// Create directory if needed
+			// 如有需要则创建目录。
 			if (!existsSync(correctDir)) {
 				mkdirSync(correctDir, { recursive: true });
 			}
 
-			// Move the file
+			// 移动文件。
 			const fileName = file.split("/").pop() || file.split("\\").pop();
 			const newPath = join(correctDir, fileName!);
 
-			if (existsSync(newPath)) continue; // Skip if target exists
+			if (existsSync(newPath)) continue; // 如果目标文件已存在，则跳过。
 
 			renameSync(file, newPath);
 		} catch {
-			// Skip files that can't be migrated
+			// 跳过无法迁移的文件。
 		}
 	}
 }
 
 /**
- * Migrate commands/ to prompts/ if needed.
- * Works for both regular directories and symlinks.
+ * 如有需要，将 commands/ 迁移为 prompts/。
+ * 普通目录和符号链接均适用。
  */
 function migrateCommandsToPrompts(baseDir: string, label: string): boolean {
 	const commandsDir = join(baseDir, "commands");
@@ -167,12 +167,12 @@ function migrateKeybindingsConfigFile(): void {
 		if (!migrated) return;
 		writeFileSync(configPath, `${JSON.stringify(config, null, 2)}\n`, "utf-8");
 	} catch {
-		// Ignore malformed files during migration
+		// 迁移期间忽略格式错误的文件。
 	}
 }
 
 /**
- * Move fd/rg binaries from tools/ to bin/ if they exist.
+ * 如果 tools/ 中存在 fd/rg 二进制文件，则将其移动到 bin/。
  */
 function migrateToolsToBin(): void {
 	const agentDir = getAgentDir();
@@ -197,14 +197,14 @@ function migrateToolsToBin(): void {
 					renameSync(oldPath, newPath);
 					movedAny = true;
 				} catch {
-					// Ignore errors
+					// 忽略错误。
 				}
 			} else {
-				// Target exists, just delete the old one
+				// 目标已存在，只删除旧文件。
 				try {
 					rmSync?.(oldPath, { force: true });
 				} catch {
-					// Ignore
+					// 忽略。
 				}
 			}
 		}
@@ -216,8 +216,8 @@ function migrateToolsToBin(): void {
 }
 
 /**
- * Check for deprecated hooks/ and tools/ directories.
- * Note: tools/ may contain fd/rg binaries extracted by pi, so only warn if it has other files.
+ * 检查已弃用的 hooks/ 和 tools/ 目录。
+ * 注意：tools/ 中可能包含 pi 提取的 fd/rg 二进制文件，因此只有存在其他文件时才发出警告。
  */
 function checkDeprecatedExtensionDirs(baseDir: string, label: string): string[] {
 	const hooksDir = join(baseDir, "hooks");
@@ -229,13 +229,13 @@ function checkDeprecatedExtensionDirs(baseDir: string, label: string): string[] 
 	}
 
 	if (existsSync(toolsDir)) {
-		// Check if tools/ contains anything other than fd/rg (which are auto-extracted binaries)
+		// 检查 tools/ 中是否存在 fd/rg（自动提取的二进制文件）以外的内容。
 		try {
 			const entries = readdirSync(toolsDir);
 			const customTools = entries.filter((e) => {
 				const lower = e.toLowerCase();
 				return (
-					lower !== "fd" && lower !== "rg" && lower !== "fd.exe" && lower !== "rg.exe" && !e.startsWith(".") // Ignore .DS_Store and other hidden files
+					lower !== "fd" && lower !== "rg" && lower !== "fd.exe" && lower !== "rg.exe" && !e.startsWith(".") // 忽略 .DS_Store 等隐藏文件。
 				);
 			});
 			if (customTools.length > 0) {
@@ -244,7 +244,7 @@ function checkDeprecatedExtensionDirs(baseDir: string, label: string): string[] 
 				);
 			}
 		} catch {
-			// Ignore read errors
+			// 忽略读取错误。
 		}
 	}
 
@@ -252,17 +252,17 @@ function checkDeprecatedExtensionDirs(baseDir: string, label: string): string[] 
 }
 
 /**
- * Run extension system migrations (commands→prompts) and collect warnings about deprecated directories.
+ * 执行扩展系统迁移（commands→prompts），并收集有关已弃用目录的警告。
  */
 function migrateExtensionSystem(cwd: string): string[] {
 	const agentDir = getAgentDir();
 	const projectDir = join(cwd, CONFIG_DIR_NAME);
 
-	// Migrate commands/ to prompts/
+	// 将 commands/ 迁移到 prompts/。
 	migrateCommandsToPrompts(agentDir, "Global");
 	migrateCommandsToPrompts(projectDir, "Project");
 
-	// Check for deprecated directories
+	// 检查已弃用的目录。
 	const warnings = [
 		...checkDeprecatedExtensionDirs(agentDir, "Global"),
 		...checkDeprecatedExtensionDirs(projectDir, "Project"),
@@ -272,7 +272,7 @@ function migrateExtensionSystem(cwd: string): string[] {
 }
 
 /**
- * Print deprecation warnings and wait for keypress.
+ * 打印弃用警告并等待按键。
  */
 export async function showDeprecationWarnings(warnings: string[]): Promise<void> {
 	if (warnings.length === 0) return;
@@ -298,9 +298,9 @@ export async function showDeprecationWarnings(warnings: string[]): Promise<void>
 }
 
 /**
- * Run all migrations. Called once on startup.
+ * 运行所有迁移。启动时调用一次。
  *
- * @returns Object with migration results and deprecation warnings
+ * @returns 包含迁移结果和弃用警告的对象。
  */
 export function runMigrations(cwd: string): {
 	migratedAuthProviders: string[];

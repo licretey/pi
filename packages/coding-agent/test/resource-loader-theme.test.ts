@@ -46,7 +46,7 @@ describe("DefaultResourceLoader theme color mode", () => {
 		rmSync(tempDir, { recursive: true, force: true });
 	});
 
-	// Regression test for #9973.
+	// #9973 的回归测试。
 	it.each([
 		{
 			environment: "256-color",

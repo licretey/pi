@@ -8,7 +8,7 @@
 #endif
 
 typedef enum { CLIPBOARD_TEXT, CLIPBOARD_IMAGE, CLIPBOARD_WRITE, CLIPBOARD_FILES } clipboard_operation;
-// CLIPBOARD_PATHS stores concatenated, NUL-terminated UTF-8 paths in clipboard_job.data.
+// CLIPBOARD_PATHS 会将以 NUL 结尾的 UTF-8 路径拼接后存入 clipboard_job.data。
 typedef enum {
     CLIPBOARD_UNAVAILABLE,
     CLIPBOARD_EMPTY,
@@ -29,7 +29,7 @@ typedef struct {
     const char* error;
 } clipboard_job;
 
-// Only this function runs on the worker thread. It must not call N-API.
+// 只有此函数会在工作线程中运行，因此不得调用 N-API。
 static void clipboard_execute(clipboard_job* job);
 
 static void* clipboard_alloc(size_t size) {

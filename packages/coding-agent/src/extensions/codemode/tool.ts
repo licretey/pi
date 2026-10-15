@@ -1,24 +1,22 @@
 /**
- * The `codemode` tool: the model writes JavaScript that calls other tools. Scripts use `tools`,
- * `ALL_TOOLS`, `text()`, `image()`, `exit()`, `store()`/`load()`, `console.*`, and `return <value>`,
- * may start with a `// @options:` line, and reach the model catalog, classifiers, and image models
- * through `models.*`. Results start with a "Script completed" or "Script failed" header.
+ * `codemode` 工具：模型编写 JavaScript 来调用其他工具。脚本可使用 `tools`、
+ * `ALL_TOOLS`、`text()`、`image()`、`exit()`、`store()`/`load()`、`console.*` 和 `return <value>`，
+ * 也可在开头添加 `// @options:` 行，并通过 `models.*` 访问模型目录、分类器和图像模型。
+ * 结果以 "Script completed" 或 "Script failed" 标题开头。
  *
- * Scripts can call the agent loop's nested tools: active `direct` tools and every `codemode` or
- * `deferred` tool. Nested calls run through the agent loop's tool pipeline (`ctx.executeTool`), so
- * validation, `tool_call`/`tool_result` hooks, and permission checks apply exactly as for direct
- * calls. Only the script's output reaches the model; nested results do not.
+ * 脚本可以调用 agent 循环中的嵌套工具：当前启用的 `direct` 工具，以及所有 `codemode` 或
+ * `deferred` 工具。嵌套调用会经过 agent 循环的工具处理管线（`ctx.executeTool`），因此与直接调用一样，
+ * 会执行校验、`tool_call`/`tool_result` 钩子和权限检查。只有脚本输出会传给模型，嵌套调用结果不会。
  *
- * Nested results are handed to the script as follows:
- * - A tool that declares `outputSchema` resolves to its `structuredContent`, also for error
- *   results that carry one (MCP tools resolve to their `CallToolResult`, including `isError`).
- * - Any other tool resolves to its text content as one string.
- * - A failed, blocked, or invalid call rejects with an Error carrying the tool's error text.
+ * 嵌套调用结果按以下规则传给脚本：
+ * - 声明了 `outputSchema` 的工具返回其 `structuredContent`，包含带有该字段的错误结果
+ *  （MCP 工具返回其 `CallToolResult`，包括 `isError`）。
+ * - 其他工具将文本内容合并为一个字符串返回。
+ * - 调用失败、被阻止或参数无效时，会以包含工具错误文本的 Error 拒绝。
  *
- * A script that fails returns a normal error result that keeps its partial output, followed by
- * "Script error:" and the error. `store(key, value)` and `load(key)` keep JSON values across
- * calls; successful scripts append their writes to the session as `codemode-store` custom entries,
- * so each branch sees the values written on its own path.
+ * 脚本失败时仍会返回普通错误结果并保留部分输出，随后附上 "Script error:" 和错误信息。
+ * `store(key, value)` 和 `load(key)` 会在多次调用间保存 JSON 值；脚本成功后，其写入会作为
+ * `codemode-store` 自定义条目追加到会话中，因此每个分支只会看到自身路径上写入的值。
  */
 
 import { join } from "node:path";
@@ -50,7 +48,7 @@ import { codemodeRenderers } from "./renderer.ts";
 
 export const CODEMODE_TOOL_NAME = "codemode";
 
-/** Custom entry type holding one script's `store()` writes: {@link CodemodeStoreEntryData}. */
+/** 保存单次脚本 `store()` 写入的自定义条目类型：{@link CodemodeStoreEntryData}。 */
 export const CODEMODE_STORE_ENTRY_TYPE = "codemode-store";
 
 export interface CodemodeStoreEntryData {
@@ -58,30 +56,30 @@ export interface CodemodeStoreEntryData {
 	delete: string[];
 }
 
-/** The part of the model registry that scripts reach through `models`. */
+/** 脚本通过 `models` 访问的模型注册表接口。 */
 export type CodemodeModelRuntime = Pick<
 	ModelRegistry,
 	"getModelsOfType" | "getAvailableOfType" | "getModelOfType" | "classify" | "generateImages"
 >;
 
 export interface CodemodeToolOptions {
-	/** Namespace of a tool, for `searchTools()` ranking and its `namespace` filter. */
+	/** 工具所属的命名空间，供 `searchTools()` 排序及其 `namespace` 过滤器使用。 */
 	getToolNamespace?: (toolName: string) => ToolNamespace | undefined;
-	/** Prompt guidelines of every tool, by tool name, shown with declarations by `describeTool()` and `ALL_TOOLS`. */
+	/** 按工具名索引的提示指南；`describeTool()` 和 `ALL_TOOLS` 会将其与声明一起展示。 */
 	getToolGuidelines?: () => ReadonlyMap<string, readonly string[]>;
 	/**
-	 * Expose the `models` namespace to scripts, backed by the session's model registry
-	 * (`ctx.modelRegistry`). Without it, `models` is not declared.
+	 * 向脚本公开 `models` 命名空间，由会话的模型注册表（`ctx.modelRegistry`）提供数据。
+	 * 未提供该注册表时，不会声明 `models`。
 	 */
 	models?: boolean;
 	/**
-	 * Persists `store()` writes as a session custom entry. Without it, writes last only for the
-	 * current script; `load()` still reads entries already on the branch.
+	 * 将 `store()` 写入持久化为会话自定义条目。未提供此功能时，写入只在当前脚本运行期间有效；
+	 * `load()` 仍会读取当前分支中已有的条目。
 	 */
 	appendEntry?: (customType: string, data: CodemodeStoreEntryData) => void;
-	/** How the tool presents the loadout while active (the `codemode.mode` setting). Default: `on`. */
+	/** 工具启用时如何展示工具集合（`codemode.mode` 设置）。默认值：`on`。 */
 	getMode?: () => CodemodeMode;
-	/** Token budget for tool declarations in the description. Default: {@link DEFAULT_CODEMODE_INLINE_BUDGET}. */
+	/** 描述中工具声明的 token 预算。默认值：{@link DEFAULT_CODEMODE_INLINE_BUDGET}。 */
 	getInlineBudget?: () => number | undefined;
 }
 
@@ -96,8 +94,8 @@ export const codemodeSchema = Type.Object({
 export type CodemodeToolInput = Static<typeof codemodeSchema>;
 
 /**
- * Whether a registered tool is this package's `codemode` tool rather than another extension's tool
- * with the same name. Compares the parameter schema, which the definition passes through by reference.
+ * 判断已注册工具是否为本包的 `codemode` 工具，而非其他扩展中同名的工具。
+ * 通过比较参数 schema 判定；工具定义会按引用传递该 schema。
  */
 export function isCodemodeTool(tool: Pick<ToolInfo, "name" | "parameters">): boolean {
 	return tool.name === CODEMODE_TOOL_NAME && tool.parameters === codemodeSchema;
@@ -106,22 +104,22 @@ export function isCodemodeTool(tool: Pick<ToolInfo, "name" | "parameters">): boo
 export type CodemodeNestedCallStatus = "running" | "ok" | "error" | "cancelled";
 
 export interface CodemodeNestedCall {
-	/** Tool call id of the nested call, `<codemode call id>/<n>`. */
+	/** 嵌套调用的工具调用 ID，格式为 `<codemode call id>/<n>`。 */
 	id: string;
 	name: string;
-	/** Compact JSON of the arguments, truncated for display. */
+	/** 参数的紧凑 JSON 表示，过长时会截断以便显示。 */
 	args: string;
 	status: CodemodeNestedCallStatus;
 	durationMs?: number;
-	/** Error text, truncated for display. */
+	/** 错误文本，过长时会截断以便显示。 */
 	error?: string;
-	/** Cost in USD of a `models.*` call that reported usage. */
+	/** 报告了用量的 `models.*` 调用所产生的美元费用。 */
 	cost?: number;
 }
 
 export interface CodemodeToolDetails {
 	calls: CodemodeNestedCall[];
-	/** Temp file with the full text output, when the output was truncated. */
+	/** 输出被截断时，保存完整文本输出的临时文件路径。 */
 	fullOutputPath?: string;
 }
 
@@ -132,14 +130,14 @@ export const codemodeToolSystemPromptContribution = {
 	],
 } as const;
 
-/** The reference for scripts: globals, tool results, `store()`, the `models` API, and limits. */
+/** 脚本参考文档：全局变量、工具结果、`store()`、`models` API 和各项限制。 */
 export const CODEMODE_DOCS_PATH = join(getDocsPath(), "codemode.md");
 
 const DESCRIPTION_INTRO = `Run JavaScript that calls other tools. The input is raw JavaScript (not JSON, no code fence), run as an async function body in a QuickJS sandbox: top-level \`await\` and \`return\` work. No Node, file system, network, or timers.
 - \`await tools.<name>({ ...args })\` resolves to a string, or an object if the tool's declaration says so, and rejects with an Error on failure. Calls still running when the script ends are cancelled.
 - Optional first line: \`// @options: {"max_output_tokens": 10000, "timeout_ms": 60000}\``;
 
-/** One line per global. The details live in {@link CODEMODE_DOCS_PATH}. */
+/** 每个全局变量占一行；详细说明见 {@link CODEMODE_DOCS_PATH}。 */
 function describeGlobals(models: boolean): string {
 	const lines = [
 		"Globals:",
@@ -153,14 +151,14 @@ function describeGlobals(models: boolean): string {
 	return lines.join("\n");
 }
 
-/** Default for {@link CodemodeDescriptionOptions.inlineBudget}, in estimated tokens. */
+/** {@link CodemodeDescriptionOptions.inlineBudget} 的默认值，单位为估算 token 数。 */
 export const DEFAULT_CODEMODE_INLINE_BUDGET = SETTINGS_DEFAULTS.codemode.inlineBudget;
-/** Characters per token when estimating the cost of a tool section. */
+/** 估算工具分区所需 token 数时，每个 token 对应的字符数。 */
 const CHARS_PER_TOKEN = 4;
 
 /**
- * What a script sees of a tool: its description followed by its prompt guidelines, which the system
- * prompt only has for declared tools. Tools without an output schema resolve to their text output.
+ * 脚本看到的工具信息：工具描述后接提示指南；系统提示只包含已声明工具的提示指南。
+ * 未声明输出 schema 的工具返回文本输出。
  */
 export function toCodemodeDeclaration(
 	tool: AgentTool<any>,
@@ -175,28 +173,28 @@ export function toCodemodeDeclaration(
 	};
 }
 
-/** Tools a script may call: every given tool except the codemode tool itself. */
+/** 脚本可调用的工具：传入的所有工具，排除 codemode 工具自身。 */
 export function getCodemodeCallableTools(tools: readonly AgentTool<any>[]): AgentTool<any>[] {
 	return tools.filter((tool) => tool.name !== CODEMODE_TOOL_NAME);
 }
 
 export interface CodemodeDescriptionOptions {
-	/** Declare the `models` namespace; only for tools created with model access. */
+	/** 是否声明 `models` 命名空间；仅适用于创建时提供了模型访问能力的工具。 */
 	models?: boolean;
-	/** Namespace of each tool, by tool name. Tools of one namespace are listed under one heading. */
+	/** 按工具名称记录各工具的命名空间；同一命名空间的工具会列在同一标题下。 */
 	namespaces?: ReadonlyMap<string, ToolNamespace>;
-	/** Tools that are callable but never listed with their declaration (`deferred` exposure). */
+	/** 可以调用但不会连同声明一起列出的工具（`deferred` 暴露方式）。 */
 	deferred?: ReadonlySet<string>;
-	/** Prompt guidelines of each tool, by tool name, listed after its description. */
+	/** 按工具名记录提示指南，并列在对应工具描述之后。 */
 	guidelines?: ReadonlyMap<string, readonly string[]>;
 	/**
-	 * Estimated tokens (characters / 4) the tool sections may use. Tools that do not fit are left
-	 * out, like deferred tools. Unset lists every tool that is not deferred.
+	 * 工具分区可使用的估算 token 数（字符数 / 4）。超出预算的工具会被省略，与 deferred 工具相同。
+	 * 未设置时会列出所有非 deferred 工具。
 	 */
 	inlineBudget?: number;
 }
 
-/** `### \`id\` (\`raw name\`)` followed by the tool's description and declaration. */
+/** 以 `### \`id\` (\`raw name\`)` 为标题，后接工具描述和声明。 */
 function renderToolSection(declaration: Omit<CodemodeTool, "execute">): string {
 	const id = toCodemodeIdentifier(declaration.name);
 	const heading = id === declaration.name ? `### \`${id}\`` : `### \`${id}\` (\`${declaration.name}\`)`;
@@ -215,10 +213,9 @@ interface CatalogGroup {
 }
 
 /**
- * Pick the tool sections that fit the budget, like OpenCode's catalog: in each round every group
- * (tools without a namespace first, then namespaces by name) places its cheapest remaining tool; a
- * group whose next tool does not fit drops out while the others continue. Every namespace is
- * represented before any namespace is complete.
+ * 参考 OpenCode 目录的方式挑选符合预算的工具分区：每一轮中，每个分组（先处理无命名空间的工具，
+ * 再按名称处理各命名空间）各加入一个剩余工具中开销最低的工具；下一个工具超出预算的分组退出，
+ * 其他分组继续。所有命名空间至少列出一个工具后，才会完整列出任一命名空间。
  */
 function selectCatalog(groups: readonly CatalogGroup[], budget: number | undefined): Set<string> {
 	if (budget === undefined) return new Set(groups.flatMap((group) => group.entries.map((entry) => entry.name)));
@@ -240,11 +237,9 @@ function selectCatalog(groups: readonly CatalogGroup[], budget: number | undefin
 }
 
 /**
- * Model-facing description: the helper list, guidance for finding tools that are not listed, the
- * shared MCP types when listed tools need them, the `models` API, and one section per listed tool,
- * grouped by namespace. Deferred tools are never listed and do not affect the description at all, so
- * it stays the same while MCP servers connect or change their tools. Tool sections are limited to
- * `inlineBudget`.
+ * 提供给模型的描述包含：辅助函数列表、查找未列出工具的说明、已列出工具需要时使用的共享 MCP 类型、
+ * `models` API，以及按命名空间分组的工具分区。Deferred 工具不会列出，也不会影响描述内容；
+ * 因此 MCP 服务器连接或变更工具时，该描述保持不变。工具分区受 `inlineBudget` 限制。
  */
 export function createCodemodeDescription(
 	tools: readonly AgentTool<any>[],
@@ -282,7 +277,7 @@ export function createCodemodeDescription(
 	for (const { namespace, entries } of ordered) {
 		const visible = entries.filter((entry) => shown.has(entry.name));
 		if (namespace) {
-			// Only tools that did not fit the budget are counted as not listed here.
+			// 这里只统计因超出预算而未列出的工具。
 			const listing =
 				visible.length === entries.length
 					? ""
@@ -299,8 +294,8 @@ export function createCodemodeDescription(
 }
 
 /**
- * What a script call resolves to, in one line: `a string`, the field names of an object
- * (`{ output, exit_code, full_output_path? }`), or the rendered type for anything else.
+ * 脚本调用结果的一行说明：可以是 `a string`、对象的字段名
+ *（`{ output, exit_code, full_output_path? }`），或其他值对应的渲染类型。
  */
 function describeOutput(schema: CodemodeJsonSchema | undefined): string {
 	const type = renderToolOutputType(schema);
@@ -321,24 +316,22 @@ function describeOutput(schema: CodemodeJsonSchema | undefined): string {
 }
 
 /**
- * A declared tool's description followed by how scripts call it and what the call resolves to. The
- * arguments are the tool's declared parameters, so they are not repeated.
+ * 先列出已声明工具的描述，再说明脚本如何调用它以及调用结果的形式。
+ * 参数就是工具声明的参数，因此不再重复列出。
  */
 function describeScriptCall(tool: AgentTool<any>): string {
 	return `${tool.description.trim()}\n\nCodemode: \`tools.${toCodemodeIdentifier(tool.name)}(args)\` resolves to ${describeOutput(toCodemodeDeclaration(tool).outputSchema)}.`;
 }
 
 /**
- * How the codemode tool presents tools that are both declared and callable from scripts:
- * - `on`: their descriptions say how scripts call them, and the codemode description
- *   lists only the callable tools without `direct` exposure.
- * - `only`: the codemode description lists every callable tool, and requests leave out the
- *   declarations of active `direct` tools.
+ * codemode 工具如何展示已声明且可由脚本调用的工具：
+ * - `on`：工具描述会说明脚本如何调用它们；codemode 描述只列出没有 `direct` 暴露方式的可调用工具。
+ * - `only`：codemode 描述列出所有可调用工具；请求中会省略当前启用的 `direct` 工具声明。
  *
- * Listed tools carry their prompt guidelines, which the system prompt only has for declared tools.
+ * 列出的工具会附带提示指南；系统提示只包含已声明工具的提示指南。
  *
- * Listing by exposure, not by the active set, keeps the codemode description unchanged when
- * `tool_search` loads a tool, so loads do not redeclare codemode.
+ * 按暴露方式而非当前启用集合决定列表，可使 `tool_search` 加载工具时 codemode 描述保持不变，
+ * 避免因工具加载而重新声明 codemode。
  */
 function prepareCodemodeLoadout(loadout: ToolLoadout, options: CodemodeToolOptions): ToolLoadoutChanges {
 	const mode = options.getMode?.() ?? SETTINGS_DEFAULTS.codemode.mode;
@@ -384,17 +377,17 @@ export function createCodemodeToolDefinition(
 	return {
 		name: CODEMODE_TOOL_NAME,
 		label: CODEMODE_TOOL_NAME,
-		// Replaced with the declarations of the callable tools when the tool is activated.
+		// 工具激活时，会替换为可调用工具的声明。
 		description: createCodemodeDescription([], { models: options.models === true }),
 		promptSnippet: codemodeToolSystemPromptContribution.snippet,
 		promptGuidelines: [...codemodeToolSystemPromptContribution.guidelines],
 		parameters: codemodeSchema,
-		// Scripts must not start other scripts.
+		// 脚本不得启动其他脚本。
 		exposure: "model-only",
 		prepareLoadout: (loadout) => prepareCodemodeLoadout(loadout, options),
-		// Capable models write the script as raw text instead of a JSON-escaped string.
+		// 对于具备相应能力的模型，脚本以原始文本形式编写，而不是 JSON 转义字符串。
 		constrainedSampling: { type: "grammar", variants: { openai_lark: CODEMODE_SOURCE_GRAMMAR } },
-		// The sandbox (worker, QuickJS wasm) loads on the first call, not at startup.
+		// 沙箱（worker、QuickJS wasm）在首次调用时加载，而非启动时加载。
 		execute: async (toolCallId, params, signal, onUpdate, ctx) =>
 			(await loadCodemodeExecutor()).executeCodemode(toolCallId, params, signal, onUpdate, ctx, options),
 		...codemodeRenderers,
@@ -402,8 +395,7 @@ export function createCodemodeToolDefinition(
 }
 
 /**
- * Create the codemode tool as an AgentTool. The description lists the given tools; the script can
- * call whatever tools the agent loop provides at execution time.
+ * 将 codemode 创建为 AgentTool。描述中会列出给定工具；脚本运行时可以调用 agent 循环提供的任意工具。
  */
 export function createCodemodeTool(
 	tools: readonly AgentTool<any>[] = [],

@@ -1,5 +1,5 @@
-// Triage agent on pi-durable: one durable conversation per issue. Results and decisions live in a durable document,
-// so a restart resumes unfinished triage runs and keeps every decision.
+// 基于 pi-durable 的 issue 分诊代理：每个 issue 对应一个持久化会话。结果和决策保存在持久化文档中，
+// 因此重启后可以继续未完成的分诊，并保留所有决策。
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
@@ -22,7 +22,7 @@ import { openNodeSqliteStorage } from "../../packages/durable/src/storage/sqlite
 import { type Corpus, type Issue, issueStatus } from "./github.ts";
 
 const context = BACKGROUND_CONTEXT;
-/** Labels the issue templates set. Other labels and the issue's state are hidden from the agent: they are maintainer decisions. */
+/** Issue 模板预设的标签。其他标签及 issue 状态对代理不可见，因为这些由维护者决定。 */
 const TEMPLATE_LABELS = ["bug", "enhancement", "package-report"];
 export const PRIORITIES = ["p0", "p1", "none"] as const;
 export type Priority = (typeof PRIORITIES)[number];
@@ -47,12 +47,12 @@ export type TriageResult = {
 export type IssueState = {
 	status: "queued" | "running" | "done" | "failed";
 	attempt: number;
-	/** 0 until the conversation exists. */
+	/** 对话创建前为 0。 */
 	conversationId: number;
 	error: string;
 	result: TriageResult | null;
 	triagedAt: string;
-	/** The maintainer's call. Category is set only when it differs from the agent's. */
+	/** 维护者的决定。仅当类别与代理给出的类别不同时才设置此字段。 */
 	decision: { priority: Priority | null; category: string; at: string } | null;
 };
 
@@ -106,7 +106,7 @@ export class Triage {
 	private harness!: Harness;
 	private queue: number[] = [];
 	private active = 0;
-	/** Conversation ID to issue number, for the tools. */
+	/** 供工具使用的对话 ID 到 issue 编号的映射。 */
 	private conversations = new Map<number, number>();
 
 	constructor(options: TriageOptions) {
@@ -137,7 +137,7 @@ export class Triage {
 				state.inboxSince = new Date(Date.now() - this.options.inboxDays * 86_400_000).toISOString();
 			}
 		}, context);
-		// Resume runs a previous process left unfinished.
+		// 恢复上一个进程未完成的运行。
 		const state = await this.state();
 		for (const [number, issue] of Object.entries(state.issues)) {
 			if (issue.conversationId) this.conversations.set(issue.conversationId, Number(number));
@@ -161,7 +161,7 @@ export class Triage {
 		return { queued: this.queue.length, running: this.active };
 	}
 
-	/** Queue every inbox issue that has no result yet. */
+	/** 将收件箱中尚无处理结果的所有 issue 加入队列。 */
 	async enqueueInbox(): Promise<void> {
 		const state = await this.state();
 		for (const issue of this.options.corpus.all()) {
@@ -181,7 +181,7 @@ export class Triage {
 		this.enqueue(number);
 	}
 
-	/** `undefined` keeps a field, `null` clears it. A category equal to the agent's counts as no override. */
+	/** `undefined` 表示保留字段，`null` 表示清除字段。类别与代理判断相同时视为未覆盖。 */
 	async decide(number: number, change: { priority?: Priority | null; category?: string | null }): Promise<void> {
 		await this.update(number, (issue) => {
 			const priority = change.priority === undefined ? (issue.decision?.priority ?? null) : change.priority;

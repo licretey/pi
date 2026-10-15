@@ -61,7 +61,7 @@ describe("telemetry schemas", () => {
 			span.addEvent("result", { outcome: "ok" });
 			// @ts-expect-error required event attributes cannot be omitted
 			span.addEvent("result");
-			// @ts-expect-error closed-set event values are exact
+			// @ts-expect-error 封闭集合中的事件值必须完全匹配
 			span.addEvent("result", { outcome: "other" });
 			// @ts-expect-error undeclared events are rejected
 			span.addEvent("unknown", {});
@@ -137,14 +137,14 @@ describe("telemetry schemas", () => {
 
 		const compileTimeFailures = () => {
 			const spanName: "operation" | "request" = Math.random() > 0.5 ? "operation" : "request";
-			// @ts-expect-error union-valued names must be narrowed to preserve name and attribute correlation
+			// @ts-expect-error 联合类型名称必须先收窄，才能保留名称与属性之间的对应关系
 			void startSpan(spanName, { kind: "read" }, () => {});
 			const extraRequestAttributes = { provider: "example", unknown: true } as const;
-			// @ts-expect-error variables with unknown attributes are rejected
+			// @ts-expect-error 不接受属性未知的变量
 			void startSpan("request", extraRequestAttributes, () => {});
-			// @ts-expect-error unknown span names are rejected across the combined vocabulary
+			// @ts-expect-error 合并后的词汇集合中也不接受未知的 span 名称
 			void startSpan("unknown", {}, () => {});
-			// @ts-expect-error attributes are selected from the schema that owns the span
+			// @ts-expect-error 属性必须来自该 span 对应的 schema
 			void startSpan("request", { kind: "read" }, () => {});
 			// @ts-expect-error duplicate span names across schemas are rejected
 			void createTypedSpanStarter(telemetryContext, [operationSchema, operationSchema]);

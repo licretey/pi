@@ -60,7 +60,7 @@ export class SelectList implements Component {
 
 	setFilter(filter: string): void {
 		this.filteredItems = this.items.filter((item) => item.value.toLowerCase().startsWith(filter.toLowerCase()));
-		// Reset selection when filter changes
+		// 筛选条件变化时重置选中项。
 		this.selectedIndex = 0;
 	}
 
@@ -69,13 +69,13 @@ export class SelectList implements Component {
 	}
 
 	invalidate(): void {
-		// No cached state to invalidate currently
+		// 当前没有需要失效处理的缓存状态。
 	}
 
 	render(width: number): string[] {
 		const lines: string[] = [];
 
-		// If no items match filter, show message
+		// 没有匹配项时显示提示。
 		if (this.filteredItems.length === 0) {
 			lines.push(this.theme.noMatch("  No matching commands"));
 			return lines;
@@ -83,10 +83,10 @@ export class SelectList implements Component {
 
 		const primaryColumnWidth = this.getPrimaryColumnWidth();
 
-		// Calculate visible range with scrolling
+		// 计算滚动后的可见范围。
 		const { startIndex, endIndex } = this.getVisibleRange();
 
-		// Render visible items
+		// 渲染可见项。
 		for (let i = startIndex; i < endIndex; i++) {
 			const item = this.filteredItems[i];
 			if (!item) continue;
@@ -96,10 +96,10 @@ export class SelectList implements Component {
 			lines.push(this.renderItem(item, isSelected, width, descriptionSingleLine, primaryColumnWidth));
 		}
 
-		// Add scroll indicators if needed
+		// 必要时添加滚动指示符。
 		if (startIndex > 0 || endIndex < this.filteredItems.length) {
 			const scrollText = `  (${this.selectedIndex + 1}/${this.filteredItems.length})`;
-			// Truncate if too long for terminal
+			// 内容超出终端宽度时截断。
 			lines.push(this.theme.scrollInfo(truncateToWidth(scrollText, width - 2, "")));
 		}
 
@@ -115,7 +115,7 @@ export class SelectList implements Component {
 			if (this.selectedIndex !== previousIndex) this.notifySelectionChange();
 			return { handled: true, render: this.selectedIndex !== previousIndex };
 		}
-		// Hover must not change selection: the visible range is centered on it.
+		// 鼠标悬停不能改变选中项，否则可见范围会随选中项移动。
 		if (event.button !== "left" || (event.type !== "press" && event.type !== "click")) return undefined;
 		const { startIndex, endIndex } = this.getVisibleRange();
 		const itemIndex = startIndex + event.y;
@@ -144,24 +144,24 @@ export class SelectList implements Component {
 
 	handleInput(keyData: string): void {
 		const kb = getKeybindings();
-		// Up arrow - wrap to bottom when at top
+		// 按向上键：位于顶部时循环到列表底部。
 		if (kb.matches(keyData, "tui.select.up")) {
 			this.selectedIndex = this.selectedIndex === 0 ? this.filteredItems.length - 1 : this.selectedIndex - 1;
 			this.notifySelectionChange();
 		}
-		// Down arrow - wrap to top when at bottom
+		// 按向下键：位于底部时循环到列表顶部。
 		else if (kb.matches(keyData, "tui.select.down")) {
 			this.selectedIndex = this.selectedIndex === this.filteredItems.length - 1 ? 0 : this.selectedIndex + 1;
 			this.notifySelectionChange();
 		}
-		// Enter
+		// 回车键。
 		else if (kb.matches(keyData, "tui.select.confirm")) {
 			const selectedItem = this.filteredItems[this.selectedIndex];
 			if (selectedItem && this.onSelect) {
 				this.onSelect(selectedItem);
 			}
 		}
-		// Escape or Ctrl+C
+		// Escape 或 Ctrl+C。
 		else if (kb.matches(keyData, "tui.select.cancel")) {
 			if (this.onCancel) {
 				this.onCancel();
@@ -197,7 +197,7 @@ export class SelectList implements Component {
 			const truncatedValueWidth = visibleWidth(truncatedValue);
 			const spacing = " ".repeat(Math.max(1, effectivePrimaryColumnWidth - truncatedValueWidth));
 			const descriptionStart = prefixWidth + truncatedValueWidth + spacing.length;
-			const remainingWidth = width - descriptionStart - 2; // -2 for safety
+			const remainingWidth = width - descriptionStart - 2; // 额外减去 2 列作为安全余量。
 
 			if (remainingWidth > MIN_DESCRIPTION_WIDTH) {
 				const truncatedDesc = truncateToWidth(descriptionSingleLine, remainingWidth, "");

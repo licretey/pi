@@ -17,9 +17,8 @@ async function answerText(api: ToolExecutionApi, answer: EntryId, context: Conte
 }
 
 /**
- * A foreground subagent: each call creates a child conversation owned by the call's task, runs the task there, and
- * returns the child's answer. Aborting the call aborts the child. The child outlives the call, so the user can switch
- * to it and keep talking.
+ * 前台子代理：每次调用都会创建一个由该调用任务拥有的子会话，在其中执行任务并返回子会话的回答。
+ * 中止调用时也会中止子会话。子会话的生命周期长于调用，因此用户可以切换到该会话并继续交流。
  */
 export const Subagent: Extension = defineExtension({
 	name: "subagent",
@@ -29,13 +28,13 @@ export const Subagent: Extension = defineExtension({
 			description:
 				"Delegate a self-contained task to a subagent with the same tools and get its answer back. Give it everything it needs to know; it does not see this conversation.",
 			parameters: Type.Object({ task: Type.String({ description: "What the subagent should do" }) }),
-			// A rerun after a crash finds the child it created and the submission it made.
+			// 崩溃后重新运行时，会找到此前创建的子会话及提交内容。
 			replay: "safe",
 			execute: async (args, api, context) => {
 				const child = await api.commit(async (tx) => {
 					const existing = (await tx.scanConversations({ ownerTaskId: api.taskId }, 1)).items[0];
 					if (existing !== undefined) return existing.id;
-					// Starts as a copy of this conversation's agent; without this extension it cannot delegate further.
+					// 初始配置复制自当前会话的代理；未启用此扩展时，它无法继续委派任务。
 					const created = await tx.createConversation({ ownership: { kind: "task", taskId: api.taskId } });
 					await configure(tx, created.id, { extensions: { remove: [Subagent] } });
 					return created.id;

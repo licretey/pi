@@ -1,8 +1,8 @@
 name: pi-env daemons
 
-# Builds the pi-env daemon for every remote system @earendil-works/pi-env supports, on native runners, as artifacts
-# named pi-env-<platform>-<arch>. Build Binaries calls this before publishing npm packages; the Environments workflow
-# calls it to test the release builds on every change.
+# 在原生运行器上为 @earendil-works/pi-env 支持的所有远程系统构建 pi-env 守护进程，并生成名为
+# pi-env-<platform>-<arch> 的构建产物。Build Binaries 工作流会在发布 npm 包前调用此工作流；Environments 工作流
+# 会在每次变更时调用它来测试发布构建。
 on:
   workflow_call:
     inputs:
@@ -46,13 +46,13 @@ jobs:
 
       - name: Configure the Android NDK linker
         if: matrix.android
-        # A fixed NDK, installed when the runner image does not have it.
+        # 固定使用指定版本的 NDK；若运行器镜像中没有，则安装该版本。
         env:
           NDK_VERSION: 27.2.12479018
         run: |
           ndk="$ANDROID_HOME/ndk/$NDK_VERSION"
           if [ ! -d "$ndk" ]; then
-            # `yes` ends with SIGPIPE once the licenses are accepted.
+            # 接受许可协议后，`yes` 会因 SIGPIPE 信号而结束。
             { yes || true; } | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$NDK_VERSION" > /dev/null
           fi
           linker="$ndk/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.android }}-clang"
@@ -61,7 +61,7 @@ jobs:
           echo "$variable=$linker" >> "$GITHUB_ENV"
 
       - name: Build
-        # Static C runtime on Windows, so the daemon needs no Visual C++ redistributable on the remote machine.
+        # Windows 使用静态 C 运行库，因此远程机器无需安装 Visual C++ 可再发行组件。
         env:
           RUSTFLAGS: ${{ contains(matrix.target, 'windows') && '-C target-feature=+crt-static' || '' }}
         run: cargo build --release --locked --target ${{ matrix.target }}

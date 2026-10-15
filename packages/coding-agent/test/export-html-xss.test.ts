@@ -21,24 +21,24 @@ describe("export HTML markdown link sanitization", () => {
 	});
 
 	it("escapes href attributes in the custom link renderer", () => {
-		// The link renderer must escape href values to prevent attribute breakout
+		// 链接渲染器必须转义 href 值，以防止突破 HTML 属性边界。
 		expect(templateJs).toMatch(/escapeHtml\(href\)/);
 	});
 
 	it("escapes image mimeType attributes", () => {
-		// Image mimeType must be escaped to prevent attribute breakout
+		// 必须转义图像的 mimeType，以防止突破 HTML 属性边界。
 		expect(templateJs).not.toMatch(/\$\{img\.mimeType\}/);
 		expect(templateJs).toMatch(/escapeHtml\(img\.mimeType/);
 	});
 
 	it("escapes image data attributes", () => {
-		// Image data is embedded in src attributes and must not allow attribute breakout.
+		// 图像数据会嵌入 src 属性，因此不得允许突破属性边界。
 		expect(templateJs).not.toMatch(/;base64,\$\{img\.data\}"/);
 		expect(templateJs).toMatch(/;base64,\$\{escapeHtml\(img\.data \|\| (?:''|"")\)\}"/);
 	});
 
 	it("escapes entry IDs before inserting them into attributes", () => {
-		// Session entry IDs are embedded in id and data-entry-id attributes.
+		// 会话条目 ID 会嵌入 id 和 data-entry-id 属性。
 		expect(templateJs).not.toMatch(/id="\$\{entryId\}"/);
 		expect(templateJs).not.toMatch(/data-entry-id="\$\{entryId\}"/);
 		expect(templateJs).toMatch(/entry-\$\{escapeHtml\(entry\.id\)\}/);
@@ -46,7 +46,7 @@ describe("export HTML markdown link sanitization", () => {
 	});
 
 	it("escapes tree metadata rendered from session fields", () => {
-		// The tree renders session metadata via innerHTML, so dynamic fields must be escaped.
+		// 树形视图通过 innerHTML 渲染会话元数据，因此必须转义动态字段。
 		expect(templateJs).not.toMatch(/\[\$\{msg\.toolName \|\| 'tool'\}\]/);
 		expect(templateJs).not.toMatch(/\[\$\{msg\.role\}\]/);
 		expect(templateJs).not.toMatch(/\[model: \$\{entry\.modelId\}\]/);
@@ -60,7 +60,7 @@ describe("export HTML markdown link sanitization", () => {
 	});
 
 	it("escapes model names in the exported header", () => {
-		// Assistant message provider/model values are collected from the session and rendered with innerHTML.
+		// 助手消息的 provider/model 值从会话中收集，并通过 innerHTML 渲染。
 		expect(templateJs).not.toMatch(/\$\{globalStats\.models\.join\(', '\) \|\| 'unknown'\}/);
 		expect(templateJs).toMatch(/\$\{escapeHtml\(globalStats\.models\.join\(', '\) \|\| 'unknown'\)\}/);
 	});

@@ -12,7 +12,7 @@ export class OAuthError extends Error {
 
 export class OAuthIssuerMismatchError extends Error {
 	readonly expected: string;
-	/** `undefined` when an authorization response lacks the `iss` parameter its server promised (RFC 9207). */
+	/** 授权响应缺少服务器承诺提供的 `iss` 参数（RFC 9207）时为 `undefined`。 */
 	readonly received: string | undefined;
 
 	constructor(expected: string, received: string | undefined) {

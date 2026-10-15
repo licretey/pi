@@ -1,7 +1,7 @@
 /**
- * Redraws Extension
+ * 重绘统计扩展。
  *
- * Exposes /tui to show TUI redraw stats.
+ * 提供 /tui 命令以显示 TUI 重绘统计信息。
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

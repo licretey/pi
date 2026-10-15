@@ -48,7 +48,7 @@ async function login(providerId: string): Promise<void> {
 	if (!provider) throw new Error(`Unknown provider: ${providerId}`);
 	const rl = createInterface({ input: process.stdin, output: process.stdout });
 	try {
-		// This dev CLI does not persist an installation ID; apps should reuse one across logins.
+		// 这个开发用 CLI 不会持久化安装 ID；应用应在多次登录间复用同一个 ID。
 		const credential = await provider.auth.oauth.login(
 			{
 				signal: new AbortController().signal,

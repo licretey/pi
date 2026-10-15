@@ -7,7 +7,7 @@ export default function (pi: ExtensionAPI) {
 		const logFile = join(ctx.cwd, CONFIG_DIR_NAME, "provider-payload.log");
 		appendFileSync(logFile, `${JSON.stringify(event.payload, null, 2)}\n\n`, "utf8");
 
-		// Optional: replace the payload instead of only logging it.
+		// 可选：替换请求负载，而不仅仅是记录日志。
 		// return { ...event.payload, temperature: 0 };
 	});
 

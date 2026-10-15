@@ -1,5 +1,5 @@
 /**
- * List available models with optional fuzzy search
+ * 列出可用模型，并可选进行模糊搜索。
  */
 
 import type { Api, Model } from "@earendil-works/pi-ai";
@@ -9,7 +9,7 @@ import { formatNoModelsAvailableMessage } from "../core/auth-guidance.ts";
 import type { ModelRuntime } from "../core/model-runtime.ts";
 
 /**
- * Format a number as human-readable (e.g., 200000 -> "200K", 1000000 -> "1M")
+ * 将数字格式化为易读形式（例如：200000 显示为“200K”，1000000 显示为“1M”）。
  */
 function formatTokenCount(count: number): string {
 	if (count >= 1_000_000) {
@@ -24,7 +24,7 @@ function formatTokenCount(count: number): string {
 }
 
 /**
- * List available models, optionally filtered by search pattern
+ * 列出可用模型，并可选按搜索模式筛选。
  */
 export async function listModels(
 	modelRuntime: ModelRuntime,
@@ -43,7 +43,7 @@ export async function listModels(
 		return;
 	}
 
-	// Apply fuzzy filter if search pattern provided
+	// 如果提供了搜索模式，则应用模糊筛选。
 	let filteredModels: Model<Api>[] = models;
 	if (searchPattern) {
 		filteredModels = fuzzyFilter(models, searchPattern, (m) => `${m.provider} ${m.id}`);
@@ -54,14 +54,14 @@ export async function listModels(
 		return;
 	}
 
-	// Sort by provider, then by model id
+	// 先按提供方排序，再按模型 ID 排序。
 	filteredModels.sort((a, b) => {
 		const providerCmp = a.provider.localeCompare(b.provider);
 		if (providerCmp !== 0) return providerCmp;
 		return a.id.localeCompare(b.id);
 	});
 
-	// Calculate column widths
+	// 计算列宽。
 	const rows = filteredModels.map((m) => ({
 		provider: m.provider,
 		model: m.id,
@@ -89,7 +89,7 @@ export async function listModels(
 		images: Math.max(headers.images.length, ...rows.map((r) => r.images.length)),
 	};
 
-	// Print header
+	// 输出表头。
 	const headerLine = [
 		headers.provider.padEnd(widths.provider),
 		headers.model.padEnd(widths.model),
@@ -100,7 +100,7 @@ export async function listModels(
 	].join("  ");
 	console.log(headerLine);
 
-	// Print rows
+	// 输出各行。
 	for (const row of rows) {
 		const line = [
 			row.provider.padEnd(widths.provider),

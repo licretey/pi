@@ -7,42 +7,42 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Connection, type ConnectionOptions } from "./connection.ts";
 
-/** A remote system the package ships a daemon for. */
+/** 本软件包提供守护进程的远程系统。 */
 export type RemotePlatform = {
 	platform: "linux" | "android" | "darwin" | "windows";
 	arch: "x64" | "arm64";
-	/** The remote home directory, in the remote system's own spelling. */
+	/** 远程主目录，采用远程系统自身使用的路径格式。 */
 	home: string;
-	/** Windows: the shell `sshd` runs commands with (`DefaultShell`). */
+	/** Windows 上 `sshd` 用于执行命令的 shell（`DefaultShell`）。 */
 	shell?: "cmd" | "powershell";
-	/** Problems worth telling the owner about, such as Termux without `termux-exec`. */
+	/** 值得告知用户的问题，例如 Termux 环境缺少 `termux-exec`。 */
 	warnings: string[];
 };
 
-/** How to reach a machine with the system `ssh`. */
+/** 使用系统 `ssh` 连接目标机器所需的信息。 */
 export interface SshTarget {
-	/** Host name or `~/.ssh/config` alias. */
+	/** 主机名或 `~/.ssh/config` 中的别名。 */
 	host: string;
 	user?: string;
 	port?: number;
 	identityFile?: string;
-	/** Host keys this application trusts; `acceptHostKey` adds to it. */
+	/** 此应用信任的主机密钥；`acceptHostKey` 会向其中添加密钥。 */
 	knownHostsFile: string;
-	/** The name keys are stored under, independent of aliases, ports and jump hosts, e.g. `pi-env-<env name>`. */
+	/** 保存密钥时使用的名称，不受别名、端口和跳板机影响，例如 `pi-env-<env name>`。 */
 	hostKeyAlias: string;
-	/** The `ssh` program; default `ssh`. */
+	/** `ssh` 程序名称；默认值为 `ssh`。 */
 	ssh?: string;
-	/** An `ssh` configuration file instead of `~/.ssh/config` (`-F`). */
+	/** 指定替代 `~/.ssh/config` 的 SSH 配置文件（`-F`）。 */
 	configFile?: string;
 }
 
-/** The remote host's key is not in `knownHostsFile`; `scanHostKey` shows it so the owner can accept it. */
+/** 远程主机密钥不在 `knownHostsFile` 中；`scanHostKey` 会显示该密钥，供用户选择是否接受。 */
 export class HostKeyUnknownError extends Error {}
 
-/** The remote host's key differs from the one in `knownHostsFile`; it is never accepted automatically. */
+/** 远程主机密钥与 `knownHostsFile` 中记录的不一致；绝不会自动接受该密钥。 */
 export class HostKeyChangedError extends Error {}
 
-/** An `ssh` invocation that failed for another reason, with its exit code and diagnostics. */
+/** 因其他原因失败的 `ssh` 调用，包含退出码和诊断信息。 */
 export class SshError extends Error {
 	readonly exitCode: number | null;
 	readonly stderr: string;
@@ -56,23 +56,22 @@ export class SshError extends Error {
 
 const packageRoot = fileURLToPath(new URL("..", import.meta.url));
 
-/** No leading `-` (it would be read as an `ssh` option) and no whitespace or control characters. */
+/** 不得以 `-` 开头（否则会被当作 `ssh` 选项），也不得包含空白字符或控制字符。 */
 function checkField(name: string, value: string): void {
 	if (value === "" || value.startsWith("-") || /[\s\x00-\x1f\x7f]/.test(value)) {
 		throw new Error(`Invalid ${name}: ${JSON.stringify(value)}`);
 	}
 }
 
-/** A path for an `ssh` option that expands `%` tokens: quoted, with `%` literal. */
+/** 用于 `ssh` 选项的路径：加引号并将 `%` 视为字面字符，避免展开 `%` 占位符。 */
 function configPath(name: string, path: string): string {
 	if (path === "" || /["\x00-\x1f\x7f]/.test(path)) throw new Error(`Invalid ${name}: ${JSON.stringify(path)}`);
 	return `"${path.replaceAll("%", "%%")}"`;
 }
 
 /**
- * Arguments for `ssh` up to the host: no prompts, no forwarding of any kind, no shared connections, no commands from
- * the configuration, no locale forwarding (the remote uses its own), and host keys checked strictly against the
- * application's own file under a fixed alias.
+ * `ssh` 中主机之前的参数：不提示、不进行任何转发、不共享连接、不执行配置文件中的命令、不转发区域设置
+ *（远端使用自己的设置），并通过固定别名严格使用应用自己的主机密钥文件进行校验。
  */
 export function sshArguments(
 	target: SshTarget,
@@ -119,11 +118,11 @@ export function sshArguments(
 	];
 }
 
-/** How long a detection, check or upload over `ssh` may take before it is abandoned. */
+/** 通过 `ssh` 执行检测、检查或上传时允许的最长时长；超时后放弃操作。 */
 const SSH_TIMEOUT_MS = 60_000;
 const UPLOAD_TIMEOUT_MS = 300_000;
 
-/** Run one remote command over `ssh`, optionally feeding stdin; resolves with stdout, rejects on failure. */
+/** 通过 `ssh` 运行一条远程命令，可选地向其输入标准输入；成功时返回标准输出，失败时拒绝。 */
 function runSsh(
 	target: SshTarget,
 	command: string,
@@ -175,15 +174,15 @@ function runSsh(
 }
 
 /**
- * Connect once with `accept-new` against a temporary known-hosts file to capture the key the host presents, through
- * the same route (`~/.ssh/config`, jump hosts) as real connections. Returns its known-hosts lines and fingerprints.
- * Showing a fingerprint is not authentication: compare it with one obtained out of band before accepting it.
+ * 使用 `accept-new` 连接一次，并通过临时 known-hosts 文件捕获主机提供的密钥；连接路径与正式连接相同
+ *（`~/.ssh/config`、跳板机等）。返回对应的 known-hosts 行和指纹。
+ * 显示指纹并不等于完成身份验证：接受密钥前，应将它与通过其他渠道取得的指纹进行比对。
  */
 export async function scanHostKey(target: SshTarget): Promise<{ lines: string[]; fingerprints: string[] }> {
 	const directory = await mkdtemp(join(tmpdir(), "pi-env-hostkey-"));
 	try {
 		const scanned = join(directory, "known_hosts");
-		// Authentication may fail without the key; the key is recorded before authentication.
+		// 没有密钥时身份验证可能失败；密钥会在验证之前记录下来。
 		await runSsh(target, "exit 0", { args: sshArguments(target, false, scanned) }).catch((error: unknown) => {
 			if (!(error instanceof SshError) && !(error instanceof HostKeyUnknownError)) throw error;
 		});
@@ -206,7 +205,7 @@ export async function scanHostKey(target: SshTarget): Promise<{ lines: string[];
 	}
 }
 
-/** A known-hosts line for `alias`: `alias type key [comment]`, no markers, patterns or hashed names. */
+/** `alias` 对应的 known_hosts 行，格式为 `alias type key [comment]`；不接受标记、模式或哈希名称。 */
 function parseHostKeyLine(alias: string, line: string): { type: string; key: string } {
 	const [host, type, key] = line.trim().split(/\s+/);
 	if (
@@ -221,10 +220,10 @@ function parseHostKeyLine(alias: string, line: string): { type: string; key: str
 	return { type, key };
 }
 
-/** Known-hosts files being changed, so changes to one file happen one at a time. */
+/** 正在修改的 known_hosts 文件集合，确保同一文件的修改依次执行。 */
 const knownHostsChanges = new Map<string, Promise<unknown>>();
 
-/** Rewrite the known-hosts file one change at a time, atomically. */
+/** 逐项原子地改写 known_hosts 文件。 */
 async function changeKnownHosts(file: string, change: (lines: string[]) => string[]): Promise<void> {
 	const previous = knownHostsChanges.get(file) ?? Promise.resolve();
 	const next = previous
@@ -251,9 +250,8 @@ async function changeKnownHosts(file: string, change: (lines: string[]) => strin
 }
 
 /**
- * Trust host-key lines from `scanHostKey` by adding them to the target's known-hosts file. Only plain lines for the
- * target's alias are accepted. A key that differs from a trusted key of the same type is refused with
- * `HostKeyChangedError`; `forgetHostKey` must remove the old keys first.
+ * 将 `scanHostKey` 返回的主机密钥行加入目标的 known-hosts 文件，以信任这些密钥。只接受目标别名对应的普通行。
+ * 如果密钥与已信任的同类型密钥不一致，则以 `HostKeyChangedError` 拒绝；必须先通过 `forgetHostKey` 删除旧密钥。
  */
 export async function acceptHostKey(target: SshTarget, lines: readonly string[]): Promise<void> {
 	const alias = target.hostKeyAlias;
@@ -278,14 +276,14 @@ export async function acceptHostKey(target: SshTarget, lines: readonly string[])
 	});
 }
 
-/** Stop trusting every key stored for the target's alias, e.g. after the owner confirmed a changed host key. */
+/** 停止信任为目标别名保存的所有密钥，例如用户确认主机密钥已变更后。 */
 export async function forgetHostKey(target: SshTarget): Promise<void> {
 	await changeKnownHosts(target.knownHostsFile, (existing) =>
 		existing.filter((line) => line.trim().split(/\s+/)[0] !== target.hostKeyAlias),
 	);
 }
 
-/** POSIX detection, run by the remote login shell; a Windows host answers through PowerShell instead. */
+/** 由远程登录 shell 执行的 POSIX 环境检测；Windows 主机则通过 PowerShell 返回结果。 */
 const POSIX_PROBE = `sh -c 'echo PI-ENV-PROBE; uname -s; uname -m; uname -o 2>/dev/null || echo -; printf "%s\\n" "$HOME" "\${TMPDIR:--}" "\${LD_PRELOAD:--}"'`;
 
 function powershell(script: string): string {
@@ -306,7 +304,7 @@ function normalizeArch(machine: string): RemotePlatform["arch"] {
 type Probe = { system: string; machine: string; os: string; home: string; tmpdir: string; preload: string };
 
 function parseProbe(target: SshTarget, output: string): Probe {
-	// Login shells may print a banner first.
+	// 登录 shell 可能会先输出欢迎信息。
 	const lines = output.split(/\r?\n/);
 	const start = lines.indexOf("PI-ENV-PROBE");
 	if (start === -1) throw new Error(`Unexpected answer from ${target.host}: ${output.trim()}`);
@@ -314,7 +312,7 @@ function parseProbe(target: SshTarget, output: string): Probe {
 	return { system, machine, os, home, tmpdir, preload };
 }
 
-/** Termux works only with its own `TMPDIR` and with `termux-exec`, which makes `#!/usr/bin/env` shebangs work. */
+/** Termux 仅在使用自身的 `TMPDIR` 且安装 `termux-exec` 时可正常工作；后者用于支持 `#!/usr/bin/env` 脚本解释器声明。 */
 function termuxWarnings(probe: Probe): string[] {
 	const warnings: string[] = [];
 	if (probe.tmpdir === "-") warnings.push("TMPDIR is not set; Termux's sshd normally sets it to $PREFIX/tmp.");
@@ -325,22 +323,22 @@ function termuxWarnings(probe: Probe): string[] {
 	return warnings;
 }
 
-/** Which system the target runs: `uname` through the login shell, or PowerShell on Windows. */
+/** 目标机器运行的系统：通过登录 shell 执行 `uname` 检测，Windows 上则使用 PowerShell。 */
 export async function detectPlatform(target: SshTarget): Promise<RemotePlatform> {
 	let probe: Probe;
 	try {
 		probe = parseProbe(target, await runSsh(target, POSIX_PROBE));
 	} catch (error) {
-		// cmd.exe or PowerShell as the remote shell: no `sh`, or one that gets the probe's quotes wrong.
+		// 远程 shell 是 cmd.exe 或 PowerShell：没有 `sh`，或 `sh` 对探测命令的引号处理不正确。
 		if (error instanceof HostKeyUnknownError || error instanceof HostKeyChangedError) throw error;
 		probe = parseProbe(target, await runSsh(target, WINDOWS_PROBE));
 	}
-	// Git Bash as Windows' default SSH shell: ask PowerShell for Windows' own architecture and home spelling.
+	// Windows 默认 SSH shell 为 Git Bash 时，通过 PowerShell 获取 Windows 自身的架构和主目录写法。
 	if (/^(MINGW|MSYS|CYGWIN)/.test(probe.system)) probe = parseProbe(target, await runSsh(target, WINDOWS_PROBE));
 	const arch = normalizeArch(probe.machine);
 	const { system, os, home } = probe;
 	if (system === "Windows") {
-		// cmd.exe expands %OS%; PowerShell prints it as is.
+		// cmd.exe 会展开 %OS%；PowerShell 则按原样输出。
 		const shell = (await runSsh(target, "echo %OS%")).includes("Windows_NT") ? "cmd" : "powershell";
 		return { platform: "windows", arch, home, shell, warnings: [] };
 	}
@@ -352,7 +350,7 @@ export async function detectPlatform(target: SshTarget): Promise<RemotePlatform>
 	throw new Error(`Unsupported remote system: ${system}`);
 }
 
-/** The daemon binary this package ships for a remote system. */
+/** 此软件包为远程系统提供的守护进程二进制文件。 */
 export function packagedDaemon(remote: Pick<RemotePlatform, "platform" | "arch">): string {
 	const name = `pi-env-${remote.platform}-${remote.arch}`;
 	return join(packageRoot, "bin", name, remote.platform === "windows" ? "pi-env.exe" : "pi-env");
@@ -366,7 +364,7 @@ function quotePowerShell(text: string): string {
 	return `'${text.replaceAll("'", "''")}'`;
 }
 
-/** Where a daemon with this content lives on the remote machine: named by its SHA-256, so versions never collide. */
+/** 远程机器上保存此内容对应守护进程的位置；使用 SHA-256 命名，避免不同版本冲突。 */
 function daemonPath(remote: RemotePlatform, sha256: string): string {
 	const name = `pi-env-${sha256.slice(0, 32)}`;
 	return remote.platform === "windows"
@@ -376,7 +374,7 @@ function daemonPath(remote: RemotePlatform, sha256: string): string {
 
 const POSIX_HASH = `hash() { if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1; elif command -v shasum >/dev/null 2>&1; then shasum -a 256 "$1" | cut -d' ' -f1; elif command -v openssl >/dev/null 2>&1; then openssl dgst -sha256 "$1" | sed 's/.*= //'; else echo none; fi; }`;
 
-/** Whether the remote file has this content: `present`, `missing`, or (POSIX without a hash tool) `nohash`. */
+/** 远程文件是否具有此内容：`present`、`missing`，或在没有哈希工具的 POSIX 系统上为 `nohash`。 */
 async function checkDaemon(target: SshTarget, remote: RemotePlatform, file: string, sha256: string): Promise<string> {
 	if (remote.platform === "windows") {
 		const check = powershell(
@@ -389,9 +387,9 @@ async function checkDaemon(target: SshTarget, remote: RemotePlatform, file: stri
 }
 
 /**
- * Make sure the daemon is on the remote machine, verified by its SHA-256 before it ever runs, and remove daemons of
- * other contents. The upload goes to a new temporary file and is renamed into place only once its hash matches.
- * Returns the remote path of the binary.
+ * 确保远程机器上存在守护进程，并在其运行前校验 SHA-256；同时清理内容不同的旧守护进程。
+ * 上传内容先写入新的临时文件，只有哈希匹配后才会重命名到目标位置。
+ * 返回远程二进制文件的路径。
  */
 export async function deployDaemon(
 	target: SshTarget,
@@ -413,16 +411,16 @@ export async function deployDaemon(
 				"$d = Split-Path -Parent $f",
 				"New-Item -ItemType Directory -Force -Path $d | Out-Null",
 				"$t = Join-Path $d ('.pi-env-' + [guid]::NewGuid().ToString() + '.tmp')",
-				// PowerShell reads redirected stdin itself, as text lines for `$input`, so the binary comes as base64 lines
-				// up to an end marker: Windows' sshd may never pass on the end of stdin.
+				// PowerShell 会自行读取重定向的标准输入，并将其作为文本行提供给 `$input`，因此二进制内容以 Base64 行传入，
+				// 直到遇到结束标记：Windows 的 sshd 可能不会传递标准输入的结束信号。
 				"$text = New-Object System.Text.StringBuilder",
 				"foreach ($line in $input) { if ($line -eq 'PI-ENV-END') { break }; [void]$text.Append($line) }",
 				"$bytes = [Convert]::FromBase64String($text.ToString())",
 				"$out = [IO.File]::Open($t, 'CreateNew', 'Write', 'None'); $out.Write($bytes, 0, $bytes.Length); $out.Close()",
 				`if ((Get-FileHash -Algorithm SHA256 -LiteralPath $t).Hash.ToLower() -ne '${sha256}') { Remove-Item -LiteralPath $t; throw 'pi-env upload is corrupt' }`,
-				// A running daemon or a virus scanner can hold the old file for a moment.
+				// 正在运行的守护进程或病毒扫描程序可能会暂时占用旧文件。
 				"for ($i = 0; ; $i++) { try { Move-Item -Force -LiteralPath $t -Destination $f; break } catch { if ($i -ge 20) { throw }; Start-Sleep -Milliseconds 250 } }",
-				// Older daemons; one that is running stays until it exits.
+				// 清理旧版守护进程；仍在运行的实例会保留到退出为止。
 				"Get-ChildItem -LiteralPath $d -Filter 'pi-env-*.exe' | Where-Object { $_.FullName -ne $f } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -ErrorAction SilentlyContinue }",
 				"'deployed'",
 			].join("; "),
@@ -443,7 +441,7 @@ export async function deployDaemon(
 		`if [ "$(hash "$t")" != ${sha256} ]; then rm -f "$t"; echo "pi-env upload is corrupt" >&2; exit 1; fi`,
 		'chmod 700 "$t"',
 		'mv -f "$t" "$f"',
-		// Older daemons; running ones keep their file open until they exit.
+		// 清理旧版守护进程；仍在运行的实例会一直打开文件，直到退出为止。
 		'for old in "$d"/pi-env-*; do [ "$old" = "$f" ] || rm -f "$old"; done',
 		"echo deployed",
 	].join("\n");
@@ -451,33 +449,33 @@ export async function deployDaemon(
 	return file;
 }
 
-/** Options for `sshConnection` and `connectSsh`: the target, plus the binary to deploy (default: the one this package ships). */
+/** `sshConnection` 和 `connectSsh` 的选项：目标信息及要部署的二进制文件（默认使用此软件包提供的文件）。 */
 export interface SshConnectOptions extends SshTarget {
 	binary?: string;
 	/**
-	 * POSIX: start the daemon through the user's login shell (`$SHELL -l`), so commands see the environment of
-	 * `~/.profile` and similar files. Off by default: `ssh` runs commands without a login shell.
+	 * POSIX：通过用户的登录 shell（`$SHELL -l`）启动守护进程，使命令可以获取 `~/.profile` 等文件中的环境配置。
+	 * 默认关闭：`ssh` 执行命令时不会使用登录 shell。
 	 */
 	loginShell?: boolean;
 	onLog?: ConnectionOptions["onLog"];
 }
 
-/** The remote command that starts the daemon at `file`, before the `serve` arguments. */
+/** 在 `serve` 参数之前，用于启动 `file` 处守护进程的远程命令。 */
 function launchCommand(remote: RemotePlatform, file: string, loginShell: boolean): string {
 	if (remote.platform === "windows") {
-		// PowerShell runs a quoted path only with the call operator; cmd.exe keeps one pair of quotes around a program.
+		// PowerShell 只有通过调用运算符才能执行带引号的路径；cmd.exe 会保留程序路径外的一对引号。
 		if (remote.shell === "powershell") return `& ${quotePowerShell(file)}`;
 		return file.includes(" ") ? `"${file}"` : file;
 	}
-	// `$0` is the daemon, `"$@"` its arguments; `$SHELL` is the login shell's own name for itself.
+	// `$0` 表示守护进程，`"$@"` 表示其参数；`$SHELL` 是登录 shell 自身报告的名称。
 	if (loginShell) return `exec "$SHELL" -lc 'exec "$0" "$@"' ${quotePosix(file)}`;
 	return quotePosix(file);
 }
 
-/** What an SSH connection learned about its remote system, and the daemon it verified last. */
+/** SSH 连接检测到的远程系统信息，以及最近一次验证过的守护进程。 */
 type SshState = { remote?: RemotePlatform; verified?: string };
 
-/** A `Connection` whose every start detects the remote system (once), verifies or deploys the daemon, then starts it. */
+/** 每次启动时都会先检测远程系统（仅检测一次）、验证或部署守护进程，然后启动守护进程的 `Connection`。 */
 function sshConnectionFor(options: SshConnectOptions, state: SshState): Connection {
 	return new Connection({
 		command: async () => {
@@ -486,7 +484,7 @@ function sshConnectionFor(options: SshConnectOptions, state: SshState): Connecti
 				for (const warning of remote.warnings) options.onLog?.(`${warning}\n`);
 				state.remote = remote;
 			}
-			// A deployment that just verified the binary counts for the first start.
+			// 刚刚完成二进制校验的部署可直接用于首次启动。
 			const file =
 				state.verified ??
 				(await deployDaemon(options, state.remote, options.binary ?? packagedDaemon(state.remote)));
@@ -502,10 +500,10 @@ function sshConnectionFor(options: SshConnectOptions, state: SshState): Connecti
 }
 
 /**
- * A `Connection` to the target that does nothing until its first request. Each start detects the remote system (the
- * first time), verifies the daemon and deploys it if it is missing or changed, then starts it over `ssh`. A failure
- * (no network, an untrusted or changed host key) fails the requests waiting for that start with code `spawn_error`
- * and the `ssh` diagnostics as message; the next request tries again. `remote()` is the detected system, once known.
+ * 到目标的 `Connection`，在收到首个请求前不会执行操作。每次启动时会检测远程系统（仅首次检测），
+ * 校验守护进程；如果它不存在或已变化，则部署后通过 `ssh` 启动。启动失败时（例如网络不可用，或主机密钥不受信任、已变化），
+ * 等待该次启动的请求会以 `spawn_error` 错误码失败，并附带 `ssh` 诊断信息；后续请求会重试。
+ * 检测完成后，`remote()` 会返回远程系统信息。
  */
 export function sshConnection(options: SshConnectOptions): {
 	connection: Connection;
@@ -516,9 +514,9 @@ export function sshConnection(options: SshConnectOptions): {
 }
 
 /**
- * Detect the remote system and deploy the daemon now, then return a `Connection` that starts it over `ssh`, like
- * `sshConnection`. Failures reject here: host keys must already be trusted (`scanHostKey`, `acceptHostKey`), otherwise
- * this rejects with `HostKeyUnknownError`.
+ * 立即检测远程系统并部署守护进程，然后返回一个通过 `ssh` 启动它的 `Connection`，其行为与 `sshConnection` 相同。
+ * 故障会在此处直接拒绝：主机密钥必须已受信任（通过 `scanHostKey` 和 `acceptHostKey`），否则会以
+ * `HostKeyUnknownError` 拒绝。
  */
 export async function connectSsh(
 	options: SshConnectOptions,

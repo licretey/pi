@@ -7,14 +7,12 @@ import { APP_NAME } from "../../../src/config.ts";
 import type { SessionManager } from "../../../src/core/session-manager.ts";
 import { InteractiveMode } from "../../../src/modes/interactive/interactive-mode.ts";
 
-// Regression for https://github.com/earendil-works/pi/issues/5080
+// https://github.com/earendil-works/pi/issues/5080 的回归测试。
 //
-// On SIGTERM/SIGHUP the graceful shutdown must emit `session_shutdown`
-// (runtimeHost.dispose) BEFORE touching the terminal. Extension teardown such
-// as removing a socket does not write to the tty, so it must not be skipped if
-// a later terminal-restore write fails on a dead or stalled terminal. The
-// interactive quit path (Ctrl+D, /quit) keeps the opposite order to preserve
-// the final TUI frame.
+// 收到 SIGTERM/SIGHUP 时，正常关闭必须先发出 `session_shutdown`（调用 runtimeHost.dispose），再操作终端。
+// 扩展清理（例如移除套接字）不会向 tty 写入内容，因此即使之后恢复终端时写入失败
+// （终端已断开或无响应），也必须先完成扩展清理。交互模式的退出方式（Ctrl+D、/quit）则保持相反顺序，
+// 以保留 TUI 的最后一帧画面。
 
 type ShutdownThis = {
 	isShuttingDown: boolean;
@@ -190,13 +188,12 @@ describe("InteractiveMode.shutdown ordering (#5080)", () => {
 	});
 });
 
-// Regression for the `read EIO` crash reports (crash_tty_read_eio).
+// 针对 `read EIO` 崩溃报告（crash_tty_read_eio）的回归测试。
 //
-// When the terminal goes away, stdin reads and setRawMode fail with EIO (pi is
-// left in an orphaned background process group) or ENOTTY (macOS revoked the
-// tty). Node emits these as `error` events on process.stdin. Without a stdin
-// listener they became uncaught exceptions that were recorded as crashes and
-// prompted users to run /bug on the next launch.
+// 终端消失后，从 stdin 读取数据和调用 setRawMode 都会因 EIO 失败（pi 会
+// 进程可能遗留在孤立的后台进程组中，或因 macOS 撤销 tty 而触发 ENOTTY。Node 会将这些错误
+// 作为 `error` 事件发送到 process.stdin。若没有 stdin 监听器，它们会成为未捕获异常，
+// 被记录为崩溃，并提示用户下次启动时运行 /bug。
 
 type HandlerContext = {
 	isShuttingDown: boolean;

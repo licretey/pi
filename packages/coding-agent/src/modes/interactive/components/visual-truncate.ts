@@ -1,29 +1,29 @@
 /**
- * Shared utility for truncating text to visual lines (accounting for line wrapping).
- * Used by tool renderers and bash-execution.ts for consistent behavior.
+ * 用于将文本截断为视觉行的共享工具（会考虑自动换行）。
+ * 供工具渲染器和 bash-execution.ts 使用，以保持行为一致。
  */
 
 import { type Component, Text, truncateToWidth } from "@earendil-works/pi-tui";
 
 export interface VisualTruncateResult {
-	/** The visual lines to display */
+	/** 要显示的视觉行。 */
 	visualLines: string[];
-	/** Number of visual lines that were skipped (hidden) */
+	/** 跳过（隐藏）的视觉行数。 */
 	skippedCount: number;
 }
 
 /**
- * Truncate text to a maximum number of visual lines.
- * This accounts for line wrapping based on terminal width.
+ * 将文本截断到指定的最大视觉行数。
+ * 计算时会考虑终端宽度造成的自动换行。
  *
- * @param text - The text content (may contain newlines)
- * @param maxVisualLines - Maximum number of visual lines to show
- * @param width - Terminal/render width
- * @param paddingX - Horizontal padding for Text component (default 0).
- *                   Use 0 when result will be placed in a Box (Box adds its own padding).
- *                   Use 1 when result will be placed in a plain Container.
- * @param keep - Which visual lines to keep: the last ones (default) or the first ones.
- * @returns The truncated visual lines and count of skipped lines
+ * @param text - 文本内容（可能包含换行符）
+ * @param maxVisualLines - 要显示的最大视觉行数
+ * @param width - 终端或渲染区域的宽度
+ * @param paddingX - Text 组件的水平内边距（默认为 0）。
+ *                   若结果将放入 Box，请使用 0（Box 会添加自己的内边距）。
+ *                   若结果将放入普通 Container，请使用 1。
+ * @param keep - 保留哪些视觉行：默认保留末尾行，也可保留开头行。
+ * @returns 截断后的视觉行及跳过的行数
  */
 export function truncateToVisualLines(
 	text: string,
@@ -36,7 +36,7 @@ export function truncateToVisualLines(
 		return { visualLines: [], skippedCount: 0 };
 	}
 
-	// Create a temporary Text component to render and get visual lines
+	// 创建临时 Text 组件进行渲染，并获取视觉行。
 	const tempText = new Text(text, paddingX, 0);
 	const allVisualLines = tempText.render(width);
 
@@ -52,19 +52,18 @@ export function truncateToVisualLines(
 }
 
 export interface VisualLinePreviewOptions {
-	/** Styled text; may contain newlines. */
+	/** 已设置样式的文本；可能包含换行符。 */
 	text: string;
 	maxVisualLines: number;
-	/** Which visual lines to keep. The hint goes before kept end lines and after kept start lines. */
+	/** 要保留的视觉行。提示文字位于保留的末尾行之前，或保留的开头行之后。 */
 	keep: "start" | "end";
-	/** Styled hint line for the given number of hidden visual lines. */
+	/** 根据隐藏的视觉行数生成已设置样式的提示行。 */
 	formatHint: (hidden: number) => string;
 }
 
 /**
- * Collapsed tool output limited to a number of visual lines, like bash output. Limiting logical
- * lines instead lets a single long line (such as minified JSON) wrap across the whole screen.
- * Caches its lines per width, since it renders on every frame for every result in the transcript.
+ * 将折叠的工具输出限制为指定视觉行数，与 Bash 输出的处理方式相同。若限制逻辑行，单条长行（如压缩后的 JSON）
+ * 仍可能换行并铺满整个屏幕。由于每帧都要渲染记录中的每项结果，因此按宽度缓存行数据。
  */
 export class VisualLinePreview implements Component {
 	private options: VisualLinePreviewOptions;

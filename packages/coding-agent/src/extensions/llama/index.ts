@@ -53,7 +53,7 @@ export default function llamaExtension(pi: ExtensionAPI): void {
 		provider.setCatalog(current, client.serverUrl);
 		const result = await ctx.modelRegistry.refresh({
 			providers: [LLAMA_PROVIDER_ID],
-			// /llama already contacted the configured llama.cpp server, so keep this refresh live even in PI_OFFLINE.
+			// /llama 已联系配置的 llama.cpp 服务器，因此即使处于 PI_OFFLINE 模式也继续刷新。
 			allowNetwork: true,
 			signal,
 		});
@@ -115,7 +115,7 @@ export default function llamaExtension(pi: ExtensionAPI): void {
 				try {
 					await restoreLoaded();
 				} catch {
-					// Preserve the original load error.
+					// 保留原始加载错误。
 				}
 			}
 			throw error;

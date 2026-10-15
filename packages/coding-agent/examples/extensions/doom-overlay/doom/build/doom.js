@@ -14,7 +14,7 @@ var Module=moduleArg;var readyPromiseResolve,readyPromiseReject;var readyPromise
 })();
 if (typeof exports === 'object' && typeof module === 'object') {
   module.exports = createDoomModule;
-  // This default export looks redundant, but it allows TS to import this
+  // 这个默认导出看似多余，但它允许 TypeScript 导入此文件。
   // commonjs style module.
   module.exports.default = createDoomModule;
 } else if (typeof define === 'function' && define['amd'])

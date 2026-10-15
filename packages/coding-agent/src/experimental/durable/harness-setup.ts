@@ -15,13 +15,13 @@ import type { ModelRuntime } from "../../core/model-runtime.ts";
 import type { SettingsManager } from "../../core/settings-manager.ts";
 import { createPiPrompt } from "./prompt.ts";
 
-/** pi's HTTP setup: proxy, idle timeouts, and one undici for fetch. Without it, some provider streams break off. */
+/** pi 的 HTTP 配置：代理、空闲超时，以及供 fetch 使用的 undici 实例。缺少这些配置时，某些提供商的流会意外中断。 */
 export function configureHarnessHttp(settingsManager: SettingsManager): void {
 	applyHttpProxySettings(settingsManager.getGlobalSettings().httpProxy);
 	configureHttpDispatcher(settingsManager.getHttpIdleTimeoutMs());
 }
 
-/** Harness settings read at every use from pi's settings as loaded at startup. */
+/** Harness 设置；每次使用时都从 pi 启动时加载的设置中读取。 */
 export function createHarnessSettings(settingsManager: SettingsManager): HarnessSettings {
 	return {
 		get stream() {
@@ -48,7 +48,7 @@ export function createHarnessSettings(settingsManager: SettingsManager): Harness
 	};
 }
 
-/** A registry with pi's coding tools and system prompt. */
+/** 包含 pi 代码工具和系统提示词的注册表。 */
 export function createCodingRegistry(settingsManager: SettingsManager, cwd: string): Registry {
 	const registry = createRegistry();
 	registry.install(CodingTools);
@@ -56,7 +56,7 @@ export function createCodingRegistry(settingsManager: SettingsManager, cwd: stri
 	return registry;
 }
 
-/** One execution environment per directory, shared by every conversation in it. */
+/** 每个目录对应一个执行环境，供其中的所有会话共享。 */
 export class ExecutionEnvs {
 	readonly #defaultCwd: string;
 	readonly #envs = new Map<string, NodeExecutionEnv>();
@@ -87,7 +87,7 @@ export interface InitialModel {
 	readonly fallbackMessage?: string;
 }
 
-/** The model a new root conversation starts with: an explicit `--provider`/`--model`, or pi's default resolution. */
+/** 新根会话使用的模型：显式指定的 `--provider`/`--model`，或由 pi 按默认规则解析的模型。 */
 export async function findInitialAgentModel(
 	settingsManager: SettingsManager,
 	modelRuntime: ModelRuntime,

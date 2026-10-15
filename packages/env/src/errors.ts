@@ -5,7 +5,7 @@ export function abortResult<T>(signal: AbortSignal | undefined, path?: string): 
 	return signal?.aborted ? err(new FileError("aborted", "aborted", path)) : undefined;
 }
 
-/** `NodeExecutionEnv`'s mapping of Node error codes to `FileError` codes. */
+/** `NodeExecutionEnv` 中 Node 错误码到 `FileError` 错误码的映射逻辑。 */
 export function toFileError(error: unknown, fallbackPath?: string): FileError {
 	if (error instanceof FileError) return error;
 	if (!(error instanceof RemoteError)) {

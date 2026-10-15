@@ -27,7 +27,7 @@ export function deferred<T = void>(): Deferred<T> {
 	return { promise, resolve, reject };
 }
 
-/** Reject with the signal's reason once it aborts; for handlers that block until cancelled. */
+/** 信号中止时使用其原因拒绝 Promise；用于阻塞到取消为止的处理器。 */
 export function aborted(signal: AbortSignal): Promise<never> {
 	return new Promise((_, reject) => {
 		if (signal.aborted) reject(signal.reason);
@@ -35,7 +35,7 @@ export function aborted(signal: AbortSignal): Promise<never> {
 	});
 }
 
-/** Flush macrotask turns until `check` holds. */
+/** 持续推进宏任务，直到 `check` 条件成立。 */
 export async function eventually(check: () => boolean | Promise<boolean>): Promise<void> {
 	for (let attempt = 0; attempt < 200; attempt++) {
 		if (await check()) return;
@@ -44,7 +44,7 @@ export async function eventually(check: () => boolean | Promise<boolean>): Promi
 	throw new Error("Condition was not reached");
 }
 
-/** Whether `promise` has settled after pending work flushes. */
+/** 清空待处理工作后，检查 `promise` 是否已结束。 */
 export async function settled(promise: Promise<unknown>): Promise<boolean> {
 	let done = false;
 	promise.then(
@@ -59,7 +59,7 @@ export async function settled(promise: Promise<unknown>): Promise<boolean> {
 	return done;
 }
 
-/** Open a Harness whose registry holds `tasks`; failures passed to `onReport` are collected. */
+/** 打开一个注册表中包含 `tasks` 的 Harness；收集传递给 `onReport` 的失败信息。 */
 export async function openTasks(
 	storage: Storage,
 	tasks: readonly AnyTask[],
@@ -82,17 +82,17 @@ export async function openTasks(
 	return { harness, registry, reports };
 }
 
-/** Next state that completes a task with `result`. */
+/** 将任务以 `result` 结果置为完成状态的下一状态。 */
 export function completed<R>(result: R) {
 	return { status: "terminal", outcome: { status: "completed", result } } as const;
 }
 
-/** Next state that aborts a task. */
+/** 将任务置为中止状态的下一状态。 */
 export function abortedWith(reason: string) {
 	return { status: "terminal", outcome: { status: "aborted", reason } } as const;
 }
 
-/** Registry reader that counts live subscriptions. */
+/** 统计当前有效订阅数的注册表读取器。 */
 export function countingReader(registry: Registry): RegistryReader & { subscriptions(): number } {
 	let count = 0;
 	return {

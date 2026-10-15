@@ -1,4 +1,4 @@
-/** Immutable, credential-blind models.json snapshot. */
+/** 不包含凭据的不可变 models.json 快照。 */
 
 import { readFile } from "node:fs/promises";
 import { ProviderCompatSchema } from "@earendil-works/pi-ai/providers/compat-schema";
@@ -111,7 +111,7 @@ function deepFreeze<T>(value: T): T {
 	return Object.freeze(value);
 }
 
-/** One immutable load of models.json. */
+/** 单次加载得到的不可变 models.json 快照。 */
 export class ModelConfig {
 	private readonly providers: ReadonlyMap<string, ModelsJsonProvider>;
 	private readonly error: string | undefined;

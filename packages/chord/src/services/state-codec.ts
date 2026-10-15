@@ -7,13 +7,13 @@ import type {
 } from "../types.ts";
 import type { WireServiceProviderUpdate, WireServiceSubscriptionSnapshot } from "./wire.ts";
 
-/** Stateful operation encoders for every replicated state in one service subscription. */
+/** 为一个服务订阅中的每个副本状态提供有状态的操作编码器。 */
 export interface ServiceStateEncoder {
 	encodeSnapshot(snapshot: ServiceSubscriptionSnapshot): WireServiceSubscriptionSnapshot;
 	encodeUpdate(update: ServiceProviderUpdate): WireServiceProviderUpdate;
 }
 
-/** Stateful operation decoders for every replicated state in one service subscription. */
+/** 为一个服务订阅中的每个副本状态提供有状态的操作解码器。 */
 export interface ServiceStateDecoder {
 	decodeSnapshot(snapshot: WireServiceSubscriptionSnapshot): ServiceSubscriptionSnapshot;
 	decodeUpdate(update: WireServiceProviderUpdate): ServiceProviderUpdate;

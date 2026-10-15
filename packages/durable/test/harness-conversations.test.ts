@@ -77,14 +77,14 @@ describe("Harness root and conversations", () => {
 		const root = await harness.root(context, {
 			agent: { thinkingLevel: "high" },
 			init: async (tx, id) => {
-				// The agent change applied before init.
+				// init 执行前已应用 agent 配置更改。
 				expect((await tx.doc(AgentDoc, id)).thinkingLevel).toBe("high");
 				(await tx.doc(NoteDoc, id)).text = "root note";
 			},
 		});
 		expect(root.id).toBe(ROOT_CONVERSATION_ID);
 		expect(storage.commits).toHaveLength(1);
-		// Conversation, five built-in documents, and the init note.
+		// 会话、五个内置文档以及 init 写入的便笺。
 		expect(storage.commits[0]!.map((write) => write.type)).toEqual([
 			"conversation",
 			"document.create",
@@ -123,13 +123,13 @@ describe("Harness root and conversations", () => {
 				async (conversation) => (await first.harness.snapshot(ProviderDoc, conversation.id, context))?.sessionId,
 			),
 		);
-		// Regression coverage for #10424: a fork must not inherit its parent's provider identity.
+		// #10424 回归测试：分叉不得继承父级的提供商身份。
 		for (const sessionId of providerSessionIds) expect(sessionId).toMatch(UUID_V7);
 		expect(new Set(providerSessionIds).size).toBe(3);
 		await first.harness.close(context);
 		await expect(root.agent(context)).rejects.toThrow();
 
-		// The new process installs nothing: the stored choices survive, the tools do not resolve.
+		// 新进程未安装任何扩展：已存储的选项仍然保留，但工具无法解析。
 		first = await openHarness(await openNodeSqliteStorage(path), []);
 		const reopened = await first.harness.root(context, { init: () => expect.unreachable() });
 		expect(reopened.id).toBe(ROOT_CONVERSATION_ID);
@@ -184,7 +184,7 @@ describe("Harness root and conversations", () => {
 		).rejects.toThrow("init failed");
 		expect(storage.commits).toHaveLength(before);
 
-		// A conversation on the default selection follows installs live.
+		// 使用默认选择的会话会实时跟随扩展安装情况。
 		addTool(registry, tool("bash"));
 		const names = async (conversation: Conversation) =>
 			(await conversation.agent(context)).tools.map((each) => each.name);
@@ -307,7 +307,7 @@ describe("Harness root and conversations", () => {
 			agent: { cwd: "/root" },
 			init: async (tx, id) => void seen.push(`init:${(await tx.doc(NoteDoc, id)).text}`),
 		});
-		// A raw creation in a commit, as in a tool, and a fork, which already has the asOf copies.
+		// 在提交中直接创建会话（例如由工具执行），以及创建已带有 asOf 副本的分支。
 		const raw = await harness.commit(
 			async (tx) => (await tx.createConversation({ ownership: { kind: "ownerless" } })).id,
 			context,
@@ -321,7 +321,7 @@ describe("Harness root and conversations", () => {
 			`${fork.id}:fork:/root`,
 		]);
 		expect(await harness.snapshot(NoteDoc, raw, context)).toEqual({ text: "created" });
-		// A throw fails the creating commit.
+		// 抛出异常会使创建会话的提交失败。
 		await root.configure({ cwd: "/fail" }, context);
 		await expect(root.fork(entry.id, { ownership: { kind: "ownerless" } }, context)).resolves.toBeDefined();
 		const failing = await append(root, "after");
@@ -355,14 +355,14 @@ describe("Harness agent", () => {
 
 		await root.configure({ tools: { remove: [edit] } }, context);
 		expect(await offered()).toEqual(["read", "bash"]);
-		// A new filter replaces the old one: edit is offered again.
+		// 新筛选规则会替换旧规则：edit 会重新出现在可用工具中。
 		await root.configure({ tools: { remove: [bash] } }, context);
 		expect(await offered()).toEqual(["read", "edit"]);
 		await root.configure({ tools: [edit, read] }, context);
 		expect(await offered()).toEqual(["edit", "read"]);
 		await root.configure({ tools: null }, context);
 		expect(await offered()).toEqual(["read", "bash", "edit"]);
-		// Names are stored without checking the registry.
+		// 存储工具名称时不会检查注册表。
 		await root.configure({ tools: [tool("missing"), read] }, context);
 		expect(await stored()).toMatchObject({ tools: ["missing", "read"] });
 		expect(await offered()).toEqual(["read"]);
@@ -385,7 +385,7 @@ describe("Harness agent", () => {
 			const taskId = await tx.createTask(owner, {}, { ownership: { kind: "conversation" } });
 			const plain = await tx.createConversation({ ownership: { kind: "ownerless" } });
 			const owned = await tx.createConversation({ ownership: { kind: "task", taskId } });
-			// The copy exists when createConversation() returns, so a configure() in the same callback overrides it.
+			// createConversation() 返回时副本已存在，因此同一回调中的 configure() 会覆盖副本配置。
 			expect((await tx.doc(AgentDoc, owned.id)).cwd).toBe("/repo");
 			await configure(tx, owned.id, { cwd: "/worktree" });
 			return { taskId, plain: plain.id, owned: owned.id };
@@ -404,11 +404,11 @@ describe("Harness agent", () => {
 			cwd: "/worktree",
 		});
 
-		// A later owner change does not reach the child.
+		// 之后对所有者的更改不会传递给子会话。
 		await root.configure({ thinkingLevel: "high" }, context);
 		expect((await harness.snapshot(AgentDoc, ids.owned, context))?.thinkingLevel).toBeUndefined();
 
-		// A task-owned fork keeps its as-of copy of its fork parent, not its owner's agent.
+		// 任务所有的分支会保留分叉父会话在分叉时的副本，而不是所有者的 agent 配置。
 		const at = await root.commit(async (tx) => (await tx.appendEntry(ids.plain, { kind: "note" })).id, context);
 		const fork = await root.commit(
 			async (tx) =>

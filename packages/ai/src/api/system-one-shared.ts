@@ -9,23 +9,23 @@ import type {
 import { formatProviderError, normalizeProviderError } from "../utils/error-body.ts";
 import { isRecord, parseClassifierUsage, postClassifierRequest, requiredNumber } from "./classifier-shared.ts";
 
-/** TypeSafe System One request body without the transport-specific envelope. */
+/** 不含传输专属封装的 TypeSafe System One 请求正文。 */
 export interface SystemOneWireRequest {
 	state: ClassifierContext["state"];
 	questions: Record<string, unknown>;
 }
 
-/** Differences between services that serve System One models. */
+/** 提供 System One 模型的各服务之间的差异配置。 */
 export interface SystemOneTransport {
-	/** Classifier API implemented by this transport. */
+	/** 此传输实现的分类 API。 */
 	api: ClassifierApi;
-	/** Service name used in error messages. */
+	/** 错误消息中使用的服务名称。 */
 	label: string;
-	/** Absolute request URL. */
+	/** 请求的绝对 URL。 */
 	url(model: ClassifierModel<ClassifierApi>): URL;
-	/** Wraps the System One request in the service's request envelope. */
+	/** 将 System One 请求封装到服务要求的请求结构中。 */
 	payload(model: ClassifierModel<ClassifierApi>, request: SystemOneWireRequest): unknown;
-	/** Extracts the System One output (`{ answers, usage }`) from the service's response envelope. */
+	/** 从服务的响应结构中提取 System One 输出（`{ answers, usage }`）。 */
 	output(body: unknown): Record<string, unknown>;
 }
 
@@ -82,7 +82,7 @@ function parseAnswers(label: string, value: unknown, context: ClassifierContext)
 	return Object.fromEntries(answers);
 }
 
-/** Maps public `bool` questions to TypeSafe's wire-level `noul` type. */
+/** 将公开接口中的 `bool` 问题映射为 TypeSafe 线上协议使用的 `noul` 类型。 */
 function wireRequest(context: ClassifierContext): SystemOneWireRequest {
 	return {
 		state: context.state,
@@ -95,7 +95,7 @@ function wireRequest(context: ClassifierContext): SystemOneWireRequest {
 	};
 }
 
-/** Runs one System One classification over the given transport. */
+/** 通过给定传输执行一次 System One 分类请求。 */
 export async function classifySystemOne(
 	transport: SystemOneTransport,
 	model: ClassifierModel<ClassifierApi>,
@@ -122,7 +122,7 @@ export async function classifySystemOne(
 			options,
 		);
 		const result = transport.output(body);
-		// Set before parsing answers: a request with malformed answers was still billed.
+		// 在解析答案前设置：即使答案格式错误，该请求仍会计费。
 		const usage = parseClassifierUsage(result.usage, model);
 		if (usage) output.usage = usage;
 		output.answers = parseAnswers(transport.label, result.answers, context);

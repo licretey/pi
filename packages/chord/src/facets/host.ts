@@ -336,7 +336,7 @@ type FacetProvision =
 			connectRemote(provider: RemoteServiceProvider): void;
 	  };
 
-/** Private lifecycle and dependency kernel behind the atomic host entry point. */
+/** 原子宿主入口背后的私有生命周期与依赖内核。 */
 export class FacetKernel {
 	readonly #initialFacets: readonly Facet[];
 	readonly #serviceSources: readonly RemoteServiceSource[];

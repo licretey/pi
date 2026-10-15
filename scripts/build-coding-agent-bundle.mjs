@@ -23,12 +23,12 @@ const allowedExternalPackages = new Set([
 	"@earendil-works/chord/node",
 	"@silvia-odwyer/photon-node",
 	"jiti",
-	// Optional native accelerators. Their callers fall back to JavaScript when absent.
+	// 可选的原生加速模块；缺失时，调用方会回退到 JavaScript 实现。
 	"bufferutil",
 	"utf-8-validate",
-	// Optional native proxy authentication. Its caller reports an install hint when absent.
+	// 可选的原生代理认证模块；缺失时，调用方会提示如何安装。
 	"kerberos",
-	// Optional debug output coloring.
+	// 可选的调试输出着色模块。
 	"supports-color",
 ]);
 
@@ -94,16 +94,13 @@ function commonBuildOptions() {
 		minifySyntax: true,
 		minifyWhitespace: true,
 		platform: "node",
-		// The source uses jiti/static so Bun embeds its Babel transform. The Node
-		// package replaces it with a synchronous lazy require so jiti loads only
-		// when importing an extension; Babel remains deferred until a cache miss
-		// needs transformation.
+		// 源码使用 jiti/static，因此 Bun 会嵌入 Babel 转换器。Node 包将其替换为同步的延迟 require，
+		// 仅在导入扩展时加载 jiti；只有缓存未命中且需要转换时才会加载 Babel。
 		plugins: [lazyJitiPlugin, httpsProxyAgentNamedExportPlugin],
 		sourcemap: false,
 		target: "node22.19",
-		// Do not apply the monorepo's source-oriented path aliases while bundling
-		// compiled output. Release builds must resolve the same package entries as
-		// an installed npm package.
+		// 打包编译产物时不要应用面向源码的 monorepo 路径别名。
+		// 发布构建必须解析与已安装 npm 包相同的包入口。
 		tsconfigRaw: { compilerOptions: {} },
 	};
 }
@@ -180,9 +177,8 @@ if (dirname(bedrockLoaderOutput) !== dirname(oauthLoaderOutput)) {
 	throw new Error("Bedrock and OAuth lazy loaders were emitted into different directories");
 }
 
-// These implementations are reached through variable-specifier imports or a
-// worker URL, so the main bundle cannot follow them. Emit one self-contained
-// file per implementation beside the code that resolves it.
+// 这些实现通过变量形式的导入路径或 worker URL 加载，因此主 bundle 无法追踪它们。
+// 在负责解析它们的代码旁，为每个实现生成独立文件。
 const lazyEntryPoints = {
 	anthropic: join(aiDistDir, "auth", "oauth", "anthropic.js"),
 	"bedrock-converse-stream": join(aiDistDir, "api", "bedrock-converse-stream.js"),
@@ -197,8 +193,8 @@ const lazyEntryPoints = {
 	xai: join(aiDistDir, "auth", "oauth", "xai.js"),
 };
 
-// Every OAuth flow loaded through importOAuthModule() must have a lazy entry,
-// otherwise the flow fails at runtime with a missing module error.
+// 每个通过 importOAuthModule() 加载的 OAuth 流程都必须有延迟加载入口，
+// 否则运行时会因缺少模块而失败。
 const oauthLoadSource = readFileSync(join(repoRoot, "packages", "ai", "src", "auth", "oauth", "load.ts"), "utf8");
 for (const match of oauthLoadSource.matchAll(/importOAuthModule\("\.\/([^"]+)\.ts"\)/g)) {
 	if (!(match[1] in lazyEntryPoints)) {
@@ -214,10 +210,9 @@ const lazyResult = await build({
 	splitting: false,
 });
 
-// getCodemodeWorkerSpecifier() in config.ts spawns the codemode worker from an in-memory data: URL
-// so codemode survives an update that replaces or deletes the install (#10439). A data: URL module
-// has no file location, so the worker must not use the createRequire(import.meta.url) banner,
-// require(), or imports other than Node builtins.
+// config.ts 中的 getCodemodeWorkerSpecifier() 通过内存 data: URL 启动 codemode worker，
+// 这样即使更新替换或删除安装目录，codemode 仍能运行（#10439）。data: URL 模块没有文件路径，
+// 因此 worker 不得使用 createRequire(import.meta.url) banner、require() 或 Node 内置模块以外的导入。
 const codemodeWorkerResult = await build({
 	...commonBuildOptions(),
 	banner: undefined,
@@ -242,7 +237,7 @@ const imageResizeWorkerOutput = resolve(dirname(bedrockLoaderOutput), "image-res
 if (dirname(imageResizeOutput) !== dirname(imageResizeWorkerOutput)) {
 	throw new Error("Image resize implementation and worker were emitted into different directories");
 }
-// getCodemodeWorkerUrl() in config.ts resolves the worker next to its own chunk.
+// config.ts 中的 getCodemodeWorkerUrl() 会解析到与自身代码块同目录的 worker。
 if (dirname(configOutput) !== dirname(bedrockLoaderOutput)) {
 	throw new Error("config.ts and the codemode worker were emitted into different directories");
 }

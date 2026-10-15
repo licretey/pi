@@ -1,9 +1,9 @@
 /**
- * Tests for git-based extension updates, specifically handling force-push scenarios.
+ * 测试基于 Git 的扩展更新，特别是处理强制推送场景。
  *
- * These tests verify that DefaultPackageManager.update() handles:
- * - Normal git updates (no force-push)
- * - Force-pushed remotes after a complete history rewrite
+ * 这些测试验证 DefaultPackageManager.update() 能正确处理：
+ * - 普通 Git 更新（未发生强制推送）。
+ * - 远程仓库历史被完全重写后发生的强制推送。
  */
 
 import { spawnSync } from "node:child_process";
@@ -15,7 +15,7 @@ import { DefaultPackageManager } from "../src/core/package-manager.ts";
 import { SettingsManager } from "../src/core/settings-manager.ts";
 import { allowNetwork } from "./test-network-env.ts";
 
-// Helper to run git commands in a directory
+// 辅助函数：在指定目录中运行 Git 命令。
 function git(args: string[], cwd: string): string {
 	const result = spawnSync("git", args, {
 		cwd,
@@ -33,7 +33,7 @@ function initGitRepo(repoDir: string): void {
 	git(["config", "--local", "user.name", "Test"], repoDir);
 }
 
-// Helper to create a commit with a file
+// 辅助函数：创建包含指定文件的提交。
 function createCommit(repoDir: string, filename: string, content: string, message: string): string {
 	writeFileSync(join(repoDir, filename), content);
 	git(["add", filename], repoDir);
@@ -41,12 +41,12 @@ function createCommit(repoDir: string, filename: string, content: string, messag
 	return git(["rev-parse", "HEAD"], repoDir);
 }
 
-// Helper to get current commit hash
+// 辅助函数：获取当前提交哈希。
 function getCurrentCommit(repoDir: string): string {
 	return git(["rev-parse", "HEAD"], repoDir);
 }
 
-// Helper to get file content
+// 辅助函数：读取文件内容。
 function getFileContent(repoDir: string, filename: string): string {
 	return readFileSync(join(repoDir, filename), "utf-8");
 }
@@ -67,15 +67,15 @@ interface PackageManagerPathInternals {
 
 describe("DefaultPackageManager git update", () => {
 	let tempDir: string;
-	let remoteDir: string; // Simulates the "remote" repository
-	let agentDir: string; // The agent directory where extensions are installed
-	let installedDir: string; // The installed extension directory
+	let remoteDir: string; // 模拟“远程”仓库。
+	let agentDir: string; // 安装扩展的 agent 目录。
+	let installedDir: string; // 已安装扩展所在的目录。
 	let settingsManager: SettingsManager;
 	let packageManager: DefaultPackageManager;
 
-	// Git source that maps to our installed directory structure.
-	// Must use "git:" prefix so parseSource() treats it as a git source
-	// (bare "github.com/..." is not recognized as a git URL).
+	// 此 Git 源对应本测试的安装目录结构。
+	// 必须使用 "git:" 前缀，parseSource() 才会将其识别为 Git 源
+	//（单独的 "github.com/..." 不会被识别为 Git URL）。
 	const gitSource = "git:github.com/test/extension";
 
 	beforeEach(() => {
@@ -85,7 +85,7 @@ describe("DefaultPackageManager git update", () => {
 		remoteDir = join(tempDir, "remote");
 		agentDir = join(tempDir, "agent");
 
-		// This matches the path structure: agentDir/git/<host>/<path>
+		// 此路径符合 agentDir/git/<host>/<path> 结构。
 		installedDir = join(agentDir, "git", "github.com", "test", "extension");
 
 		mkdirSync(agentDir, { recursive: true });
@@ -104,20 +104,20 @@ describe("DefaultPackageManager git update", () => {
 		}
 	});
 
-	/** Sets up a "remote" repository and clones it to the installed directory. */
+	/** 创建“远程”仓库，并将其克隆到安装目录。 */
 	function setupRemoteAndInstall(): void {
-		// Create "remote" repository
+		// 创建“远程”仓库。
 		mkdirSync(remoteDir, { recursive: true });
 		initGitRepo(remoteDir);
 		createCommit(remoteDir, "extension.ts", "// v1", "Initial commit");
 
-		// Clone to installed directory (simulating what install() does)
+		// 克隆到安装目录（模拟 install() 的行为）。
 		mkdirSync(join(agentDir, "git", "github.com", "test"), { recursive: true });
 		git(["clone", remoteDir, installedDir], tempDir);
 		git(["config", "--local", "user.email", "test@test.com"], installedDir);
 		git(["config", "--local", "user.name", "Test"], installedDir);
 
-		// Add to global packages so update() processes this source
+		// 将其加入全局软件包设置，使 update() 处理此源。
 		settingsManager.setPackages([gitSource]);
 	}
 
@@ -166,13 +166,13 @@ describe("DefaultPackageManager git update", () => {
 			setupRemoteAndInstall();
 			expect(getFileContent(installedDir, "extension.ts")).toBe("// v1");
 
-			// Add a new commit to remote
+			// 在远程仓库中添加新提交。
 			const newCommit = createCommit(remoteDir, "extension.ts", "// v2", "Second commit");
 
-			// Update via package manager (no args = uses settings)
+			// 通过软件包管理器更新（不传参数时使用设置中的源）。
 			await packageManager.update();
 
-			// Verify update succeeded
+			// 验证更新成功。
 			expect(getCurrentCommit(installedDir)).toBe(newCommit);
 			expect(getFileContent(installedDir, "extension.ts")).toBe("// v2");
 		});
@@ -182,19 +182,19 @@ describe("DefaultPackageManager git update", () => {
 		it("should handle complete history rewrite", async () => {
 			setupRemoteAndInstall();
 
-			// Remote gets several commits
+			// 远程仓库新增多个提交。
 			createCommit(remoteDir, "extension.ts", "// v2", "v2");
 			createCommit(remoteDir, "extension.ts", "// v3", "v3");
 
 			await packageManager.update();
 			expect(getFileContent(installedDir, "extension.ts")).toBe("// v3");
 
-			// Maintainer force-pushes completely different history
+			// 维护者强制推送一段完全不同的历史。
 			git(["reset", "--hard", "HEAD~2"], remoteDir);
 			createCommit(remoteDir, "extension.ts", "// rewrite-a", "Rewrite A");
 			const finalCommit = createCommit(remoteDir, "extension.ts", "// rewrite-b", "Rewrite B");
 
-			// Should handle this gracefully
+			// 应能妥善处理这种情况。
 			await packageManager.update();
 
 			expect(getCurrentCommit(installedDir)).toBe(finalCommit);

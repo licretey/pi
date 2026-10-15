@@ -20,7 +20,7 @@ const context: ClassifierContext = {
 	},
 };
 
-// Model output from https://developers.cloudflare.com/ai/models/typesafe/jev/
+// 来自 https://developers.cloudflare.com/ai/models/typesafe/jev/ 的模型输出。
 const jevOutput = {
 	model: "jev-1.13.0",
 	answers: {
@@ -35,7 +35,7 @@ const jevOutput = {
 	usage: { input_tokens: 426, output_tokens: 73 },
 };
 
-// REST envelope observed from the live /ai/run endpoint.
+// 从线上 /ai/run 端点观察到的 REST 响应封装。
 function restResponse(state: string, result: unknown = jevOutput) {
 	return {
 		result: { state, result, gatewayMetadata: { keySource: "Unified" } },
@@ -45,8 +45,8 @@ function restResponse(state: string, result: unknown = jevOutput) {
 	};
 }
 
-// Cloudflare-hosted output observed from a live /ai/run call, question ids renamed to match `context`.
-// The envelope carries the output directly, without a run record.
+// 从 Cloudflare 线上 /ai/run 调用中观察到的输出；问题 ID 已重命名，以匹配 `context`。
+// 信封中直接包含输出，不包含运行记录。
 const clefOutput = {
 	model: "clef",
 	answers: {

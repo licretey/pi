@@ -1,5 +1,5 @@
 /**
- * Tests for terminal image detection and line handling
+ * 测试终端图像检测和行处理逻辑。
  */
 
 import assert from "node:assert";
@@ -73,19 +73,19 @@ function withEnv<T>(overrides: Record<string, string | undefined>, fn: () => T):
 describe("isImageLine", () => {
 	describe("iTerm2 image protocol", () => {
 		it("should detect iTerm2 image escape sequence at start of line", () => {
-			// iTerm2 image escape sequence: ESC ]1337;File=...
+			// iTerm2 图像转义序列：ESC ]1337;File=...
 			const iterm2ImageLine = "\x1b]1337;File=size=100,100;inline=1:base64encodeddata==\x07";
 			assert.strictEqual(isImageLine(iterm2ImageLine), true);
 		});
 
 		it("should detect iTerm2 image escape sequence with text before it", () => {
-			// Simulating a line that has text then image data (bug scenario)
+			// 模拟文本后跟图像数据的行（问题场景）。
 			const lineWithTextAndImage = "Some text \x1b]1337;File=size=100,100;inline=1:base64data==\x07 more text";
 			assert.strictEqual(isImageLine(lineWithTextAndImage), true);
 		});
 
 		it("should detect iTerm2 image escape sequence in middle of long line", () => {
-			// Simulate a very long line with image data in the middle
+			// 模拟一行很长且中间包含图像数据的内容。
 			const longLineWithImage =
 				"Text before image..." + "\x1b]1337;File=inline=1:verylongbase64data==" + "...text after";
 			assert.strictEqual(isImageLine(longLineWithImage), true);
@@ -104,19 +104,19 @@ describe("isImageLine", () => {
 
 	describe("Kitty image protocol", () => {
 		it("should detect Kitty image escape sequence at start of line", () => {
-			// Kitty image escape sequence: ESC _G
+			// Kitty 图像转义序列：ESC _G。
 			const kittyImageLine = "\x1b_Ga=T,f=100,t=f,d=base64data...\x1b\\\x1b_Gm=i=1;\x1b\\";
 			assert.strictEqual(isImageLine(kittyImageLine), true);
 		});
 
 		it("should detect Kitty image escape sequence with text before it", () => {
-			// Bug scenario: text + image data in same line
+			// 问题场景：文本和图像数据位于同一行。
 			const lineWithTextAndKittyImage = "Output: \x1b_Ga=T,f=100;data...\x1b\\\x1b_Gm=i=1;\x1b\\";
 			assert.strictEqual(isImageLine(lineWithTextAndKittyImage), true);
 		});
 
 		it("should detect Kitty image escape sequence with padding", () => {
-			// Kitty protocol adds padding to escape sequences
+			// Kitty 协议会在转义序列中加入填充内容。
 			const kittyWithPadding = "  \x1b_Ga=T,f=100...\x1b\\\x1b_Gm=i=1;\x1b\\  ";
 			assert.strictEqual(isImageLine(kittyWithPadding), true);
 		});
@@ -124,12 +124,11 @@ describe("isImageLine", () => {
 
 	describe("Bug regression tests", () => {
 		it("should detect image sequences in very long lines (304k+ chars)", () => {
-			// This simulates the crash scenario: a line with 304,401 chars
-			// containing image escape sequences somewhere
+			// 模拟导致崩溃的场景：一行包含 304,401 个字符，且其中某处含有图像转义序列。
 			const base64Char = "A".repeat(100); // 100 chars of base64-like data
 			const imageSequence = "\x1b]1337;File=size=800,600;inline=1:";
 
-			// Build a long line with image sequence
+			// 构造一行很长且包含图像序列的内容。
 			const longLine =
 				"Text prefix " +
 				imageSequence +
@@ -141,14 +140,14 @@ describe("isImageLine", () => {
 		});
 
 		it("should detect image sequences when terminal doesn't support images", () => {
-			// The bug occurred when getImageEscapePrefix() returned null
-			// isImageLine should still detect image sequences regardless
+			// 问题出现在 getImageEscapePrefix() 返回 null 时。
+			// 无论该函数返回什么，isImageLine 都应能检测到图像序列。
 			const lineWithImage = "Read image file [image/jpeg]\x1b]1337;File=inline=1:base64data==\x07";
 			assert.strictEqual(isImageLine(lineWithImage), true);
 		});
 
 		it("should detect image sequences with ANSI codes before them", () => {
-			// Text might have ANSI styling before image data
+			// 图像数据前的文本可能带有 ANSI 样式。
 			const lineWithAnsiAndImage = "\x1b[31mError output \x1b]1337;File=inline=1:image==\x07";
 			assert.strictEqual(isImageLine(lineWithAnsiAndImage), true);
 		});
@@ -176,13 +175,13 @@ describe("isImageLine", () => {
 		});
 
 		it("should not detect images in lines with partial iTerm2 sequences", () => {
-			// Similar prefix but missing the complete sequence
+			// 前缀相似，但缺少完整序列。
 			const partialSequence = "Some text with ]1337;File but missing ESC at start";
 			assert.strictEqual(isImageLine(partialSequence), false);
 		});
 
 		it("should not detect images in lines with partial Kitty sequences", () => {
-			// Similar prefix but missing the complete sequence
+			// 前缀相似，但缺少完整序列。
 			const partialSequence = "Some text with _G but missing ESC at start";
 			assert.strictEqual(isImageLine(partialSequence), false);
 		});
@@ -209,7 +208,7 @@ describe("isImageLine", () => {
 		});
 
 		it("should not falsely detect image in line with file path containing keywords", () => {
-			// File path might contain "1337" or "File" but without escape sequences
+			// 文件路径可能包含 "1337" 或 "File"，但并不包含转义序列。
 			const filePathLine = "/path/to/File_1337_backup/image.jpg";
 			assert.strictEqual(isImageLine(filePathLine), false);
 		});
@@ -649,7 +648,7 @@ describe("Kitty image cursor movement", () => {
 	});
 });
 
-// #8938: reduce Kitty placement distortion without shrinking iTerm2 reservations.
+// #8938：减少 Kitty 图像定位偏差，同时不缩小 iTerm2 的预留区域。
 describe("image cell sizing", () => {
 	afterEach(() => {
 		resetCapabilitiesCache();
@@ -809,7 +808,7 @@ describe("imageFallback", () => {
 				result.includes(abs.replaceAll("\\", "/")) || result.includes(abs),
 				"file URL should target absolute path",
 			);
-			// Visible text must use ~/... not the expanded home path.
+			// 可见文本必须使用 ~/...，不能展开为完整的主目录路径。
 			const visible = result.replace(/\x1b\]8;;.*?\x1b\\/g, "");
 			assert.strictEqual(visible, "[Image: ~/.pi/agent/shot.png [image/png] 10x10]");
 		} finally {
@@ -838,10 +837,10 @@ describe("imageFallback", () => {
 	});
 });
 
-// Kitty only accepts PNG (f=100); non-PNG images must be transcoded (#10292)
+// Kitty 仅接受 PNG（f=100）；非 PNG 图像必须先转码（#10292）。
 describe("Image transcoding", () => {
 	const jpeg = Buffer.from("jpeg").toString("base64");
-	// Minimal PNG header (signature + IHDR) for a 40x10 image. Enough for getPngDimensions.
+	// 40x10 图像的最小 PNG 文件头（签名 + IHDR），足以供 getPngDimensions 使用。
 	const png = Buffer.from("89504e470d0a1a0a0000000d49484452000000280000000a", "hex").toString("base64");
 	let calls: string[];
 	const render = (data: string, mimeType: string) =>
@@ -867,7 +866,7 @@ describe("Image transcoding", () => {
 		setImageTranscoder(transcode);
 		const lines = render(jpeg, "image/jpeg");
 		assert.ok(lines[0].includes("f=100") && lines[0].includes(`;${png}\x1b\\`));
-		// 40x10 PNG at 18 columns: 5 rows, not the 18 rows of the 20x20 source dimensions.
+		// 40x10 PNG 在 18 列宽度下应占 5 行，而不是按源图像 20x20 尺寸计算出的 18 行。
 		assert.strictEqual(lines.length, 5);
 	});
 
@@ -886,10 +885,10 @@ describe("Image transcoding", () => {
 		setImageTranscoder(transcode);
 		const image = new Image(jpeg, "image/jpeg", { fallbackColor: (value) => value });
 		image.render(80);
-		render(jpeg, "image/jpeg"); // New instance hits the shared cache.
-		for (let i = 0; i < 40; i++) render(`other-${i}`, "image/jpeg"); // Evicts the shared entry.
+		render(jpeg, "image/jpeg"); // 新实例命中共享缓存。
+		for (let i = 0; i < 40; i++) render(`other-${i}`, "image/jpeg"); // 淘汰共享缓存条目。
 		image.invalidate();
-		image.render(40); // Instance keeps its own PNG.
+		image.render(40); // 实例会保留自己的 PNG 数据。
 		assert.strictEqual(calls.filter((data) => data === jpeg).length, 1);
 	});
 

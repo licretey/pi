@@ -1,9 +1,9 @@
-// Unit tests for the shared provider error-body normalizer.
+// 共享提供方错误正文规范化器的单元测试。
 //
-// See issues/provider-error-body-passthrough. These cover one synthesized error
-// object per SDK shape (Mistral, openai APIError, @google/genai ApiError, AWS
-// Bedrock ServiceException), plus the non-Error fallback, truncation, the empty
-// parsed-body edge case, and the formatProviderError compose helper.
+// 参见 issues/provider-error-body-passthrough。这些测试针对每种 SDK 错误类型
+//（Mistral、openai APIError、@google/genai ApiError、AWS
+// Bedrock ServiceException），以及非 Error 回退、截断、空内容
+// 解析正文边界情况和 formatProviderError 组合辅助函数。
 
 import { describe, expect, it } from "vitest";
 import { formatProviderError, MAX_PROVIDER_ERROR_BODY_CHARS, normalizeProviderError } from "../src/utils/error-body.ts";
@@ -23,8 +23,8 @@ describe("normalizeProviderError", () => {
 	});
 
 	it("reads the parsed body off an openai APIError when the message is opaque", () => {
-		// makeMessage(status, error, message) yields "<status> status code (no body)"
-		// when the parsed body is unparsed, while the body stays on error.error.
+		// makeMessage(status, error, message) 会生成 "<status> status code (no body)"。
+		// 解析后的响应体尚未反序列化，但原始响应体仍保留在 error.error 中。
 		const error = Object.assign(new Error("403 status code (no body)"), {
 			status: 403,
 			error: { error: "blocked by gateway WAF" },
@@ -86,9 +86,9 @@ describe("normalizeProviderError", () => {
 	});
 
 	it("ignores a class-instance response body without a pipe method instead of serializing it", () => {
-		// Not every SDK response wrapper is a node stream: web ReadableStreams
-		// and SDK-specific wrapper classes have no `pipe`, but serializing them
-		// still yields internals-noise that would replace the real message.
+		// 并非所有 SDK 响应包装器都是 Node 流：Web ReadableStream
+		// 这些 SDK 专用包装类没有 `pipe` 属性，但序列化后仍会产生内部噪声，
+		// 从而掩盖真正的错误消息。
 		class SdkHttpResponseBody {
 			locked = false;
 			state = { storedError: undefined };

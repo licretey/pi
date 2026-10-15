@@ -36,13 +36,13 @@ describe("isContextOverflow", () => {
 	});
 
 	it("detects z.ai prompt-too-long errors", () => {
-		// Regression for #9805.
+		// #9805 的回归测试。
 		const message = createErrorMessage('400 {"code":"1261","message":"Prompt too long"}', "zai");
 		expect(isContextOverflow(message, 1048576)).toBe(true);
 	});
 
 	it("detects z.ai CN endpoint prompt-exceeds-max-length errors", () => {
-		// Regression for #10208.
+		// #10208 的回归测试。
 		const message = createErrorMessage('400 {"code":"1261","message":"Prompt exceeds max length"}', "zai");
 		expect(isContextOverflow(message, 1048576)).toBe(true);
 	});
@@ -93,7 +93,7 @@ describe("isContextOverflow", () => {
 	});
 
 	it("only treats bodyless 400 and 413 errors as overflow for Cerebras", () => {
-		// Regression for #9482.
+		// #9482 的回归测试。
 		for (const errorMessage of ["400 status code (no body)", "413 status code (no body)"]) {
 			expect(isContextOverflow(createErrorMessage(errorMessage, "cerebras"), 131072)).toBe(true);
 			expect(isContextOverflow(createErrorMessage(errorMessage, "opencode-go"), 1000000)).toBe(false);
@@ -101,8 +101,8 @@ describe("isContextOverflow", () => {
 	});
 
 	it("does not treat Bedrock throttling 'Too many tokens' as overflow", () => {
-		// Bedrock returns this for HTTP 429 rate limiting, NOT context overflow.
-		// formatBedrockError uses a human-readable prefix for ThrottlingException.
+		// Bedrock 会在 HTTP 429 速率限制时返回此错误，它并不表示上下文溢出。
+		// formatBedrockError 会为 ThrottlingException 添加便于阅读的前缀。
 		const message = createErrorMessage("Throttling error: Too many tokens, please wait before trying again.");
 		expect(isContextOverflow(message, 200000)).toBe(false);
 	});

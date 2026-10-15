@@ -1,6 +1,6 @@
 /**
- * Tests for the test harness itself.
- * Validates that the faux provider and session factory work correctly.
+ * 测试测试框架本身。
+ * 验证模拟提供方和会话工厂能否正常工作。
  */
 
 import type { AgentTool } from "@earendil-works/pi-agent-core";
@@ -183,7 +183,7 @@ describe("test harness", () => {
 		const textDeltas = updates.filter((e) => e.assistantMessageEvent.type === "text_delta");
 		expect(textDeltas.length).toBeGreaterThan(0);
 
-		// Deltas should reconstruct the full text
+		// 所有增量拼接后应还原完整文本
 		const reconstructed = textDeltas.map((e) => (e.assistantMessageEvent as { delta: string }).delta).join("");
 		expect(reconstructed).toBe("hello world");
 	});
@@ -262,7 +262,7 @@ describe("test harness", () => {
 		const updates = harness.eventsOfType("message_update");
 		const streamTypes = updates.map((e) => e.assistantMessageEvent.type);
 
-		// Thinking events should come before text events, text before toolcall
+		// 思考事件应先于文本事件，文本事件应先于工具调用事件
 		const firstThinking = streamTypes.indexOf("thinking_start");
 		const firstText = streamTypes.indexOf("text_start");
 		const firstToolcall = streamTypes.indexOf("toolcall_start");

@@ -1,6 +1,6 @@
-// A task that owns child tasks: a checkout charges four payments at once and waits for them.
-// The task graph view prints the checkout's tree while its payments run.
-// Run from packages/durable:
+// 一个任务拥有多个子任务：结账任务同时扣取四笔款项并等待结果。
+// 子任务运行期间，任务图视图会显示结账任务的树形结构。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/24-child-tasks.ts
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -21,7 +21,7 @@ import { openNodeSqliteStorage } from "../../src/storage/sqlite/node.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-// A fake bank: it declines an expired card at once, and confirms other charges after a moment.
+// 模拟银行：立即拒绝已过期的卡片，并在短暂等待后确认其他扣款。
 const charged = new Set<string>();
 
 type PaymentInput = { card: string };
@@ -46,7 +46,7 @@ const Payment = defineTask<PaymentInput, { phase: "charge"; at: number }, Paymen
 			);
 		},
 	},
-	// Each payment undoes its own effect when aborted.
+	// 每笔付款在中止时都会撤销自身产生的影响。
 	abort: async (task, runtime, taskContext) => {
 		const refunded = charged.delete(task.input.card);
 		console.log(`  payment ${task.input.card} aborted${refunded ? ", refunded" : ""}`);
@@ -54,9 +54,9 @@ const Payment = defineTask<PaymentInput, { phase: "charge"; at: number }, Paymen
 	},
 });
 
-// The checkout creates its payments as child tasks and waits for all of them.
-// With `failFast`, the first payment that fails aborts the others; the checkout
-// itself is not aborted and decides its outcome once every payment is done.
+// 结账任务会将每笔付款创建为子任务，并等待所有子任务完成。
+// 使用 `failFast` 时，首笔失败的付款会中止其他付款；结账任务自身不会中止，
+// 而是在所有付款结束后决定最终结果。
 type CheckoutState = { phase: "pay" } | { phase: "decide"; payments: TaskId<PaymentResult>[] };
 const Checkout = defineTask<{ cards: string[] }, CheckoutState, string>({
 	name: "example.checkout",
@@ -85,7 +85,7 @@ const Checkout = defineTask<{ cards: string[] }, CheckoutState, string>({
 			);
 		},
 	},
-	// Runs only after every payment is done, so the refunds have already happened.
+	// 此处理器仅在所有付款结束后运行，因此退款此时已经完成。
 	abort: async (_task, runtime, taskContext) => {
 		console.log("  checkout aborted");
 		await runtime.commit(() => ({ status: "terminal", outcome: { status: "aborted" } }), taskContext);
@@ -98,7 +98,7 @@ const directory = await mkdtemp(join(tmpdir(), "pi-durable-example-"));
 const databasePath = join(directory, "session.sqlite");
 const open = async () =>
 	Harness.open(await openNodeSqliteStorage(databasePath), { models: createModels(), registry }, context);
-/** Print the live tasks as a tree along their owner edges. */
+/** 沿所有权关系以树形结构打印正在运行的任务。 */
 function printGraph(graph: TaskGraph): void {
 	const nodes = Object.values(graph.tasks);
 	const print = (node: TaskGraphNode, depth: number): void => {

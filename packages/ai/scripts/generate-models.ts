@@ -220,7 +220,7 @@ const TOGETHER_TOGGLE_REASONING_LEVEL_MAP = {
 
 const AI_GATEWAY_MODELS_URL = "https://ai-gateway.vercel.sh/v1";
 const AI_GATEWAY_BASE_URL = "https://ai-gateway.vercel.sh";
-// TypeSafe-compatible System One endpoint for evaluation models.
+// 评测模型使用的 TypeSafe 兼容 System One 端点。
 // https://vercel.com/docs/ai-gateway/sdks-and-apis/typesafe
 const AI_GATEWAY_TYPESAFE_BASE_URL = "https://ai-gateway.vercel.sh/typesafe/v1";
 const VERTEX_BASE_URL = "https://{location}-aiplatform.googleapis.com";
@@ -286,7 +286,7 @@ const DEEPSEEK_V4_FLASH_THINKING_LEVEL_MAP = {
 	...DEEPSEEK_V4_THINKING_LEVEL_MAP,
 	low: "low",
 } as const;
-// Azure Foundry rejects DeepSeek's own max effort.
+// Azure Foundry 不接受 DeepSeek 自身的 max 推理强度。
 const AZURE_DEEPSEEK_V4_THINKING_LEVEL_MAP = {
 	minimal: null,
 	low: "low",
@@ -295,9 +295,9 @@ const AZURE_DEEPSEEK_V4_THINKING_LEVEL_MAP = {
 	xhigh: null,
 	max: null,
 } as const;
-// Verified against Fireworks Messages raw_output on 2026-09-10 (#9323).
-// Fall back to verified support when models.dev omits effort metadata; this is
-// not an allowlist. Any Fireworks Messages model advertising effort uses adaptive thinking.
+// 已于 2026-09-10 对照 Fireworks Messages 的 raw_output 验证（#9323）。
+// models.dev 未提供推理强度元数据时，回退到已验证的支持情况；这不是允许列表。
+// Fireworks Messages 中任何声明支持推理强度的模型都会使用自适应思考。
 const FIREWORKS_ADAPTIVE_THINKING_FALLBACK_MODELS = new Set([
 	"accounts/fireworks/models/deepseek-v4-flash-0731",
 	"accounts/fireworks/models/deepseek-v4-flash-vision-exp",
@@ -314,15 +314,15 @@ const QWEN_TOKEN_PLAN_FALLBACK_THINKING_LEVEL_MAP = {
 	max: "max",
 } as const;
 const QWEN_TOKEN_PLAN_REASONING_EFFORT_FALLBACK_MODEL_IDS = new Set(["glm-5", "glm-5.1"]);
-// Retired preview id — models.dev may still list it after GA ships.
+// 已弃用的预览版 ID——正式版发布后，models.dev 仍可能继续列出它。
 const QWEN_TOKEN_PLAN_EXCLUDED_MODEL_IDS = new Set(["qwen3.8-max-preview"]);
 const QWEN_TOKEN_PLAN_PROVIDER_IDS = new Set<string>([
 	"qwen-token-plan",
 	"qwen-token-plan-cn",
 	"qwen-token-plan-individual",
 ]);
-// QwenCloud Token Plan Individual text-model allowlist, verified 2026-09-03.
-// Retired models remain excluded above even if the public catalog lags.
+// QwenCloud Token Plan Individual 文本模型允许列表，已于 2026-09-03 验证。
+// 即使公开目录更新滞后，已弃用的模型仍会在上方排除。
 // https://docs.qwencloud.com/token-plan/personal/token-plan-personal-overview
 const QWEN_TOKEN_PLAN_INDIVIDUAL_MODEL_IDS = new Set<string>([
 	"deepseek-v4-flash-0731",
@@ -343,8 +343,8 @@ const KIMI_K3_COST = {
 	cacheRead: 0.3,
 	cacheWrite: 0,
 } as const;
-// Kimi Coding is subscription-backed, so models.dev reports zero cost. Use the
-// equivalent Moonshot API rates to estimate the value of subscription usage.
+// Kimi Coding 采用订阅制，因此 models.dev 报告的费用为零。使用 Moonshot API 的对应费率
+// 估算订阅用量的价值。
 const KIMI_CODING_IMPLIED_COSTS: Record<string, Model<Api>["cost"]> = {
 	k3: KIMI_K3_COST,
 	"kimi-for-coding": { input: 0.95, output: 4, cacheRead: 0.19, cacheWrite: 0 },
@@ -414,9 +414,8 @@ const OPENAI_LONG_CONTEXT_PRICING_MODEL_IDS = new Set([
 	"gpt-6.1-sol",
 ]);
 
-// Keep the generated default no less restrictive than coding-agent's historical
-// image preprocessing. Provider limits can narrow this profile, but unknown
-// providers retain the cache-safe 2000px / 4.5 MiB behavior.
+// 生成的默认值不能比 coding-agent 过去的图像预处理限制更宽松。
+// 提供商限制可以进一步收紧此配置；对于未知提供商，仍采用适合缓存的 2000px / 4.5 MiB 限制。
 const DEFAULT_IMAGE_RESIZE = {
 	maxWidth: 2000,
 	maxHeight: 2000,
@@ -439,8 +438,7 @@ function withOpenAiLongContextPricing(cost: Model<Api>["cost"]): Model<Api>["cos
 	};
 }
 
-// Keep current OpenAI prices authoritative until models.dev and passthrough
-// catalogs catch up.
+// 在 models.dev 和直通目录更新之前，以当前 OpenAI 价格为准。
 // https://developers.openai.com/api/docs/pricing
 const OPENAI_STANDARD_COSTS: Record<string, ModelCost> = {
 	"gpt-5.6-luna": { input: 0.2, output: 1.2, cacheRead: 0.02, cacheWrite: 0.25 },
@@ -487,8 +485,7 @@ const OPENCODE_OPENAI_COMPLETIONS_LONG_CACHE_RETENTION_UNSUPPORTED_MODELS = new 
 	"opencode-go:kimi-k2.6",
 ]);
 
-// GitHub's "Models with extended capabilities" table lists these Copilot models as supporting
-// the extended 1 million token context window.
+// GitHub 的“具备扩展能力的模型”表格显示，这些 Copilot 模型支持扩展到 100 万 token 的上下文窗口。
 const GITHUB_COPILOT_EXTENDED_CONTEXT_MODELS = new Set([
 	"claude-fable-5",
 	"claude-opus-4.6",
@@ -506,8 +503,8 @@ const GITHUB_COPILOT_EXTENDED_CONTEXT_MODELS = new Set([
 	"gpt-6-sol",
 ]);
 
-// Checked manually against the authenticated GitHub Copilot /models endpoint on 2026-06-15.
-// Keep this to narrow corrections over models.dev metadata instead of snapshotting Copilot's catalog.
+// 已于 2026-06-15 手动对照经过身份验证的 GitHub Copilot /models 端点。
+// 这里只对 models.dev 元数据做少量修正，不复制整个 Copilot 目录快照。
 const GITHUB_COPILOT_THINKING_LEVEL_OVERRIDES = {
 	"claude-opus-4.7": { minimal: "low" },
 	"claude-opus-4.8": { minimal: "low" },
@@ -597,9 +594,9 @@ function supportsOpenAiMax(model: Model<Api>): boolean {
 }
 
 const VERIFIED_ANTHROPIC_MID_CONVO_EFFORT_PROVIDERS = new Set(["anthropic", "openrouter"]);
-// OpenRouter rejects `configuration_update` system messages on Opus 5 ("Mid-conversation
-// reasoning effort (configuration_update) is not supported on anthropic/claude-opus-5-20260723")
-// while accepting them on Fable 5.1, so gate that model there.
+// OpenRouter 在 Opus 5 上拒绝 `configuration_update` 系统消息（“Mid-conversation
+// reasoning effort (configuration_update) is not supported on anthropic/claude-opus-5-20260723”），
+// 但 Fable 5.1 可以接受，因此仅对 Opus 5 禁用该功能。
 const MID_CONVO_EFFORT_UNSUPPORTED_ANTHROPIC_MODELS = new Set(["openrouter:anthropic/claude-opus-5"]);
 
 function supportsAnthropicMidConvoEffort(modelId: string): boolean {
@@ -777,7 +774,7 @@ function detectOpenAICompletionsCompat(model: Model<"openai-completions">): Open
 		chatTemplateKwargs: {},
 		chatTemplateArgs: {},
 		zaiToolStream: false,
-		// Preserve built-in behavior as explicit metadata against the conservative runtime default.
+		// 将内置行为保留为显式元数据，避免受到保守运行时默认值的影响。
 		supportsStrictMode: !isMoonshot && !isTogether && !isCloudflareAiGateway && !isNvidia && !isCerebras,
 		supportsOpenAIGrammarTools: false,
 		supportsMidConvoSystemMessages: false,
@@ -872,10 +869,9 @@ function applyStrictToolCompatMetadata(model: Model<Api>): void {
 	}
 }
 
-// Responses endpoints verified (OpenAI, ChatGPT Codex backend, GitHub Copilot,
-// opencode zen) or documented (Azure OpenAI, Cloudflare AI Gateway) to pass
-// OpenAI custom grammar tools through. OpenAI rejects `type: "custom"` tools
-// for pre-GPT-5 models (gpt-4.x, gpt-4o, o-series).
+// 已验证 OpenAI、ChatGPT Codex 后端、GitHub Copilot、opencode zen 的 Responses 端点，或文档确认
+// Azure OpenAI、Cloudflare AI Gateway 会透传 OpenAI 自定义语法工具。对于 GPT-5 之前的模型
+//（gpt-4.x、gpt-4o、o 系列），OpenAI 会拒绝 `type: "custom"` 工具。
 const OPENAI_GRAMMAR_TOOL_PROVIDERS = new Set([
 	"openai",
 	"openai-codex",
@@ -911,11 +907,10 @@ function applyOpenAIToolSearchMetadata(model: Model<Api>): void {
 	};
 }
 
-// Moonshot Kimi K2.6/K2.7 accept system text after the conversation starts but reject
-// tool-bearing system messages. Kimi K3 accepts both forms; Fireworks and OpenCode pass
-// its tool-bearing form through. GitHub Copilot forwards K3 text but silently drops its
-// tool-bearing message. DeepSeek V4 Pro and OpenAI models behind OpenRouter also accept
-// plain system text in place.
+// Moonshot Kimi K2.6/K2.7 在对话开始后接受系统文本，但拒绝包含工具的系统消息。
+// Kimi K3 两种形式都接受；Fireworks 和 OpenCode 会透传包含工具的形式。
+// GitHub Copilot 会转发 K3 的文本，但会静默丢弃包含工具的消息。
+// 通过 OpenRouter 调用的 DeepSeek V4 Pro 和 OpenAI 模型也接受普通系统文本。
 function applyOpenAICompletionsTranscriptMetadata(model: Model<Api>): void {
 	if (model.api !== "openai-completions") return;
 	const isKimiK3 =
@@ -940,10 +935,9 @@ function applyOpenAICompletionsTranscriptMetadata(model: Model<Api>): void {
 	};
 }
 
-// Newer OpenAI Responses models accept developer messages after the conversation has started.
-// OpenCode Zen, OpenCode Go, and GitHub Copilot pass both those messages and
-// `additional_tools` items through to OpenAI unchanged; tool search is not verified
-// through those proxies.
+// 较新的 OpenAI Responses 模型允许在对话开始后发送 developer 消息。
+// OpenCode Zen、OpenCode Go 和 GitHub Copilot 会将这些消息以及 `additional_tools` 项
+// 原样透传给 OpenAI；尚未验证这些代理是否支持工具搜索。
 const OPENAI_RESPONSES_PROXY_PROVIDERS = new Set(["opencode", "opencode-go", "github-copilot"]);
 
 function applyOpenAIResponsesTranscriptMetadata(model: Model<Api>): void {
@@ -964,8 +958,8 @@ function applyOpenAIResponsesTranscriptMetadata(model: Model<Api>): void {
 	};
 }
 
-// OpenAI charges prompt-cache writes starting with the GPT-5.6 family, and exactly
-// those models accept `prompt_cache_options`; older models reject the parameter.
+// 从 GPT-5.6 系列开始，OpenAI 会对提示缓存写入收费；也只有这些模型接受
+// `prompt_cache_options`，旧模型会拒绝此参数。
 // https://developers.openai.com/api/docs/guides/prompt-caching
 function applyOpenAIExplicitPromptCacheMetadata(model: Model<Api>): void {
 	if (model.provider !== "openai" || model.api !== "openai-responses") return;
@@ -976,9 +970,8 @@ function applyOpenAIExplicitPromptCacheMetadata(model: Model<Api>): void {
 	};
 }
 
-// Anthropic ephemeral entries have a hard five-minute lifetime; `ttl: "1h"`
-// extends it to one hour. Only direct Anthropic is annotated so cache warming
-// does not assume equivalent behavior through proxies.
+// Anthropic 临时缓存条目的有效期固定为五分钟；`ttl: "1h"` 可将其延长到一小时。
+// 这里只标注直连 Anthropic 的情况，避免缓存预热误以为代理也有相同行为。
 // https://docs.anthropic.com/en/docs/build-with-claude/prompt-caching
 const ANTHROPIC_PROMPT_CACHE: ModelPromptCache = { short: 300, long: 3600 };
 
@@ -986,9 +979,8 @@ function applyPromptCacheMetadata(model: Model<Api>): void {
 	if (model.provider === "anthropic" && model.api === "anthropic-messages") {
 		model.promptCache = ANTHROPIC_PROMPT_CACHE;
 	}
-	// Do not add OpenAI lifetimes yet. Before enabling warming for explicit
-	// OpenAI caches, re-evaluate it using observed expiry, replay, and billing
-	// behavior; a documented TTL alone does not establish full cache loss.
+	// 暂不添加 OpenAI 缓存有效期。启用显式 OpenAI 缓存预热前，需根据观察到的过期、重放和
+	// 计费行为重新评估；仅凭文档中的 TTL 无法确定缓存何时会完全失效。
 }
 
 function applyImageInputMetadata(model: AnyModel): void {
@@ -1052,7 +1044,7 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 			model.api === "openai-codex-responses")
 	) {
 		mergeThinkingLevelMap(model, {
-			// GPT-6 Astra and GPT-6.1 Sol reject reasoning.effort "none".
+			// GPT-6 Astra 和 GPT-6.1 Sol 会拒绝 reasoning.effort 为 "none" 的设置。
 			off: model.id === "gpt-6-astra" || model.id === "gpt-6.1-sol" ? null : "none",
 			minimal: null,
 			low: "low",
@@ -1072,8 +1064,8 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 	) {
 		mergeThinkingLevelMap(model, { off: "none" });
 	}
-	// xAI models without verified effort options must not send the undocumented
-	// "none"/"minimal" efforts.
+	// 对于尚未验证推理强度选项的 xAI 模型，不应发送文档未说明的
+	// "none"/"minimal" 推理强度。
 	if (model.provider === "xai" && model.api === "openai-responses" && model.thinkingLevelMap === undefined) {
 		mergeThinkingLevelMap(model, { off: null, minimal: null });
 	}
@@ -1089,9 +1081,9 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 	if (model.id.endsWith("gpt-5.5-pro")) {
 		mergeThinkingLevelMap(model, { off: null, minimal: null, low: null });
 	}
-	// Anthropic adaptive-thinking effort support (per Anthropic adaptive thinking docs):
-	// - "max" is available on all adaptive-thinking Claude models.
-	// - "xhigh" is only available on Opus 4.7/4.8/5, Sonnet 5, Haiku 5.5, and Fable 5.
+	// Anthropic 自适应思考的推理强度支持情况（依据 Anthropic 自适应思考文档）：
+	// - 所有支持自适应思考的 Claude 模型均支持 "max"。
+	// - 只有 Opus 4.7/4.8/5、Sonnet 5、Haiku 5.5 和 Fable 5 支持 "xhigh"。
 	if (
 		model.id.includes("opus-4-6") ||
 		model.id.includes("opus-4.6") ||
@@ -1150,16 +1142,16 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 		(model.provider === "moonshotai" || model.provider === "moonshotai-cn") &&
 		(model.id === "kimi-k2.7-code" || model.id === "kimi-k2.7-code-highspeed")
 	) {
-		// Kimi K2.7 Code is always-thinking. Official docs say
-		// `thinking: { type: "disabled" }` is rejected, and callers can omit
-		// the thinking parameter to use the enabled default.
+		// Kimi K2.7 Code 始终启用思考。官方文档说明，
+		// `thinking: { type: "disabled" }` 会被拒绝；调用方可以省略
+		// thinking 参数，以使用默认启用状态。
 		mergeThinkingLevelMap(model, { off: null });
 	}
 	if (model.provider === "openrouter" && model.id.startsWith("inception/mercury-2")) {
-		// Mercury 2 in instant mode (reasoning_effort: "none") disables tool calling.
-		// Mark "off" unsupported so the openai-completions provider omits the reasoning param
-		// instead of defaulting to {reasoning:{effort:"none"}} (see openai-completions.ts:575).
-		// Pi's low/medium/high pass through verbatim; OpenRouter normalizes to Mercury's vocabulary.
+		// Mercury 2 的即时模式（reasoning_effort: "none"）会禁用工具调用。
+		// 将 "off" 标记为不支持，使 openai-completions 提供商省略推理参数，
+		// 而不是默认发送 {reasoning:{effort:"none"}}（参见 openai-completions.ts:575）。
+		// Pi 的 low/medium/high 会原样透传；OpenRouter 会将其规范化为 Mercury 使用的词汇。
 		mergeThinkingLevelMap(model, { off: null });
 	}
 	if (model.provider === "openrouter" && model.id === "z-ai/glm-5.2") {
@@ -1167,8 +1159,8 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 	}
 	if (model.provider === "fireworks") {
 		if (model.api === "anthropic-messages" && model.compat?.forceAdaptiveThinking) {
-			// Qwen Max currently advertises only a toggle. Prefer upstream effort
-			// metadata once available instead of replacing it with this fallback.
+			// Qwen Max 目前只声明支持开关。上游提供推理强度元数据后，应优先采用该元数据，
+			// 不再使用此回退配置。
 			if (model.id === "accounts/fireworks/models/qwen3p8-max" && !model.thinkingLevelMap) {
 				model.thinkingLevelMap = getEffortThinkingLevelMap([
 					{ type: "effort", values: ["low", "medium", "xhigh"] },
@@ -1177,7 +1169,7 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 			const reasoningOptions = modelsDevReasoningOptions.get(getModelKey(model));
 			if (
 				reasoningOptions?.some((option) => option.type === "toggle") ||
-				// The 2.4T alias omits the verified toggle in models.dev.
+				// models.dev 中的 2.4T 别名未包含已验证的开关配置。
 				model.id === "accounts/fireworks/models/qwen3p8-2p4t-a95b"
 			) {
 				mergeThinkingLevelMap(model, { off: "none" });
@@ -1187,12 +1179,12 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 			}
 		}
 		if (model.id.includes("glm-5p2")) {
-			// GLM 5.2 and its fast router support off/high/max. Fireworks maps low
-			// and medium to high, so do not expose those aliases as distinct levels.
+			// GLM 5.2 及其快速路由支持 off/high/max。Fireworks 会将 low 和 medium 映射为 high，
+			// 因此不应把这两个别名作为独立级别提供。
 			mergeThinkingLevelMap(model, { off: "none", minimal: null, low: null, medium: null, max: "max" });
 		}
 		if (model.id.includes("kimi-k3")) {
-			// Fireworks maps medium to high on both APIs; do not expose it as a distinct level.
+			// Fireworks 在两种 API 中都会将 medium 映射为 high，因此不应将其作为独立级别提供。
 			mergeThinkingLevelMap(model, { medium: null });
 		}
 	}
@@ -1200,15 +1192,15 @@ function applyThinkingLevelMetadata(model: Model<any>): void {
 		mergeThinkingLevelMap(model, OPENCODE_GO_GLM52_THINKING_LEVEL_MAP);
 	}
 	if (model.provider === "opencode-go" && model.id === "kimi-k2.6") {
-		// OpenCode Go exposes Kimi K2.6 thinking as on/off, not distinct effort tiers.
+		// OpenCode Go 将 Kimi K2.6 的思考功能作为开关提供，不支持不同的推理强度级别。
 		mergeThinkingLevelMap(model, { minimal: null, low: null, medium: null });
 	}
 	if (model.provider === "opencode" && model.id === "grok-build-0.1") {
-		// OpenCode Zen Grok Build reasons by default but rejects explicit reasoningEffort.
+		// OpenCode Zen 的 Grok Build 默认启用推理，但会拒绝显式设置 reasoningEffort。
 		mergeThinkingLevelMap(model, { off: null, minimal: null, low: null, medium: null });
 	}
 	if (model.provider === "ant-ling" && model.reasoning) {
-		// Ring reasons by default. Only high/xhigh have documented explicit effort controls.
+		// Ring 默认启用推理。文档只说明支持显式控制 high/xhigh 推理强度。
 		mergeThinkingLevelMap(model, ANT_LING_RING_THINKING_LEVEL_MAP);
 	}
 	if (model.provider === "github-copilot") {
@@ -1232,8 +1224,8 @@ function getAnthropicMessagesCompat(provider: string, modelId: string): Anthropi
 		compat.supportsMidConvoSystemMessages = true;
 		compat.supportsMidConvoToolChanges = true;
 	}
-	// OpenCode Zen and GitHub Copilot forward mid-conversation system messages but reject
-	// `tool_addition`/`tool_removal` blocks, so tool changes stay top-level there.
+	// OpenCode Zen 和 GitHub Copilot 会转发对话中途的系统消息，但拒绝
+	// `tool_addition`/`tool_removal` 块，因此工具变更仍须在顶层处理。
 	if ((provider === "opencode" || provider === "github-copilot") && supportsAnthropicMidConvoSystemMessages(modelId)) {
 		compat.supportsMidConvoSystemMessages = true;
 	}
@@ -1243,7 +1235,7 @@ function getAnthropicMessagesCompat(provider: string, modelId: string): Anthropi
 	if (provider === "xiaomi" || provider.startsWith("xiaomi-token-plan-")) {
 		compat.allowEmptySignature = true;
 	}
-	// OpenCode Qwen 3.8 Flash emits and accepts thinking blocks with empty signatures.
+	// OpenCode Qwen 3.8 Flash 会发送并接受签名为空的思考块。
 	if ((provider === "opencode" || provider === "opencode-go") && modelId === "qwen3.8-flash") {
 		compat.allowEmptySignature = true;
 	}
@@ -1271,7 +1263,7 @@ function getModelsDevCost(cost: ModelsDevModel["cost"]): ModelCost {
 		cacheRead: cost?.cache_read || 0,
 		cacheWrite: cost?.cache_write || 0,
 	};
-	// Rates a tier does not list keep the base price.
+	// 某个层级未列出的费率沿用基础价格。
 	const tiers = cost?.tiers?.flatMap((tier) => {
 		const context = tier.tier;
 		if (context?.type !== "context" || context.size === undefined) return [];
@@ -1378,8 +1370,7 @@ async function fetchAiGatewayModels(): Promise<{
 
 		const items = Array.isArray(data.data) ? (data.data as AiGatewayModel[]) : [];
 		for (const model of items) {
-			// Evaluation models such as TypeSafe's Jev are served through the
-			// TypeSafe-compatible System One endpoint.
+			// TypeSafe 的 Jev 等评测模型通过兼容 TypeSafe 的 System One 端点提供。
 			if (model.type === "evaluation") {
 				classifiers.push({
 					type: "classifier",
@@ -1400,7 +1391,7 @@ async function fetchAiGatewayModels(): Promise<{
 				continue;
 			}
 			const tags = Array.isArray(model.tags) ? model.tags : [];
-			// Only include models that support tools
+			// 只包含支持工具调用的模型。
 			if (!tags.includes("tool-use")) continue;
 
 			const input: ("text" | "image")[] = ["text"];
@@ -1500,8 +1491,7 @@ function processBasetenModels(provider: ModelsDevProvider | undefined): Model<Ap
 		supportsUsageInStreaming: true,
 		maxTokensField: "max_tokens",
 		supportsStrictMode: true,
-		// Baseten automatic prompt caching needs session affinity so related
-		// requests land on the same replica. See:
+		// Baseten 自动提示缓存需要会话亲和性，以便相关请求发送到同一个副本。参见：
 		// https://docs.baseten.co/inference/model-apis/pricing-and-limits
 		sendSessionAffinityHeaders: true,
 		supportsLongCacheRetention: false,
@@ -1562,7 +1552,7 @@ function processBasetenModels(provider: ModelsDevProvider | undefined): Model<Ap
 			: supportsToggle
 				? toggleThinkingLevelMap
 				: getEffortThinkingLevelMap(reasoningOptions);
-		// Baseten's GLM-5.2 endpoints are text-only despite models.dev reporting image input.
+		// 尽管 models.dev 声明支持图像输入，Baseten 的 GLM-5.2 端点实际上仅支持文本。
 		const supportsImageInput = !isGlm52 && model.modalities?.input?.includes("image");
 
 		models.push({
@@ -1614,8 +1604,8 @@ function processGoogleModels(data: ModelsDevCatalog): Model<Api>[] {
 		}
 	}
 
-	// The google-vertex models.dev catalog also includes Claude, OpenAI, and other
-	// MaaS models that do not use the @google/genai Gemini streaming path.
+	// google-vertex 的 models.dev 目录还包含 Claude、OpenAI 等模型即服务（MaaS）模型，
+	// 它们不使用 @google/genai 的 Gemini 流式调用路径。
 	const vertexModels = data["google-vertex"]?.models;
 	if (vertexModels) {
 		for (const [modelId, model] of Object.entries(vertexModels)) {
@@ -1628,9 +1618,9 @@ function processGoogleModels(data: ModelsDevCatalog): Model<Api>[] {
 						? (vertexModels["gemini-3.1-flash-lite"] ?? model)
 						: model;
 			const thinkingLevelMap = getGoogleThinkingLevelMap(modelId, source.reasoning_options ?? []);
-			// models.dev reports Vertex cache_read/cache_write values for Gemini 2.5 Flash that
-			// do not match the official Gemini API standard pricing table. pi only accounts
-			// cachedContentTokenCount as cacheRead.
+			// models.dev 报告的 Gemini 2.5 Flash Vertex cache_read/cache_write 费率
+			// 与 Gemini API 官方标准价格表不一致。pi 只将 cachedContentTokenCount
+			// 计入 cacheRead。
 			const cacheRead = modelId === "gemini-2.5-flash" ? 0.03 : source.cost?.cache_read || 0;
 
 			models.push({
@@ -1715,14 +1705,14 @@ function processFireworksModels(provider: ModelsDevProvider | undefined): Model<
 			models.push({
 				...common,
 				api: "anthropic-messages",
-				// Fireworks Anthropic-compatible API - SDK appends /v1/messages.
+				// Fireworks 的 Anthropic 兼容 API——SDK 会在基础 URL 后追加 /v1/messages。
 				baseUrl: "https://api.fireworks.ai/inference",
-				// Fireworks prompt caching uses automatic prefix matching + session affinity.
-				// x-session-affinity routes requests to the same replica for cache hits.
-				// cache_control on tools and eager_input_streaming are not supported.
-				// See: https://docs.fireworks.ai/tools-sdks/anthropic-compatibility
-				// Use adaptive thinking for cataloged effort controls, with verified
-				// fallbacks where models.dev is incomplete. New models need no allowlist entry.
+				// Fireworks 提示缓存使用自动前缀匹配和会话亲和性。
+				// x-session-affinity 会将请求路由到同一副本，以命中缓存。
+				// 工具上的 cache_control 和 eager_input_streaming 均不受支持。
+				// 参见：https://docs.fireworks.ai/tools-sdks/anthropic-compatibility
+				// 对目录中声明的推理强度控制使用自适应思考；models.dev 数据不完整时采用已验证的
+				// 回退配置。新模型无需添加到允许列表。
 				compat: {
 					...anthropicCompat,
 					...(model.reasoning_options?.some((option) => option.type === "effort") ||
@@ -1748,7 +1738,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 		const models: Model<any>[] = [];
 		const nvidiaNimModelIds = data.nvidia?.models ? await fetchNvidiaNimModelIds() : new Map<string, string>();
 
-		// Process Amazon Bedrock models
+		// 处理 Amazon Bedrock 模型。
 		if (data["amazon-bedrock"]?.models) {
 			for (const [modelId, model] of Object.entries(data["amazon-bedrock"].models)) {
 				const m = model as ModelsDevModel;
@@ -1758,12 +1748,12 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 				let id = modelId;
 
 				if (id.startsWith("ai21.jamba")) {
-					// These models doesn't support tool use in streaming mode
+					// 这些模型不支持在流式模式下调用工具。
 					continue;
 				}
 
 				if (id.startsWith("mistral.mistral-7b-instruct-v0")) {
-					// These models doesn't support system messages
+					// 这些模型不支持系统消息。
 					continue;
 				}
 
@@ -1775,7 +1765,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					baseUrl: getBedrockBaseUrl(id),
 					reasoning: m.reasoning === true,
 					input: (m.modalities?.input?.includes("image") ? ["text", "image"] : ["text"]) as ("text" | "image")[],
-					// Includes models.dev pricing tiers, e.g. the long-context tier for OpenAI models (#10326).
+				// 包含 models.dev 中的价格层级，例如 OpenAI 模型的长上下文层级（#10326）。
 					cost: getModelsDevCost(m.cost),
 					contextWindow: m.limit?.context || 4096,
 					maxTokens: m.limit?.output || 4096,
@@ -1785,7 +1775,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Anthropic models
+		// 处理 Anthropic 模型。
 		if (data.anthropic?.models) {
 			for (const [modelId, model] of Object.entries(data.anthropic.models)) {
 				const m = model as ModelsDevModel;
@@ -1809,12 +1799,12 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 
 		models.push(...processGoogleModels(data));
 
-		// Process OpenAI models
+		// 处理 OpenAI 模型。
 		if (data.openai?.models) {
 			for (const [modelId, model] of Object.entries(data.openai.models)) {
 				const m = model as ModelsDevModel;
 				if (m.tool_call !== true) continue;
-				// models.dev lists this alias, but it is not accepted by OpenAI APIs.
+				// models.dev 列出了此别名，但 OpenAI API 不接受它。
 				if (MODELS_DEV_OPENAI_UNSUPPORTED_MODEL_IDS.has(modelId)) continue;
 
 				models.push({
@@ -1833,7 +1823,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Groq models
+		// 处理 Groq 模型。
 		if (data.groq?.models) {
 			for (const [modelId, model] of Object.entries(data.groq.models)) {
 				const m = model as ModelsDevModel;
@@ -1855,7 +1845,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Cerebras models
+		// 处理 Cerebras 模型。
 		if (data.cerebras?.models) {
 			for (const [modelId, model] of Object.entries(data.cerebras.models)) {
 				const m = model as ModelsDevModel;
@@ -1877,7 +1867,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Cloudflare Workers AI models
+		// 处理 Cloudflare Workers AI 模型。
 		if (data["cloudflare-workers-ai"]?.models) {
 			for (const [modelId, model] of Object.entries(data["cloudflare-workers-ai"].models)) {
 				const m = model as ModelsDevModel;
@@ -1900,7 +1890,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Cloudflare AI Gateway models
+		// 处理 Cloudflare AI Gateway 模型。
 		const cloudflareAIGatewayModelIds = new Set<string>();
 		if (data["cloudflare-ai-gateway"]?.models) {
 			for (const [prefixedId, model] of Object.entries(data["cloudflare-ai-gateway"].models)) {
@@ -1922,9 +1912,9 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 				} else if (upstream === "anthropic") {
 					api = "anthropic-messages";
 					baseUrl = CLOUDFLARE_AI_GATEWAY_ANTHROPIC_BASE_URL;
-					// The /anthropic passthrough forwards the model ID to Anthropic unchanged.
-					// models.dev lists dotted versions (claude-opus-5.5), but Anthropic only
-					// accepts dashed IDs (claude-opus-5-5).
+					// /anthropic 直通端点会将模型 ID 原样转发给 Anthropic。
+					// models.dev 列出的是带点号的版本（claude-opus-5.5），但 Anthropic 只
+					// 接受带连字符的 ID（claude-opus-5-5）。
 					id = nativeId.replaceAll(".", "-");
 				} else if (upstream === "workers-ai") {
 					api = "openai-completions";
@@ -1934,8 +1924,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					continue;
 				}
 
-				// Gateway passthroughs forward session affinity headers to upstreams that
-				// use them for cache/routing affinity.
+				// 网关直通端点会将会话亲和性标头转发给上游，由上游用于缓存或路由亲和性。
 				const compat =
 					upstream === "anthropic" || upstream === "workers-ai" ? { sendSessionAffinityHeaders: true } : undefined;
 
@@ -1957,10 +1946,9 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// The gateway proxies Workers AI through its OpenAI-compatible /compat endpoint,
-		// but models.dev may omit or intermittently drop those `workers-ai/*` entries
-		// from the AI Gateway catalog. Mirror the Workers AI catalog under the documented
-		// prefix so the gateway keeps its OpenAI-compatible models stable.
+		// 网关通过兼容 OpenAI 的 /compat 端点代理 Workers AI，
+		// 但 models.dev 可能未收录或间歇性地从 AI Gateway 目录中移除 `workers-ai/*` 条目。
+		// 因此在文档规定的前缀下镜像 Workers AI 目录，确保网关中的兼容 OpenAI 模型保持稳定。
 		if (data["cloudflare-workers-ai"]?.models) {
 			for (const [modelId, model] of Object.entries(data["cloudflare-workers-ai"].models)) {
 				const m = model as ModelsDevModel;
@@ -1987,7 +1975,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process xAi models
+		// 处理 xAI 模型。
 		if (data.xai?.models) {
 			for (const [modelId, model] of Object.entries(data.xai.models)) {
 				const m = model as ModelsDevModel;
@@ -2010,7 +1998,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Meta models
+		// 处理 Meta 模型。
 		if (data.meta?.models) {
 			for (const [modelId, model] of Object.entries(data.meta.models)) {
 				const m = model as ModelsDevModel;
@@ -2034,14 +2022,14 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 
 		models.push(...processZaiModels(data));
 
-		// Process Mistral models
+		// 处理 Mistral 模型。
 		if (data.mistral?.models) {
 			for (const [modelId, model] of Object.entries(data.mistral.models)) {
 				const m = model as ModelsDevModel;
 				if (m.tool_call !== true) continue;
 
-				// Models with effort values use `reasoning_effort` with these levels.
-				// Reasoning models without them (Magistral) use `prompt_mode`.
+				// 有推理强度值的模型使用这些级别的 `reasoning_effort`。
+				// 没有推理强度值的推理模型（Magistral）使用 `prompt_mode`。
 				const thinkingLevelMap = getEffortThinkingLevelMap(m.reasoning_options ?? []);
 
 				models.push({
@@ -2065,7 +2053,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Hugging Face models
+		// 处理 Hugging Face 模型。
 		if (data.huggingface?.models) {
 			for (const [modelId, model] of Object.entries(data.huggingface.models)) {
 				const m = model as ModelsDevModel;
@@ -2092,7 +2080,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 
 		models.push(...processFireworksModels(data["fireworks-ai"]));
 
-		// Process NVIDIA NIM models
+		// 处理 NVIDIA NIM 模型。
 		if (data.nvidia?.models) {
 			for (const [modelId, model] of Object.entries(data.nvidia.models)) {
 				const m = model as ModelsDevModel;
@@ -2122,7 +2110,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Together AI models
+		// 处理 Together AI 模型。
 		const togetherProvider = data.together ?? data.togetherai ?? data["together-ai"];
 		if (togetherProvider?.models) {
 			for (const [modelId, model] of Object.entries(togetherProvider.models)) {
@@ -2152,8 +2140,8 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 
 		models.push(...processBasetenModels(data.baseten));
 
-		// Process OpenCode models (Zen and Go)
-		// API mapping based on provider.npm field:
+		// 处理 OpenCode 模型（Zen 和 Go）。
+		// 根据 provider.npm 字段映射 API：
 		// - @ai-sdk/openai → openai-responses
 		// - @ai-sdk/anthropic → anthropic-messages
 		// - @ai-sdk/google → google-generative-ai
@@ -2182,7 +2170,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					compat = { sessionAffinityFormat: "openai-nosession" };
 				} else if (npm === "@ai-sdk/anthropic") {
 					api = "anthropic-messages";
-					// Anthropic SDK appends /v1/messages to baseURL
+					// Anthropic SDK 会在 baseURL 后追加 /v1/messages。
 					baseUrl = variant.basePath;
 				} else if (npm === "@ai-sdk/google") {
 					api = "google-generative-ai";
@@ -2192,7 +2180,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					baseUrl = `${variant.basePath}/v1`;
 					compat = { cacheControlFormat: "anthropic" };
 				} else {
-					// null, undefined, or @ai-sdk/openai-compatible
+					// null、undefined 或 @ai-sdk/openai-compatible。
 					api = "openai-completions";
 					baseUrl = `${variant.basePath}/v1`;
 				}
@@ -2202,18 +2190,17 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 				}
 
 				if ((variant.provider === "opencode" || variant.provider === "opencode-go") && modelId === "kimi-k2.6") {
-					// OpenCode Kimi K2.6 accepts Anthropic-style thinking objects
-					// and rejects string thinking values or combined reasoning_effort.
+				// OpenCode Kimi K2.6 接受 Anthropic 风格的 thinking 对象，
+				// 但会拒绝字符串形式的 thinking 值或组合使用 reasoning_effort。
 					compat = { ...(compat ?? {}), thinkingFormat: "deepseek", supportsReasoningEffort: false };
 				}
 
-				// Fix known mismatches between models.dev npm data and actual
-				// OpenCode Go endpoint behaviour. models.dev reports these models
-				// as @ai-sdk/anthropic, but the OpenCode Go endpoints either don't
-				// accept Anthropic SDK auth (MiniMax M2.7) or are served through
-				// the OpenAI-compatible /v1/chat/completions path (Qwen 3.5/3.6).
-				// Switch them to openai-completions so requests use Bearer auth
-				// and the standard /v1/chat/completions endpoint.
+			// 修正 models.dev 中的 npm 数据与 OpenCode Go 端点实际行为之间已知的不一致。
+			// models.dev 将这些模型标为 @ai-sdk/anthropic，但 OpenCode Go 端点要么
+			// 不接受 Anthropic SDK 身份验证（MiniMax M2.7），要么通过兼容 OpenAI 的
+			// /v1/chat/completions 路径提供服务（Qwen 3.5/3.6）。
+			// 将它们切换为 openai-completions，使请求使用 Bearer 身份验证
+			// 和标准的 /v1/chat/completions 端点。
 				if (variant.provider === "opencode-go") {
 					if (modelId === "minimax-m2.7") {
 						api = "openai-completions";
@@ -2222,7 +2209,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					if (modelId === "qwen3.5-plus" || modelId === "qwen3.6-plus") {
 						api = "openai-completions";
 						baseUrl = `${variant.basePath}/v1`;
-						// Qwen/DashScope uses enable_thinking at the top level.
+						// Qwen/DashScope 在顶层使用 enable_thinking。
 						compat = { ...(compat ?? {}), thinkingFormat: "qwen" };
 					}
 				}
@@ -2262,17 +2249,16 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process GitHub Copilot models
+		// 处理 GitHub Copilot 模型。
 		if (data["github-copilot"]?.models) {
 			for (const [modelId, model] of Object.entries(data["github-copilot"].models)) {
 				const m = model as ModelsDevModel;
 				if (m.tool_call !== true) continue;
 				if (m.status === "deprecated") continue;
 
-				// Claude 4.x and 5.x models route to Anthropic Messages API
+				// Claude 4.x 和 5.x 模型路由到 Anthropic Messages API。
 				const isCopilotClaude = /^claude-(haiku|sonnet|opus|fable)-[45]([.\-]|$)/.test(modelId);
-				// GPT, Grok, OSWE, and MAI-Code models are only served through
-				// the Copilot /responses endpoint.
+				// GPT、Grok、OSWE 和 MAI-Code 模型仅通过 Copilot /responses 端点提供服务。
 				const needsResponsesApi =
 					modelId.startsWith("gpt-") ||
 					modelId.startsWith("grok-") ||
@@ -2301,7 +2287,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					maxTokens: m.limit?.output || 8192,
 					headers: { ...COPILOT_STATIC_HEADERS },
 					...(anthropicCompat ? { compat: anthropicCompat } : {}),
-					// compat only applies to openai-completions
+					// compat 仅适用于 openai-completions。
 					...(api === "openai-completions" ? {
 						compat: {
 							supportsStore: false,
@@ -2316,7 +2302,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process MiniMax models
+		// 处理 MiniMax 模型。
 		const minimaxVariants = [
 			{ key: "minimax", provider: "minimax", baseUrl: "https://api.minimax.io/anthropic" },
 			{ key: "minimax-cn", provider: "minimax-cn", baseUrl: "https://api.minimaxi.com/anthropic" },
@@ -2333,7 +2319,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 						name: m.name || modelId,
 						api: "anthropic-messages",
 						provider,
-						// MiniMax's Anthropic-compatible API - SDK appends /v1/messages
+						// MiniMax 的 Anthropic 兼容 API——SDK 会追加 /v1/messages。
 						baseUrl,
 						reasoning: m.reasoning === true,
 						input: m.modalities?.input?.includes("image") ? ["text", "image"] : ["text"],
@@ -2346,7 +2332,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Kimi For Coding models
+		// 处理 Kimi For Coding 模型。
 		if (data["kimi-code-plan-global"]?.models) {
 			const kimiModels = data["kimi-code-plan-global"].models as Record<string, ModelsDevModel>;
 			const hasCanonicalModel = Object.prototype.hasOwnProperty.call(kimiModels, "kimi-for-coding");
@@ -2356,8 +2342,8 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			for (const [modelId, model] of Object.entries(kimiModels)) {
 				const m = model as ModelsDevModel;
 				if (m.tool_call !== true) continue;
-				// models.dev may expose versioned aliases (e.g. k2p5/k2p6/k2p7).
-				// Normalize aliases to the canonical model id and drop duplicates when canonical exists.
+				// models.dev 可能会公开带版本号的别名（例如 k2p5/k2p6/k2p7）。
+				// 将别名规范化为规范模型 ID；规范 ID 已存在时删除重复项。
 				if (kimiAliases.has(modelId) && hasCanonicalModel) continue;
 
 				const normalizedId = kimiAliases.has(modelId) ? "kimi-for-coding" : modelId;
@@ -2371,7 +2357,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					name: normalizedName,
 					api: "anthropic-messages",
 					provider: "kimi-coding",
-					// Kimi For Coding's Anthropic-compatible API - SDK appends /v1/messages
+					// Kimi For Coding 的 Anthropic 兼容 API——SDK 会追加 /v1/messages。
 					baseUrl: "https://api.kimi.com/coding",
 					compat: {
 						...(allowEmptySignature ? { allowEmptySignature: true } : {}),
@@ -2392,7 +2378,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Moonshot AI models
+		// 处理 Moonshot AI 模型。
 		const moonshotVariants = [
 			{ key: "moonshotai", provider: "moonshotai", baseUrl: "https://api.moonshot.ai/v1" },
 			{ key: "moonshotai-cn", provider: "moonshotai-cn", baseUrl: "https://api.moonshot.cn/v1" },
@@ -2433,7 +2419,7 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 					baseUrl,
 					reasoning: isKimiK3 || m.reasoning === true,
 					input: m.modalities?.input?.includes("image") ? ["text", "image"] : ["text"],
-					// Moonshot does not bill cache writes; models.dev lists the input rate as cache_write for Kimi K3.
+					// Moonshot 不对缓存写入计费；models.dev 将 Kimi K3 的输入费率误列为 cache_write。
 					cost: isKimiK3
 						? { ...KIMI_K3_COST }
 						: {
@@ -2450,10 +2436,9 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Xiaomi MiMo models
-		// Built-in `xiaomi` targets the API billing endpoint (single stable URL,
-		// keys from platform.xiaomimimo.com). The three `xiaomi-token-plan-*`
-		// providers cover prepaid Token Plan endpoints in cn / ams / sgp.
+		// 处理 Xiaomi MiMo 模型。
+		// 内置的 `xiaomi` 指向 API 计费端点（URL 固定，密钥来自 platform.xiaomimimo.com）。
+		// 三个 `xiaomi-token-plan-*` 提供商对应 cn / ams / sgp 的预付费 Token Plan 端点。
 		const xiaomiCompat: OpenAICompletionsCompat = {
 			requiresReasoningContentOnAssistantMessages: true,
 			thinkingFormat: "deepseek",
@@ -2503,11 +2488,10 @@ async function loadModelsDevData(): Promise<Model<any>[]> {
 			}
 		}
 
-		// Process Alibaba Cloud Model Studio Token Plan models. International and
-		// China use separate endpoints and API keys (sk-sp- prefix). The Individual
-		// provider reuses the international source and endpoint with a narrower catalog.
-		// models.dev keys are "alibaba-token-plan[-cn]"; pi exposes them as
-		// "qwen-token-plan[-cn]" plus the Individual catalog view.
+		// 处理阿里云百炼 Token Plan 模型。国际版和中国版使用不同的端点和 API 密钥（前缀为 sk-sp-）。
+		// Individual 提供商复用国际版的数据源和端点，但目录范围更窄。
+		// models.dev 中的键为 "alibaba-token-plan[-cn]"；pi 将其公开为
+		// "qwen-token-plan[-cn]"，并额外提供 Individual 目录视图。
 		const qwenTokenPlanCompat: OpenAICompletionsCompat = {
 			thinkingFormat: "qwen",
 			supportsDeveloperRole: false,
@@ -2602,8 +2586,8 @@ async function loadModelsDevClassifierModels(): Promise<ClassifierModel<"typesaf
 				provider: "typesafe",
 				baseUrl: "https://api.typesafe.ai/v1/",
 				input: metadata.modalities?.input?.includes("image") ? ["text", "image"] : ["text"],
-				// The canonical models.dev entry has no direct-provider pricing. System One reports token usage,
-				// so classify() results carry token counts but price them at zero.
+				// models.dev 的规范条目没有直连提供商的价格。System One 会报告 token 用量，
+				// 因此 classify() 结果包含 token 数，但费用按零计算。
 				cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 				contextWindow: metadata.limit?.context || 64000,
 			},
@@ -2615,11 +2599,11 @@ async function loadModelsDevClassifierModels(): Promise<ClassifierModel<"typesaf
 	}
 }
 
-// Workers AI has no unauthenticated catalog and models.dev does not list its
-// System One models yet. Cloudflare publishes pricing only in the dashboard.
+// Workers AI 没有免身份验证的目录，models.dev 目前也未列出其 System One 模型。
+// Cloudflare 只在控制面板中公布价格。
 // https://developers.cloudflare.com/ai/models/typesafe/jev/
-// OpenCode Zen serves Jev through its TypeSafe-compatible System One endpoint.
-// Neither its /zen/v1/models listing nor models.dev carries metadata for it.
+// OpenCode Zen 通过兼容 TypeSafe 的 System One 端点提供 Jev。
+// /zen/v1/models 列表和 models.dev 均未提供该模型的元数据。
 // https://opencode.ai/docs/zen
 const OPENCODE_CLASSIFIER_MODELS: ClassifierModel<"typesafe-system-one">[] = [
 	{
@@ -2647,10 +2631,10 @@ const OPENCODE_CLASSIFIER_MODELS: ClassifierModel<"typesafe-system-one">[] = [
 ];
 
 const CLOUDFLARE_WORKERS_AI_CLASSIFIER_MODELS: ClassifierModel<"cloudflare-workers-ai-system-one">[] = [
-	// Cloudflare-hosted Clef decision models. They accept images, but classifier
-	// contexts carry text or JSON state only, so the catalog advertises text.
-	// Pricing: https://developers.cloudflare.com/workers-ai/models/clef/
-	// and https://developers.cloudflare.com/workers-ai/models/clef-flash/
+	// Cloudflare 托管的 Clef 决策模型。虽然它们接受图像，但分类器上下文只包含文本或 JSON 状态，
+	// 因此目录只声明文本输入。
+	// 价格信息：https://developers.cloudflare.com/workers-ai/models/clef/
+	// 以及 https://developers.cloudflare.com/workers-ai/models/clef-flash/
 	{
 		type: "classifier",
 		id: "@cf/cloudflare/clef",
@@ -2686,12 +2670,11 @@ const CLOUDFLARE_WORKERS_AI_CLASSIFIER_MODELS: ClassifierModel<"cloudflare-worke
 	},
 ];
 
-// OpenAI Decisions API (public beta): gpt-6-luna is its only model. It bills input tokens only,
-// with the same long-context multiplier as chat requests. Only API keys work: Sign in with ChatGPT
-// tokens are rejected on /v1/decisions, and the Codex backend has no Decisions route.
-// The endpoint rejects inputs above 922K tokens (the model's documented maximum input), but
-// requests running longer than about five seconds, currently above roughly 600K input tokens,
-// fail with a gateway timeout.
+// OpenAI Decisions API（公开测试版）：目前只有 gpt-6-luna 一个模型。该 API 只对输入 token 计费，
+// 长上下文倍率与聊天请求相同。此接口只接受 API 密钥：/v1/decisions 会拒绝 ChatGPT 登录令牌，
+// Codex 后端也没有 Decisions 路由。
+// 该端点会拒绝超过 922K token 的输入（即模型文档规定的最大输入量）；但目前输入量约超过
+// 600K token、运行时间超过约五秒的请求会因网关超时而失败。
 // https://developers.openai.com/api/docs/guides/decisions
 const OPENAI_CLASSIFIER_MODELS: ClassifierModel<"openai-decisions">[] = [
 	{
@@ -2708,26 +2691,26 @@ const OPENAI_CLASSIFIER_MODELS: ClassifierModel<"openai-decisions">[] = [
 ];
 
 async function generateModels() {
-	// Fetch models from all upstream catalogs.
-	// models.dev: Anthropic, Google, OpenAI, Groq, Cerebras, and others
-	// OpenRouter: its tool-capable routed catalog
-	// AI Gateway: OpenAI-compatible catalog with tool-capable models
-	// Radius: its unauthenticated public catalog; authenticated clients overlay it at runtime
+	// 从所有上游目录获取模型。
+	// models.dev：Anthropic、Google、OpenAI、Groq、Cerebras 等。
+	// OpenRouter：支持工具调用的路由模型目录。
+	// AI Gateway：包含支持工具调用模型的 OpenAI 兼容目录。
+	// Radius：免身份验证的公开目录；经过身份验证的客户端会在运行时覆盖相应条目。
 	const modelsDevModels = await loadModelsDevData();
 	const modelsDevClassifierModels = await loadModelsDevClassifierModels();
 	const openRouterCatalog = await fetchOpenRouterModels();
 	const aiGatewayCatalog = await fetchAiGatewayModels();
 	const radiusModels = await fetchRadiusModels();
 
-	// Combine chat models (models.dev has priority where sources overlap).
+	// 合并聊天模型（来源重叠时优先采用 models.dev 的数据）。
 	const allModels = [...modelsDevModels, ...openRouterCatalog.chat, ...aiGatewayCatalog.chat, ...radiusModels].filter(
 		(model) =>
 			!(model.provider === "xai" && XAI_BUILTIN_EXCLUDED_MODEL_IDS.has(model.id)) &&
 			!((model.provider === "opencode" || model.provider === "opencode-go") && model.id === "gpt-5.3-codex-spark"),
 	);
 
-	// The authenticated Copilot catalog advertised these models on 2026-09-22,
-	// but models.dev did not include them yet.
+	// 经过身份验证的 Copilot 目录于 2026-09-22 列出了这些模型，
+	// 但 models.dev 当时尚未收录。
 	const missingCopilotModels: Model<Api>[] = [
 		{
 			id: "claude-opus-5.5",
@@ -2771,13 +2754,13 @@ async function generateModels() {
 		}
 	}
 
-	// Temporary overrides until upstream model metadata is corrected.
+	// 在上游模型元数据修正前使用的临时覆盖项。
 	for (const candidate of allModels) {
 		if (candidate.provider === "github-copilot" && GITHUB_COPILOT_EXTENDED_CONTEXT_MODELS.has(candidate.id)) {
 			candidate.contextWindow = 1000000;
 		}
 
-		// models.dev may list Opus 5.5, Sonnet 5.5, and Haiku 5.5 before their effort metadata is complete.
+		// models.dev 可能会在推理强度元数据完善前列出 Opus 5.5、Sonnet 5.5 和 Haiku 5.5。
 		if (
 			(candidate.provider === "anthropic" &&
 				(candidate.id === "claude-opus-5-5" ||
@@ -2808,7 +2791,7 @@ async function generateModels() {
 			candidate.contextWindow = 1000000;
 		}
 
-		// OpenCode variants list Claude Sonnet 4/4.5 with 1M context, actual limit is 200K
+		// OpenCode 变体将 Claude Sonnet 4/4.5 列为支持 1M 上下文，实际限制为 200K。
 		if (
 			(candidate.provider === "opencode" || candidate.provider === "opencode-go") &&
 			(candidate.id === "claude-sonnet-4-5" || candidate.id === "claude-sonnet-4")
@@ -2819,8 +2802,8 @@ async function generateModels() {
 			candidate.contextWindow = 272000;
 			candidate.maxTokens = 128000;
 		}
-		// Keep direct OpenAI requests in the short-context pricing tier by default. Users can opt into the
-		// larger context through model overrides, so retain long-context cost metadata on the capped models.
+		// 默认将 OpenAI 直连请求限制在短上下文价格档位。用户可以通过模型覆盖配置选择更大的上下文，
+		// 因此在受限模型上仍保留长上下文费用元数据。
 		if (candidate.provider === "openai" && OPENAI_SHORT_CONTEXT_CAPPED_MODEL_IDS.has(candidate.id)) {
 			candidate.contextWindow = OPENAI_LONG_CONTEXT_INPUT_THRESHOLD;
 			candidate.maxTokens = 128000;
@@ -2829,24 +2812,24 @@ async function generateModels() {
 			const standardCost = OPENAI_STANDARD_COSTS[candidate.id];
 			candidate.cost = withOpenAiLongContextPricing(standardCost ?? candidate.cost);
 		}
-		// Cloudflare AI Gateway passes OpenAI usage through at OpenAI list prices.
+		// Cloudflare AI Gateway 按照 OpenAI 的公开价格透传 OpenAI 用量。
 		if (candidate.provider === "cloudflare-ai-gateway") {
 			const standardCost = OPENAI_STANDARD_COSTS[candidate.id];
 			if (standardCost) candidate.cost = withOpenAiLongContextPricing(standardCost);
 		}
-		// models.dev reports gpt-5-pro output as 272000 (a duplicate of the input sub-limit);
-		// the actual max output is 128000. Also propagates to the derived Azure clone.
+		// models.dev 将 gpt-5-pro 的输出上限报告为 272000（与输入子限制重复）；
+		// 实际最大输出量为 128000。此修正也会应用于派生的 Azure 副本。
 		if (candidate.provider === "openai" && candidate.id === "gpt-5-pro") {
 			candidate.maxTokens = 128000;
 		}
-		// Keep Kimi K3's canonical output limit when gateway metadata is missing or incorrect.
+		// 网关元数据缺失或错误时，保留 Kimi K3 的规范输出限制。
 		if (
 			(candidate.provider === "openrouter" && OPENROUTER_KIMI_K3_MODEL_IDS.has(candidate.id)) ||
 			(candidate.provider === "vercel-ai-gateway" && candidate.id === "moonshotai/kimi-k3")
 		) {
 			candidate.maxTokens = KIMI_K3_MAX_TOKENS;
 		}
-		// Keep selected OpenRouter model metadata stable until upstream settles.
+		// 在上游数据稳定前，保持所选 OpenRouter 模型的元数据不变。
 		if (candidate.provider === "openrouter" && candidate.id === "moonshotai/kimi-k2.5") {
 			candidate.cost.input = 0.41;
 			candidate.cost.output = 2.06;
@@ -2867,7 +2850,7 @@ async function generateModels() {
 		}
 	}
 
-	// Add missing gpt models
+	// 补充缺失的 GPT 模型。
 	const missingOpenAiModels: Model<"openai-responses">[] = [
 		{
 			id: "gpt-6.1-sol",
@@ -2992,7 +2975,7 @@ async function generateModels() {
 			thinkingLevelMap: DEEPSEEK_V4_FLASH_THINKING_LEVEL_MAP,
 			input: ["text", "image"],
 			cost: {
-				// DeepSeek also offers time-based off-peak rates, which the cost schema cannot represent yet.
+				// DeepSeek 还提供按时段计算的非高峰费率，目前费用结构尚无法表示这种费率。
 				input: 0.3,
 				output: 1.2,
 				cacheRead: 0.006,
@@ -3011,7 +2994,7 @@ async function generateModels() {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				// DeepSeek also offers time-based off-peak rates, which the cost schema cannot represent yet.
+				// DeepSeek 还提供按时段计算的非高峰费率，目前费用结构尚无法表示这种费率。
 				input: 1.32,
 				output: 3.96,
 				cacheRead: 0.044,
@@ -3105,9 +3088,9 @@ async function generateModels() {
 		}
 	}
 
-	// OpenAI Codex (ChatGPT OAuth) models
-	// NOTE: These are not fetched from models.dev; we keep a small, explicit list to avoid aliases.
-	// Older model limits are based on observed server behavior; GPT-5.6 and GPT-6 use Codex's 272k default catalog limit.
+	// OpenAI Codex（ChatGPT OAuth）模型。
+	// 注意：这些模型不是从 models.dev 获取的；这里仅维护少量明确条目，以避免出现别名。
+	// 旧模型的限制依据观察到的服务器行为；GPT-5.6 和 GPT-6 使用 Codex 目录默认的 272k 限制。
 	const CODEX_BASE_URL = "https://chatgpt.com/backend-api";
 	const CODEX_CONTEXT = 272000;
 	const CODEX_GPT_56_CONTEXT = 272000;
@@ -3225,7 +3208,7 @@ async function generateModels() {
 	];
 	allModels.push(...codexModels);
 
-	// Add missing Mistral Medium 3.5 model until models.dev includes it
+	// 在 models.dev 收录之前，先补充缺失的 Mistral Medium 3.5 模型。
 	if (!allModels.some(m => m.provider === "mistral" && m.id === "mistral-medium-3.5")) {
 		allModels.push({
 			id: "mistral-medium-3.5",
@@ -3247,7 +3230,7 @@ async function generateModels() {
 		});
 	}
 
-	// Add "auto" alias for openrouter/auto
+	// 为 openrouter/auto 添加 "auto" 别名。
 	if (!allModels.some(m => m.provider === "openrouter" && m.id === "auto")) {
 		allModels.push({
 			id: "auto",
@@ -3258,8 +3241,8 @@ async function generateModels() {
 			reasoning: true,
 			input: ["text", "image"],
 			cost: {
-				// we dont know about the costs because OpenRouter auto routes to different models
-				// and then charges you for the underlying used model
+				// 由于 OpenRouter 会自动路由到不同模型，并按照实际使用的底层模型收费，
+				// 因此无法确定费用。
 				input:0,
 				output:0,
 				cacheRead:0,
@@ -3270,10 +3253,9 @@ async function generateModels() {
 		});
 	}
 
-	// Add "fusion" alias for openrouter/fusion. OpenRouter exposes Fusion as a
-	// router alias/plugin entry point; its model metadata does not advertise
-	// tools, but the alias resolves to a concrete model that can invoke caller
-	// tools and has the openrouter:fusion server tool auto-injected.
+	// 为 openrouter/fusion 添加 "fusion" 别名。OpenRouter 将 Fusion 作为路由别名/插件入口公开；
+	// 其模型元数据未声明工具支持，但该别名最终会解析为可调用调用方工具的具体模型，
+	// 并自动注入 openrouter:fusion 服务器工具。
 	if (!allModels.some(m => m.provider === "openrouter" && m.id === "openrouter/fusion")) {
 		allModels.push({
 			id: "openrouter/fusion",
@@ -3284,8 +3266,8 @@ async function generateModels() {
 			reasoning: true,
 			input: ["text"],
 			cost: {
-				// we dont know about the costs because Fusion routes to multiple models
-				// and then charges you for the underlying used models
+				// 由于 Fusion 会路由到多个模型，并按照实际使用的底层模型收费，
+				// 因此无法确定费用。
 				input: 0,
 				output: 0,
 				cacheRead: 0,
@@ -3296,8 +3278,8 @@ async function generateModels() {
 		});
 	}
 
-	// Azure Foundry deploys these with larger context windows than OpenAI's own short-tier defaults.
-	// See models-sold-directly-by-azure docs.
+	// Azure Foundry 部署的这些模型具有比 OpenAI 短上下文默认档位更大的上下文窗口。
+	// 参见 models-sold-directly-by-azure 文档。
 	const AZURE_CONTEXT_WINDOW_OVERRIDES: Record<string, number> = {
 		"gpt-5.4": 1050000,
 		"gpt-5.5": 1050000,
@@ -3322,11 +3304,11 @@ async function generateModels() {
 		}));
 	allModels.push(...azureOpenAiModels);
 
-	// Azure resells DeepSeek at its own rates. US data zone, checked 2026-09-16.
+	// Azure 以自有费率转售 DeepSeek。美国数据区域，已于 2026-09-16 核实。
 	// https://azure.microsoft.com/en-us/pricing/details/ai-foundry-models/deepseek/
 	const AZURE_DEEPSEEK_V4_PRO_COST: ModelCost = { input: 1.925, output: 3.828, cacheRead: 0.165, cacheWrite: 0 };
-	// Azure 400s on DeepSeek's `thinking` field and on every prompt cache parameter, discards a
-	// `developer` system message unbilled once reasoning_effort is set, and honours mid-convo ones (#9645).
+	// Azure 会因 DeepSeek 的 `thinking` 字段及所有提示缓存参数返回 400；设置 reasoning_effort 后，
+	// 它会丢弃未计费的 `developer` 系统消息，但会保留对话中途发送的此类消息（#9645）。
 	const azureDeepSeekModels: Model<Api>[] = allModels
 		.filter((model) => model.provider === "deepseek" && model.id === "deepseek-v4-pro")
 		.map((model) => ({
@@ -3360,8 +3342,7 @@ async function generateModels() {
 	}
 	applyAnthropicAllowedFallbackModelMetadata(allModels.filter(isAnthropicFallbackMetadataModel));
 
-	// Keep chat and image catalogs separate so one upstream ID can expose both
-	// operations with different API implementations.
+	// 将聊天目录和图像目录分开，使同一个上游 ID 能通过不同的 API 实现提供这两类操作。
 	type ProviderCatalog = {
 		chat: Record<string, Model<Api>>;
 		image: Record<string, ImageModel<ImageApi>>;
@@ -3370,7 +3351,7 @@ async function generateModels() {
 	const providers: Record<string, ProviderCatalog> = {};
 	for (const model of allModels) {
 		providers[model.provider] ??= { chat: {}, image: {}, classifier: {} };
-		// Only add if not already present (models.dev takes priority over OpenRouter).
+		// 仅在条目尚不存在时添加（models.dev 的优先级高于 OpenRouter）。
 		providers[model.provider].chat[model.id] ??= { ...model, type: "chat" };
 	}
 	for (const model of openRouterCatalog.images) {
@@ -3423,7 +3404,7 @@ async function generateModels() {
 		throw new Error(`Cannot hydrate missing providers: ${missingProviderIds.join(", ")}`);
 	}
 
-	// Only the ignored internal data is grouped by API for type derivation.
+	// 只有被忽略的内部数据会按 API 分组，用于派生类型。
 	const generatedDataProviders: Record<string, Record<string, Record<string, AnyModel>>> = {};
 	const modelDataStructure: ModelDataStructure = {};
 	for (const providerId of generatedDataProviderIds) {
@@ -3435,7 +3416,7 @@ async function generateModels() {
 	const generatedAt = new Date().toISOString();
 
 	if (!generatorOptions.jsonOnly) {
-		// Stage and validate all provider values before replacing the current generated data.
+		// 先暂存并验证所有提供商的值，再替换当前生成的数据。
 		const providersDir = join(packageRoot, "src/providers");
 		const dataDir = join(providersDir, "data");
 		const stagingRoot = mkdtempSync(join(providersDir, ".model-generation-"));
@@ -3475,8 +3456,8 @@ async function generateModels() {
 					writeFileSync(aggregatorPath, previousAggregator);
 				};
 
-				const generatedHeader = `// This file is auto-generated by scripts/generate-models.ts
-// Do not edit manually - run 'npm run generate-models' to update
+				const generatedHeader = `// 此文件由 scripts/generate-models.ts 自动生成。
+// 请勿手动编辑；运行 'npm run generate-models' 进行更新。
 
 `;
 				const catalogConstName = (providerId: string) =>
@@ -3562,8 +3543,8 @@ async function generateModels() {
 	}
 
 	if (generatorOptions.jsonOutputDir) {
-		// `models.json` and `providers/{id}.json` retain the legacy keyed chat catalog.
-		// The `.all` variants are arrays so the same upstream id can appear once per type.
+		// `models.json` 和 `providers/{id}.json` 保留旧版以键值形式组织的聊天目录。
+		// `.all` 变体使用数组，使同一上游 ID 可以按类型分别出现一次。
 		const providerOutputDir = join(generatorOptions.jsonOutputDir, "providers");
 		rmSync(generatorOptions.jsonOutputDir, { recursive: true, force: true });
 		mkdirSync(providerOutputDir, { recursive: true });
@@ -3577,7 +3558,7 @@ async function generateModels() {
 		console.log(`Generated JSON model catalog under ${generatorOptions.jsonOutputDir}`);
 	}
 
-	// Print statistics
+	// 输出统计信息。
 	const totalModels = allModels.length;
 	const reasoningModels = allModels.filter((model) => model.reasoning).length;
 
@@ -3592,7 +3573,7 @@ async function generateModels() {
 	}
 }
 
-// Run the generator
+// 运行生成器。
 generateModels().catch((error) => {
 	console.error(error);
 	process.exitCode = 1;

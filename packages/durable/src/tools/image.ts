@@ -1,17 +1,17 @@
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
-/** Bytes every check except the APNG chunk walk needs: BMP reads up to offset 29. */
+/** 除 APNG 块遍历之外所有检查所需的字节量：BMP 最多读到偏移 29。 */
 const HEADER_BYTES = 32;
 const BLOCK_BYTES = 64 * 1024;
 
-/** Positional reads of a file of `size` bytes. */
+/** 对一个 `size` 字节文件的按位置读取。 */
 export type ByteSource = {
 	readonly size: number;
 	read(offset: number, length: number): Promise<Uint8Array>;
 };
 
 /**
- * `detectSupportedImageMimeType` of a whole file, reading only its header and, for PNG, the chunk headers up to the
- * first `acTL` or `IDAT`.
+ * 整个文件的 `detectSupportedImageMimeType`，只读取文件头，以及 PNG 情况下直到第一个 `acTL` 或 `IDAT`
+ * 的块头部。
  */
 export async function detectSupportedImageMimeTypeOf(source: ByteSource): Promise<string | undefined> {
 	const header = await source.read(0, HEADER_BYTES);
@@ -19,7 +19,7 @@ export async function detectSupportedImageMimeTypeOf(source: ByteSource): Promis
 	return isPng(header) && !(await isAnimatedPngOf(source)) ? "image/png" : undefined;
 }
 
-/** `isAnimatedPng` over a file read in blocks. */
+/** 按块读取文件之上的 `isAnimatedPng`。 */
 async function isAnimatedPngOf(source: ByteSource): Promise<boolean> {
 	let block: Uint8Array = new Uint8Array(0);
 	let blockStart = 0;
@@ -73,8 +73,8 @@ function isAnimatedPng(buffer: Uint8Array): boolean {
 }
 
 /**
- * The width and height an image of `mimeType` declares in its header, without decoding it: PNG's IHDR, GIF's screen,
- * WebP's VP8, VP8L, or VP8X chunk, JPEG's first SOF segment. `undefined` when the header cannot be read.
+ * 不解码、直接从头部读出 `mimeType` 图像声明的宽高：PNG 的 IHDR、GIF 的屏幕尺寸、WebP 的 VP8/VP8L/VP8X
+ * 块、JPEG 的第一个 SOF 段。头部无法读取时返回 `undefined`。
  */
 export function imageDimensions(
 	bytes: Uint8Array,
@@ -106,7 +106,7 @@ export function imageDimensions(
 					offset++;
 					continue;
 				}
-				// SOF0 to SOF15, except DHT (C4), JPG (C8), and DAC (CC), which share the range.
+				// SOF0 到 SOF15，但排除共用该范围的 DHT（C4）、JPG（C8）和 DAC（CC）。
 				if (marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc) {
 					return { width: readUint16BE(bytes, offset + 7), height: readUint16BE(bytes, offset + 5) };
 				}

@@ -4,8 +4,8 @@ import { theme } from "../theme/theme.ts";
 import { keyHint } from "./keybinding-hints.ts";
 
 /**
- * A sign-in URL with a click hint and a copy hint. Hosts call `copy()` when `app.message.copy` is
- * pressed, since a long URL wraps and often cannot be selected or clicked as a whole (SSH, tmux).
+ * 显示登录链接及点击、复制提示。由于长链接会自动换行，在 SSH、tmux 等环境中通常无法整体选中或点击，
+ * 因此宿主在按下 `app.message.copy` 时会调用 `copy()`。
  */
 export class AuthUrlComponent extends Container {
 	readonly url: string;

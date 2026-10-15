@@ -7,11 +7,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { getOrThrow } from "../src/env/index.ts";
 import { NodeExecutionEnv } from "../src/env/node.ts";
 
-// Longer than the shell's post-exit stdio grace period plus the descendant's delayed write.
+// 此延迟长于 shell 退出后的 stdio 宽限期与后代进程延迟写入所需的时间。
 const SPILL_WRITE_DELAY_MS = 600;
 const spill = vi.hoisted(() => ({ rejectedWrites: 0 }));
 
-// Make the spill stream deterministically slow and immediately backpressured.
+// 让溢写流稳定地变慢，并立即产生背压。
 vi.mock("node:fs", async (importOriginal) => {
 	const actual = await importOriginal<typeof Fs>();
 	return {
@@ -57,9 +57,8 @@ describe("NodeExecutionEnv spill backpressure", () => {
 			mkdirSync(root, { recursive: true });
 			tempDirs.push(root);
 			const env = new NodeExecutionEnv({ cwd: root });
-			// The shell exits after the first chunk crosses the spill threshold and backpressures the spill. A background
-			// descendant retains stdout and writes after the post-exit grace period. Without the pending-spill guard,
-			// settlement destroys stdout before that descendant output is read.
+			// 第一块数据超过溢写阈值并使溢写过程产生背压后，shell 就会退出。后台后代进程仍持有 stdout，
+			// 并在退出宽限期结束后写入数据。若没有待处理溢写保护，操作结束时会在读取后代进程输出前销毁 stdout。
 			const command = "printf '%020d' 0 | tr 0 a; (sleep 0.2; printf '%01000d' 0 | tr 0 b) &";
 
 			let output = "";

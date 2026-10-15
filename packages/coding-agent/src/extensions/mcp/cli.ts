@@ -1,8 +1,7 @@
 /**
- * `pi mcp`: add, remove, and check MCP servers and sign in to them outside a session. Agents run it
- * through bash to configure servers, verify an `mcp.json` they wrote, and start an OAuth sign-in;
- * the user only approves access in the browser. Running sessions pick up new credentials on their
- * next turn.
+ * `pi mcp`：在会话外添加、移除和检查 MCP 服务器，并为服务器登录。智能体通过 bash 调用它来配置服务器、
+ * 验证自己写入的 `mcp.json` 并发起 OAuth 登录；用户只需在浏览器中批准访问。运行中的会话会在
+ * 下一轮使用新凭据。
  */
 
 import { existsSync } from "node:fs";
@@ -79,11 +78,11 @@ const DEFAULT_LOGIN_TIMEOUT_SECONDS = 300;
 export interface McpCommandOptions {
 	cwd: string;
 	agentDir: string;
-	/** Defaults to `mcp-auth.json` in the agent directory. */
+	/** 默认使用 agent 目录中的 `mcp-auth.json`。 */
 	credentials?: McpOAuthCredentialStore;
-	/** Defaults to the platform browser. */
+	/** 默认使用平台浏览器。 */
 	openUrl?: (url: string) => void;
-	/** Defaults to console output. */
+	/** 默认输出到控制台。 */
 	log?: (line: string) => void;
 	error?: (line: string) => void;
 }
@@ -92,14 +91,14 @@ interface ServerReport {
 	name: string;
 	scope: string;
 	source: string;
-	/** Project `mcp.json` that overrides `enabled`, `exposure`, or `toolExposure` of this global server. */
+	/** 项目的 `mcp.json`，用于覆盖此全局服务器的 `enabled`、`exposure` 或 `toolExposure`。 */
 	override?: string;
 	enabled: boolean;
 	exposure: string;
 	transport: string;
 	state: string;
 	tools: string[];
-	/** Tools whose exposure differs from the server's, from `toolExposure`. */
+	/** 在 `toolExposure` 中配置了不同于服务器默认暴露方式的工具。 */
 	toolExposure?: Record<string, string>;
 	resources?: number;
 	resourceTemplates?: number;
@@ -126,20 +125,20 @@ function createConnection(entry: McpServerEntry, options: McpCommandOptions, cre
 	});
 }
 
-/** Short spellings of options. `-l`/`--local` match `pi install`. */
+/** 选项的简写形式。`-l`/`--local` 与 `pi install` 保持一致。 */
 const OPTION_ALIASES = new Map([["-l", "--local"]]);
 
 interface ParsedOptions {
 	positional: string[];
 	values: Map<string, string | true>;
-	/** Values of `list` options, in order. */
+	/** `list` 选项按顺序收集的值。 */
 	lists: Map<string, string[]>;
 }
 
 /**
- * Parse `--name value` options; returns undefined and reports unknown ones. `--` ends the options,
- * as does reaching `maxPositionals` positional arguments: the remaining arguments are positional,
- * so a command's own options (`add <server> <command> --flag`) are passed through.
+ * 解析 `--name value` 形式的选项；遇到未知选项时报告错误并返回 undefined。遇到 `--` 或达到
+ * `maxPositionals` 个位置参数后，后续参数都按位置参数处理，从而将命令自身的选项
+ *（`add <server> <command> --flag`）原样传递。
  */
 function parseOptions(
 	args: string[],
@@ -181,7 +180,7 @@ function parseOptions(
 	return { positional, values, lists };
 }
 
-/** Run `pi mcp <args>` and return the exit code. */
+/** 运行 `pi mcp <args>` 并返回退出码。 */
 export async function runMcpCommand(args: string[], options: McpCommandOptions): Promise<number> {
 	const log = options.log ?? ((line: string) => console.log(line));
 	const error = options.error ?? ((line: string) => console.error(line));
@@ -259,7 +258,7 @@ export async function runMcpCommand(args: string[], options: McpCommandOptions):
 	}
 }
 
-/** Parse `KEY=VALUE` pairs of a repeatable option into a record. */
+/** 将可重复选项中的 `KEY=VALUE` 项解析为记录对象。 */
 function parsePairs(option: string, pairs: string[] | undefined, error: (line: string) => void) {
 	if (!pairs) return {};
 	const record: Record<string, string> = {};
@@ -383,7 +382,7 @@ function add(
 	if (project && new ProjectTrustStore(options.agentDir).get(options.cwd) !== true) {
 		log(`The project is not trusted, so ${path} is ignored until you start ${APP_NAME} in the project and trust it.`);
 	}
-	// HTTP servers without an Authorization header may use OAuth.
+	// 未配置 Authorization 标头的 HTTP 服务器可能使用 OAuth。
 	const mayNeedSignIn =
 		"url" in validated &&
 		!Object.keys(validated.headers ?? {}).some((header) => header.toLowerCase() === "authorization");
@@ -457,7 +456,7 @@ async function list(
 			try {
 				await connection.getClient();
 			} catch {
-				// The connection records the state and error.
+				// 连接对象会记录状态和错误。
 			}
 			report.state = connection.state;
 			report.tools = connection.tools.map((tool) => tool.name);
@@ -529,7 +528,7 @@ async function login(
 	error: (line: string) => void,
 ): Promise<number> {
 	const { name } = entry;
-	// Connecting first answers whether a sign-in is needed and records the server's challenge.
+	// 先尝试连接，以确定是否需要登录，并记录服务器返回的 challenge。
 	try {
 		await connection.getClient();
 		log(`Already signed in to MCP server "${name}" (${connection.tools.length} tools).`);
@@ -578,8 +577,8 @@ async function login(
 }
 
 /**
- * The pasted redirect URL in a terminal; otherwise only the browser callback can finish the sign-in.
- * Resolves to undefined when `signal` aborts: the callback arrived, or the sign-in timed out.
+ * 用户在终端中粘贴的重定向 URL；若未粘贴，只有浏览器回调能够完成登录。
+ * `signal` 中止时解析为 undefined：表示已收到回调或登录超时。
  */
 async function waitForRedirectUrl(signal: AbortSignal, interactive: boolean): Promise<string | undefined> {
 	if (!interactive) {

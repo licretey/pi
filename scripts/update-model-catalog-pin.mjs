@@ -8,7 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { hydrateModelCatalog } from "../packages/ai/scripts/hydrate-model-catalog.ts";
 import { readModelDataProviderIds } from "../packages/ai/scripts/model-data.ts";
 
-// Request the typed catalog; its bytes are what a revision hashes.
+// 请求带类型信息的目录；修订版本哈希基于其字节内容计算。
 const MODEL_TYPES = "types=chat,image,classifier";
 const REVISION_RE = /^sha256-[0-9a-f]{64}$/;
 
@@ -39,10 +39,9 @@ async function fetchLiveCatalog(root) {
 }
 
 /**
- * Return the `provider/type` model groups the catalog provides for this
- * checkout's providers. The generated `*.models.ts` types are derived from the
- * data, so code that uses a group (e.g. OPENCODE_CLASSIFIER_MODELS) only
- * type-checks when the catalog has models of that type for the provider.
+ * 返回该目录为当前检出版本中的提供商提供的 `provider/type` 模型分组。
+ * 生成的 `*.models.ts` 类型由这些数据推导，因此只有目录中包含对应提供商和模型类型的数据时，
+ * 使用该分组的代码（例如 OPENCODE_CLASSIFIER_MODELS）才能通过类型检查。
  */
 function modelTypeGroups(root, bytes) {
 	const catalog = JSON.parse(bytes.toString("utf8"));
@@ -53,7 +52,7 @@ function modelTypeGroups(root, bytes) {
 	return groups;
 }
 
-/** Return why the catalog cannot hydrate this checkout, or undefined if it can. */
+/** 返回目录无法为当前检出版本完成数据水合的原因；如果可以水合，则返回 undefined。 */
 function hydrationProblem(root, bytes) {
 	const directory = mkdtempSync(join(tmpdir(), "pi-model-catalog-pin-"));
 	try {
@@ -69,9 +68,8 @@ function hydrationProblem(root, bytes) {
 }
 
 /**
- * Pin the live model catalog for Nix builds. With `ifStale`, keep the current
- * pin while it still hydrates this checkout and has every model type the live
- * catalog has for the checkout's providers.
+ * 为 Nix 构建固定在线模型目录的版本。设置 `ifStale` 后，只要当前固定版本仍能为此检出版本完成数据水合，
+ * 且包含在线目录为此检出版本的各提供商提供的全部模型类型，就继续保留当前固定版本。
  */
 export async function updateModelCatalogPin(root, { ifStale = false } = {}) {
 	const pinPath = join(root, "nix/model-catalog.json");
@@ -88,11 +86,11 @@ export async function updateModelCatalogPin(root, { ifStale = false } = {}) {
 	}
 
 	const revision = await fetchLiveCatalog(root);
-	// Do not record a pin until its immutable URL serves a catalog this checkout can build with.
+	// 只有不可变 URL 返回的目录能用于当前检出版本的构建时，才记录该固定版本。
 	const bytes = await fetchRevision(revision);
 	if (currentBytes) {
-		// The live catalog is generated from main. Main's code may use a model type
-		// the pin lacks, e.g. after a provider gained classifier models.
+		// 在线目录由主分支生成。主分支代码可能使用当前固定版本缺少的模型类型，
+		// 例如某个提供商新增分类模型之后。
 		const pinned = modelTypeGroups(root, currentBytes);
 		const missing = [...modelTypeGroups(root, bytes)].filter((group) => !pinned.has(group));
 		if (missing.length === 0) return { revision: current, updated: false };

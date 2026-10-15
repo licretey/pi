@@ -47,7 +47,7 @@ function tool(name: string, execute: Execute, extra: Partial<Echo> = {}): Echo {
 	return defineTool({ name, description: `The ${name} tool`, parameters: EchoParameters, execute, ...extra });
 }
 
-/** A tool-calling answer with one call per `[name, args, id]`. */
+/** 每个 `[name, args, id]` 调用项对应一次工具调用的回答。 */
 function calls(...list: readonly (readonly [string, Record<string, JsonValue>, string])[]): AssistantMessage {
 	return fauxAssistantMessage(
 		list.map(([name, args, id]) => fauxToolCall(name, args, { id })),
@@ -105,7 +105,7 @@ describe("tool round", () => {
 		expect(resultText(result!)).toBe("echo hi");
 		expect(ToolResultEntry.is(entries[3]) && entries[3].data).toEqual({ diagnostics: [] });
 		expect(entries[3]!.byTaskId).toBeDefined();
-		// The second request sees the tool result right after its call.
+		// 第二次请求会在工具调用之后立即看到工具结果。
 		expect(setup.faux.state.callCount).toBe(2);
 		expect(await harness.snapshot(LiveDoc, root.id, context)).toEqual({});
 		await harness.close(context);
@@ -179,7 +179,7 @@ describe("tool round", () => {
 		});
 		expect(seen).toEqual([]);
 		expect(resultText(results(result.entries)[0]!)).toBe("<harness>\n[error] Tool echo is not available\n</harness>");
-		// The next preparation removes it.
+		// 下一次准备时会将其移除。
 		const systems = result.entries.filter((entry) => entry.kind === "pi.system");
 		expect((systems.at(-1)!.model![0] as SystemMessage).toolsRemoved).toEqual([{ name: "echo" }]);
 		await result.harness.close(context);
@@ -198,7 +198,7 @@ describe("tool round", () => {
 		const removal = entries.filter((entry) => entry.kind === "pi.system").at(-1)!.model![0] as SystemMessage;
 		expect(removal.toolsRemoved).toEqual([{ name: "echo" }]);
 		expect(results(entries)[0]).toMatchObject({ isError: true });
-		// The stored agent is not rewritten; the tool is only not resolved.
+		// 已存储的 agent 不会被重写；这里只是不解析该工具。
 		expect((await first.root.agent(context)).tools).toEqual([]);
 
 		addTool(setup.registry, echo);
@@ -242,7 +242,7 @@ describe("tool round", () => {
 			(name: string): Execute =>
 			async () => {
 				events.push(`start ${name}`);
-				// Changed after the round started: not seen by this round.
+				// 在本轮开始后才发生更改，因此本轮看不到该更改。
 				setup.settings.toolExecution = "parallel";
 				await new Promise((resolve) => setTimeout(resolve, 20));
 				events.push(`end ${name}`);
@@ -250,7 +250,7 @@ describe("tool round", () => {
 			};
 		addTool(setup.registry, tool("a", slow("a")));
 		addTool(setup.registry, tool("b", slow("b")));
-		// Changed while the model request runs: the round that follows uses it.
+		// 在模型请求期间发生更改，后续轮次会使用新值。
 		const request: FauxResponseStep = () => {
 			setup.settings.toolExecution = "sequential";
 			return calls(["a", {}, "c1"], ["b", {}, "c2"]);
@@ -308,7 +308,7 @@ describe("tool round", () => {
 		const result = await run(perTool, [calls(["a", {}, "c1"], ["b", {}, "c2"]), DONE]);
 		const tasks = await result.harness.commit((tx) => tx.scanTasks({ conversationId: result.root.id }, 20), context);
 		const tools = tasks.items.filter((task) => task.kind === "pi.tool").sort((a, b) => a.id - b.id);
-		// The generation owns both tools and creates the second only after the first ended.
+		// 当前 generation 管理这两个工具，只有第一个工具结束后才会创建第二个。
 		const [generation] = tasks.items.filter((task) => task.kind === "pi.generation");
 		expect(tools.map((task) => task.owner)).toEqual([generation!.id, generation!.id]);
 		expect(events).toEqual(["a", "b"]);
@@ -384,7 +384,7 @@ describe("tool results", () => {
 			bytesPerSecond: 100 * 1024,
 		});
 		expect(windows).toContainEqual(undefined);
-		// 8 bytes written, 8 skipped, then "x\n" dropped by the window: 3 lines, 18 bytes in all.
+		// 写入 8 字节、跳过 8 字节，随后窗口丢弃 "x\n"：总计 3 行、18 字节。
 		expect(resultText(results(entries).find((result) => result.toolCallId === "c1")!)).toBe(
 			"y\n|<harness>\n[warn] Output truncated to its end: 3 lines, 18 bytes dropped\n</harness>",
 		);
@@ -495,7 +495,7 @@ describe("tool results", () => {
 			),
 			DONE,
 		]);
-		// Parallel tools append their results in completion order.
+		// 并行工具按完成顺序追加结果。
 		const byId = new Map(results(entries).map((result) => [result.toolCallId, [result.isError, resultText(result)]]));
 		expect(byId.get("block")).toEqual([true, "<harness>\n[error] Tool call blocked: not today\n</harness>"]);
 		expect(byId.get("throw")).toEqual([true, "<harness>\n[error] Tool call blocked: hook failed\n</harness>"]);
@@ -504,7 +504,7 @@ describe("tool results", () => {
 		expect(byId.get("ok")).toEqual([false, ""]);
 		expect(byId.get("invalid")![0]).toBe(true);
 		expect(byId.get("invalid")![1]).toContain("Validation failed");
-		// pi-ai coerces a number to a string before the first validation.
+		// pi-ai 会先将数字转换为字符串，再进行首次校验。
 		expect(byId.get("coerced")).toEqual([false, ""]);
 		expect(seen).toEqual(expect.arrayContaining([{ text: "1!" }, { text: "x!" }]));
 		expect(seen).toHaveLength(2);
@@ -539,7 +539,7 @@ describe("tool results", () => {
 		expect(byId.get("fixed")).toBe("");
 		expect(byId.get("broken")).toBe("<harness>\n[error] cannot repair\n</harness>");
 		expect(seen).toEqual([{ text: "#7" }]);
-		// The stored call keeps what the model sent.
+		// 存储的调用会保留模型发送的内容。
 		const call = (entries[2]!.model![0] as AssistantMessage).content.find((item) => item.type === "toolCall");
 		expect(call?.type === "toolCall" && call.arguments).toEqual({ text: 7 });
 		await harness.close(context);
@@ -610,11 +610,11 @@ describe("tool results", () => {
 		});
 		setup.registry.install(Echo);
 		setup.registry.install(Audit);
-		// Audit is installed but not in the default selection.
+		// Audit 已安装，但不在默认选择中。
 		setup.settings.extensions = [Echo];
 		const first = await run(setup, [DONE]);
 		await first.root.configure({ extensions: { add: [Audit] } }, context);
-		// An owner task no registered definition takes stays live and pending.
+		// 所有者任务若没有已注册的定义，就会保持活动和待处理状态。
 		const owner = defineTask<Record<string, never>, { phase: "never" }, null>({
 			name: "test.owner",
 			version: 1,
@@ -665,7 +665,7 @@ describe("tool results", () => {
 		const second = await (await first.root.submit({ type: "input", content: "again" }, context)).wait(context);
 		expect(second.status).toBe("done");
 		expect((await allEntries(first.root)).at(-1)!.kind).toBe("pi.assistant");
-		// addTools appends to the stored tool array, skipping names it already holds.
+		// addTools 会向已存储的工具数组追加工具，并跳过其中已有的名称。
 		expect((await first.harness.snapshot(AgentDoc, first.root.id, context))?.tools).toEqual([
 			"stop",
 			"grow",
@@ -701,7 +701,7 @@ describe("generation hooks", () => {
 		expect(requests[0]!.slice(-2)).toEqual(["user:go", "user:injected"]);
 		expect(responses).toEqual(["answer 1", "answer 2"]);
 		expect(entries.map((entry) => entry.kind)).toEqual(["pi.user", "pi.assistant", "pi.user", "pi.assistant"]);
-		// The injected message was used for the request only.
+		// 注入的消息仅用于本次请求。
 		expect(entries.some((entry) => textOf(entry.model?.[0]) === "injected")).toBe(false);
 		await harness.close(context);
 	});
@@ -741,7 +741,7 @@ describe("generation hooks", () => {
 		setup.settings.stream = { deferred: true };
 		const result = await run(setup, [fauxAssistantMessage([fauxText("late")])]);
 		expect(result.status).toBe("done");
-		// The still-deferred results are not terminal.
+		// 仍处于延迟状态的结果并非终态。
 		expect(observed).toEqual(["stop:late"]);
 		await result.harness.close(context);
 	});
@@ -771,7 +771,7 @@ describe("generation hooks", () => {
 			fauxAssistantMessage([fauxText("b")]),
 			fauxAssistantMessage([fauxText("c")]),
 		]);
-		// The first continuation skips the second handler; on the next answer the second handler's continuation wins.
+		// 第一次续跑会跳过第二个处理器；下一次回答时，由第二个处理器的续跑结果生效。
 		const users = entries.filter((entry) => entry.kind === "pi.user").map((entry) => textOf(entry.model![0]));
 		expect(users).toEqual(["go", "first", "second"]);
 		expect(called.filter((name) => name === "second onYield")).toHaveLength(2);
@@ -825,7 +825,7 @@ describe("tool execution api", () => {
 			seen.push((await api.agent(context)).tools.map((each) => each.name));
 			seen.push(api.registry.extension("tool:probe") !== undefined);
 			const entry = await api.commit(async (tx) => {
-				// The next call runs in the new directory: its environment is built when it executes.
+				// 下一次调用会在新目录中执行：环境是在调用执行时构建的。
 				await configure(tx, api.conversationId, { cwd: "/" });
 				return tx.appendEntry(api.conversationId, { kind: "test.note", data: api.callId });
 			}, context);
@@ -870,7 +870,7 @@ describe("tool execution api", () => {
 		const [result] = results(entries);
 		expect(result).toMatchObject({ isError: true });
 		expect(resultText(result!)).toBe("<harness>\n[error] no sandbox\n</harness>");
-		// Each preparation reports the failure and renders without an environment.
+		// 每次准备都会报告该故障，并在没有执行环境的情况下渲染。
 		expect(setup.reports.filter((error) => (error as Error).message === "no sandbox").length).toBe(2);
 		await harness.close(context);
 	});
@@ -997,7 +997,7 @@ describe("tool progress and lifetime", () => {
 			conversation.configure({ tools: { remove: [extra] } }, context),
 		);
 		expect(status).toBe("done");
-		// addTools deletes the name from a stored `{ remove }` filter.
+		// addTools 会从已存储的 `{ remove }` 过滤器中删除该名称。
 		expect((await harness.snapshot(AgentDoc, root.id, context))?.tools).toEqual({ remove: [] });
 		await harness.close(context);
 	});
@@ -1022,7 +1022,7 @@ describe("tool progress and lifetime", () => {
 		addTool(
 			setup.registry,
 			tool("details", async (_args, api) => {
-				// Three updates in one throttle window coalesce; the last is still pending when execute() returns.
+				// 同一限流时间窗内的三次更新会合并；execute() 返回时，最后一次更新仍在等待处理。
 				const first = api.details({ n: 1 }, context).then(() => settled.push("first"));
 				const second = api.details({ n: 2 }, context).then(() => settled.push("second"));
 				await first;
@@ -1057,7 +1057,7 @@ describe("tool progress and lifetime", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		const submission = await root.submit({ type: "input", content: "go" }, context);
 		await started;
-		// The same extension name replaces the old one in place.
+		// 同名扩展会原位替换旧扩展。
 		addTool(
 			setup.registry,
 			tool("work", async () => ({ output: [{ type: "text", text: "v2" }] })),
@@ -1118,7 +1118,7 @@ describe("tool progress and lifetime", () => {
 		addTool(
 			setup.registry,
 			tool("detach", async (_args, api) => {
-				// The child's definition is not registered, so it stays pending.
+				// 子任务的定义尚未注册，因此它会一直处于待处理状态。
 				const child = await api.createTask(never, {}, { ownership: { kind: "conversation" } }, context);
 				wait = api.waitForTask(child, context);
 				wait.catch(() => {});
@@ -1141,7 +1141,7 @@ describe("tool progress and lifetime", () => {
 			setup.registry,
 			tool("slow", async (_args, api) => {
 				api.output("first\n");
-				// The output commit is in flight, so these details wait for the next throttle window.
+				// 输出提交仍在进行中，因此这些详情会等待下一个限流时间窗。
 				pendingDetails = api.details({ step: 1 }, context);
 				pendingDetails.catch(() => {});
 				return {};
@@ -1175,7 +1175,7 @@ describe("tool progress and lifetime", () => {
 			setup.registry,
 			tool("slow", async (_args, api, callContext) => {
 				api.output("durable\n");
-				// The first output commits at once; this one waits for the next throttle window.
+				// 第一段输出会立即提交；这一段则要等到下一个限流时间窗。
 				await new Promise((resolve) => setTimeout(resolve, 20));
 				api.output("buffered\n");
 				reached();

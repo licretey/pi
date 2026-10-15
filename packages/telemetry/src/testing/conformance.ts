@@ -57,7 +57,7 @@ function unreadable<T extends object>(value: T): T {
 	});
 }
 
-/** Creates runner-independent cases for the callback telemetry adapter contract. */
+/** 为回调式遥测适配器契约创建与测试运行器无关的用例。 */
 export function createTelemetryAdapterConformance(
 	factory: TelemetryAdapterFixtureFactory,
 ): readonly TelemetryAdapterConformanceCase[] {

@@ -173,7 +173,7 @@ describe("FooterDataProvider reftable branch detection", () => {
 		}
 	});
 
-	// Drive debounce behavior explicitly; native fs.watch delivery can race watcher startup.
+	// 显式触发防抖逻辑；原生 fs.watch 事件可能与监听器启动过程发生竞争。
 	it("does not notify listeners when reftable updates keep the same branch", async () => {
 		vi.useFakeTimers();
 		const { worktreeDir } = createReftableWorktree(tempDir);
@@ -236,7 +236,7 @@ describe("FooterDataProvider reftable branch detection", () => {
 			provider.onBranchChange(onBranchChange);
 
 			writeFileSync(join(reftableDir, "tables.list"), "1\n");
-			// Real fs watcher events can arrive late under full-suite load.
+			// 全量测试负载较高时，真实文件监视事件可能延迟到达。
 			await waitFor(() => vi.mocked(execFile).mock.calls.length === 1, 10_000);
 			await waitFor(() => provider.getGitBranch() === "foo", 10_000);
 

@@ -1,15 +1,10 @@
 name: Nix
 
-# The flake builds with the model catalog revision pinned in
-# nix/model-catalog.json. This workflow keeps that pin usable independently of
-# releases: after pi.dev publishes a catalog from main, it replaces the pin only
-# if the current one no longer hydrates main (for example after a provider was
-# added) or lacks a model type the live catalog has for one of main's providers
-# (for example after a provider gained classifier models), builds the flake,
-# and commits the new pin to main.
+# flake 使用固定在 nix/model-catalog.json 中的模型目录修订版本进行构建。此工作流独立于正式发布维护该固定值：
+# pi.dev 从 main 发布目录后，只有当当前固定值无法再为 main 填充模型数据（例如新增了提供商），或缺少线上目录中
+# 某个 main 分支提供商所拥有的模型类型（例如该提供商新增了分类器模型）时，才更新固定值；随后构建 flake 并将新固定值提交到 main。
 #
-# Release tags are built exactly as tagged, with their committed pin. Once all
-# systems build, the stable branch is fast-forwarded to the tag so that
+# 发布标签严格按标签内容及其已提交的固定值进行构建。所有系统构建成功后，将 stable 分支快进到该标签，使
 # `nix run github:earendil-works/pi/stable` runs the latest release.
 
 on:
@@ -33,7 +28,7 @@ on:
       - Publish Model Catalog
     types:
       - completed
-  # Catches packaging drift from changes pushed to main without a pull request.
+  # 捕获直接推送到 main、未经过拉取请求的打包变化。
   schedule:
     - cron: '43 5 * * *'
   workflow_dispatch:
@@ -68,7 +63,7 @@ jobs:
         id: pin
         run: |
           set -euo pipefail
-          # A release tag must build with its committed pin; it cannot be changed.
+          # 发布标签必须使用其已提交的固定值构建，不得修改该值。
           if [[ "${GITHUB_REF_TYPE}" != "tag" ]]; then
             node scripts/update-model-catalog-pin.mjs --if-stale
           fi
@@ -85,7 +80,7 @@ jobs:
 
   build:
     needs: pin
-    # After a catalog publication, only build when the pin changed.
+    # 目录发布后，仅在固定值发生变化时构建。
     if: ${{ github.event_name != 'workflow_run' || needs.pin.outputs.updated == 'true' }}
     strategy:
       fail-fast: false
@@ -139,14 +134,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      # Full history, so git can verify that the push to stable is a fast-forward.
+      # 获取完整历史，以便 git 验证推送到 stable 的操作属于快进。
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      # Without --force, the push fails unless it is a fast-forward, so stable
-      # never moves back to an older release.
+      # 不使用 --force 时，非快进推送会失败，因此 stable 不会退回到较旧的版本。
       - name: Fast-forward stable to the release
         run: git push origin "${GITHUB_SHA}:refs/heads/stable"
 

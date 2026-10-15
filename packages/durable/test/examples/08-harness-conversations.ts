@@ -1,5 +1,5 @@
-// Conversation handles, typed entries, created conversations, and forks.
-// Run from packages/durable:
+// 对话句柄、类型化条目、新建对话和分叉。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/08-harness-conversations.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createModels } from "@earendil-works/pi-ai/models";
@@ -14,8 +14,8 @@ const harness = await Harness.open(
 const root = await harness.root(context);
 await root.configure({ thinkingLevel: "high" }, context);
 
-// Conversation handles are stateless; compare them by id. They bind commits
-// to their conversation. An entry token types an entry kind's `data`.
+// 对话句柄没有内部状态，应按 ID 比较。它们会将提交绑定到
+// 到对应的 conversation。条目令牌会为条目种类的 `data` 提供类型。
 const Message = defineEntry<{ from: string }>("message");
 const hello = await root.commit(
 	(tx) =>
@@ -27,9 +27,9 @@ const hello = await root.commit(
 );
 console.log("typed entry:", Message.is(hello), hello.data.from);
 
-// createConversation() and fork() apply `agent` and run `init` in the
-// creating commit. A fork starts with the agent the parent had at the fork
-// entry.
+// createConversation() 和 fork() 会应用 `agent` 配置，并在
+// 创建提交。分叉会从父 conversation 在分叉时使用的智能体开始，
+// 新建条目中运行 init。
 const helper = await harness.createConversation(
 	{ ownership: { kind: "ownerless" }, agent: { thinkingLevel: "minimal" } },
 	context,

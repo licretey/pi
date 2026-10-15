@@ -14,13 +14,13 @@ import { VERSION } from "../src/config.ts";
 import { ModelRuntime } from "../src/core/model-runtime.ts";
 import { allowNetwork } from "./test-network-env.ts";
 
-// Runs the current client against the catalog selection pi.dev performs, using
-// the shared protocol in scripts/model-catalog-protocol.ts. Regression test for #9099.
+// 使用 scripts/model-catalog-protocol.ts 中的共享协议，测试当前客户端是否采用 pi.dev 选择的模型目录。
+// #9099 回归测试。
 
 const legacyRevision = `sha256-${"a".repeat(64)}`;
 const mixedApiRevision = `sha256-${"b".repeat(64)}`;
 const modelId = "anthropic/claude-sonnet-5";
-// Newer than the bundled catalog, so the client applies the remote overlay.
+// 此时间晚于随包附带的目录，因此客户端会应用远程覆盖数据。
 const lastModified = new Date("2099-01-01T00:00:00Z").toUTCString();
 const commonModel = {
 	id: modelId,
@@ -44,7 +44,7 @@ const index: ModelCatalogIndex = {
 	],
 };
 
-// The legacy revision predates typed shards, so typed requests fall back to the chat-only shard.
+// 旧版修订早于类型化分片，因此类型化请求会回退到仅包含聊天模型的分片。
 const objects = new Map<string, unknown>([
 	[MODEL_CATALOG_INDEX_KEY, index],
 	[getModelCatalogProviderKey(legacyRevision, "openrouter", "legacy"), { [modelId]: legacyModel }],
@@ -52,7 +52,7 @@ const objects = new Map<string, unknown>([
 	[getModelCatalogProviderKey(mixedApiRevision, "openrouter", "typed"), [{ type: "chat", ...mixedApiModel }]],
 ]);
 
-/** Minimal stand-in for pi.dev's /api/models/providers/:provider route. */
+/** pi.dev 的 /api/models/providers/:provider 路由的最小模拟实现。 */
 function startCatalogServer(requests: string[]): Promise<Server> {
 	const server = createServer((request, response) => {
 		const url = new URL(request.url ?? "/", `http://${request.headers.host}`);

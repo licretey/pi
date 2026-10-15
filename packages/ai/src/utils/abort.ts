@@ -5,14 +5,14 @@ function abortReason(signal: AbortSignal): unknown {
 	return error;
 }
 
-/** Create an operation-local signal for public APIs whose signal is optional. */
+/** 为信号可选的公开 API 创建一个操作本地的信号。 */
 export function operationSignal(signal?: AbortSignal): AbortSignal {
 	return signal ?? new AbortController().signal;
 }
 
 /**
- * Stop waiting for an operation when its signal aborts while continuing to
- * observe the abandoned promise so a later rejection is always handled.
+ * 当操作所属的信号中止时立即停止等待，
+ * 同时继续观察被放弃的 promise，确保之后的 rejection 总是得到处理。
  */
 export function raceWithAbortSignal<T>(operation: Promise<T>, signal: AbortSignal): Promise<T> {
 	if (signal.aborted) {

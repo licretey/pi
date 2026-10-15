@@ -1,6 +1,6 @@
-// Reload an extension while a call runs, then restart the process. Running work finishes on the code it started
-// with; stored choices are names, so they survive a restart and bind to whatever code the new process installs.
-// Run from packages/durable:
+// 在调用执行期间重新加载扩展，然后重启进程。正在执行的工作会继续使用启动时的代码；存储的是扩展名称，
+// 因此重启后仍可保留选择，并绑定到新进程所安装的代码。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/31-reload-and-restart.ts
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,7 +14,7 @@ import { openNodeSqliteStorage } from "../../src/storage/sqlite/node.ts";
 
 const context = BACKGROUND_CONTEXT;
 
-// Stand-in for code loaded from disk: each call builds the extension as the file currently reads.
+// 模拟从磁盘加载的代码：每次调用都会按文件当前内容创建扩展。
 let started = (): void => {};
 let gate = Promise.resolve();
 function loadVersioned(version: string) {
@@ -45,12 +45,12 @@ const directory = await mkdtemp(join(tmpdir(), "pi-durable-reload-"));
 const open = async (registry: ReturnType<typeof createRegistry>) =>
 	Harness.open(await openNodeSqliteStorage(join(directory, "session.sqlite")), { models, registry }, context);
 
-// First process.
+// 第一个进程。
 let registry = createRegistry();
 registry.install(loadVersioned("v1"));
 let harness = await open(registry);
 let root = await harness.root(context, {
-	// Selected by name. The name is what is stored, never the code.
+	// 按名称选择。存储的是名称，而不是代码。
 	agent: { model: { provider: "faux", modelId: "faux-1" }, extensions: [loadVersioned("v1")] },
 });
 const lastResult = async () => {
@@ -59,7 +59,7 @@ const lastResult = async () => {
 	return result.content.map((part) => (part.type === "text" ? part.text : "")).join("");
 };
 
-// The file changes while a call runs: the running call finishes on v1, the next call uses v2.
+// 调用执行期间文件发生变化：当前调用使用 v1 完成，下一次调用使用 v2。
 let release = (): void => {};
 gate = new Promise((resolve) => {
 	release = resolve;
@@ -77,7 +77,7 @@ await (await root.submit({ type: "input", content: "And now?" }, context)).wait(
 console.log("next call:", await lastResult());
 await harness.close(context);
 
-// Second process: the conversation still selects "versioned", but this process has not installed it yet.
+// 第二个进程：会话仍选择 "versioned"，但此进程尚未安装该扩展。
 registry = createRegistry();
 harness = await open(registry);
 root = await harness.root(context);

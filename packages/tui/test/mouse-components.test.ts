@@ -59,7 +59,7 @@ class InputOverlay extends Container {
 	}
 }
 
-/** A settings submenu that routes keys to its nested list, like the coding agent's theme submenu. */
+/** 设置子菜单会将按键转发给其内部列表，行为类似 coding-agent 的主题子菜单。 */
 class SubmenuHost extends Container {
 	readonly list = new SelectList(
 		[
@@ -246,14 +246,14 @@ describe("mouse-aware components", () => {
 
 		terminal.sendInput("\r");
 		await terminal.waitForRender();
-		// Press and release on the submenu's second row selects it and closes the submenu.
+		// 在子菜单第二行按下并释放鼠标会选中该项并关闭子菜单。
 		terminal.sendInput("\x1b[<0;3;2M");
 		terminal.sendInput("\x1b[<0;3;2m");
 		await terminal.waitForRender();
 		assert.deepStrictEqual(changes, [{ id: "theme", value: "second" }]);
 		assert.strictEqual(tui.getFocusedComponent(), list);
 
-		// Keys reach the visible list again instead of the closed submenu.
+		// 子菜单关闭后，按键应重新传递给当前可见的列表。
 		terminal.sendInput("\x1b[B");
 		terminal.sendInput("\r");
 		await terminal.waitForRender();

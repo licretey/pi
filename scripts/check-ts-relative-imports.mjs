@@ -48,7 +48,7 @@ const failures = [];
 
 collectTypescriptFiles(".");
 
-// Parse every file through one synthetic project. noResolve keeps the program to exactly these files.
+// 通过一个合成项目解析所有文件。noResolve 可确保程序只包含这些文件。
 const configPath = resolve("tsconfig.check-ts-relative-imports.json");
 const config = JSON.stringify({
 	compilerOptions: { noResolve: true, noLib: true, types: [] },

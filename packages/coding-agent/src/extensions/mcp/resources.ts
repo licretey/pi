@@ -1,13 +1,12 @@
 /**
- * MCP resources, through the tools Codex and opencode use: `list_mcp_resources`,
- * `list_mcp_resource_templates`, and `read_mcp_resource`. They take a `server` argument and cover
- * every connected server with resources, so models trained on those tools use them unchanged.
+ * 通过 Codex 和 opencode 使用的工具访问 MCP 资源：`list_mcp_resources`、
+ * `list_mcp_resource_templates` 和 `read_mcp_resource`。这些工具接收 `server` 参数，
+ * 并覆盖所有提供资源的已连接服务器，因此针对这些工具训练的模型可以直接使用。
  *
- * Listings are JSON, as in Codex: `{ server?, resources: [{ server, ...resource }], nextCursor? }`.
- * With a `server`, one page is listed and `cursor` continues it; without, every page of every server.
- * MCP App resources (`ui://` URIs and `profile=mcp-app` HTML) are left out, since they are user
- * interfaces for hosts that render them, and so are icons. Read resources become text and images for
- * the model; binary resources are saved to temp files. Scripts get the JSON payloads.
+ * 列表以 JSON 返回，与 Codex 相同：`{ server?, resources: [{ server, ...resource }], nextCursor? }`。
+ * 指定 `server` 时仅列出一页，并可通过 `cursor` 获取后续内容；不指定时列出所有服务器的全部页面。
+ * MCP App 资源（`ui://` URI 和 `profile=mcp-app` HTML）及图标不会纳入列表，因为它们是由宿主界面渲染的内容。
+ * 读取到的资源会转换为模型可用的文本或图像；二进制资源会保存到临时文件。脚本则会收到 JSON 负载。
  */
 
 import type { ImageContent, JsonValue, TextContent } from "@earendil-works/pi-ai";
@@ -32,7 +31,7 @@ import { limitMcpContent, type McpToolDetails, toModelContent, toToolExposure } 
 
 export { LIST_MCP_RESOURCE_TEMPLATES_TOOL, LIST_MCP_RESOURCES_TOOL, READ_MCP_RESOURCE_TOOL };
 
-/** A connected server that offers resources. */
+/** 提供资源的已连接服务器。 */
 export interface McpResourceServer {
 	name: string;
 	timeoutMs: number;
@@ -43,13 +42,13 @@ export interface McpResourceServer {
 	readResource(uri: string, options: McpRequestOptions): Promise<ReadResourceResult>;
 }
 
-/** MCP App user interfaces, which only hosts that render them can use. */
+/** MCP App 用户界面资源；只有能够渲染它们的宿主才能使用。 */
 export function isMcpAppResource(item: { uri?: string; uriTemplate?: string; mimeType?: string }): boolean {
 	const uri = item.uri ?? item.uriTemplate ?? "";
 	return uri.startsWith("ui://") || /;\s*profile\s*=\s*"?mcp-app"?/i.test(item.mimeType ?? "");
 }
 
-/** A listed resource or template without `_meta` and icons, tagged with its server. */
+/** 已列出的资源或模板：移除 `_meta` 和图标字段，并附加所属服务器标记。 */
 function listed<T extends { _meta?: unknown }>(server: string, item: T): Record<string, unknown> {
 	const { _meta, icons: _icons, ...rest } = item as T & { icons?: unknown };
 	return { server, ...rest };
@@ -189,7 +188,7 @@ async function jsonResult(
 }
 
 /**
- * The three resource tools. `servers` returns the servers whose resources they reach, at call time.
+ * 三种资源工具。调用时，`servers` 会返回这些工具可访问其资源的服务器。
  */
 export function createMcpResourceToolDefinitions(options: {
 	exposure: McpExposure;
@@ -207,7 +206,7 @@ export function createMcpResourceToolDefinitions(options: {
 		);
 	};
 
-	/** One page of one server, or every page of every server. */
+	/** 单个服务器的一页资源，或所有服务器的全部资源页。 */
 	const list = async <T extends { _meta?: unknown }>(
 		params: unknown,
 		signal: AbortSignal | undefined,
@@ -313,7 +312,7 @@ export function createMcpResourceToolDefinitions(options: {
 			if (!uri) throw new Error("uri must be provided");
 			const server = findServer(serverName);
 			const result = await server.readResource(uri, { signal, timeoutMs: server.timeoutMs });
-			// Several contents (for example a directory) are labeled with their URIs.
+			// 多个内容项（例如目录）会附带各自的 URI 标签。
 			const blocks: ContentBlock[] = result.contents.flatMap((contents) => [
 				...(result.contents.length > 1 ? [{ type: "text" as const, text: `${contents.uri}:` }] : []),
 				{ type: "resource" as const, resource: contents },

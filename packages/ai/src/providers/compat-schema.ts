@@ -556,9 +556,8 @@ type MergedCompatProperties<PropertyGroups extends readonly TProperties[], Overr
 	Overrides;
 
 /**
- * Provider-level models.json compatibility is API-agnostic, so it needs one superset. Every
- * duplicate property requires explicit generic metadata, while API-specific schemas retain their
- * own defaults and descriptions.
+ * models.json 中提供商级别的兼容性设置与具体 API 无关，因此需要一个超集。每个
+ * 重复属性都要求显式的通用元数据，而各 API 专属的 schema 保留各自的默认值和描述。
  */
 function mergeCompatProperties<
 	const PropertyGroups extends readonly TProperties[],
@@ -607,23 +606,23 @@ export const ProviderCompatSchema = Type.Object(ProviderCompatProperties, {
 });
 
 export type ChatTemplateKwargValue = Static<typeof ChatTemplateKwargValueSchema>;
-/** Top-level request field used to cap reasoning tokens on OpenAI-compatible servers. */
+/** OpenAI 兼容服务器上用于封顶推理 token 的顶层请求字段。 */
 export type ThinkingTokenBudgetField = Static<typeof ThinkingTokenBudgetFieldSchema>;
 export type SessionAffinityFormat = Static<typeof SessionAffinityFormatSchema>;
-/** OpenRouter provider routing preferences. */
+/** OpenRouter 提供商路由偏好。 */
 export interface OpenRouterRouting extends Static<typeof OpenRouterRoutingSchema> {}
-/** Vercel AI Gateway routing preferences. */
+/** Vercel AI Gateway 路由偏好。 */
 export interface VercelGatewayRouting extends Static<typeof VercelGatewayRoutingSchema> {}
-/** An Anthropic server-side refusal fallback model with local pricing metadata. */
+/** Anthropic 服务端拒绝回退模型，附带本地定价元数据。 */
 export interface AnthropicAllowedFallbackModel extends Static<typeof AnthropicAllowedFallbackModelSchema> {}
 
-/** Compatibility settings for OpenAI-compatible completions APIs. */
+/** OpenAI 兼容 completions API 的兼容性设置。 */
 export interface OpenAICompletionsCompat extends Static<typeof OpenAICompletionsCompatSchema> {}
-/** Compatibility settings for OpenAI Responses APIs. */
+/** OpenAI Responses API 的兼容性设置。 */
 export interface OpenAIResponsesCompat extends Static<typeof OpenAIResponsesCompatSchema> {}
-/** Compatibility settings for Anthropic Messages-compatible APIs. */
+/** Anthropic Messages 兼容 API 的兼容性设置。 */
 export interface AnthropicMessagesCompat extends Static<typeof AnthropicMessagesCompatSchema> {}
-/** Compatibility settings for Amazon Bedrock models. */
+/** Amazon Bedrock 模型的兼容性设置。 */
 export interface BedrockCompat extends Static<typeof BedrockCompatSchema> {}
-/** Compatibility settings for the Mistral chat API. */
+/** Mistral 聊天 API 的兼容性设置。 */
 export interface MistralConversationsCompat extends Static<typeof MistralConversationsCompatSchema> {}

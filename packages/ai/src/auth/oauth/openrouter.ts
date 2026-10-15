@@ -1,14 +1,12 @@
 /**
- * OpenRouter OAuth PKCE flow.
+ * OpenRouter OAuth PKCE 授权流程。
  *
- * OpenRouter exchanges an authorization code for a permanent, user-controlled
- * API key rather than an expiring access/refresh token pair. The callback is
- * handled by a one-shot loopback server on an ephemeral port, raced against a
- * manual prompt so remote/headless sessions can paste the redirect URL when
- * the browser cannot reach the loopback server.
+ * OpenRouter 会将授权码兑换为由用户控制的永久 API 密钥，而不是会过期的 access/refresh token 对。
+ * 回调由监听临时端口的一次性 loopback 服务器处理，并与手动输入提示竞速；
+ * 这样在远程或无头会话中，浏览器无法访问 loopback 服务器时，用户仍可粘贴重定向 URL。
  *
- * NOTE: This module uses node:http (via callback-server.ts) for the OAuth callback server.
- * It is only intended for CLI use, not browser environments.
+ * 注意：此模块通过 callback-server.ts 使用 node:http 创建 OAuth 回调服务器。
+ * 此模块仅供 CLI 使用，不适用于浏览器环境。
  */
 
 import { getProviderEnvValue } from "../../utils/provider-env.ts";
@@ -34,7 +32,7 @@ function parseAuthorizationInput(input: string): string | undefined {
 	try {
 		return new URL(value).searchParams.get("code") ?? undefined;
 	} catch {
-		// not a URL
+		// 输入不是 URL，继续按授权码或参数字符串解析。
 	}
 
 	if (value.includes("code=")) {
@@ -112,7 +110,7 @@ async function exchangeAuthorizationCode(
 
 async function loginOpenRouter(interaction: ProviderAuthInteraction): Promise<OAuthCredential> {
 	const { verifier, challenge } = await generatePKCE();
-	// OpenRouter sends no `state`; the random path keeps stray requests from completing the sign-in.
+	// OpenRouter 不发送 `state`；随机路径可防止无关请求完成登录流程。
 	const callback = await startOAuthCallbackServer({
 		providerName: "OpenRouter",
 		host: getCallbackHost(),

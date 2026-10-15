@@ -1,7 +1,7 @@
 /*
- * Adapted from modelcontextprotocol/typescript-sdk v1.29.0.
- * Copyright (c) 2024 Anthropic, PBC. Licensed under MIT; see LICENSES/.
- * Modified to use dependency-free structural validation.
+ * 改编自 modelcontextprotocol/typescript-sdk v1.29.0。
+ * 版权所有 (c) 2024 Anthropic, PBC。依据 MIT 许可证授权；详见 LICENSES/。
+ * 修改为使用无依赖的结构校验。
  */
 
 import { isObject } from "../protocol/jsonrpc.ts";
@@ -24,7 +24,7 @@ export interface AuthorizationServerMetadata {
 	token_endpoint_auth_methods_supported?: string[];
 	code_challenge_methods_supported?: string[];
 	client_id_metadata_document_supported?: boolean;
-	/** Whether authorization responses carry an `iss` parameter (RFC 9207). */
+	/** 授权响应是否携带 `iss` 参数（RFC 9207）。 */
 	authorization_response_iss_parameter_supported?: boolean;
 	[key: string]: unknown;
 }
@@ -44,8 +44,8 @@ export interface OAuthClientMetadata {
 	grant_types?: string[];
 	response_types?: string[];
 	/**
-	 * OpenID Connect client type, `native` or `web`. Dynamic client registration derives it from
-	 * `redirect_uris` when absent (MCP SEP-837).
+	 * OpenID Connect 客户端类型，可以是 `native` 或 `web`。若未提供，动态客户端注册会根据
+	 * `redirect_uris` 推断该字段（MCP SEP-837）。
 	 */
 	application_type?: string;
 	client_name?: string;
@@ -97,7 +97,7 @@ function object(value: unknown, name: string): Record<string, unknown> {
 	return value;
 }
 
-/** Drops `undefined` values so optional fields are absent rather than present-but-undefined. */
+/** 移除值为 `undefined` 的字段，使可选字段直接缺省，而不是显式设为 undefined。 */
 function compact<T extends object>(value: T): T {
 	return Object.fromEntries(Object.entries(value).filter(([, item]) => item !== undefined)) as T;
 }
@@ -107,7 +107,7 @@ function requiredString(value: unknown, name: string): string {
 	return value;
 }
 
-/** Treats `null` and `""` as absent: servers send them for fields they have no value for, like `scope: ""`. */
+/** 将 `null` 和 `""` 视为缺省值；服务器可能会为没有值的字段返回这些值，例如 `scope: ""`。 */
 function absent(value: unknown): value is undefined | null | "" {
 	return value === undefined || value === null || value === "";
 }
@@ -125,7 +125,7 @@ function optionalStrings(value: unknown, name: string): string[] | undefined {
 
 function safeUrl(value: unknown, name: string): string {
 	const text = requiredString(value, name);
-	// URL parsing throws a `TypeError`, which discovery reserves for network failures.
+	// URL 解析会抛出 `TypeError`；发现流程将此错误类型保留用于表示网络故障。
 	if (!URL.canParse(text)) throw new Error(`Invalid ${name}`);
 	const url = new URL(text);
 	if (["javascript:", "data:", "vbscript:"].includes(url.protocol)) throw new Error(`Invalid ${name}`);
@@ -182,7 +182,7 @@ export function parseAuthorizationServerMetadata(value: unknown): AuthorizationS
 
 export function parseOAuthTokens(value: unknown): OAuthTokens {
 	const input = object(value, "OAuth token response");
-	// `Number(null)` is 0, which would mark the token as expired at once.
+	// `Number(null)` 会得到 0，从而导致令牌立即被判定为过期。
 	const expires = absent(input.expires_in) ? undefined : Number(input.expires_in);
 	if (expires !== undefined && !Number.isFinite(expires)) throw new Error("Invalid expires_in");
 	return compact({

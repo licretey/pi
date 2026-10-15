@@ -30,7 +30,7 @@ const MISTRAL_TOOL_CALL_ID_LENGTH = 9;
 const MAX_MISTRAL_ERROR_BODY_CHARS = 4000;
 
 /**
- * Provider-specific options for the Mistral API.
+ * Mistral API 的提供商专用选项。
  */
 type MistralReasoningEffort = "none" | "low" | "medium" | "high" | "max";
 
@@ -120,7 +120,7 @@ type MistralCompletionEvent = {
 };
 
 /**
- * Stream responses from the native Mistral Chat Completions endpoint.
+ * 从 Mistral 原生 Chat Completions 端点流式接收响应。
  */
 export const stream: StreamFunction<"mistral-conversations", MistralOptions> = (
 	model: Model<"mistral-conversations">,
@@ -168,7 +168,7 @@ export const stream: StreamFunction<"mistral-conversations", MistralOptions> = (
 			stream.end();
 		} catch (error) {
 			for (const block of output.content) {
-				// partialArgs is only a streaming scratch buffer; never persist it.
+				// partialArgs 仅是流式处理期间的临时缓冲区，绝不持久化。
 				delete (block as { partialArgs?: string }).partialArgs;
 			}
 			output.stopReason = options?.signal?.aborted ? "aborted" : "error";
@@ -182,7 +182,7 @@ export const stream: StreamFunction<"mistral-conversations", MistralOptions> = (
 };
 
 /**
- * Maps provider-agnostic `SimpleStreamOptions` to Mistral options.
+ * 将与提供商无关的 `SimpleStreamOptions` 映射为 Mistral 选项。
  */
 export const streamSimple: StreamFunction<"mistral-conversations", SimpleStreamOptions> = (
 	model: Model<"mistral-conversations">,
@@ -200,7 +200,7 @@ export const streamSimple: StreamFunction<"mistral-conversations", SimpleStreamO
 	} satisfies MistralOptions;
 	const clampedReasoning = options?.reasoning ? clampThinkingLevel(model, options.reasoning) : undefined;
 	const reasoning = clampedReasoning === "off" ? undefined : clampedReasoning;
-	// Models with a thinking level map use `reasoning_effort`; other reasoning models use `prompt_mode`.
+	// 定义了思考级别映射的模型使用 `reasoning_effort`；其他推理模型使用 `prompt_mode`。
 	const effortMap = model.reasoning ? model.thinkingLevelMap : undefined;
 	const reasoningEffort = effortMap
 		? reasoning
@@ -305,8 +305,8 @@ async function requestMistralStream(
 	baseUrl.pathname = `${baseUrl.pathname.replace(/\/+$/u, "")}/`;
 	const url = new URL("v1/chat/completions", baseUrl);
 	const headers = buildMistralHeaders(model, apiKey, options);
-	// The timeout covers only the wait for response headers. Long streams (e.g. extended thinking)
-	// must not be cut off by a fixed deadline; body stalls are left to the HTTP client idle timeout.
+	// 超时仅限制等待响应标头的时间。较长的数据流（如扩展思考）不能被固定截止时间截断；
+	// 正文传输停滞则由 HTTP 客户端的空闲超时处理。
 	const timeoutMs = options?.timeoutMs ?? 60_000;
 	const headerTimeoutSignal = AbortSignal.timeout(timeoutMs);
 	const combinedSignal = combineAbortSignals([options?.signal, headerTimeoutSignal]);
@@ -609,8 +609,8 @@ async function consumeChatStream(
 	for await (const event of mistralStream) {
 		const chunk = event.data;
 		await onProviderStreamEvent?.(chunk, model);
-		// Mistral's streamed CompletionChunk carries an id field. Keep the first non-empty one,
-		// mirroring how OpenAI-style streaming exposes a stable response identifier per stream.
+		// Mistral 流式返回的 CompletionChunk 包含 id 字段。保留首个非空 ID，
+		// 与 OpenAI 风格的数据流为每条流提供稳定响应标识符的做法一致。
 		output.responseId ||= chunk.id;
 
 		if (chunk.usage) {
@@ -645,8 +645,8 @@ async function consumeChatStream(
 			for (const item of contentItems) {
 				if (typeof item === "string") {
 					const textDelta = sanitizeSurrogates(item);
-					// GLM models on Mistral send empty content deltas around thinking and tool calls.
-					// Opening a block for them splits thinking into multiple blocks, which Mistral rejects on replay.
+					// Mistral 上的 GLM 模型会在思考和工具调用前后发送空内容增量。
+					// 为这些增量创建内容块会把思考拆成多个块，导致 Mistral 在重放时拒绝请求。
 					if (!textDelta) continue;
 					if (!currentBlock || currentBlock.type !== "text") {
 						finishCurrentBlock(currentBlock);
@@ -762,8 +762,7 @@ async function consumeChatStream(
 		if (block.type !== "toolCall") continue;
 		const toolBlock = block as ToolCall & { partialArgs?: string };
 		toolBlock.arguments = parseStreamingJson<ToolCall["arguments"]>(toolBlock.partialArgs);
-		// Finalize in-place and strip the scratch buffer so replay only
-		// carries parsed arguments.
+		// 原地完成解析并清除临时缓冲区，使重放数据只包含已解析的参数。
 		delete toolBlock.partialArgs;
 		stream.push({
 			type: "toolcall_end",
@@ -944,7 +943,7 @@ function mapChatStopReason(reason: string | null): { stopReason: StopReason; err
 		case "tool_calls":
 			return { stopReason: "toolUse" };
 		case "error":
-			// Mistral reports transient server failures this way; "server error" makes the message retryable.
+			// Mistral 会以此方式报告临时服务器故障；"server error" 会使该错误消息可重试。
 			return { stopReason: "error", errorMessage: "Provider stopped with: error (server error)" };
 		default:
 			return { stopReason: "error", errorMessage: `Provider stopped with: ${reason}` };

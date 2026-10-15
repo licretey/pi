@@ -1,5 +1,5 @@
 /**
- * Codemode source format: JavaScript, optionally preceded by one options line.
+ * Codemode 源码格式：JavaScript，可选地在开头添加一行选项。
  *
  * ```js
  * // @options: {"max_output_tokens": 2000, "timeout_ms": 30000}
@@ -12,12 +12,12 @@ export const CODEMODE_OPTIONS_PREFIX = "// @options:";
 
 const SUPPORTED_FIELDS = ["max_output_tokens", "timeout_ms"] as const;
 const SUPPORTED_FIELDS_TEXT = "`max_output_tokens` and `timeout_ms`";
-/** Largest delay `setTimeout` supports, which bounds `timeout_ms`. */
+/** `setTimeout` 支持的最大延迟，也是 `timeout_ms` 的上限。 */
 const MAX_TIMEOUT_MS = 2_147_483_647;
 
 /**
- * Lark grammar for providers with grammar-constrained tool input. It only fixes the shape of the
- * options line; the options JSON and the code are checked by {@link parseCodemodeSource}.
+ * 供使用语法约束工具输入的提供商使用的 Lark 语法。它只约束选项行的格式；
+ * 选项 JSON 和代码本身由 {@link parseCodemodeSource} 检查。
  */
 export const CODEMODE_SOURCE_GRAMMAR = String.raw`
 start: options_source | plain_source
@@ -30,14 +30,14 @@ SOURCE: /[\s\S]+/
 `;
 
 export interface CodemodeSourceOptions {
-	/** Token budget for the script's output. */
+	/** 脚本输出的 token 数上限。 */
 	maxOutputTokens?: number;
-	/** Hard deadline for the whole script in milliseconds, including tool calls. */
+	/** 整个脚本的硬性截止时间，单位为毫秒，包含工具调用耗时。 */
 	timeoutMs?: number;
 }
 
 export interface ParsedCodemodeSource {
-	/** The script with the options line replaced by an empty line, so line numbers are unchanged. */
+	/** 将选项行替换为空行后的脚本，以保持行号不变。 */
 	code: string;
 	options: CodemodeSourceOptions;
 }
@@ -94,8 +94,8 @@ function parseOptions(directive: string): CodemodeSourceOptions {
 }
 
 /**
- * Split an optional first-line `// @options: {...}` from the script. Throws
- * {@link CodemodeSourceError} for empty input and invalid options.
+ * 从脚本中拆分可选的首行 `// @options: {...}`。输入为空或选项无效时，
+ * 会抛出 {@link CodemodeSourceError}。
  */
 export function parseCodemodeSource(input: string): ParsedCodemodeSource {
 	if (input.trim() === "") {

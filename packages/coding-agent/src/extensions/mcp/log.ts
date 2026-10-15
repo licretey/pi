@@ -1,7 +1,6 @@
 /**
- * Log messages MCP servers send with `notifications/message`, appended to `mcp.log` in the agent
- * directory. Several pi processes may write to the same file, so every message is one synchronous
- * append. The file is rotated to `mcp.log.1` once it grows past `MAX_LOG_BYTES`.
+ * 将 MCP 服务器通过 `notifications/message` 发送的日志消息追加到 Agent 目录下的 `mcp.log`。
+ * 多个 pi 进程可能同时写入，因此每条消息都通过一次同步追加完成。文件超过 `MAX_LOG_BYTES` 后会轮转为 `mcp.log.1`。
  */
 
 import { appendFileSync, mkdirSync, renameSync, statSync } from "node:fs";
@@ -22,7 +21,7 @@ function formatData(data: unknown): string {
 	}
 }
 
-/** Format one `notifications/message` from `server` as a log line; continuation lines are indented. */
+/** 将 `server` 发来的一条 `notifications/message` 格式化为日志行，并缩进后续行。 */
 export function formatMcpLogMessage(server: string, params: unknown, now: Date = new Date()): string {
 	const message = isRecord(params) ? params : { data: params };
 	const level = typeof message.level === "string" ? message.level : "info";
@@ -31,7 +30,7 @@ export function formatMcpLogMessage(server: string, params: unknown, now: Date =
 	return `${now.toISOString()} [${server}] ${level}${logger} ${text}\n`;
 }
 
-/** Appends server log messages to one file. Write errors are ignored: logging must not break tools. */
+/** 将服务器日志消息追加到单个文件。写入错误会被忽略，避免日志功能影响工具运行。 */
 export class McpServerLog {
 	readonly path: string;
 	private size: number | undefined;
@@ -48,14 +47,14 @@ export class McpServerLog {
 				this.size = this.currentSize();
 			}
 			if (this.size > MAX_LOG_BYTES) {
-				// Another process may have rotated it already; check before renaming.
+				// 其他进程可能已轮转文件，因此重命名前再次检查大小。
 				if (this.currentSize() > MAX_LOG_BYTES) renameSync(this.path, `${this.path}.1`);
 				this.size = this.currentSize();
 			}
 			appendFileSync(this.path, line);
 			this.size += Buffer.byteLength(line);
 		} catch {
-			// Ignore: the log is best effort.
+			// 忽略错误：日志写入仅尽力完成。
 		}
 	}
 

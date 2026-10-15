@@ -1,11 +1,11 @@
 import { type KeyId, matchesKey } from "./keys.ts";
 
 /**
- * Global keybinding registry.
- * Downstream packages can add keybindings via declaration merging.
+ * 全局按键绑定注册表。
+ * 下游包可通过声明合并添加按键绑定。
  */
 export interface Keybindings {
-	// Editor navigation and editing
+	// 编辑器导航与编辑。
 	"tui.editor.cursorUp": true;
 	"tui.editor.cursorDown": true;
 	"tui.editor.historyPrevious": true;
@@ -29,19 +29,19 @@ export interface Keybindings {
 	"tui.editor.yank": true;
 	"tui.editor.yankPop": true;
 	"tui.editor.undo": true;
-	// Generic input actions
+	// 通用输入操作。
 	"tui.input.newLine": true;
 	"tui.input.submit": true;
 	"tui.input.tab": true;
 	"tui.input.copy": true;
-	// Generic selection actions
+	// 通用选择操作。
 	"tui.select.up": true;
 	"tui.select.down": true;
 	"tui.select.pageUp": true;
 	"tui.select.pageDown": true;
 	"tui.select.confirm": true;
 	"tui.select.cancel": true;
-	// Alternate-screen viewport navigation
+	// 备用屏幕视口导航。
 	"tui.altScreen.pageUp": true;
 	"tui.altScreen.pageDown": true;
 	"tui.altScreen.halfPageUp": true;
@@ -156,7 +156,7 @@ export const TUI_KEYBINDINGS = {
 		defaultKeys: ["escape", "ctrl+c"],
 		description: "Cancel selection",
 	},
-	// These intentionally shadow the unmodified editor bindings in fullscreen mode.
+	// 全屏模式下，这些绑定会有意覆盖编辑器未修改的绑定。
 	"tui.altScreen.pageUp": {
 		defaultKeys: "pageUp",
 		description: "Scroll viewport up one page",

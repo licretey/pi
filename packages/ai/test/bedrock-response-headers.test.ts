@@ -51,8 +51,7 @@ describe("bedrock response headers", () => {
 			},
 		).result();
 
-		// The fake server intentionally returns an empty event stream; this assertion
-		// documents that the header callback still fires before stream consumption.
+		// 模拟服务器特意返回空事件流；此断言用于说明：读取流之前仍会触发请求头回调。
 		expect(result.stopReason).toBe("error");
 		expect(responses).toHaveLength(1);
 		expect(responses[0].status).toBe(200);

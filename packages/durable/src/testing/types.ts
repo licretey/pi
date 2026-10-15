@@ -24,21 +24,21 @@ export interface StorageConformanceCase {
 
 export type EnvConformanceAssertions = StorageConformanceAssertions;
 
-/** Calls `use` once with an environment whose `cwd` is a fresh, empty, writable directory, then cleans up. */
+/** 以一个 `cwd` 为全新、空、可写目录的环境调用 `use` 一次，随后清理。 */
 export type EnvConformanceProvider = (use: (env: ExecutionEnv) => Promise<void>) => Promise<void>;
 
 export interface EnvConformanceOptions {
 	readonly assertions: EnvConformanceAssertions;
 	readonly withEnv: EnvConformanceProvider;
-	/** Program and flag that run a POSIX shell script from the next argument; default `["sh", "-c"]`. */
+	/** 从下一个参数读取 POSIX shell 脚本的程序与标志；默认 `["sh", "-c"]`。 */
 	readonly shell?: readonly string[];
-	/** Whether the shell's `ln -s` creates symbolic links; default true. */
+	/** shell 的 `ln -s` 是否能创建符号链接；默认 true。 */
 	readonly symlinks?: boolean;
 }
 
 export interface EnvConformanceCase {
 	readonly name: string;
-	/** Cases that wait for an environment's watch latency need longer than a test runner's default timeout. */
+	/** 等待环境监视延迟的用例需要比测试运行器默认超时更长的时间。 */
 	readonly timeoutMs?: number;
 	run(): Promise<void>;
 }

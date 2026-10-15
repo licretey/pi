@@ -4,7 +4,7 @@ const MAX_SEQUENCE = (1n << 41n) - 1n;
 let lastOrdinaryTimestamp = -1;
 let sequence: bigint | undefined;
 
-/** Generate a time-ordered UUIDv7. A supplied timestamp is preserved for follower ids. */
+/** 生成按时间排序的 UUIDv7。传入的时间戳会被保留，用于跟随者 id。 */
 export function uuidv7(timestampMs?: number): string {
 	const requestedTimestamp = timestampMs ?? Date.now();
 	if (!Number.isInteger(requestedTimestamp) || requestedTimestamp < 0 || requestedTimestamp > MAX_UUID_V7_TIMESTAMP) {

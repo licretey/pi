@@ -9,7 +9,7 @@ interface JsonSchemaObject {
 
 class UnsupportedStrictJsonSchemaError extends Error {}
 
-/** Returns true when a provider's strict mode rejects this schema keyword with this value. */
+/** 提供商严格模式不接受此 Schema 关键字及其取值时返回 true。 */
 export type UnsupportedStrictSchemaKeywordCheck = (key: string, value: unknown) => boolean;
 
 const UNSUPPORTED_STRICT_SCHEMA_KEYS = [
@@ -123,7 +123,7 @@ function makeJsonSchemaNodeStrict(schema: unknown, isUnsupportedKeyword?: Unsupp
 	schema.additionalProperties = false;
 }
 
-/** Convert a tool schema to the strict subset expected by provider constrained sampling. */
+/** 将工具 Schema 转换为提供商受限采样所要求的严格子集。 */
 export function makeStrictJsonSchema(
 	schema: Tool["parameters"],
 	isUnsupportedKeyword?: UnsupportedStrictSchemaKeywordCheck,
@@ -219,8 +219,8 @@ function inferGrammarInputProperty(tool: Tool): string {
 }
 
 /**
- * Decide whether a JSON-schema tool is sent in strict mode. `isUnsupportedKeyword` lets a provider
- * reject extra keywords its strict mode does not accept, so "prefer" tools fall back to non-strict.
+ * 决定 JSON Schema 工具是否以 strict 模式发送。`isUnsupportedKeyword` 可让提供商拒绝其 strict 模式不支持的额外关键字，
+ * 因此标记为 "prefer" 的工具会回退到非 strict 模式。
  */
 export function resolveJsonSchemaStrictSampling(
 	tool: Tool,

@@ -1,5 +1,5 @@
 /**
- * Core modules shared between all run modes.
+ * 所有运行模式共用的核心模块。
  */
 
 export {
@@ -30,7 +30,7 @@ export type { CacheWarmingDecision, CacheWarmingStatus } from "./cache-warmer.ts
 export type { CompactionResult } from "./compaction/index.ts";
 export { createEventBus, type EventBus, type EventBusController } from "./event-bus.ts";
 export { areExperimentalFeaturesEnabled } from "./experimental.ts";
-// Extensions system
+// 扩展系统。
 export {
 	type AgentActivityOutcome,
 	type AgentBeforeSettleEvent,

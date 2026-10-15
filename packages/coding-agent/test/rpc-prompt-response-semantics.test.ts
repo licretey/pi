@@ -150,7 +150,7 @@ async function createRuntimeHost(options: {
 			try {
 				await session.abort();
 			} catch {
-				// ignore test cleanup failures
+				// 忽略测试清理失败。
 			}
 			session.dispose();
 			if (existsSync(tempDir)) {
@@ -219,7 +219,7 @@ describe("RPC prompt response semantics", () => {
 		}
 	});
 
-	// #9098: a successful prompt may start an agent run or be consumed by an extension.
+	// #9098：成功提交的提示可能会启动 agent 运行，也可能被扩展处理。
 	it("emits one started response when prompt preflight succeeds", async () => {
 		const { lineHandler, cleanup } = await startRpcMode({ withAuth: true, responseDelayMs: 0 });
 
@@ -311,7 +311,7 @@ describe("RPC prompt response semantics", () => {
 		}
 	});
 
-	// #9803: a handler can consume A while independently queueing B; report A's outcome.
+	// #9803：处理器可以消费 A，同时独立排队 B；此处应报告 A 的处理结果。
 	it.each(["steer", "follow_up"] as const)(
 		"reports %s as handled even when an extension queues another message",
 		async (type) => {

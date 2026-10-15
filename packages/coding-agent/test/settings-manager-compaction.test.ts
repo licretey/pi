@@ -5,7 +5,7 @@ const model = { provider: "provider", id: "family/model" };
 const modelKey = "provider/family/model";
 const defaults = { enabled: true, reserveTokens: 16384, keepRecentTokens: 20000 };
 
-// Regression coverage for #8133.
+// #8133 回归测试。
 describe("compaction model overrides", () => {
 	it("uses defaults without compaction settings", () => {
 		const manager = SettingsManager.inMemory();

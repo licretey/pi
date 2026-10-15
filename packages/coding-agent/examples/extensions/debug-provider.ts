@@ -1,9 +1,8 @@
 /**
- * Raw provider event viewer.
+ * 提供商原始事件查看器。
  *
- * Usage: /debug-provider [on|off]
- * With no argument, the command toggles capture. Captured events are persisted
- * as expandable custom entries.
+ * 用法：/debug-provider [on|off]
+ * 不带参数时，该命令会切换捕获状态。捕获到的事件会作为可展开的自定义条目持久化。
  */
 
 import { type ExtensionAPI, keyHint } from "@earendil-works/pi-coding-agent";

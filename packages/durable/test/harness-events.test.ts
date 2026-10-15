@@ -29,7 +29,7 @@ import { addTool } from "./harness-support.ts";
 import { context, documentChanges } from "./session-support.ts";
 import { aborted, deferred } from "./task-support.ts";
 
-/** Attach and start an event stream that records every delivered batch. */
+/** 建立并启动事件流，记录每个传递过来的批次。 */
 async function listen(harness: Harness, conversation: Conversation) {
 	const stream = await watchEvents(harness, conversation.id, context);
 	const batches: AgentEvent[][] = [];
@@ -47,7 +47,7 @@ function slow(): ChatSetup {
 	return chatSetup({ tokensPerSecond: 400, tokenSize: { min: 1, max: 1 } });
 }
 
-/** Rebuild the streamed text of block 0 from `message_start` and the text deltas that follow it. */
+/** 根据 `message_start` 及后续文本增量，重建第 0 个内容块的流式文本。 */
 function streamedText(events: readonly AgentEvent[]): string {
 	let text = "";
 	for (const event of events) {
@@ -68,7 +68,7 @@ function streamedText(events: readonly AgentEvent[]): string {
 
 type Mutable = { [key: string]: unknown };
 
-/** Apply message changes to a copy of `message`, as an events-only consumer would. */
+/** 将消息变更应用到 `message` 的副本，模拟仅依赖事件的使用方。 */
 function applyChanges(message: AssistantMessage, changes: readonly MessageChange[]): AssistantMessage {
 	let next = structuredClone(message);
 	for (const change of changes) {
@@ -90,7 +90,7 @@ function applyChanges(message: AssistantMessage, changes: readonly MessageChange
 	return next;
 }
 
-/** Committed partials of `conversation`'s generation, one per commit that has one. */
+/** `conversation` 生成过程中已提交的部分内容；每次包含部分内容的提交对应一项。 */
 function partialsOf(harness: Harness): AssistantMessage[] {
 	const partials: AssistantMessage[] = [];
 	harness.subscribeCommits((publication) => {
@@ -137,7 +137,7 @@ describe("agent events", () => {
 			"usage_changed",
 		]);
 		expect(all.find((event) => event.type === "run_start")).toEqual({ type: "run_start", inputs: [submission.id] });
-		// After each event, the rebuilt text equals the committed partial of that commit.
+		// 每处理一个事件，重建出的文本都应等于该次提交的部分内容。
 		const rebuilt = all.flatMap((event, index) =>
 			(event.type === "message_start" && event.message.role === "assistant") || event.type === "message_update"
 				? [streamedText(all.slice(0, index + 1))]
@@ -176,7 +176,7 @@ describe("agent events", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		const { stream, events } = await listen(harness, root);
 		const submission = await root.submit({ type: "input", content: "go" }, context);
-		// The output events rebuild the slot's retained window.
+		// 输出事件用于重建槽位中保留的窗口内容。
 		const output = (): string => {
 			let text = "";
 			for (const event of events()) {
@@ -200,7 +200,7 @@ describe("agent events", () => {
 		});
 		const end = tool.at(-1)!;
 		expect(end).toMatchObject({ type: "tool_execution_end", toolCallId: "c1", entry: { kind: "pi.tool-result" } });
-		// As in the coding agent, the tool ends directly before its result message.
+		// 与 coding-agent 中一样，工具结束事件紧邻其结果消息之前。
 		const all = events();
 		const endIndex = all.indexOf(end);
 		expect(all.slice(endIndex, endIndex + 3).map((event) => event.type)).toEqual([
@@ -209,7 +209,7 @@ describe("agent events", () => {
 			"message_end",
 		]);
 		expect(all[endIndex + 1]).toMatchObject({ message: { role: "toolResult", toolCallId: "c1" } });
-		// Two turns: the tool round, and the answer.
+		// 共两个轮次：工具调用轮次和最终回答。
 		expect(events().filter((event) => event.type === "turn_start")).toHaveLength(2);
 		expect(events().filter((event) => event.type === "turn_end")).toHaveLength(2);
 		await stream.stop();
@@ -287,7 +287,7 @@ describe("agent events", () => {
 		await drained();
 		const rebuilt: AssistantMessage[] = [];
 		let current: AssistantMessage | undefined;
-		// The streamed tool-calling message, up to its end; the short final answer commits no partial.
+		// 流式工具调用消息直到结束；较短的最终回答不会提交中间内容。
 		for (const event of events()) {
 			if (event.type === "message_end" && event.entry?.kind === "pi.assistant") break;
 			if (event.type === "message_start" && event.message.role === "assistant") current = event.message;
@@ -421,11 +421,11 @@ describe("agent events", () => {
 		const { stream, events } = await listen(harness, root);
 		const submission = await root.submit({ type: "input", content: "go" }, context);
 		await waitFor(() => events().some((event) => event.type === "tool_execution_start"));
-		// Aborting the generation aborts its round: the tool ends with its aborted result first (spec §8.5).
+		// 中止 generation 会中止整个轮次：工具会先以中止结果结束（规范 §8.5）。
 		await harness.abortTask((await harness.snapshot(LiveDoc, root.id, context))!.run!.taskId, context);
 		await submission.wait(context);
 		await drained();
-		// The call not offered ends after its calling message and directly before its result message.
+		// 未提供给模型的调用会在其调用消息之后、结果消息之前结束。
 		const round = events().map((event) =>
 			event.type === "message_end"
 				? `end:${event.entry.kind}`
@@ -548,7 +548,7 @@ describe("agent events", () => {
 		await change((live) => {
 			live.generation = { attempt: 1, message: partial };
 		});
-		// A usage-only change sends the usage and no changes.
+		// 仅用量发生变化时，只发送用量，不发送内容变更。
 		await change((live) => {
 			live.generation!.message!.usage.input = 42;
 		});
@@ -561,12 +561,12 @@ describe("agent events", () => {
 		await change((live) => {
 			live.tools = [{ callId: "c1", name: "t", status: "running", details: { n: 1 }, diagnostics: [] }];
 		});
-		// A safe replay clears the running slot's progress.
+		// 安全重放会清除运行中槽位的进度。
 		await change((live) => {
 			delete live.tools![0]!.details;
 			delete live.tools![0]!.diagnostics;
 		});
-		// A fault marks the slot done without an entry.
+		// 发生故障时将槽位置为完成状态，但不创建条目。
 		await change((live) => {
 			live.tools![0]!.status = "done";
 		});
@@ -581,7 +581,7 @@ describe("agent events", () => {
 			[{ type: "tool_execution_start", toolCallId: "c1", toolName: "t", args: {} }],
 			[{ type: "tool_execution_update", toolCallId: "c1", toolName: "t", details: null, diagnostics: [] }],
 			[{ type: "tool_execution_end", toolCallId: "c1", toolName: "t" }],
-			// Retired documents read as their initial values.
+			// 已退役文档读取时会返回初始值。
 			[{ type: "usage_changed", usage: { models: {}, tools: {} } }],
 			[{ type: "agent_changed", agent: {} }],
 		]);

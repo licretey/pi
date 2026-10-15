@@ -4,13 +4,13 @@ import { UserEntry } from "../entries.ts";
 import type { ConversationId, EntryDraft, EntryId, JsonObject, SubmissionId, Tx } from "../types.ts";
 import type { QueueMode, Settings, UserInput } from "./types.ts";
 
-/** A queued submission: user input for a run, or a passive entry write. */
+/** 一条排队的提交请求：一次运行的用户输入，或一次被动的条目写入。 */
 export type InboxItem =
 	| { id: SubmissionId; mode: "steer" | "followUp"; content: JsonRepresentation<UserInput> }
-	/** `entry` is an `EntryDraft`, stored as plain JSON. */
+	/** `entry` 是一个 `EntryDraft`，以纯 JSON 存储。 */
 	| { id: SubmissionId; mode: "write"; entry: JsonObject };
 
-/** Built-in queue of one conversation's submissions waiting for a boundary, in ID order. */
+/** 内建队列：一个对话中等待边界的提交请求，按 ID 排序。 */
 export type InboxState = { items: InboxItem[] };
 
 export const InboxDoc = defineDoc<InboxState>({
@@ -23,25 +23,24 @@ export const InboxDoc = defineDoc<InboxState>({
 	checkpointWhen: (value) => value.items.length === 0,
 });
 
-/** The settings a boundary reads, on the Session line. */
+/** 边界在会话线（Session line）上读取的设置。 */
 export type QueueModes = Pick<Settings, "steeringMode" | "followUpMode">;
 
-/** What a boundary reads before the commit's first table write, and the newest head it has seen so far. */
+/** 边界在提交的第一次表写入之前读取的信息，以及它目前见过的最新 head。 */
 export type Boundary = {
 	readonly conversationId: ConversationId;
 	readonly inbox: Draft<InboxState>;
 	readonly steeringMode: QueueMode;
 	readonly followUpMode: QueueMode;
-	/** Start of the active range, the newest head marker's `head`; advanced by heads written in this commit. */
+	/** 活动区间的起点，即最新 head 标记的 `head`；随本提交中写入的 head 前移。 */
 	head: EntryId | undefined;
 };
 
-/** Selected user items, in ID order, and whether a `head: "self"` write (a reset) was placed. */
+/** 被选中的用户项（按 ID 排序），以及是否放置了一次 `head: "self"` 写入（即重置）。 */
 export type BoundaryResult = { readonly users: SubmissionId[]; readonly reset: boolean };
 
 /**
- * Read what a boundary needs. Table reads must precede the commit's first table write, so callers prepare the
- * boundary at the start of their commit.
+ * 读取边界所需的信息。表读取必须先于提交的第一次表写入，因此调用方要在自己提交的开头准备边界。
  */
 export async function prepareBoundary(tx: Tx, conversationId: ConversationId, modes: QueueModes): Promise<Boundary> {
 	const head = (await tx.latestHeadMarker(conversationId))?.head;
@@ -56,11 +55,10 @@ export async function prepareBoundary(tx: Tx, conversationId: ConversationId, mo
 }
 
 /**
- * Place the queued items a boundary selects (spec §6): every write, the first or all steers, and at `final` the first
- * or all follow-ups. A selected reset turns a `postTools` boundary into `final`. Writes are placed first and user
- * items after them, each in ID order, so user items queued before a reset run in the new context. A write whose head
- * targets an entry before the active range, including a range started earlier in this commit, is stale. Selected and
- * stale items are removed positionally.
+ * 放置边界选中的排队项（规范 §6）：全部写入项，第一个或全部 steer，以及在 `final` 时的第一个或全部
+ * follow-up。被选中的重置会把 `postTools` 边界变为 `final`。写入项先放置、用户项随后，各自按 ID 序，
+ * 因此排在重置之前的用户项会在新上下文中运行。写入项的 head 若指向活动区间之前的条目（包括本提交中
+ * 更早开始的区间），即为过期（stale）。被选中的与过期的项都按位置移除。
  */
 export async function applyBoundary(
 	tx: Tx,
@@ -80,7 +78,7 @@ export async function applyBoundary(
 	const users = [...pick("steer", boundary.steeringMode), ...(final ? pick("followUp", boundary.followUpMode) : [])];
 	users.sort((a, b) => a - b);
 
-	// `appendEntry()` copies the drafts' values; the items are removed only afterwards.
+	// `appendEntry()` 会复制草稿的值；这些项只在之后才被移除。
 	for (const index of writes) {
 		const item = items[index] as Draft<Extract<InboxItem, { mode: "write" }>>;
 		const draft = item.entry as unknown as EntryDraft;
@@ -105,12 +103,12 @@ export async function applyBoundary(
 	return { users: placed, reset };
 }
 
-/** Whether a head write targets an entry before the active range, so placing it would bring back cut history. */
+/** head 写入是否指向活动区间之前的条目——若是，放置它会把已被裁掉的历史带回来。 */
 export function isStale(boundary: Boundary, entry: EntryDraft): boolean {
 	return typeof entry.head === "number" && boundary.head !== undefined && entry.head < boundary.head;
 }
 
-/** Remove a withdrawn submission's item; the caller settles the submission. */
+/** 移除被撤回提交请求的队列项；提交请求由调用方结算。 */
 export async function removeInboxItem(tx: Tx, conversationId: ConversationId, id: SubmissionId): Promise<void> {
 	const items = (await tx.doc(InboxDoc, conversationId)).items;
 	const index = items.findIndex((item) => item.id === id);
@@ -118,8 +116,8 @@ export async function removeInboxItem(tx: Tx, conversationId: ConversationId, id
 }
 
 /**
- * Withdraw every queued input of a conversation, as `Conversation.abort()` and abort cascades do: each settles
- * `unanswered` with `aborted` and leaves the inbox; queued writes stay for later placement.
+ * 撤回一个对话的所有排队输入，正如 `Conversation.abort()` 与中止级联所做的：每一项都以 `aborted` 结算为
+ * `unanswered` 并离开收件箱；排队的写入项保留下来等待之后放置。
  */
 export async function withdrawQueuedInputs(tx: Tx, conversationId: ConversationId): Promise<void> {
 	const items = (await tx.doc(InboxDoc, conversationId)).items;

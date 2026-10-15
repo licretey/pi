@@ -121,19 +121,19 @@ describe("AgentSession model and extension characterization", () => {
 		});
 		harnesses.push(harness);
 
-		// Set a per-model override for faux-2
+		// 为 faux-2 设置单模型覆盖值。
 		harness.settingsManager.setModelThinkingLevel("faux", "faux-2", "low");
 
-		// Session starts on faux-1 with default thinking
+		// 会话以默认思考级别从 faux-1 开始。
 		harness.session.setThinkingLevel("high");
 		expect(harness.session.thinkingLevel).toBe("high");
 
-		// Switch to faux-2 → per-model override should apply
+		// 切换到 faux-2 后应应用该模型的覆盖配置。
 		const model2 = harness.getModel("faux-2")!;
 		await harness.session.setModel(model2);
 		expect(harness.session.thinkingLevel).toBe("low");
 
-		// Switch back to faux-1 → no per-model override, uses global default
+		// 切回 faux-1 后没有模型专属覆盖配置，因此使用全局默认值。
 		const model1 = harness.getModel("faux-1")!;
 		await harness.session.setModel(model1);
 		expect(harness.session.thinkingLevel).toBe("medium");
@@ -166,7 +166,7 @@ describe("AgentSession model and extension characterization", () => {
 		});
 		harnesses.push(harness);
 
-		// Start on a non-thinking model, then switch to faux-2
+		// 先使用不支持思考的模型，再切换到 faux-2。
 		const model2 = harness.getModel("faux-2")!;
 		await harness.session.setModel(model2);
 		expect(harness.session.thinkingLevel).toBe("minimal");

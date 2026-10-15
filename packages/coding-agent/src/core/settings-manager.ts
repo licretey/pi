@@ -48,7 +48,7 @@ export type {
 	TuiMode,
 	WarningSettings,
 } from "./settings-schema.ts";
-/** Cache-warming profile. "idle" also warms between agent runs. */
+/** 缓存预热模式。"idle" 还会在智能体各轮运行之间预热缓存。 */
 export const CACHE_WARMING_MODES = ["off", "streaming", "idle"] as const satisfies readonly CacheWarmingMode[];
 
 const DEFAULT_COMPACTION_TOKEN_SETTINGS: Required<CompactionModelOverride> = {
@@ -79,18 +79,17 @@ function deepMergeObjects(base: Record<string, unknown>, overrides: Record<strin
 	return result;
 }
 
-/** Tools enabled at startup when `defaultTools` does not change them. */
+/** 启动时启用的工具；若 `defaultTools` 已指定其他值，则以其为准。 */
 export const DEFAULT_TOOL_NAMES: readonly string[] = ["read", "bash", "edit", "write"];
 
-/** Whether a tool selection entry is a `+name` or `-name` modifier. */
+/** 判断工具选择项是否为 `+name` 或 `-name` 修饰项。 */
 export function isToolModifier(entry: unknown): boolean {
 	return typeof entry === "string" && (entry.startsWith("+") || entry.startsWith("-"));
 }
 
 /**
- * Validate a tool list from `--tools` or the SDK `tools` option. It is either an allowlist of plain
- * names and patterns or a list of only `+name`/`-name` entries with exact names. Returns the
- * problem, or undefined when the list is valid.
+ * 验证来自 `--tools` 或 SDK `tools` 选项的工具列表。列表可以只包含普通名称和模式，
+ * 也可以只包含指定精确名称的 `+name`/`-name` 项。若列表有效则返回 undefined，否则返回问题说明。
  */
 export function getToolListError(entries: readonly string[]): string | undefined {
 	const modifiers = entries.filter(isToolModifier);
@@ -102,8 +101,8 @@ export function getToolListError(entries: readonly string[]): string | undefined
 }
 
 /**
- * Apply the `+name` and `-name` entries of `entries` to `base` in order: `+name` adds a tool and
- * `-name` removes one. Other entries are ignored.
+ * 按顺序将 `entries` 中的 `+name` 和 `-name` 项应用到 `base`：`+name` 添加工具，
+ * `-name` 移除工具。其他项会被忽略。
  */
 export function applyToolModifiers(base: readonly string[], entries: readonly string[]): string[] {
 	const tools = [...base];
@@ -118,26 +117,26 @@ export function applyToolModifiers(base: readonly string[], entries: readonly st
 }
 
 /**
- * Merge `defaultTools` of two settings layers. A list with plain tool names replaces the inherited
- * one; a list of only `+name`/`-name` entries is appended, so it modifies the inherited selection.
+ * 合并两个设置层的 `defaultTools`。包含普通工具名称的列表会替换继承的列表；
+ * 只包含 `+name`/`-name` 项的列表会追加到继承列表，从而修改继承的工具选择。
  */
 function mergeDefaultTools(base: string[] | undefined, overrides: string[] | undefined): string[] | undefined {
 	if (overrides === undefined) return base;
-	// Settings files are not validated; a malformed value replaces instead of throwing here.
+	// 设置文件不会在此处验证；遇到格式错误的值时直接替换，不抛出异常。
 	if (!Array.isArray(base) || !Array.isArray(overrides) || !overrides.every(isToolModifier)) return overrides;
 	return [...base, ...overrides];
 }
 
 /**
- * Resolve a merged `defaultTools` list: plain names replace `DEFAULT_TOOL_NAMES`, then `+name` adds
- * and `-name` removes a tool, in list order.
+ * 解析合并后的 `defaultTools` 列表：普通名称会替换 `DEFAULT_TOOL_NAMES`，随后按列表顺序
+ * 应用 `+name` 添加工具、`-name` 移除工具。
  */
 function resolveDefaultTools(entries: string[]): string[] {
 	const plain = entries.filter((entry) => !isToolModifier(entry));
 	return applyToolModifiers(plain.length > 0 || entries.length === 0 ? plain : DEFAULT_TOOL_NAMES, entries);
 }
 
-/** Deep merge settings: project/overrides take precedence, nested objects merge recursively */
+/** 深度合并设置：项目设置和覆盖项优先，嵌套对象会递归合并。 */
 function deepMergeSettings(base: Settings, overrides: Settings): Settings {
 	const merged = deepMergeObjects(base as Record<string, unknown>, overrides as Record<string, unknown>) as Settings;
 	const defaultTools = mergeDefaultTools(base.defaultTools, overrides.defaultTools);
@@ -211,7 +210,7 @@ export class FileSettingsStorage implements SettingsStorage {
 				lastError = error;
 				const start = Date.now();
 				while (Date.now() - start < delayMs) {
-					// Sleep synchronously to avoid changing callers to async.
+					// 同步休眠，避免将调用方改为异步。
 				}
 			}
 		}
@@ -225,7 +224,7 @@ export class FileSettingsStorage implements SettingsStorage {
 
 		let release: (() => void) | undefined;
 		try {
-			// Only create directory and lock if file exists or we need to write
+			// 仅当文件已存在或需要写入时，才创建目录和锁。
 			const fileExists = existsSync(path);
 			if (fileExists) {
 				release = this.acquireLockSyncWithRetry(path);
@@ -233,7 +232,7 @@ export class FileSettingsStorage implements SettingsStorage {
 			const current = fileExists ? readFileSync(path, "utf-8") : undefined;
 			const next = fn(current);
 			if (next !== undefined) {
-				// Only create directory when we actually need to write
+				// 仅在确实需要写入时创建目录。
 				if (!existsSync(dir)) {
 					mkdirSync(dir, { recursive: true });
 				}
@@ -273,12 +272,12 @@ export class SettingsManager {
 	private projectSettings: Settings;
 	private settings: Settings;
 	private projectTrusted: boolean;
-	private modifiedFields = new Set<keyof Settings>(); // Track global fields modified during session
-	private modifiedNestedFields = new Map<keyof Settings, Set<string>>(); // Track global nested field modifications
-	private modifiedProjectFields = new Set<keyof Settings>(); // Track project fields modified during session
-	private modifiedProjectNestedFields = new Map<keyof Settings, Set<string>>(); // Track project nested field modifications
-	private globalSettingsLoadError: Error | null = null; // Track if global settings file had parse errors
-	private projectSettingsLoadError: Error | null = null; // Track if project settings file had parse errors
+	private modifiedFields = new Set<keyof Settings>(); // 跟踪本次会话中修改过的全局字段。
+	private modifiedNestedFields = new Map<keyof Settings, Set<string>>(); // 跟踪本次会话中修改过的全局嵌套字段。
+	private modifiedProjectFields = new Set<keyof Settings>(); // 跟踪本次会话中修改过的项目字段。
+	private modifiedProjectNestedFields = new Map<keyof Settings, Set<string>>(); // 跟踪本次会话中修改过的项目嵌套字段。
+	private globalSettingsLoadError: Error | null = null; // 记录全局设置文件是否发生解析错误。
+	private projectSettingsLoadError: Error | null = null; // 记录项目设置文件是否发生解析错误。
 	private writeQueue: Promise<void> = Promise.resolve();
 	private errors: SettingsError[];
 	private settingsPaths: SettingsPaths;
@@ -304,7 +303,7 @@ export class SettingsManager {
 		this.settings = deepMergeSettings(this.globalSettings, this.projectSettings);
 	}
 
-	/** Create a SettingsManager that loads from files */
+	/** 创建从文件加载设置的 SettingsManager。 */
 	static create(
 		cwd: string,
 		agentDir: string = getAgentDir(),
@@ -319,12 +318,12 @@ export class SettingsManager {
 		});
 	}
 
-	/** Create a SettingsManager from an arbitrary storage backend */
+	/** 使用任意存储后端创建 SettingsManager。 */
 	static fromStorage(storage: SettingsStorage, options: SettingsManagerCreateOptions = {}): SettingsManager {
 		return SettingsManager.fromStorageWithPaths(storage, options);
 	}
 
-	/** Create a manager while retaining optional file paths for reported storage errors. */
+	/** 创建管理器，并保留可选文件路径，以便报告存储错误。 */
 	private static fromStorageWithPaths(
 		storage: SettingsStorage,
 		options: SettingsManagerCreateOptions,
@@ -353,7 +352,7 @@ export class SettingsManager {
 		);
 	}
 
-	/** Create an in-memory SettingsManager (no file I/O) */
+	/** 创建内存中的 SettingsManager（不执行文件 I/O）。 */
 	static inMemory(settings: Partial<Settings> = {}, options: SettingsManagerCreateOptions = {}): SettingsManager {
 		const storage = new InMemorySettingsStorage();
 		const initialSettings = SettingsManager.migrateSettings(structuredClone(settings) as Record<string, unknown>);
@@ -391,21 +390,21 @@ export class SettingsManager {
 		}
 	}
 
-	/** Migrate old settings format to new format */
+	/** 将旧版设置格式迁移到新版格式。 */
 	private static migrateSettings(settings: Record<string, unknown>): Settings {
-		// Migrate queueMode -> steeringMode
+		// 将 queueMode 迁移为 steeringMode。
 		if ("queueMode" in settings && !("steeringMode" in settings)) {
 			settings.steeringMode = settings.queueMode;
 			delete settings.queueMode;
 		}
 
-		// Migrate legacy websockets boolean -> transport enum
+		// 将旧版 websockets 布尔值迁移为 transport 枚举。
 		if (!("transport" in settings) && typeof settings.websockets === "boolean") {
 			settings.transport = settings.websockets ? "websocket" : "sse";
 			delete settings.websockets;
 		}
 
-		// Migrate old skills object format to new array format
+		// 将旧版技能对象格式迁移为新版数组格式。
 		if (
 			"skills" in settings &&
 			typeof settings.skills === "object" &&
@@ -426,7 +425,7 @@ export class SettingsManager {
 			}
 		}
 
-		// Migrate retry.maxDelayMs -> retry.provider.maxRetryDelayMs
+		// 将 retry.maxDelayMs 迁移为 retry.provider.maxRetryDelayMs。
 		if (
 			"retry" in settings &&
 			typeof settings.retry === "object" &&
@@ -453,7 +452,7 @@ export class SettingsManager {
 		return settings as Settings;
 	}
 
-	/** A copy of the effective settings: global and project settings merged, with overrides. */
+	/** 生效设置的副本：合并全局和项目设置后再应用覆盖项。 */
 	getSettings(): Settings {
 		return structuredClone(this.settings);
 	}
@@ -523,12 +522,12 @@ export class SettingsManager {
 		this.settings = deepMergeSettings(this.globalSettings, this.projectSettings);
 	}
 
-	/** Apply additional overrides on top of current settings */
+	/** 在当前设置基础上应用额外覆盖项。 */
 	applyOverrides(overrides: Partial<Settings>): void {
 		this.settings = deepMergeSettings(this.settings, overrides);
 	}
 
-	/** Mark a global field as modified during this session */
+	/** 标记全局字段在当前会话中已修改。 */
 	private markModified(field: keyof Settings, nestedKey?: string): void {
 		this.modifiedFields.add(field);
 		if (nestedKey) {
@@ -539,7 +538,7 @@ export class SettingsManager {
 		}
 	}
 
-	/** Mark a project field as modified during this session */
+	/** 标记项目字段在当前会话中已修改。 */
 	private markProjectModified(field: keyof Settings, nestedKey?: string): void {
 		this.modifiedProjectFields.add(field);
 		if (nestedKey) {
@@ -851,7 +850,7 @@ export class SettingsManager {
 		return this.getCompactionTokenSetting("keepRecentTokens", model);
 	}
 
-	/** Resolve each token setting through model override, ordinary setting, then built-in default. */
+	/** 依次使用模型覆盖项、普通设置和内置默认值解析各 token 设置。 */
 	getCompactionSettings(model?: Pick<Model<string>, "provider" | "id">): {
 		enabled: boolean;
 		reserveTokens: number;
@@ -910,7 +909,7 @@ export class SettingsManager {
 		this.save();
 	}
 
-	/** Read from global settings only because warming costs money. */
+	/** 仅读取全局设置，因为缓存预热会产生费用。 */
 	getCacheWarmingMode(): CacheWarmingMode {
 		const mode = this.globalSettings.cacheWarming;
 		return mode !== undefined && CACHE_WARMING_MODES.includes(mode) ? mode : SETTINGS_DEFAULTS.cacheWarming;
@@ -1048,7 +1047,7 @@ export class SettingsManager {
 		return this.settings.trackingId;
 	}
 
-	/** Set the analytics opt-in preference; generates a tracking identifier on first opt-in */
+	/** 设置分析数据收集的加入偏好；首次选择加入时会生成跟踪标识符。 */
 	setEnableAnalytics(enabled: boolean): void {
 		this.globalSettings.enableAnalytics = enabled;
 		this.markModified("enableAnalytics");
@@ -1060,9 +1059,9 @@ export class SettingsManager {
 	}
 
 	/**
-	 * Stable ID of this installation, e.g. sent to OpenAI as its agent host ID.
-	 * Created on first use. Project settings are ignored so a committed project
-	 * settings file cannot give every clone the same ID.
+	 * 此安装的稳定 ID，例如作为代理主机 ID 发送给 OpenAI。
+	 * 首次使用时创建。忽略项目设置，避免已提交到版本库的项目设置
+	 * 让每个克隆副本都使用相同的 ID。
 	 */
 	getOrCreateDeviceId(): string {
 		if (!this.globalSettings.deviceId) {
@@ -1208,7 +1207,7 @@ export class SettingsManager {
 	}
 
 	getClearOnShrink(): boolean {
-		// Settings takes precedence, then env var, then default false
+		// 优先使用设置，其次使用环境变量，最后默认为 false。
 		if (this.settings.terminal?.clearOnShrink !== undefined) {
 			return this.settings.terminal.clearOnShrink;
 		}
@@ -1325,7 +1324,7 @@ export class SettingsManager {
 		return this.settings.enabledModels;
 	}
 
-	/** The resolved `defaultTools` selection, or undefined when no settings layer sets it. */
+	/** 解析后的 `defaultTools` 选择；若所有设置层都未设置，则为 undefined。 */
 	getDefaultTools(): string[] | undefined {
 		const tools = this.settings.defaultTools;
 		if (tools === undefined) return undefined;

@@ -80,8 +80,8 @@ const MAX_CACHED_OFFSCREEN_KITTY_TRANSMISSION_BYTES = 32 * 1024 * 1024;
 const MAX_CACHED_OFFSCREEN_KITTY_DECODED_BYTES = 64 * 1024 * 1024;
 const DOUBLE_CLICK_INTERVAL_MS = 500;
 const COPY_ERROR_FLASH_DURATION_MS = 5000;
-// Regular mode delegates double-click selection to the terminal emulator. Fullscreen owns mouse selection,
-// so mirror common terminal word-selection behavior by keeping paths and kebab-case tokens whole.
+// 普通模式将双击选词交给终端模拟器处理。全屏模式自行处理鼠标选区，
+// 因此遵循常见的终端选词行为，将路径和 kebab-case 短横线连接词作为整体选中。
 const TERMINAL_WORD_SELECTION_JOINERS = new Set(["/", "-"]);
 const wordSegmenter = getWordSegmenter();
 
@@ -95,7 +95,7 @@ interface SelectionPoint {
 	row: number;
 	col: number;
 	scrollView?: ScrollView;
-	/** Whether this point lies between terminal cells rather than on a cell. */
+	/** 此点是否位于终端单元格之间，而非单元格上。 */
 	boundary?: boolean;
 }
 
@@ -167,38 +167,37 @@ interface SearchHighlightRange {
 
 export interface TuiAltScreenOptions {
 	/**
-	 * Logical lines moved for each mouse-wheel event (default: 1). `"auto"` accelerates fast wheel
-	 * spins on terminals that send one event per notch. Alt+wheel moves five times as far.
+	 * 每次鼠标滚轮事件移动的逻辑行数（默认值：1）。对于每个滚轮刻度只发送一个事件的终端，
+	 * `"auto"` 会加速快速滚动。按住 Alt 滚动时，移动距离为普通滚动的五倍。
 	 */
 	wheelScrollLines?: WheelScrollLines;
-	/** Capture mouse events for viewport scrolling and application-owned text selection. */
+	/** 捕获鼠标事件，用于滚动视口和选择由应用管理的文本。 */
 	mouse?: boolean;
-	/** Style a non-current transcript search match. */
+	/** 设置会话记录中非当前搜索匹配项的样式。 */
 	searchMatchStyle?: (text: string) => string;
-	/** Style the current transcript search match. */
+	/** 设置会话记录中当前搜索匹配项的样式。 */
 	searchCurrentMatchStyle?: (text: string) => string;
-	/** Style a transcript search navigation button. */
+	/** 设置会话记录搜索导航按钮的样式。 */
 	searchNavigationButtonStyle?: (text: string, hovered: boolean) => string;
 	/**
-	 * Render a clickable jump-to-end label. It is centered on the last row of a follow-end
-	 * primary scroll view while that view is scrolled away from its end.
+	 * 渲染可点击的“跳至末尾”标签。当主滚动视图启用跟随末尾模式但当前未滚动到末尾时，
+	 * 标签会显示在终端最后一行的中央。
 	 */
 	scrollToEndIndicator?: () => string;
-	/** Open an OSC 8 hyperlink activated with a primary-button click. */
+	/** 打开通过鼠标主键点击激活的 OSC 8 超链接。 */
 	openUrl?: (url: string) => void;
-	/** Handle an unmodified secondary-button press for clipboard paste. Currently enabled on Windows only. */
+	/** 处理未按修饰键时的鼠标次键按下事件，以粘贴剪贴板内容。目前仅在 Windows 上启用。 */
 	onRightClickPaste?: () => void;
-	/** Automatically copy selected text to the clipboard on mouse release (default: true). */
+	/** 松开鼠标时是否自动将选中文本复制到剪贴板（默认：true）。 */
 	copyOnSelect?: boolean;
 	/**
-	 * Copy selected text to the system clipboard. Return `true` on success, an error message to
-	 * display on failure, or `false` for a generic error. When omitted, the selection is copied
-	 * via an OSC 52 write.
+	 * 将选中的文本复制到系统剪贴板。成功时返回 `true`，失败时返回要显示的错误消息，
+	 * 遇到一般错误时返回 `false`。未提供此函数时，会通过 OSC 52 写入选区内容。
 	 */
 	copySelection?: (text: string) => Promise<boolean | string>;
 }
 
-/** Alternate-screen TUI with a scrollable, application-owned viewport. */
+/** 使用备用屏幕并带有可滚动、由应用管理的视口的 TUI。 */
 export class TuiAltScreen extends TuiBase implements ViewportTUI {
 	readonly mode = "fullscreen" as const;
 	readonly [VIEWPORT_TUI] = true as const;
@@ -301,25 +300,25 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		this.copyOnSelect = enabled;
 	}
 
-	/** Whether the fullscreen viewport has a non-empty active text selection. */
+	/** 全屏视口中是否存在非空的活动文本选区。 */
 	hasActiveSelection(): boolean {
 		return this.getActiveSelectionText() !== undefined;
 	}
 
-	/** Copy the active fullscreen text selection, if any, using the configured selection clipboard path. */
+	/** 若存在活动的全屏文本选区，则通过配置的选区剪贴板路径复制它。 */
 	async copyActiveSelectionToClipboard(): Promise<boolean> {
 		const text = this.getActiveSelectionText();
 		if (!text) return false;
 		return this.copyTextToClipboard(text);
 	}
 
-	/** Drop the text selection and multi-click history, e.g. before the host replaces the transcript. */
+	/** 清除文本选区和多击历史记录，例如宿主替换会话记录前调用。 */
 	resetTextSelection(): void {
 		this.clearTextSelection();
 		this.lastClick = undefined;
 	}
 
-	/** The lines of the last rendered frame, one per terminal row, as written to the terminal. */
+	/** 上一帧实际写入终端的行，每个终端行对应一个数组元素。 */
 	getScreenLines(): string[] {
 		return [...this.previousScreen];
 	}
@@ -370,8 +369,8 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		this.lastComponentClick = undefined;
 		this.resetRenderState();
 		const term = process.env.TERM?.toLowerCase() ?? "";
-		// Multiplexers can lag when every pointer movement is forwarded. Button-motion
-		// tracking preserves clicks, wheel events, selections, and scrollbar dragging.
+		// 转发每次指针移动会导致终端复用器卡顿。按钮移动跟踪仍可保留点击、滚轮事件、
+		// 选区操作和滚动条拖动。
 		const mouseSequence =
 			process.env.TMUX !== undefined ||
 			process.env.ZELLIJ !== undefined ||
@@ -661,7 +660,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		return scrollView.scrollTop !== before;
 	}
 
-	/** Show a transient message in the alternate-screen flash stack. */
+	/** 在备用屏幕的闪现消息栈中显示一条临时消息。 */
 	flash(message: string, durationMs?: number): void {
 		this.flashes.flash(message, durationMs);
 	}
@@ -705,7 +704,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		const wheelEvent = this.parseWheelEvent(data);
 		if (wheelEvent) {
 			const lines = this.wheelScroll.next(wheelEvent.direction, performance.now());
-			// SGR mouse button codes use bit 3 (value 8) for the Alt modifier.
+			// SGR 鼠标按钮编码使用第 3 位（值为 8）表示 Alt 修饰键。
 			const wheelDelta =
 				wheelEvent.direction * ((wheelEvent.button & 8) !== 0 ? lines * ALT_WHEEL_SCROLL_MULTIPLIER : lines);
 			const event = this.createMouseEvent("wheel", wheelEvent.button, wheelEvent.x, wheelEvent.y, { wheelDelta });
@@ -1029,7 +1028,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		try {
 			this.onRightClickPaste();
 		} catch {
-			// Clipboard paste is best-effort.
+			// 尽力执行剪贴板粘贴。
 		}
 		return true;
 	}
@@ -1343,7 +1342,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 				try {
 					this.openUrl(clickedUrl);
 				} catch {
-					// URL activation is best-effort.
+					// 尽力打开 URL。
 				}
 				this.requestRender();
 				return;
@@ -1468,10 +1467,9 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 	}
 
 	private async copyTextToClipboard(text: string): Promise<boolean> {
-		// Prefer an injected clipboard implementation (native clipboard + platform tools with a
-		// verified success path) when the host app provides one. A bare OSC 52 write can show
-		// "Copied!" while leaving the system clipboard untouched (e.g. macOS Terminal.app, tmux
-		// without OSC 52 clipboard passthrough), so only report success when it actually copies.
+		// 如果宿主应用提供了注入的剪贴板实现（原生剪贴板加上经过验证的系统工具），则优先使用。
+		// 单独写入 OSC 52 时，即使系统剪贴板未实际更新，也可能显示“已复制！”（例如 macOS Terminal.app，
+		// 或未转发 OSC 52 剪贴板内容的 tmux）。因此，只有确认复制成功后才报告成功。
 		if (this.copySelection) {
 			const result = await this.copySelection(text);
 			const ok = result === true;
@@ -1686,7 +1684,7 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		if (this.refreshSearch(nextLayout)) {
 			nextLayout = renderLayoutFrame(root, width, height, () => this.requestRender());
 		}
-		// Resolve fake cursors before highlighting and compositing, which only track SGR codes
+		// 在高亮和合成前解析模拟光标标记，这些处理仅跟踪 SGR 代码。
 		let screen = this.resolveFakeCursors(nextLayout.lines.map((line) => line.replace(OSC133_ZONE_PREFIX, "")));
 		screen = this.applySearchHighlights(screen, nextLayout);
 		screen = this.compositeScrollToEndIndicator(screen, nextLayout, width);
@@ -1743,9 +1741,9 @@ export class TuiAltScreen extends TuiBase implements ViewportTUI {
 		}
 		buffer += preparedKittyScreen.evictedImageDeletion;
 
-		// WezTerm erases intersecting Kitty image cells when a later row write touches a covered row.
-		// Draw image placements after every clear and text write so nothing later intersects them; preserve
-		// the existing interleaved output for text-only frames and every other terminal.
+		// WezTerm 在后续行写入覆盖区域时，会擦除与之相交的 Kitty 图片单元格。
+		// 每次清除和文本写入后都重新绘制图片位置，避免后续写入与图片相交；纯文本帧和其他终端
+		// 仍保留原有的交错输出方式。
 		const drawKittyImagesLast =
 			redrawImages && this.imageProtocol === "kitty" && screen.some(isImageLine) && isWezTerm;
 		if (drawKittyImagesLast) {

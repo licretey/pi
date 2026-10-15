@@ -1,8 +1,8 @@
 /**
- * Minimal SDK Usage
+ * SDK 最简用法。
  *
- * Uses all defaults: discovers skills, extensions, tools, context files
- * from cwd and ~/.pi/agent. Model chosen from settings or first available.
+ * 使用所有默认设置：从 cwd 和 ~/.pi/agent 中发现技能、扩展、工具和上下文文件。
+ * 模型根据设置选择；未配置时使用第一个可用模型。
  */
 
 import { createAgentSession } from "@earendil-works/pi-coding-agent";

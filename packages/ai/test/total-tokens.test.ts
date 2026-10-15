@@ -1,15 +1,15 @@
 /**
- * Test totalTokens field across all providers.
+ * 测试所有提供商的 totalTokens 字段。
  *
- * totalTokens represents the total number of tokens processed by the LLM,
- * including input (with cache) and output (with thinking). This is the
- * base for calculating context size for the next request.
+ * totalTokens 表示 LLM 处理的 token 总数，
+ * 包括输入（含缓存）和输出（含思考内容）。该值是计算下一次请求上下文大小的
+ * 基础。
  *
- * - OpenAI Completions: Uses native total_tokens field
- * - OpenAI Responses: Uses native total_tokens field
- * - Google: Uses native totalTokenCount field
- * - Anthropic: Computed as input + output + cacheRead + cacheWrite
- * - Other OpenAI-compatible providers: Uses native total_tokens field
+ * - OpenAI Completions：使用原生 total_tokens 字段。
+ * - OpenAI Responses：使用原生 total_tokens 字段。
+ * - Google：使用原生 totalTokenCount 字段。
+ * - Anthropic：由 input + output + cacheRead + cacheWrite 计算得出。
+ * - 其他兼容 OpenAI 的提供商：使用原生 total_tokens 字段。
  */
 
 import { describe, expect, it } from "vitest";
@@ -23,7 +23,7 @@ import { hasBedrockCredentials } from "./bedrock-utils.ts";
 import { hasCloudflareAiGatewayCredentials, hasCloudflareWorkersAICredentials } from "./cloudflare-utils.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-// Resolve OAuth tokens at module level (async, runs before tests)
+// 在模块级别解析 OAuth 令牌（异步执行，先于测试运行）。
 const oauthTokens = await Promise.all([
 	resolveApiKey("anthropic"),
 	resolveApiKey("github-copilot"),
@@ -31,7 +31,7 @@ const oauthTokens = await Promise.all([
 ]);
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
 
-// Generate a long system prompt to trigger caching (>2k bytes for most providers)
+// 构造较长的系统提示以触发缓存（对大多数提供商而言超过 2 KB）。
 const LONG_SYSTEM_PROMPT = `You are a helpful assistant. Be concise in your responses.
 
 Here is some additional context that makes this system prompt long enough to trigger caching:
@@ -48,7 +48,7 @@ async function testTotalTokensWithCache<TApi extends Api>(
 	llm: Model<TApi>,
 	options: StreamOptionsWithExtras = {},
 ): Promise<{ first: Usage; second: Usage }> {
-	// First request - no cache
+	// 第一次请求：不命中缓存。
 	const context1: Context = {
 		systemPrompt: LONG_SYSTEM_PROMPT,
 		messages: [
@@ -63,12 +63,12 @@ async function testTotalTokensWithCache<TApi extends Api>(
 	const response1 = await complete(llm, context1, options);
 	expect(response1.stopReason).toBe("stop");
 
-	// Second request - should trigger cache read (same system prompt, add conversation)
+	// 第二次请求：系统提示相同并追加对话，应触发缓存读取。
 	const context2: Context = {
 		systemPrompt: LONG_SYSTEM_PROMPT,
 		messages: [
 			...context1.messages,
-			response1, // Include previous assistant response
+			response1, // 包含上一条 assistant 响应。
 			{
 				role: "user",
 				content: "What is 3 + 3? Reply with just the number.",
@@ -99,7 +99,7 @@ function assertTotalTokensEqualsComponents(usage: Usage) {
 
 describe("totalTokens field", () => {
 	// =========================================================================
-	// Anthropic
+	// Anthropic。
 	// =========================================================================
 
 	describe.skipIf(!process.env.ANTHROPIC_API_KEY)("Anthropic (API Key)", () => {
@@ -118,7 +118,7 @@ describe("totalTokens field", () => {
 				assertTotalTokensEqualsComponents(first);
 				assertTotalTokensEqualsComponents(second);
 
-				// Anthropic should have cache activity
+				// Anthropic 应产生缓存活动。
 				const hasCache = second.cacheRead > 0 || second.cacheWrite > 0 || first.cacheWrite > 0;
 				expect(hasCache).toBe(true);
 			},
@@ -141,7 +141,7 @@ describe("totalTokens field", () => {
 				assertTotalTokensEqualsComponents(first);
 				assertTotalTokensEqualsComponents(second);
 
-				// Anthropic should have cache activity
+				// Anthropic 应产生缓存活动。
 				const hasCache = second.cacheRead > 0 || second.cacheWrite > 0 || first.cacheWrite > 0;
 				expect(hasCache).toBe(true);
 			},
@@ -149,7 +149,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// OpenAI
+	// OpenAI。
 	// =========================================================================
 
 	describe.skipIf(!process.env.OPENAI_API_KEY)("OpenAI Completions", () => {
@@ -217,7 +217,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Google
+	// Google 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.GEMINI_API_KEY)("Google", () => {
@@ -240,7 +240,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// xAI
+	// xAI 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.XAI_API_KEY)("xAI", () => {
@@ -259,7 +259,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Groq
+	// Groq 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.GROQ_API_KEY)("Groq", () => {
@@ -282,7 +282,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Cerebras
+	// Cerebras 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.CEREBRAS_API_KEY)("Cerebras", () => {
@@ -305,7 +305,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Cloudflare Workers AI
+	// Cloudflare Workers AI。
 	// =========================================================================
 
 	describe.skipIf(!hasCloudflareWorkersAICredentials())("Cloudflare Workers AI", () => {
@@ -330,7 +330,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Cloudflare AI Gateway
+	// Cloudflare AI Gateway。
 	// =========================================================================
 
 	describe.skipIf(!hasCloudflareAiGatewayCredentials())("Cloudflare AI Gateway", () => {
@@ -355,7 +355,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Hugging Face
+	// Hugging Face。
 	// =========================================================================
 
 	describe.skipIf(!process.env.HF_TOKEN)("Hugging Face", () => {
@@ -374,7 +374,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Together AI
+	// Together AI。
 	// =========================================================================
 
 	describe.skipIf(!process.env.TOGETHER_API_KEY)("Together AI", () => {
@@ -396,7 +396,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Baseten
+	// Baseten 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.BASETEN_API_KEY)("Baseten", () => {
@@ -437,7 +437,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Mistral
+	// Mistral 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.MISTRAL_API_KEY)("Mistral", () => {
@@ -460,7 +460,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// MiniMax
+	// MiniMax 提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.MINIMAX_API_KEY)("MiniMax", () => {
@@ -483,7 +483,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Xiaomi MiMo
+	// Xiaomi MiMo。
 	// =========================================================================
 
 	describe.skipIf(!process.env.XIAOMI_API_KEY)("Xiaomi MiMo (API billing)", () => {
@@ -506,7 +506,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Xiaomi MiMo Token Plan CN
+	// Xiaomi MiMo Token Plan 中国区。
 	// =========================================================================
 
 	describe.skipIf(!process.env.XIAOMI_TOKEN_PLAN_CN_API_KEY)("Xiaomi MiMo Token Plan (CN)", () => {
@@ -531,7 +531,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Xiaomi MiMo Token Plan AMS
+	// Xiaomi MiMo Token Plan 阿姆斯特丹区。
 	// =========================================================================
 
 	describe.skipIf(!process.env.XIAOMI_TOKEN_PLAN_AMS_API_KEY)("Xiaomi MiMo Token Plan (AMS)", () => {
@@ -556,7 +556,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Xiaomi MiMo Token Plan SGP
+	// Xiaomi MiMo Token Plan 新加坡区。
 	// =========================================================================
 
 	describe.skipIf(!process.env.XIAOMI_TOKEN_PLAN_SGP_API_KEY)("Xiaomi MiMo Token Plan (SGP)", () => {
@@ -581,7 +581,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Qwen Token Plan
+	// Qwen Token Plan。
 	// =========================================================================
 
 	describe.skipIf(!process.env.QWEN_TOKEN_PLAN_API_KEY)("Qwen Token Plan", () => {
@@ -606,7 +606,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Qwen Token Plan Individual
+	// Qwen Token Plan 个人版。
 	// =========================================================================
 
 	describe.skipIf(!process.env.QWEN_TOKEN_PLAN_API_KEY)("Qwen Token Plan Individual", () => {
@@ -631,7 +631,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Qwen Token Plan CN
+	// Qwen Token Plan 中国区。
 	// =========================================================================
 
 	describe.skipIf(!process.env.QWEN_TOKEN_PLAN_CN_API_KEY)("Qwen Token Plan (CN)", () => {
@@ -656,7 +656,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Kimi For Coding
+	// Kimi For Coding。
 	// =========================================================================
 
 	describe.skipIf(!process.env.KIMI_API_KEY)("Kimi For Coding", () => {
@@ -679,7 +679,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// Vercel AI Gateway
+	// Vercel AI Gateway。
 	// =========================================================================
 
 	describe.skipIf(!process.env.AI_GATEWAY_API_KEY)("Vercel AI Gateway", () => {
@@ -702,7 +702,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// OpenRouter - Multiple backend providers
+	// OpenRouter：多个后端提供方。
 	// =========================================================================
 
 	describe.skipIf(!process.env.OPENROUTER_API_KEY)("OpenRouter", () => {
@@ -793,7 +793,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// GitHub Copilot (OAuth)
+	// GitHub Copilot（OAuth）。
 	// =========================================================================
 
 	describe("GitHub Copilot (OAuth)", () => {
@@ -858,7 +858,7 @@ describe("totalTokens field", () => {
 	});
 
 	// =========================================================================
-	// OpenAI Codex (OAuth)
+	// OpenAI Codex（OAuth）。
 	// =========================================================================
 
 	describe("OpenAI Codex (OAuth)", () => {

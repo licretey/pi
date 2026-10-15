@@ -1,5 +1,5 @@
 /**
- * GitHub Copilot OAuth flow
+ * GitHub Copilot OAuth 授权流程。
  */
 
 import { GITHUB_COPILOT_MODELS } from "../../providers/github-copilot.models.ts";
@@ -62,26 +62,26 @@ function getUrls(domain: string): {
 }
 
 /**
- * Parse the proxy-ep from a Copilot token and convert to API base URL.
- * Token format: tid=...;exp=...;proxy-ep=proxy.individual.githubcopilot.com;...
- * Returns API URL like https://api.individual.githubcopilot.com
+ * 从 Copilot token 中解析 proxy-ep，并转换为 API 基础 URL。
+ * token 格式：tid=...;exp=...;proxy-ep=proxy.individual.githubcopilot.com;...
+ * 返回类似 https://api.individual.githubcopilot.com 的 API URL。
  */
 function getBaseUrlFromToken(token: string): string | null {
 	const match = token.match(/proxy-ep=([^;]+)/);
 	if (!match) return null;
 	const proxyHost = match[1];
-	// Convert proxy.xxx to api.xxx
+	// 将 proxy.xxx 转换为 api.xxx。
 	const apiHost = proxyHost.replace(/^proxy\./, "api.");
 	return `https://${apiHost}`;
 }
 
 function getGitHubCopilotBaseUrl(token?: string, enterpriseDomain?: string): string {
-	// If we have a token, extract the base URL from proxy-ep
+	// 如果存在 token，则从 proxy-ep 中提取基础 URL。
 	if (token) {
 		const urlFromToken = getBaseUrlFromToken(token);
 		if (urlFromToken) return urlFromToken;
 	}
-	// Fallback for enterprise or if token parsing fails
+	// 企业账户或 token 解析失败时的回退处理。
 	if (enterpriseDomain) return `https://copilot-api.${enterpriseDomain}`;
 	return "https://api.individual.githubcopilot.com";
 }
@@ -172,8 +172,8 @@ async function fetchGitHubCopilotModels(
 	retryPolicy: { maxRetries: number; maxElapsedMs: number },
 ) {
 	const baseUrl = getGitHubCopilotBaseUrl(copilotToken, enterpriseDomain);
-	// Some Individual accounts return false for every picker flag despite explicit enabled policies.
-	// Limit the fallback to that endpoint so other account types keep strict picker semantics.
+	// 某些个人账户即使明确启用了策略，所有选择器标记仍会返回 false。
+	// 仅在该端点启用回退，以保留其他账户类型严格的选择器语义。
 	const allowPolicyFallback = baseUrl === "https://api.individual.githubcopilot.com";
 	const response = await fetchWithRateLimitRetry(
 		`${baseUrl}/models`,
@@ -239,8 +239,8 @@ async function startDeviceFlow(domain: string, signal: AbortSignal): Promise<Dev
 		throw new Error("Invalid device code response fields");
 	}
 
-	// The verification URI is opened in the user's browser and to prevent `open` from
-	// opening an executable or similar, we force it to be a URL.
+	// 验证 URI 会在用户的浏览器中打开。为避免 `open` 打开可执行文件等内容，
+	// 此处强制要求它是 URL。
 	let parsedUri: URL;
 	try {
 		parsedUri = new URL(verificationUri);
@@ -348,7 +348,7 @@ async function refreshGitHubCopilotAccessToken(
 }
 
 /**
- * Refresh GitHub Copilot token
+ * 刷新 GitHub Copilot token。
  */
 async function refreshGitHubCopilotToken(
 	refreshToken: string,
@@ -367,8 +367,8 @@ async function refreshGitHubCopilotToken(
 }
 
 /**
- * Enable a model for the user's GitHub Copilot account.
- * This is required for some models (like Claude, Grok) before they can be used.
+ * 为用户的 GitHub Copilot 账户启用指定模型。
+ * 某些模型（如 Claude、Grok）必须先启用才能使用。
  */
 async function enableGitHubCopilotModel(
 	token: string,
@@ -408,8 +408,8 @@ async function enableGitHubCopilotModel(
 }
 
 /**
- * Enable the requested GitHub Copilot models and return the successful IDs.
- * Policy updates are best effort; exhausted rate limiting stops the batch.
+ * 启用请求的 GitHub Copilot 模型，并返回成功启用的模型 ID。
+ * 策略更新会尽力执行；速率限制重试次数耗尽后会停止处理此批次。
  */
 async function enableGitHubCopilotModels(
 	token: string,
@@ -497,7 +497,7 @@ export const githubCopilotOAuth: OAuthAuth = {
 	refresh: (credential, signal) =>
 		refreshGitHubCopilotToken(credential.refresh, copilotEnterpriseDomain(credential), signal),
 
-	/** Derive the credential-specific proxy endpoint for each request. */
+	/** 为每次请求生成与凭据对应的代理端点。 */
 	async toAuth(credential) {
 		return {
 			apiKey: credential.access,

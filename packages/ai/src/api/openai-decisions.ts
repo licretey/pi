@@ -16,20 +16,20 @@ import {
 } from "./classifier-shared.ts";
 
 /**
- * OpenAI's Decisions API: `POST /v1/decisions` with `{ model, input, questions }`.
+ * OpenAI Decisions API：向 `/v1/decisions` 发送包含 `{ model, input, questions }` 的 POST 请求。
  * https://developers.openai.com/api/docs/guides/decisions
  *
- * The state is sent as JSON text. With images, the input becomes one user message with the state
- * as `input_text` followed by `input_image` data URLs. Questions map to Decisions types:
+ * 状态以 JSON 文本发送。包含图像时，输入会变成一条用户消息：先以 `input_text` 提供状态，再附加 `input_image` data URL。
+ * 问题会映射为 Decisions 类型：
  * `choice` to `choice`, `score` to `score`, and `bool` to `predicate`. Predicates have no
- * criteria field, so the meanings of true and false are appended to the instructions.
+ * criteria 字段，因此 true 和 false 的含义会附加到说明中。
  *
- * Only OpenAI API keys work: Sign in with ChatGPT tokens are rejected on this route.
+ * 仅支持 OpenAI API 密钥：“使用 ChatGPT 登录”token 会被此路由拒绝。
  */
 
 const LABEL = "OpenAI Decisions";
 
-/** The endpoint accepts at most this many image parts per request. */
+/** 此端点的每个请求最多接受的图像部分数量。 */
 const MAX_IMAGES = 128;
 
 interface DecisionQuestion {
@@ -144,9 +144,8 @@ function parseAnswers(value: unknown, context: ClassifierContext): Record<string
 }
 
 /**
- * Cloudflare in front of api.openai.com answers 504 with an HTML page when a request runs longer
- * than about five seconds. Large inputs, currently above roughly 600K tokens, hit this limit, and
- * retrying the same input runs into it again, so 504 is not retried.
+ * api.openai.com 前的 Cloudflare 在请求耗时约超过五秒时会返回 HTML 格式的 504 响应。
+ * 较大的输入（目前约超过 60 万 token）会触发此限制；重试相同输入仍会遇到此问题，因此不重试 504。
  */
 const NO_RETRY_STATUSES = [504];
 
@@ -157,7 +156,7 @@ function errorMessage(error: unknown): string {
 	return formatProviderError(normalizeProviderError(error), `${LABEL} error`);
 }
 
-/** Classification through OpenAI's Decisions API. */
+/** 通过 OpenAI Decisions API 执行分类。 */
 export const classify: ClassifierFunction<ClassifierOptions> = async (model, context, options) => {
 	const output: ClassifierResult = {
 		api: model.api,
@@ -183,7 +182,7 @@ export const classify: ClassifierFunction<ClassifierOptions> = async (model, con
 			NO_RETRY_STATUSES,
 		);
 		if (!isRecord(body)) throw new Error(`${LABEL} returned an unexpected response`);
-		// Set before parsing answers: a request with malformed or refused answers was still billed.
+		// 在解析答案前设置：即使答案格式错误或被拒绝，该请求仍会计费。
 		const usage = parseClassifierUsage(body.usage, model);
 		if (usage) output.usage = usage;
 		output.answers = parseAnswers(body.answers, context);

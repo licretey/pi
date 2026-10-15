@@ -1,5 +1,5 @@
-// Serialize asynchronous document work with a watch.
-// Run from packages/durable:
+// 使用 watch 串行处理异步文档操作。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/05-watches.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createSession, defineDoc, MemoryStorage } from "../../src/index.ts";
@@ -21,8 +21,8 @@ const chat = await session.commit(async (tx) => {
 	return conversation;
 }, context);
 
-// A watch starts from one stable acquisition revision. Slow callbacks never
-// overlap; exact committed frames buffer, with a full-value reset after 100.
+// watch 从一个稳定的获取版本开始。较慢的回调不会重叠；已提交的精确变更帧会缓冲，
+// 缓冲达到 100 帧后会改为发送完整值重置。
 const notesWatch = await session.watchDoc(Notes, chat.id, context);
 if (notesWatch === undefined) throw new Error("notes are absent");
 console.log("watch baseline:", notesWatch.value);

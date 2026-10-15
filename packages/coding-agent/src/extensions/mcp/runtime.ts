@@ -1,7 +1,6 @@
 /**
- * The part of the MCP integration that talks to servers: connections, transports, and OAuth
- * sign-in. It pulls in the MCP client, so index.ts loads it through runtime.lazy.ts only when a
- * server is configured.
+ * MCP 集成中负责与服务器通信的部分：连接、传输和 OAuth 登录。由于此模块会引入 MCP 客户端，
+ * 因此只有配置了服务器时，index.ts 才会通过 runtime.lazy.ts 加载它。
  */
 
 import { homedir } from "node:os";
@@ -47,12 +46,11 @@ export { McpOAuthCredentialStore, McpSignInCancelledError, signInMcpServer } fro
 
 const DEFAULT_TIMEOUT_SECONDS = 60;
 const STDERR_TAIL_CHARS = 2_000;
-/** Delays between attempts to connect to an HTTP server that failed with a transient error. */
+/** HTTP 服务器因暂时性错误连接失败后，每次重试之间的等待时间。 */
 const CONNECT_RETRY_DELAYS_MS = [250, 1_000];
 
 /**
- * `disconnected`: the connection dropped (for example the stdio server exited); the next call
- * reconnects.
+ * `disconnected`：连接已断开（例如 stdio 服务器已退出）；下次调用时会重新连接。
  */
 type ServerState = "connecting" | "connected" | "disconnected" | "needs-auth" | "failed" | "closed";
 
@@ -66,7 +64,7 @@ function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-/** Network failures and overloaded or restarting servers, which are worth another attempt. */
+/** 网络故障、服务器过载或正在重启等值得重试的情况。 */
 function isTransientError(error: unknown): boolean {
 	if (error instanceof McpHttpError) {
 		return error.status === 408 || error.status === 429 || (error.status >= 500 && error.status !== 501);
@@ -79,14 +77,14 @@ function signInRequiredMessage(entry: McpServerEntry): string {
 	return `MCP server "${entry.name}" requires sign-in. Run ${provider ? `/login ${provider}` : "/mcp"} to sign in.`;
 }
 
-/** HTTP servers authenticate with OAuth unless the config supplies an `Authorization` header or `auth`. */
+/** HTTP 服务器默认使用 OAuth 身份验证；配置中提供 `Authorization` 标头或 `auth` 时除外。 */
 function usesOAuth(entry: McpServerEntry): boolean {
 	const { config } = entry;
 	if (!("url" in config) || config.auth) return false;
 	return !Object.keys(config.headers ?? {}).some((header) => header.toLowerCase() === "authorization");
 }
 
-/** `~` and `~/…` (also `~\…` on Windows) name the home directory, like in a shell. */
+/** 与 shell 一样，`~` 和 `~/…`（Windows 上也包括 `~\…`）表示主目录。 */
 function expandHome(value: string): string {
 	if (value === "~") return homedir();
 	if (value.startsWith("~/") || (process.platform === "win32" && value.startsWith("~\\"))) {
@@ -121,7 +119,7 @@ export function createDefaultTransport(
 	});
 }
 
-/** Servers that do not implement `resources/templates/list` have no templates. */
+/** 未实现 `resources/templates/list` 的服务器不提供模板。 */
 async function withoutTemplates<T>(list: () => Promise<T>, empty: T): Promise<T> {
 	try {
 		return await list();
@@ -136,8 +134,8 @@ function listTemplates(client: McpClient, options: McpRequestOptions = {}): Prom
 }
 
 /**
- * Resources and templates at connect time, for the counts in `/mcp` and `pi mcp list`. A server
- * whose lists fail still connects: the resource tools list and read its resources on demand.
+ * 连接时读取资源和模板，用于显示 `/mcp` 和 `pi mcp list` 中的数量。即使服务器的列表读取失败，
+ * 连接仍会建立：资源工具会在需要时列出并读取资源。
  */
 async function fetchResources(
 	client: McpClient,
@@ -152,28 +150,27 @@ async function fetchResources(
 	};
 }
 
-/** One configured server. Reconnects lazily when a call finds the connection gone. */
+/** 一个已配置的服务器。调用发现连接已断开时，会延迟到该时机重新连接。 */
 export class McpServerConnection implements McpToolCaller, McpResourceServer {
 	readonly entry: McpServerEntry;
 	state: ServerState = "connecting";
 	error: string | undefined;
 	tools: McpTool[] = [];
 	/**
-	 * Whether the server offers resources. The lists below are what it listed at the last connect or
-	 * change, without MCP App resources.
+	 * 服务器是否提供资源。以下列表记录了最近一次连接或资源变更时服务器返回的内容，不包含 MCP App 资源。
 	 */
 	hasResources = false;
 	resources: Resource[] = [];
 	resourceTemplates: ResourceTemplate[] = [];
-	/** Server instructions from `initialize`, describing its tools as a group. */
+	/** `initialize` 返回的服务器指令，用于整体描述其工具。 */
 	instructions: string | undefined;
-	/** Last OAuth challenge from the server; sign-in uses its resource metadata URL and scope. */
+	/** 服务器最近一次返回的 OAuth challenge；登录时会使用其中的资源元数据 URL 和 scope。 */
 	challenge: OAuthChallenge | undefined;
 	private client: McpClient | undefined;
 	private opening: Promise<McpClient> | undefined;
-	/** Aborted by `close()`; cancels a connect in progress, including the wait between retries. */
+	/** 由 `close()` 中止；会取消正在进行的连接，包括重试间隔中的等待。 */
 	private readonly shutdown = new AbortController();
-	/** Stderr of the last stdio server that failed to connect. */
+	/** 最近一次连接失败的 stdio 服务器的 stderr 内容。 */
 	private stderrTail: string | undefined;
 	private readonly cwd: string;
 	private readonly createTransport: McpTransportFactory;
@@ -187,12 +184,12 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		cwd: string;
 		createTransport: McpTransportFactory;
 		credentials: McpOAuthCredentialStore;
-		/** The current token of a pi provider, for servers with `auth.provider`. */
+		/** 对于配置了 `auth.provider` 的服务器，返回对应 pi 提供商的当前令牌。 */
 		providerToken?: (provider: string) => Promise<string | undefined>;
 		onTools: (connection: McpServerConnection) => void;
-		/** Called when `state`, `error`, or `tools` change. */
+		/** `state`、`error` 或 `tools` 发生变化时调用。 */
 		onChange?: (connection: McpServerConnection) => void;
-		/** Receives the server's log messages (`notifications/message`). */
+		/** 接收服务器日志消息（`notifications/message`）。 */
 		log?: McpServerLog;
 	}) {
 		this.entry = options.entry;
@@ -213,7 +210,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 					},
 				})
 			: provider
-				? // Read on every request, so the provider's refreshes apply; MCP stores no copy.
+				? // 每次请求时重新读取，以应用提供商的最新凭据；MCP 不会保存副本。
 					{ token: async () => options.providerToken?.(provider), settled: async () => {} }
 				: undefined;
 	}
@@ -230,7 +227,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		return (this.entry.config.timeout ?? DEFAULT_TIMEOUT_SECONDS) * 1000;
 	}
 
-	/** Server URL when the server authenticates with OAuth. */
+	/** 使用 OAuth 身份验证时的服务器 URL。 */
 	get oauthUrl(): string | undefined {
 		return usesOAuth(this.entry) && "url" in this.entry.config ? this.entry.config.url : undefined;
 	}
@@ -291,8 +288,8 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 	}
 
 	/**
-	 * Run a request, reconnecting when needed. `readOnly` requests are retried once after a transient
-	 * HTTP error; tool calls are not, since they may have run.
+	 * 执行请求，并在需要时重新连接。`readOnly` 请求遇到暂时性 HTTP 错误后会重试一次；
+	 * 工具调用不会重试，因为它们可能已经执行。
 	 */
 	private async withClient<T>(run: (client: McpClient) => Promise<T>, readOnly = false): Promise<T> {
 		for (let attempt = 1; ; attempt++) {
@@ -305,9 +302,9 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 					continue;
 				}
 				if (error instanceof McpSessionExpiredError && attempt === 1) {
-					// The server no longer knows the session (restart, deploy), so it did not run the request.
-					// Retry once on a new session. The old client is detached but not closed: closing would
-					// fail its other in-flight calls, which instead get the same 404 and retry the same way.
+					// 服务器已不认识该会话（例如重启或重新部署），因此没有执行请求。
+					// 在新会话中重试一次。旧客户端会解除关联，但不会关闭：关闭它会导致其他正在进行的调用失败，
+					// 而这些调用会收到相同的 404，并按同样方式重试。
 					if (this.client === client) this.client = undefined;
 					continue;
 				}
@@ -319,21 +316,21 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		}
 	}
 
-	/** Connect again with fresh credentials, for example after signing in. */
+	/** 使用新凭据重新连接，例如完成登录之后。 */
 	async reconnect(): Promise<void> {
 		await this.opening?.catch(() => undefined);
 		if (this.client) await this.dropClient(this.client);
 		await this.getClient();
 	}
 
-	/** Disconnect after the stored credentials were removed. */
+	/** 已存储的凭据被删除后断开连接。 */
 	async signOut(): Promise<void> {
 		await this.opening?.catch(() => undefined);
 		if (this.client) await this.dropClient(this.client);
 		if (!this.closed) this.markNeedsAuth();
 	}
 
-	/** OAuth servers that still reject the request after a refresh need the user to sign in again. */
+	/** OAuth 服务器刷新令牌后仍拒绝请求时，需要用户重新登录。 */
 	private needsSignIn(error: unknown): boolean {
 		return (
 			error instanceof McpOAuthAuthorizationRequiredError ||
@@ -384,8 +381,8 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		});
 		const log = this.log;
 		if (log) client.onNotification("notifications/message", (params) => log.write(this.entry.name, params));
-		// Closing the client fails its pending initialize or discovery requests and closes the transport.
-		// Memoized: a second `client.close()` returns before the first finished closing the transport.
+		// 关闭客户端会使待处理的 initialize 或服务发现请求失败，并关闭传输层。
+		// 此操作有记忆化处理：第二次调用 `client.close()` 会在第一次关闭传输层完成前返回。
 		let closing: Promise<void> | undefined;
 		const closeClient = () => {
 			closing ??= client.close().catch(() => undefined);
@@ -404,7 +401,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 			});
 			const stdio = transport instanceof StdioTransport ? transport : undefined;
 			client.onClose(() => this.handleClientClose(client, stdio));
-			// Servers without the tools capability (prompts or resources only) do not answer tools/list.
+			// 仅支持 prompts 或 resources、没有 tools 能力的服务器不会响应 tools/list。
 			const hasResources = client.serverCapabilities?.resources !== undefined;
 			const [tools, resources] = await Promise.all([
 				client.serverCapabilities?.tools ? client.listTools() : [],
@@ -445,7 +442,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		return new Error(`MCP server "${this.entry.name}" failed to connect: ${this.error}`);
 	}
 
-	/** The transport dropped. The next call reconnects; until then the status shows why. */
+	/** 传输连接已断开。下次调用时会重新连接；在此之前状态中会显示断开原因。 */
 	private handleClientClose(client: McpClient, stdio: StdioTransport | undefined): void {
 		if (this.client !== client || this.closed) return;
 		this.client = undefined;
@@ -476,7 +473,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		this.changed();
 	}
 
-	/** Resolves once no transport of this server is open, including one that was still connecting. */
+	/** 此服务器的所有传输连接都已关闭后完成，包括仍处于连接过程中的传输。 */
 	async close(): Promise<void> {
 		this.shutdown.abort();
 		this.state = "closed";
@@ -484,8 +481,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		const client = this.client;
 		this.client = undefined;
 		await Promise.all([client?.close().catch(() => undefined), this.opening?.catch(() => undefined)]);
-		// A refresh the server already answered may have rotated the refresh token; exiting before the
-		// new tokens are saved would lose the grant.
+		// 服务器可能已响应刷新请求并轮换 refresh token；若在保存新令牌前退出，就会丢失授权。
 		await this.authProvider?.settled();
 	}
 }

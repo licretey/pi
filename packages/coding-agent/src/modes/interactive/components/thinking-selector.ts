@@ -31,7 +31,7 @@ const LEVEL_DESCRIPTIONS: Record<ThinkingLevel, string> = {
 };
 
 /**
- * Component that renders a thinking level selector with borders
+ * 用于呈现带边框思考等级选择器的组件。
  */
 export class ThinkingSelectorComponent extends Container implements Focusable {
 	private searchInput: Input;
@@ -72,7 +72,7 @@ export class ThinkingSelectorComponent extends Container implements Focusable {
 				level === defaultThinkingLevel ? `${LEVEL_DESCRIPTIONS[level]} · default` : LEVEL_DESCRIPTIONS[level],
 		}));
 
-		// Add top border
+		// 添加上边框
 		this.addChild(new DynamicBorder());
 		this.addChild(new Spacer(1));
 		this.addChild(new Text("Thinking Level", 0, 0));
@@ -85,7 +85,7 @@ export class ThinkingSelectorComponent extends Container implements Focusable {
 		this.addChild(this.searchInput);
 		this.addChild(new Spacer(1));
 
-		// Create selector
+		// 创建选择器
 		this.selectList = this.buildSelectList(this.allItems, currentLevel);
 		this.selectListChildIndex = this.children.length;
 		this.addChild(this.selectList);
@@ -101,7 +101,7 @@ export class ThinkingSelectorComponent extends Container implements Focusable {
 			),
 		);
 
-		// Add bottom border
+		// 添加下边框
 		this.addChild(new DynamicBorder());
 	}
 

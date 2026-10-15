@@ -7,33 +7,33 @@ const YELLOW = rgbColor(234, 182, 93);
 const RESET = "\x1b[0m";
 
 /**
- * The pi logo: 4 cells wide and 2 lines tall. Each cell shows two square pixels with half blocks:
+ * pi 标志宽 4 个单元格、高 2 行。每个单元格使用半块字符显示两个方形像素：
  *
  *   coral coral coral .
  *   blue  .     coral .
  *   blue  blue  .     yellow
  *   blue  .     .     yellow
  *
- * The brand colors stay fixed across themes; they follow the terminal's color mode.
+ * 品牌色不随主题改变，但会遵循终端的颜色模式。
  */
 export function piLogoLines(): [string, string] {
 	const mode = theme.getColorMode();
 	const fg = (color: typeof CORAL) => foregroundAnsi(color, mode);
-	// The fourth cell of the top line is empty, so it is padded to the same width as the bottom line.
+	// 顶行的第 4 个单元格为空，因此补上空格，使其与底行等宽。
 	const top = `${fg(CORAL)}${backgroundAnsi(BLUE, mode)}▀${RESET}${fg(CORAL)}▀█${RESET} `;
 	const bottom = `${fg(BLUE)}█▀${RESET} ${fg(YELLOW)}█${RESET}`;
 	return [top, bottom];
 }
 
 /**
- * Whether the terminal renders the half-block logo correctly. Apple Terminal draws gaps between rows and
- * misaligns the half blocks, so it gets the text wordmark instead.
+ * 判断终端能否正确渲染半块标志。Apple Terminal 会在行间绘制间隙，导致半块字符错位，
+ * 因此在该终端中改用文字标志。
  */
 export function supportsPiLogo(): boolean {
 	return !isAppleTerminalSession();
 }
 
-/** Text fallback for the logo: "Pi" with the logo's coral and yellow. */
+/** 标志的文字回退形式：使用标志中的珊瑚色和黄色显示 "Pi"。 */
 export function piWordmark(): string {
 	const mode = theme.getColorMode();
 	return `${foregroundAnsi(CORAL, mode)}P${RESET}${foregroundAnsi(YELLOW, mode)}i${RESET}`;

@@ -158,7 +158,7 @@ describe("portable SQLite facade settlement", () => {
 	it("runs operations in call order whether they start immediately or wait", async () => {
 		const database = await openNodeSqliteDatabase(":memory:");
 		await database.exec("CREATE TABLE call_order (value INTEGER)");
-		// Operations called during a transaction must neither see its uncommitted rows nor join its rollback.
+		// 事务期间调用的操作既不能读取未提交的行，也不能加入该事务的回滚。
 		const transaction = database.transaction(async (handle) => {
 			await handle.run("INSERT INTO call_order (value) VALUES (?)", 1);
 			await Promise.resolve();
@@ -225,7 +225,7 @@ describe("portable SQLite facade settlement", () => {
 		await database.exec("CREATE TABLE barrier_probe (value INTEGER)");
 		let outside!: Promise<void>;
 		const transaction = database.transaction(async (handle) => {
-			// Misuse: this call must wait for the transaction instead of joining it.
+			// 错误用法：此调用必须等待事务结束，而不能加入该事务。
 			outside = database.run("INSERT INTO barrier_probe (value) VALUES (?)", 2);
 			await handle.run("INSERT INTO barrier_probe (value) VALUES (?)", 1);
 			await Promise.resolve();
@@ -251,7 +251,7 @@ describe("portable SQLite facade settlement", () => {
 		const entry = storage.entry(ROOT_CONVERSATION_ID, entryId, BACKGROUND_CONTEXT);
 		const head = storage.findLatestHeadMarker(ROOT_CONVERSATION_ID, undefined, BACKGROUND_CONTEXT);
 		const closed = storage.close(BACKGROUND_CONTEXT);
-		// A repeated close settles only when the database is closed.
+		// 重复调用 close 时，只有数据库关闭后操作才会完成。
 		expect(storage.close(BACKGROUND_CONTEXT)).toBe(closed);
 		expect((await scan).items.map((item) => item.id)).toEqual([entryId]);
 		expect((await entry)?.entry.kind).toBe("probe");
@@ -345,7 +345,7 @@ describe("portable SQLite facade settlement", () => {
 
 	it("reads a document from one committed state while a commit replaces its base", async () => {
 		const id = idFromNumber<DocumentId>(5);
-		// Each yield count starts the commit at a different point of the read's record and revision queries.
+		// 不同的让出次数会使提交分别从读取记录和修订号查询的不同位置开始。
 		for (let yields = 0; yields < 16; yields++) {
 			const storage = await SqliteStorage.open(await openNodeSqliteDatabase(":memory:"));
 			await storage.commit(

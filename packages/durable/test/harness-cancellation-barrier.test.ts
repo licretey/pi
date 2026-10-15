@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { context, flush } from "./session-support.ts";
 import { aborted, deferred, eventually, openTasks } from "./task-support.ts";
 
-/** Runs until aborted; its abort handler ends it `aborted`. */
+/** 持续运行直至收到中止信号；其中止处理器会将任务结束状态设为 `aborted`。 */
 const Dormant = defineTask<null, { phase: "work" }, null>({
 	name: "test.dormant",
 	version: 1,
@@ -19,7 +19,7 @@ const Dormant = defineTask<null, { phase: "work" }, null>({
 	},
 });
 
-/** Holds every commit that abort-marks `target`, while set, until released. */
+/** 启用后，拦截所有将 `target` 标记为待中止的提交，直到显式放行。 */
 class HoldMarks extends MemoryStorage {
 	target: TaskId | undefined;
 	readonly held = deferred();
@@ -76,7 +76,7 @@ describe("work below a cancelled owner", () => {
 			await entered.promise;
 			const aborting = harness.abortTask(parent, context);
 			await storage.held.promise;
-			// The parent's request is durable, the cascade's mark of the child is not: its phase must not advance.
+			// 父任务的请求已持久化，但级联中止对子任务的标记尚未持久化：子任务不能推进阶段。
 			advance.resolve();
 			for (let i = 0; i < 5; i++) await flush();
 			expect(ranNext).toBe(false);
@@ -110,7 +110,7 @@ describe("work below a cancelled owner", () => {
 			(tx) => tx.createTask(Dormant, null, { ownership: { kind: "task", taskId: parent } }),
 			context,
 		);
-		// A restart-abandoned owner that waits failFast on a failed child and a live one.
+		// 所有者因重启而中断；它通过 failFast 等待一个失败的子任务和一个仍在运行的子任务。
 		const owner = (await storage.task(parent, context))!;
 		const failedRecord = (await storage.task(failed, context))!;
 		const waiting = {
@@ -130,7 +130,7 @@ describe("work below a cancelled owner", () => {
 			],
 			context,
 		);
-		// The child's definition is missing: a restart mark would keep it waiting, a request orphans it.
+		// 子任务定义缺失：重启标记会让它继续等待，而中止请求会使其变为孤立状态。
 		const { harness } = await openTasks(storage, []);
 		try {
 			harness.resume();
@@ -163,7 +163,7 @@ describe("work below a cancelled owner", () => {
 			(tx) => tx.createTask(Missing, null, { ownership: { kind: "task", taskId: middle } }),
 			context,
 		);
-		// Only Dormant is registered: the leaf waits for its definition under the restart cascade.
+		// 只注册 Dormant：重启级联期间，叶子任务会等待其定义。
 		const { harness } = await openTasks(storage, [Dormant]);
 		try {
 			harness.resume();
@@ -173,7 +173,7 @@ describe("work below a cancelled owner", () => {
 				return inspected?.state.kind === "blocked";
 			});
 			expect((await harness.getTask(leaf, context))?.state.status).not.toBe("terminal");
-			// A request on the top task reaches the leaf two levels down, which is then orphaned.
+			// 对顶层任务发出请求会传递到下两层的叶子任务，使其变为孤立状态。
 			await harness.abortTask(top, context);
 			for (const [id, status] of [
 				[leaf, "orphaned"],

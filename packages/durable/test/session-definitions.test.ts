@@ -92,15 +92,15 @@ describe("document definitions", () => {
 			await tx.retireDoc(ConversationFamily, conversationId, "k");
 			await tx.retireDoc(TaskFamily, taskId, "k");
 
-			// @ts-expect-error Session documents take no owner
+			// @ts-expect-error Session 文档不接受 owner 参数
 			await tx.doc(SessionDoc, conversationId);
-			// @ts-expect-error conversation documents require a conversation ID
+			// @ts-expect-error conversation 文档必须提供会话 ID
 			await tx.doc(LatestDoc);
-			// @ts-expect-error family access requires a creation seed
+			// @ts-expect-error 访问 family 文档时必须提供创建种子
 			await tx.doc(SessionFamily, "k");
-			// @ts-expect-error family seeds are typed
+			// @ts-expect-error family 文档的种子具有指定类型
 			await tx.doc(SessionFamily, "k", "seed");
-			// @ts-expect-error family retirement takes no seed
+			// @ts-expect-error 退役 family 文档时不接受种子
 			await tx.retireDoc(TaskFamily, taskId, "k", 1);
 		};
 		expect(check).toBeTypeOf("function");
@@ -118,7 +118,7 @@ describe("document definitions", () => {
 		expectTypeOf(await session.snapshot(TaskFamily, taskId, "k", context)).toEqualTypeOf<
 			Readonly<State> | undefined
 		>();
-		// @ts-expect-error snapshots never take a creation seed
+		// @ts-expect-error 获取快照时不接受创建种子
 		await session.snapshot(SessionFamily, "k", 1, context).catch(() => undefined);
 		await session.close(context);
 	});
@@ -134,11 +134,11 @@ describe("document definitions", () => {
 			expectTypeOf(
 				session.snapshotAsOf(ConversationFamily, conversationId, "k", at, context),
 			).toEqualTypeOf<Rewound>();
-			// @ts-expect-error latest conversation documents keep no history
+			// @ts-expect-error latest 类型的会话文档不保留历史记录
 			void session.snapshotAsOf(LatestDoc, conversationId, at, context);
-			// @ts-expect-error Session documents keep no history
+			// @ts-expect-error Session 文档不保留历史记录
 			void session.snapshotAsOf(SessionDoc, conversationId, at, context);
-			// @ts-expect-error task documents keep no history
+			// @ts-expect-error task 文档不保留历史记录
 			void session.snapshotAsOf(TaskDoc, taskId, at, context);
 
 			expectTypeOf(session.documentState(SessionDoc, context)).toEqualTypeOf<StateOf>();
@@ -153,7 +153,7 @@ describe("document definitions", () => {
 			expectTypeOf(session.watchDoc(SessionFamily, "k", context)).toEqualTypeOf<WatchOf>();
 			expectTypeOf(session.watchDoc(ConversationFamily, conversationId, "k", context)).toEqualTypeOf<WatchOf>();
 			expectTypeOf(session.watchDoc(TaskFamily, taskId, "k", context)).toEqualTypeOf<WatchOf>();
-			// @ts-expect-error a watch of a Session document takes no owner
+			// @ts-expect-error 监听 Session 文档时不接受 owner 参数
 			void session.watchDoc(SessionDoc, conversationId, context);
 
 			expectTypeOf(await tx.entry(at)).toEqualTypeOf<EntryRecord | undefined>();
@@ -163,13 +163,13 @@ describe("document definitions", () => {
 			expectTypeOf(note).toEqualTypeOf<TypedEntry<{ text: string }>>();
 			expectTypeOf(note.data.text).toEqualTypeOf<string>();
 			expectTypeOf(await tx.appendEntry(Marker, conversationId, {})).toEqualTypeOf<TypedEntry<never>>();
-			// @ts-expect-error a data entry requires its data
+			// @ts-expect-error 数据条目必须提供 data
 			await tx.appendEntry(Note, conversationId, {});
-			// @ts-expect-error data is typed by the token
+			// @ts-expect-error data 的类型由 token 确定
 			await tx.appendEntry(Note, conversationId, { data: { text: 1 } });
-			// @ts-expect-error the token supplies the kind
+			// @ts-expect-error 条目 kind 由 token 提供
 			await tx.appendEntry(Note, conversationId, { kind: "t.note", data: { text: "x" } });
-			// @ts-expect-error an entry kind without data takes none
+			// @ts-expect-error 不携带数据的条目类型不能接收 data
 			await tx.appendEntry(Marker, conversationId, { data: 1 });
 		};
 		expect(check).toBeTypeOf("function");

@@ -71,12 +71,12 @@ function findWebpTiffOffset(bytes: Uint8Array): number {
 
 		if (chunkId === "EXIF") {
 			if (dataStart + chunkSize > bytes.length) return -1;
-			// Some WebP files have "Exif\0\0" prefix before the TIFF header
+			// 某些 WebP 文件会在 TIFF 头之前带有 "Exif\0\0" 前缀。
 			const tiffStart = chunkSize >= 6 && hasExifHeader(bytes, dataStart) ? dataStart + 6 : dataStart;
 			return tiffStart;
 		}
 
-		// RIFF chunks are padded to even size
+		// RIFF 数据块会填充到偶数字节长度。
 		offset = dataStart + chunkSize + (chunkSize % 2);
 	}
 
@@ -97,11 +97,11 @@ function hasExifHeader(bytes: Uint8Array, offset: number): boolean {
 function getExifOrientation(bytes: Uint8Array): number {
 	let tiffOffset = -1;
 
-	// JPEG: starts with FF D8
+	// JPEG：以 FF D8 开头。
 	if (bytes.length >= 2 && bytes[0] === 0xff && bytes[1] === 0xd8) {
 		tiffOffset = findJpegTiffOffset(bytes);
 	}
-	// WebP: starts with RIFF....WEBP
+	// WebP：以 RIFF....WEBP 开头。
 	else if (
 		bytes.length >= 12 &&
 		bytes[0] === 0x52 &&
@@ -142,7 +142,7 @@ function rotate90(photon: Photon, image: PhotonImageType, dstIndex: DstIndexFn):
 	return new photon.PhotonImage(dst, h, w);
 }
 
-// Flip orientations mutate in-place. Rotations return a new image (caller must free the old one if different).
+// 翻转方向会原地修改图像；旋转会返回新图像（若新旧图像不同，调用方必须释放旧图像）。
 export function applyExifOrientation(
 	photon: Photon,
 	image: PhotonImageType,

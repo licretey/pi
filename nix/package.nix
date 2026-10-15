@@ -17,14 +17,13 @@
 let
   nodejs = nodejs_22;
   packageJson = lib.importJSON (source + "/packages/coding-agent/package.json");
-  # Lockfile root used by the pi.dev installer. It pins the coding agent's
-  # runtime dependency tree and is kept in sync with package-lock.json by
-  # `npm run check`.
+  # pi.dev 安装程序使用的锁文件根目录，用于固定 coding-agent 的运行时依赖树，
+  # 并由 `npm run check` 检查其与 package-lock.json 保持同步。
   installLock = source + "/packages/coding-agent/install-lock";
   modelCatalogPin = lib.importJSON ./model-catalog.json;
   modelCatalog = fetchurl {
     name = "pi-model-catalog.json";
-    # The typed catalog is the representation whose bytes the revision hashes.
+    # 带类型的目录是修订版本哈希所依据的字节表示。
     url = "https://pi.dev/api/models/revisions/${modelCatalogPin.revision}?types=chat,image,classifier";
     sha256 = lib.removePrefix "sha256-" modelCatalogPin.revision;
   };
@@ -77,8 +76,7 @@ let
 
   npmDeps = importNpmLock {
     npmRoot = installLock;
-    # The install lock points internal packages at registry releases. Replace
-    # them with the packages built from this checkout.
+    # 安装锁文件将内部软件包指向注册表版本；此处将它们替换为从当前检出版本构建的软件包。
     packageSourceOverrides = {
       "node_modules/@earendil-works/chord" = workspacePackages + "/chord.tgz";
       "node_modules/@earendil-works/pi-agent-core" = workspacePackages + "/agent.tgz";
@@ -145,8 +143,8 @@ stdenv.mkDerivation {
     test "$("$out/bin/pi" --version)" = "${packageJson.version}"
     ${nodejs}/bin/node -e \
       "require('$out/lib/pi/node_modules/esbuild').transformSync('const value: number = 1', { loader: 'ts' })"
-    # Load host-platform TUI helpers directly so missing native dependencies
-    # fail the build rather than silently disabling clipboard support.
+    # 直接加载宿主平台对应的 TUI 辅助模块；如果缺少原生依赖，则让构建失败，
+    # 避免剪贴板支持被静默禁用。
     ${nodejs}/bin/node -e \
       "const fs = require('node:fs');
        const path = require('node:path');

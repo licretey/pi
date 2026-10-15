@@ -13,9 +13,8 @@ const gitBash = join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bi
 const context = BACKGROUND_CONTEXT;
 
 /**
- * Remove a test directory. On Windows, `taskkill /T` runs asynchronously and can miss descendants such as Git Bash's
- * `sleep`, so a killed command's processes can hold the directory for a while after `exec` settles; retry until they
- * exit.
+ * 删除测试目录。在 Windows 上，`taskkill /T` 异步运行，可能漏掉 Git Bash 的 `sleep` 等子进程；
+ * 因此即使命令执行已结束，残留进程仍可能暂时占用目录。应持续重试，直到这些进程退出。
  */
 async function removeTempDir(dir: string): Promise<void> {
 	for (let attempt = 0; ; attempt++) {
@@ -41,7 +40,7 @@ registerEnvConformance(
 			await removeTempDir(cwd);
 		}
 	},
-	// Git Bash's `ln -s` copies instead of linking unless native symlinks are enabled.
+	// 未启用原生符号链接时，Git Bash 的 `ln -s` 会复制文件，而不是创建链接。
 	windows ? { shell: [gitBash, "-c"], symlinks: false } : {},
 );
 

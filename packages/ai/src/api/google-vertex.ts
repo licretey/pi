@@ -52,7 +52,7 @@ export interface GoogleVertexOptions extends StreamOptions {
 	toolChoice?: "auto" | "none" | "any";
 	thinking?: {
 		enabled: boolean;
-		budgetTokens?: number; // -1 for dynamic, 0 to disable
+		budgetTokens?: number; // -1 表示动态预算，0 表示禁用。
 		level?: GoogleApiThinkingLevel;
 	};
 	project?: string;
@@ -62,7 +62,7 @@ export interface GoogleVertexOptions extends StreamOptions {
 const API_VERSION = "v1";
 const GCP_VERTEX_CREDENTIALS_MARKER = "gcp-vertex-credentials";
 
-// Counter for generating unique tool call IDs
+// 用于生成唯一工具调用 ID 的计数器。
 let toolCallCounter = 0;
 
 export const stream: StreamFunction<"google-vertex", GoogleVertexOptions> = (
@@ -97,7 +97,7 @@ export const stream: StreamFunction<"google-vertex", GoogleVertexOptions> = (
 				throw new Error("Custom fetch is not supported by the Google Vertex adapter");
 			}
 			const apiKey = resolveApiKey(options);
-			// Create the client using either a Vertex API key, if provided, or ADC with project and location
+			// 如果提供了 Vertex API 密钥，则用它创建客户端；否则使用 ADC、项目和区域信息创建。
 			const client = apiKey
 				? createClientWithApiKey(model, apiKey, options?.headers)
 				: createClient(model, resolveProject(options), resolveLocation(options), options?.headers, options?.env);
@@ -114,8 +114,8 @@ export const stream: StreamFunction<"google-vertex", GoogleVertexOptions> = (
 			const blockIndex = () => blocks.length - 1;
 			for await (const chunk of googleStream) {
 				await options?.onProviderStreamEvent?.(chunk, model);
-				// Vertex uses the same @google/genai GenerateContentResponse type as Gemini.
-				// responseId is documented there as an output-only identifier for each response.
+				// Vertex 与 Gemini 使用相同的 @google/genai GenerateContentResponse 类型。
+				// 该类型文档说明 responseId 是每个响应独有的只读标识符。
 				output.responseId ||= chunk.responseId;
 				const candidate = chunk.candidates?.[0];
 				if (candidate?.content?.parts) {
@@ -294,7 +294,7 @@ export const stream: StreamFunction<"google-vertex", GoogleVertexOptions> = (
 			stream.push({ type: "done", reason: output.stopReason, message: output });
 			stream.end();
 		} catch (error) {
-			// Remove internal index property used during streaming
+			// 移除流式处理期间使用的内部 index 属性。
 			for (const block of output.content) {
 				if ("index" in block) {
 					delete (block as { index?: number }).index;

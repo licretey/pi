@@ -3,7 +3,7 @@ import { getProviderEnvValue } from "../utils/provider-env.ts";
 
 const DEFAULT_AZURE_API_VERSION = "v1";
 
-/** Azure models ship without a baseUrl: one resource per user, resolved per request. */
+/** Azure 模型未预设 baseUrl：每位用户使用各自的资源地址，并在每次请求时解析。 */
 export interface AzureEndpointOptions extends StreamOptions {
 	azureApiVersion?: string;
 	azureResourceName?: string;
@@ -49,8 +49,8 @@ function normalizeAzureBaseUrl(baseUrl: string): string {
 		url.hostname.endsWith(".ai.azure.com");
 	const normalizedPath = url.pathname.replace(/\/+$/, "");
 
-	// Ensure Azure hosts have /openai/v1 as base path so the AzureOpenAI SDK
-	// can append /deployments/<model>/... and ?api-version=v1 correctly.
+	// 确保 Azure 主机的基础路径包含 /openai/v1，以便 AzureOpenAI SDK 能正确追加
+	// /deployments/<model>/... 和 ?api-version=v1。
 	if (
 		isAzureHost &&
 		(normalizedPath === "" ||

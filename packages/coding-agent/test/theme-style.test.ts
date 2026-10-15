@@ -14,7 +14,7 @@ type ThemeFile = {
 	colors: Record<string, string | number>;
 };
 
-/** Load a copy of a built-in theme, modified by `edit`. */
+/** 加载内置主题的副本，并应用 `edit` 修改。 */
 function loadTheme(base: "dark" | "light", edit: (theme: ThemeFile) => void = () => {}) {
 	const themeJson = JSON.parse(
 		readFileSync(new URL(`../src/modes/interactive/theme/${base}.json`, import.meta.url), "utf8"),
@@ -43,7 +43,7 @@ describe("theme styles", () => {
 	it("rejects unknown tokens and tokens in the wrong slot", () => {
 		const theme = loadTheme("dark");
 		expect(() => theme.style("x", { fg: "notAToken" as never })).toThrow("Unknown theme color: notAToken");
-		// @ts-expect-error background tokens are not foreground colors; use theme.colors.userMessageBg
+		// @ts-expect-error 背景色令牌不能用作前景色；请使用 theme.colors.userMessageBg
 		expect(() => theme.style("x", { fg: "userMessageBg" })).toThrow("Unknown theme color: userMessageBg");
 	});
 
@@ -67,7 +67,7 @@ describe("theme styles", () => {
 	it("detects the appearance unless it is declared", () => {
 		expect(loadTheme("dark").appearance).toBe("dark");
 		expect(loadTheme("light").appearance).toBe("light");
-		// Without a declaration, the appearance is detected from the theme's own colors.
+		// 未声明外观时，根据主题自身的颜色进行检测。
 		for (const base of ["dark", "light"] as const) {
 			expect(loadTheme(base, (json) => delete json.appearance).appearance).toBe(base);
 		}
@@ -77,7 +77,7 @@ describe("theme styles", () => {
 			}).appearance,
 		).toBe("light");
 
-		// Palette colors 0-15 follow the terminal palette, so such themes follow the terminal background.
+		// 调色板颜色 0-15 遵循终端调色板，因此此类主题也会跟随终端背景。
 		const paletteOnly = loadTheme("dark", (json) => {
 			delete json.appearance;
 			for (const key of Object.keys(json.colors)) json.colors[key] = key.endsWith("Bg") ? 0 : 7;

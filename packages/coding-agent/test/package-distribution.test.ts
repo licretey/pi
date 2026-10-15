@@ -24,7 +24,7 @@ describe("package distribution entrypoints", () => {
 		expect(packageJson.exports["./rpc-entry"].import).toBe("./dist/bundle/rpc-entry.js");
 	});
 
-	// Regression for #9132: internal experimental entrypoints must not be published runtime exports.
+	// #9132 回归测试：内部实验入口不得作为运行时导出发布。
 	test("keeps experimental exports source-only", () => {
 		expect(packageJson.exports["./client"]).toEqual({ source: "./src/client/index.ts" });
 		expect(packageJson.exports["./experimental/plugin"]).toEqual({ source: "./src/experimental/plugin.ts" });

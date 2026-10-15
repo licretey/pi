@@ -22,8 +22,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Keep the public GitHub Release publication last. Binary assets are staged in
-  # a draft release first; cleanup removes the draft if later publishing fails.
+  # 将公开 GitHub Release 的发布放在最后。先把二进制文件暂存到草稿发布中；若后续发布失败，清理步骤会删除该草稿。
   build:
     runs-on: ubuntu-latest
     permissions:
@@ -301,7 +300,7 @@ jobs:
             exit 1
           fi
 
-  # The pi-env daemon for every remote system @earendil-works/pi-env supports; the npm package ships them all.
+  # 构建 @earendil-works/pi-env 支持的所有远程系统的 pi-env 守护进程；npm 包会包含全部构建产物。
   env-daemons:
     uses: ./.github/workflows/env-daemons.yml
     permissions:

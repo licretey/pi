@@ -1,20 +1,20 @@
 /**
- * The `/login` menu with the animated "Sign in with Radius" option. Internal to the interactive mode: the shimmer
- * is Radius-only and is not exposed to other selectors.
+ * 带有 Radius 登录动画选项的 `/login` 菜单。此组件仅供交互模式内部使用，
+ * Radius 的流光动画不会提供给其他选择器。
  */
 
 import { type Color, foregroundAnsi, mixColors, parseColor, Text, type TUI } from "@earendil-works/pi-tui";
 import { theme } from "../theme/theme.ts";
 import { ExtensionSelectorComponent } from "./extension-selector.ts";
 
-/** The four colors of the Radius logo, in the order they stream across the text. */
+/** Radius 标志的四种颜色，也是它们在文本上流动的顺序。 */
 const RADIUS_COLORS: readonly Color[] = ["#4d9abf", "#83ccd2", "#f1be57", "#f09082"].map((hex) => parseColor(hex));
-/** Width of each color band, in characters. */
+/** 每个色带的宽度，以字符数计。 */
 const CHARS_PER_COLOR = 4;
 const CHARS_PER_SECOND = 10;
 const ANIMATION_FRAME_MS = 50;
 
-/** Color `text` with the Radius logo colors flowing left to right; `elapsedMs` is the animation time. */
+/** 使用 Radius 标志色从左向右为 `text` 着色；`elapsedMs` 表示动画已持续的时间。 */
 function radiusShimmer(text: string, elapsedMs: number): string {
 	const mode = theme.getColorMode();
 	const cycle = RADIUS_COLORS.length * CHARS_PER_COLOR;
@@ -25,7 +25,7 @@ function radiusShimmer(text: string, elapsedMs: number): string {
 		const position = (((index - offset) % cycle) + cycle) % cycle;
 		const band = Math.floor(position / CHARS_PER_COLOR);
 		const t = position / CHARS_PER_COLOR - band;
-		// Smoothstep keeps each band recognizable while still blending into the next one.
+		// 使用 Smoothstep 平滑过渡，同时保持每个色带清晰可辨。
 		const amount = t * t * (3 - 2 * t);
 		const from = RADIUS_COLORS[band] as Color;
 		const to = RADIUS_COLORS[(band + 1) % RADIUS_COLORS.length] as Color;
@@ -35,12 +35,12 @@ function radiusShimmer(text: string, elapsedMs: number): string {
 	return `${result}\x1b[39m`;
 }
 
-/** The "Sign in with Radius" option: `label` is the full option, starting with the animated `text`. */
+/** Radius 登录选项：`label` 是完整选项文本，并以动画文本 `text` 开头。 */
 type RadiusOption = { label: string; text: string };
 
 /**
- * Swaps the line `ExtensionSelectorComponent` draws for the selected Radius option with the animated one. When the
- * selector's row style changes or the label wraps, the line no longer matches and the option renders normally.
+ * 将 `ExtensionSelectorComponent` 为已选 Radius 选项绘制的行替换为动画行。若选择器行样式变化或标签换行，
+ * 两行将不再匹配，此时选项会按普通方式渲染。
  */
 class RadiusLoginMenuComponent extends ExtensionSelectorComponent {
 	private readonly radiusOption: RadiusOption;
@@ -101,7 +101,7 @@ class RadiusLoginMenuComponent extends ExtensionSelectorComponent {
 	}
 }
 
-/** Top-level `/login` selector whose Radius option shimmers in the Radius logo colors while it is selected. */
+/** 顶层 `/login` 选择器；选中 Radius 选项时，会以 Radius 标志色显示流光动画。 */
 export function createLoginMenuSelector(
 	tui: TUI,
 	title: string,

@@ -1,15 +1,15 @@
 /**
- * Bug regression test for isImageLine() crash scenario
+ * isImageLine() 崩溃场景的回归测试。
  *
- * Bug: When isImageLine() used startsWith() and terminal doesn't support images,
- * it would return false for lines containing image escape sequences, causing TUI to
- * crash with "Rendered line exceeds terminal width" error.
+ * 问题：isImageLine() 使用 startsWith() 时，如果终端不支持图像，
+ * 即使行内包含图像转义序列，函数仍会返回 false，导致 TUI 因
+ * "Rendered line exceeds terminal width" 错误而崩溃。
  *
- * Fix: Changed to use includes() to detect escape sequences anywhere in the line.
+ * 修复：改用 includes() 检测行内任意位置的转义序列。
  *
- * This test demonstrates:
- * 1. The bug scenario with the old implementation
- * 2. That the fix works correctly
+ * 此测试验证：
+ * 1. 旧实现会触发的问题场景。
+ * 2. 修复后的实现能够正常工作。
  */
 
 import assert from "node:assert";
@@ -19,7 +19,7 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 	describe("Bug scenario: Terminal without image support", () => {
 		it("old implementation would return false, causing crash", () => {
 			/**
-			 * OLD IMPLEMENTATION (buggy):
+			 * 旧实现（存在问题）：
 			 * ```typescript
 			 * export function isImageLine(line: string): boolean {
 			 *   const prefix = getImageEscapePrefix();
@@ -27,26 +27,26 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 			 * }
 			 * ```
 			 *
-			 * When terminal doesn't support images:
-			 * - getImageEscapePrefix() returns null
-			 * - isImageLine() returns false even for lines containing image sequences
-			 * - TUI performs width check on line containing 300KB+ of base64 data
-			 * - Crash: "Rendered line exceeds terminal width (304401 > 115)"
+			 * 终端不支持图像时：
+			 * - getImageEscapePrefix() 返回 null。
+			 * - 即使行内含有图像序列，isImageLine() 仍返回 false。
+			 * - TUI 会对包含 300KB 以上 Base64 数据的行执行宽度检查。
+			 * - 随后崩溃："Rendered line exceeds terminal width (304401 > 115)"。
 			 */
 
-			// Simulate old implementation behavior
+			// 模拟旧实现的行为。
 			const oldIsImageLine = (line: string, imageEscapePrefix: string | null): boolean => {
 				return imageEscapePrefix !== null && line.startsWith(imageEscapePrefix);
 			};
 
-			// When terminal doesn't support images, prefix is null
+			// 终端不支持图像时，前缀为 null。
 			const terminalWithoutImageSupport = null;
 
-			// Line containing image escape sequence with text before it (common bug scenario)
+			// 图像转义序列前带有文本的行（常见问题场景）。
 			const lineWithImageSequence =
 				"Read image file [image/jpeg]\x1b]1337;File=size=800,600;inline=1:base64data...\x07";
 
-			// Old implementation would return false (BUG!)
+			// 旧实现会返回 false（问题行为）。
 			const oldResult = oldIsImageLine(lineWithImageSequence, terminalWithoutImageSupport);
 			assert.strictEqual(
 				oldResult,
@@ -58,11 +58,11 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 		it("new implementation returns true correctly", async () => {
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
-			// Line containing image escape sequence with text before it
+			// 图像转义序列前带有文本的行。
 			const lineWithImageSequence =
 				"Read image file [image/jpeg]\x1b]1337;File=size=800,600;inline=1:base64data...\x07";
 
-			// New implementation should return true (FIX!)
+			// 新实现应返回 true（修复后的行为）。
 			const newResult = isImageLine(lineWithImageSequence);
 			assert.strictEqual(newResult, true, "Fix: new implementation returns true for line containing image sequence");
 		});
@@ -75,7 +75,7 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 				"Prefix \x1b_Ga=T,data...\x1b\\",
 				"Suffix text \x1b_Ga=T,data...\x1b\\ suffix",
 				"Middle \x1b_Ga=T,data...\x1b\\ more text",
-				// Very long line (simulating 300KB+ crash scenario)
+				// 超长行（模拟 300KB 以上内容导致崩溃的场景）。
 				`Text before \x1b_Ga=T,f=100${"A".repeat(300000)} text after`,
 			];
 
@@ -92,7 +92,7 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 				"Prefix \x1b]1337;File=inline=1:data==\x07",
 				"Suffix text \x1b]1337;File=inline=1:data==\x07 suffix",
 				"Middle \x1b]1337;File=inline=1:data==\x07 more text",
-				// Very long line (simulating 304KB crash scenario)
+				// 超长行（模拟 304KB 内容导致崩溃的场景）。
 				`Text before \x1b]1337;File=size=800,600;inline=1:${"B".repeat(300000)} text after`,
 			];
 
@@ -104,8 +104,8 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 
 	describe("Integration: Tool execution scenario", () => {
 		/**
-		 * This simulates what happens when the `read` tool reads an image file.
-		 * The tool result contains both text and image content:
+		 * 模拟 `read` 工具读取图像文件时的情况。
+		 * 工具结果同时包含文本和图像内容：
 		 *
 		 * ```typescript
 		 * {
@@ -116,15 +116,15 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 		 * }
 		 * ```
 		 *
-		 * When this is rendered, the image component creates escape sequences.
-		 * If isImageLine() doesn't detect them, TUI crashes.
+		 * 渲染该结果时，图像组件会生成转义序列。
+		 * 如果 isImageLine() 未能检测到这些序列，TUI 就会崩溃。
 		 */
 
 		it("detects image sequences in read tool output", async () => {
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
-			// Simulate output when read tool processes an image
-			// The line might have text from the read result plus the image escape sequence
+			// 模拟 read 工具处理图像时的输出。
+			// 该行可能同时包含读取结果中的文本和图像转义序列。
 			const toolOutputLine = "Read image file [image/jpeg]\x1b]1337;File=size=800,600;inline=1:base64image...\x07";
 
 			assert.strictEqual(isImageLine(toolOutputLine), true, "Should detect image sequence in tool output line");
@@ -133,7 +133,7 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 		it("detects Kitty sequences from Image component", async () => {
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
-			// Kitty image component creates multi-line output with escape sequences
+			// Kitty 图像组件会生成包含转义序列的多行输出。
 			const kittyLine = "\x1b_Ga=T,f=100,t=f,d=base64data...\x1b\\\x1b_Gm=i=1;\x1b\\";
 
 			assert.strictEqual(isImageLine(kittyLine), true, "Should detect Kitty image component output");
@@ -142,7 +142,7 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 		it("handles ANSI codes before image sequences", async () => {
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
-			// Line might have styling (error, warning, etc.) before image data
+			// 图像数据前可能有样式控制码（例如错误或警告样式）。
 			const lines = [
 				"\x1b[31mError\x1b[0m: \x1b]1337;File=inline=1:base64==\x07",
 				"\x1b[33mWarning\x1b[0m: \x1b_Ga=T,data...\x1b\\",
@@ -164,27 +164,27 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
 			/**
-			 * Simulate the exact crash scenario:
-			 * - Line is 304,401 characters (the crash log showed 58649 > 115)
-			 * - Contains image escape sequence somewhere in the middle
-			 * - Old implementation would return false, causing TUI to do width check
-			 * - New implementation returns true, skipping width check (preventing crash)
+			 * 模拟实际崩溃场景：
+			 * - 行长为 304,401 个字符（崩溃日志中记录了 58649 > 115）。
+			 * - 行中某处包含图像转义序列。
+			 * - 旧实现会返回 false，导致 TUI 执行宽度检查。
+			 * - 新实现会返回 true，跳过宽度检查，从而避免崩溃。
 			 */
 
 			const base64Char = "A".repeat(100);
 			const iterm2Sequence = "\x1b]1337;File=size=800,600;inline=1:";
 
-			// Build a line that would cause the crash
+			// 构造会触发崩溃的行。
 			const crashLine =
 				"Output: " +
 				iterm2Sequence +
 				base64Char.repeat(3040) + // ~304,000 chars
 				" end of output";
 
-			// Verify line is very long
+			// 确认该行足够长。
 			assert(crashLine.length > 300000, "Test line should be > 300KB");
 
-			// New implementation should detect it (prevents crash)
+			// 新实现应能检测到图像序列，从而避免崩溃。
 			const detected = isImageLine(crashLine);
 			assert.strictEqual(detected, true, "Should detect image sequence in very long line, preventing TUI crash");
 		});
@@ -193,8 +193,8 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
 			/**
-			 * Crash log showed: line 58649 chars wide, terminal width 115
-			 * Let's create a line with similar characteristics
+			 * 崩溃日志显示：行宽为 58649 个字符，终端宽度为 115。
+			 * 此处构造一行具有类似特征的内容。
 			 */
 
 			const targetWidth = 58649;
@@ -213,7 +213,7 @@ describe("Bug regression: isImageLine() crash with image escape sequences", () =
 		it("does not detect images in regular long text", async () => {
 			const { isImageLine } = await import("../src/terminal-image.ts");
 
-			// Very long line WITHOUT image sequences
+			// 不含图像序列的超长行。
 			const longText = "A".repeat(100000);
 
 			assert.strictEqual(isImageLine(longText), false, "Should not detect images in plain long text");

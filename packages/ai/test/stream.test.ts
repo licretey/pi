@@ -18,7 +18,7 @@ import { resolveApiKey } from "./oauth.ts";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Resolve OAuth tokens at module level (async, runs before tests)
+// 在模块级别解析 OAuth 令牌（异步执行，先于测试运行）。
 const oauthTokens = await Promise.all([
 	resolveApiKey("anthropic"),
 	resolveApiKey("github-copilot"),
@@ -26,9 +26,9 @@ const oauthTokens = await Promise.all([
 ]);
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
 
-// Calculator tool definition (same as examples)
-// Note: Using StringEnum helper because Google's API doesn't support anyOf/const patterns
-// that Type.Enum generates. Google requires { type: "string", enum: [...] } format.
+// 计算器工具定义（与示例相同）。
+// 注意：Google API 不支持 Type.Enum 生成的 anyOf/const 结构，因此使用 StringEnum 辅助函数。
+// Google 要求格式为 { type: "string", enum: [...] }。
 const calculatorSchema = Type.Object({
 	a: Type.Number({ description: "First number" }),
 	b: Type.Number({ description: "Second number" }),
@@ -110,11 +110,11 @@ async function handleToolCall<TApi extends Api>(model: Model<TApi>, options?: St
 			if (toolCall.type === "toolCall") {
 				expect(toolCall.name).toBe("math_operation");
 				accumulatedToolArgs += event.delta;
-				// Check that we have a parsed arguments object during streaming
+				// 检查流式处理中是否已有解析后的参数对象。
 				expect(toolCall.arguments).toBeDefined();
 				expect(typeof toolCall.arguments).toBe("object");
-				// The arguments should be partially populated as we stream
-				// At minimum it should be an empty object, never undefined
+				// 随着流式处理进行，参数对象应逐步填充。
+				// 至少应为空对象，绝不能是 undefined。
 				expect(toolCall.arguments).not.toBeNull();
 			}
 		}
@@ -218,13 +218,13 @@ async function handleThinking<TApi extends Api>(model: Model<TApi>, options?: St
 }
 
 async function handleImage<TApi extends Api>(model: Model<TApi>, options?: StreamOptionsWithExtras) {
-	// Check if the model supports images
+	// 检查模型是否支持图像。
 	if (!model.input.includes("image")) {
 		console.log(`Skipping image test - model ${model.id} doesn't support images`);
 		return;
 	}
 
-	// Read the test image
+	// 读取测试图像。
 	const imagePath = join(__dirname, "data", "red-circle.png");
 	const imageBuffer = readFileSync(imagePath);
 	const base64Image = imageBuffer.toString("base64");
@@ -254,7 +254,7 @@ async function handleImage<TApi extends Api>(model: Model<TApi>, options?: Strea
 
 	const response = await complete(model, context, options);
 
-	// Check the response mentions red and circle
+	// 检查响应是否提到红色和圆形。
 	expect(response.content.length > 0).toBeTruthy();
 	const textContent = response.content.find((b) => b.type === "text");
 	if (textContent && textContent.type === "text") {
@@ -277,19 +277,19 @@ async function multiTurn<TApi extends Api>(model: Model<TApi>, options?: StreamO
 		tools: [calculatorTool],
 	};
 
-	// Collect all text content from all assistant responses
+	// 收集所有助手响应中的文本内容。
 	let allTextContent = "";
 	let hasSeenThinking = false;
 	let hasSeenToolCalls = false;
-	const maxTurns = 5; // Prevent infinite loops
+	const maxTurns = 5; // 防止无限循环。
 
 	for (let turn = 0; turn < maxTurns; turn++) {
 		const response = await complete(model, context, options);
 
-		// Add the assistant response to context
+		// 将助手响应添加到上下文。
 		context.messages.push(response);
 
-		// Process content blocks
+		// 处理内容块。
 		const results: ToolResultMessage[] = [];
 		for (const block of response.content) {
 			if (block.type === "text") {
@@ -299,7 +299,7 @@ async function multiTurn<TApi extends Api>(model: Model<TApi>, options?: StreamO
 			} else if (block.type === "toolCall") {
 				hasSeenToolCalls = true;
 
-				// Process the tool call
+				// 处理工具调用。
 				expect(block.name).toBe("math_operation");
 				expect(block.id).toBeTruthy();
 				expect(block.arguments).toBeTruthy();
@@ -318,7 +318,7 @@ async function multiTurn<TApi extends Api>(model: Model<TApi>, options?: StreamO
 						result = 0;
 				}
 
-				// Add tool result to context
+				// 将工具结果添加到上下文。
 				results.push({
 					role: "toolResult",
 					toolCallId: block.id,
@@ -331,17 +331,17 @@ async function multiTurn<TApi extends Api>(model: Model<TApi>, options?: StreamO
 		}
 		context.messages.push(...results);
 
-		// If we got a stop response with text content, we're likely done
+		// 如果收到包含文本内容且 stopReason 为 stop 的响应，说明可能已完成。
 		expect(response.stopReason, `Error: ${response.errorMessage}`).not.toBe("error");
 		if (response.stopReason === "stop") {
 			break;
 		}
 	}
 
-	// Verify we got either thinking content or tool calls (or both)
+	// 验证是否收到了思考内容、工具调用或两者兼有。
 	expect(hasSeenThinking || hasSeenToolCalls).toBe(true);
 
-	// The accumulated text should reference both calculations
+	// 累积文本应提及两项计算结果。
 	expect(allTextContent).toBeTruthy();
 	expect(allTextContent.includes("714")).toBe(true);
 	expect(allTextContent.includes("887")).toBe(true);
@@ -1327,8 +1327,8 @@ describe("Generate E2E Tests", () => {
 	});
 
 	// =========================================================================
-	// OAuth-based providers (credentials from ~/.pi/agent/oauth.json)
-	// Tokens are resolved at module level (see oauthTokens above)
+	// 使用 OAuth 的提供商（凭据存储于 ~/.pi/agent/oauth.json）。
+	// 令牌已在模块级别解析（见上方 oauthTokens）。
 	// =========================================================================
 
 	describe("Anthropic OAuth Provider (claude-sonnet-4-6)", () => {
@@ -1639,7 +1639,7 @@ describe("Generate E2E Tests", () => {
 		});
 	});
 
-	// Check if ollama is installed and local LLM tests are enabled
+	// 检查是否安装了 ollama，以及是否启用了本地 LLM 测试。
 	let ollamaInstalled = false;
 	if (!process.env.PI_NO_LOCAL_LLM) {
 		try {
@@ -1655,7 +1655,7 @@ describe("Generate E2E Tests", () => {
 		let ollamaProcess: ChildProcess | null = null;
 
 		beforeAll(async () => {
-			// Check if model is available, if not pull it
+			// 检查模型是否可用；如果不可用，则拉取模型。
 			try {
 				execSync("ollama list | grep -q 'gpt-oss:20b'", { stdio: "ignore" });
 			} catch {
@@ -1668,13 +1668,13 @@ describe("Generate E2E Tests", () => {
 				}
 			}
 
-			// Start ollama server
+			// 启动 ollama 服务器。
 			ollamaProcess = spawn("ollama", ["serve"], {
 				detached: false,
 				stdio: "ignore",
 			});
 
-			// Wait for server to be ready
+			// 等待服务器就绪。
 			await new Promise<void>((resolve) => {
 				const checkServer = async () => {
 					try {
@@ -1688,7 +1688,7 @@ describe("Generate E2E Tests", () => {
 						setTimeout(checkServer, 500);
 					}
 				};
-				setTimeout(checkServer, 1000); // Initial delay
+				setTimeout(checkServer, 1000); // 初始延迟。
 			});
 
 			llm = {
@@ -1708,10 +1708,10 @@ describe("Generate E2E Tests", () => {
 				},
 				name: "Ollama GPT-OSS 20B",
 			};
-		}, 30000); // 30 second timeout for setup
+		}, 30000); // 设置超时时间为 30 秒。
 
 		afterAll(() => {
-			// Kill ollama server
+			// 终止 ollama 服务器。
 			if (ollamaProcess) {
 				ollamaProcess.kill("SIGTERM");
 				ollamaProcess = null;

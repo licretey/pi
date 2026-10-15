@@ -22,7 +22,7 @@ class FifoQueue<T> {
 	}
 }
 
-// Generic event stream class for async iteration
+// 支持异步迭代的通用事件流类
 export class EventStream<T, R = T> implements AsyncIterable<T> {
 	private queue = new FifoQueue<T>();
 	private waiting = new FifoQueue<(value: IteratorResult<T>) => void>();
@@ -48,7 +48,7 @@ export class EventStream<T, R = T> implements AsyncIterable<T> {
 			this.resolveFinalResult(this.extractResult(event));
 		}
 
-		// Deliver to waiting consumer or queue it
+		// 投递给正在等待的消费者，否则入队
 		const waiter = this.waiting.dequeue();
 		if (waiter) {
 			waiter({ value: event, done: false });
@@ -62,7 +62,7 @@ export class EventStream<T, R = T> implements AsyncIterable<T> {
 		if (result !== undefined) {
 			this.resolveFinalResult(result);
 		}
-		// Notify all waiting consumers that we're done
+		// 通知所有等待中的消费者：已结束
 		while (this.waiting.length > 0) {
 			const waiter = this.waiting.dequeue()!;
 			waiter({ value: undefined as any, done: true });
@@ -89,10 +89,9 @@ export class EventStream<T, R = T> implements AsyncIterable<T> {
 }
 
 /**
- * Event stream of one assistant response. It also times the response: the final message (`done` or `error` event, or
- * the result passed to `end()`) gets `durationMs`, measured with a monotonic clock from the stream's creation, unless
- * the message already has one or its `timestamp` predates the stream. A stream that forwards a response which started
- * elsewhere, such as a deferred result fetched later, therefore leaves it untimed.
+ * 单次 assistant 响应的事件流。它同时为响应计时：最终消息（`done` 或 `error` 事件，或传给 `end()` 的
+ * 结果）会获得 `durationMs`，用单调时钟从流创建时刻起测量，前提是该消息尚无时长、且其 `timestamp`
+ * 不早于流的创建时间。因此，转发别处已启动的响应（例如稍后才取回的延迟响应）的流不会为其计时。
  */
 export class AssistantMessageEventStream extends EventStream<AssistantMessageEvent, AssistantMessage> {
 	readonly #startedAt = Date.now();
@@ -129,7 +128,7 @@ export class AssistantMessageEventStream extends EventStream<AssistantMessageEve
 	}
 }
 
-/** Factory function for AssistantMessageEventStream (for use in extensions) */
+/** AssistantMessageEventStream 的工厂函数（供扩展使用） */
 export function createAssistantMessageEventStream(): AssistantMessageEventStream {
 	return new AssistantMessageEventStream();
 }

@@ -2,7 +2,7 @@ import type { Op } from "../delta/index.ts";
 import type { Context } from "../types.ts";
 
 export interface ReplicatedStateInternals {
-	/** Atomically capture the immutable value and its matching publication sequence. */
+	/** 原子地捕获不可变值及其对应的发布序列号。 */
 	snapshot(): { readonly value: unknown; readonly sequence: number };
 	subscribe(listener: (ops: readonly Op[], sequence: number, context: Context) => void): () => void;
 }

@@ -306,7 +306,7 @@ test("keyed resets retain live generations and reconcile closed and reused keys"
 	});
 	await namespace.ready(BACKGROUND_CONTEXT);
 	expect(observed).toHaveLength(3);
-	const stable = observed[1]!; // Provider snapshots are sorted by key.
+	const stable = observed[1]!; // 提供方快照按键排序。
 	const old = observed[2]!;
 	const replacement = replicatedState({ value: 500 });
 	stable.service.state.subscribe((value) => {

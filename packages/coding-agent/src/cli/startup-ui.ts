@@ -62,8 +62,8 @@ function loadThemes(resources: ResolvedResource[]): Theme[] {
 			}
 			themes.push(loadedTheme);
 		} catch {
-			// Startup prompts should not fail because a theme is broken. The normal
-			// resource loader reports theme diagnostics later in startup.
+			// 主题损坏不应导致启动提示失败。常规资源加载器会在启动后续阶段
+			// 报告主题诊断信息。
 		}
 	}
 	return themes;
@@ -85,7 +85,7 @@ async function loadStartupThemes(settingsManager: SettingsManager): Promise<Them
 export async function createStartupTui(settingsManager: SettingsManager): Promise<TUI> {
 	setCapabilityOverrides(settingsManager.getTerminalCapabilityOverrides());
 	setRegisteredThemes(await loadStartupThemes(settingsManager));
-	// The system theme starts in grayscale until the terminal reports its colors.
+	// 系统主题在终端报告颜色前以灰度显示。
 	markTerminalColorsPending();
 	initTheme(resolveThemeSetting(settingsManager.getThemeSetting(), getTerminalTheme()) ?? SYSTEM_THEME_NAME);
 	setKeybindings(KeybindingsManager.create());
@@ -103,8 +103,8 @@ export function startStartupTui(ui: TUI, settingsManager: SettingsManager): void
 }
 
 /**
- * Query the terminal's colors without waiting for them. When they arrive, including after the timeout,
- * record them for the system theme and "" (terminal default) tokens, run `onColors`, and re-render.
+ * 查询终端颜色但不等待结果。颜色返回后（包括超时后才返回的情况），将其记录下来，
+ * 供系统主题和值为 ""（终端默认色）的样式令牌使用，然后运行 `onColors` 并重新渲染。
  */
 function queryStartupTerminalColors(ui: TUI, onColors: () => void): void {
 	void requestTerminalColors(ui, (colors) => {
@@ -122,11 +122,11 @@ async function clearStartupTui(ui: TUI): Promise<void> {
 }
 
 /**
- * First-time setup runs when all of these hold:
- * - this is the official Pi distribution (not a fork/rebrand)
- * - experimental features are enabled (PI_EXPERIMENTAL=1)
- * - the default agent directory is used (no custom agent dir override)
- * - setup was not completed before (settings.json does not exist)
+ * 满足以下所有条件时运行首次设置：
+ * - 当前使用官方 Pi 分发版本（不是分支或重新命名的版本）。
+ * - 已启用实验功能（PI_EXPERIMENTAL=1）。
+ * - 使用默认代理目录（未覆盖代理目录）。
+ * - 尚未完成设置（settings.json 不存在）。
  */
 export function shouldRunFirstTimeSetup(settingsPath: string = getSettingsPath()): boolean {
 	if (
@@ -178,7 +178,7 @@ export async function showStartupSelector<T>(
 	});
 }
 
-/** Show the first-time setup dialog and persist the result */
+/** 显示首次设置对话框并持久化结果。 */
 export async function showFirstTimeSetup(settingsManager: SettingsManager): Promise<void> {
 	const ui = await createStartupTui(settingsManager);
 	return new Promise((resolve) => {
@@ -213,7 +213,7 @@ export async function showFirstTimeSetup(settingsManager: SettingsManager): Prom
 		ui.addChild(component);
 		ui.setFocus(component);
 		ui.requestRender();
-		// The terminal's colors regenerate the system theme; re-rendering rebuilds the dialog with it.
+		// 终端颜色会重新生成系统主题；重新渲染后，对话框也会使用新主题。
 		queryStartupTerminalColors(ui, () => setTheme(previewTheme));
 	});
 }

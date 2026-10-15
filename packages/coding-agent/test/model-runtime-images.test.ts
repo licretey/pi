@@ -300,7 +300,7 @@ describe("ModelRuntime image generation", () => {
 		expect(runtime.getModel("openrouter", "openrouter/auto")?.name).toBe("Auto (renamed)");
 		expect(runtime.getModelsOfType("image", "openrouter").length).toBeGreaterThan(0);
 
-		// Auth is provider-scoped: the same key serves chat and image models.
+		// 认证按提供方隔离：同一个密钥可用于聊天模型和图像模型。
 		await runtime.setRuntimeApiKey("openrouter", "sk-or");
 		const chat = runtime.getModel("openrouter", "google/gemini-3-pro-image")!;
 		const image = runtime.getModelOfType("image", "openrouter", "google/gemini-3-pro-image")!;

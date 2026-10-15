@@ -9,13 +9,13 @@ export interface ParsedSearchQuery {
 	mode: "tokens" | "regex";
 	tokens: { kind: "fuzzy" | "phrase"; value: string }[];
 	regex: RegExp | null;
-	/** If set, parsing failed and we should treat query as non-matching. */
+	/** 若已设置，表示解析失败，应将查询视为不匹配。 */
 	error?: string;
 }
 
 export interface MatchResult {
 	matches: boolean;
-	/** Lower is better; only meaningful when matches === true */
+	/** 分数越低越好；仅当 matches === true 时有意义。 */
 	score: number;
 }
 
@@ -42,7 +42,7 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
 		return { mode: "tokens", tokens: [], regex: null };
 	}
 
-	// Regex mode: re:<pattern>
+	// 正则表达式模式：re:<pattern>。
 	if (trimmed.startsWith("re:")) {
 		const pattern = trimmed.slice(3).trim();
 		if (!pattern) {
@@ -56,8 +56,8 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
 		}
 	}
 
-	// Token mode with quote support.
-	// Example: foo "node cve" bar
+	// 支持引号的词元模式。
+	// 示例：foo "node cve" bar。
 	const tokens: { kind: "fuzzy" | "phrase"; value: string }[] = [];
 	let buf = "";
 	let inQuote = false;
@@ -95,7 +95,7 @@ export function parseSearchQuery(query: string): ParsedSearchQuery {
 		hadUnclosedQuote = true;
 	}
 
-	// If quotes were unbalanced, fall back to plain whitespace tokenization.
+	// 引号不成对时，回退为普通的空白分词。
 	if (hadUnclosedQuote) {
 		return {
 			mode: "tokens",
@@ -167,7 +167,7 @@ export function filterAndSortSessions(
 	const parsed = parseSearchQuery(query);
 	if (parsed.error) return [];
 
-	// Recent mode: filter only, keep incoming order.
+	// 最近模式：仅筛选，保留输入顺序。
 	if (sortMode === "recent") {
 		const filtered: SessionInfo[] = [];
 		for (const s of nameFiltered) {
@@ -177,7 +177,7 @@ export function filterAndSortSessions(
 		return filtered;
 	}
 
-	// Relevance mode: sort by score, tie-break by modified desc.
+	// 相关性模式：按分数排序；分数相同时按修改时间倒序排列。
 	const scored: { session: SessionInfo; score: number }[] = [];
 	for (const s of nameFiltered) {
 		const res = matchSession(s, parsed);

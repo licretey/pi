@@ -92,20 +92,20 @@ describe("Copilot Claude via Anthropic Messages", () => {
 		const opts = mockState.constructorOpts!;
 		expect(opts).toBeDefined();
 
-		// Auth: apiKey null, authToken for Bearer
+		// 认证信息：apiKey 为 null，authToken 用于 Bearer 认证
 		expect(opts.apiKey).toBeNull();
 		expect(opts.authToken).toBe("tid_copilot_session_test_token");
 		const headers = opts.defaultHeaders as Record<string, string>;
 
-		// Copilot static headers from model.headers
+		// 来自 model.headers 的 Copilot 静态请求头
 		expect(headers["User-Agent"]).toContain("GitHubCopilotChat");
 		expect(headers["Copilot-Integration-Id"]).toBe("vscode-chat");
 
-		// Dynamic headers
+		// 动态请求头
 		expect(headers["X-Initiator"]).toBe("user");
 		expect(headers["Openai-Intent"]).toBe("conversation-edits");
 
-		// Payload is valid Anthropic Messages format
+		// 请求载荷符合 Anthropic Messages 格式
 		const params = mockState.createParams!;
 		expect(params.betas ?? []).not.toContain("fine-grained-tool-streaming-2025-05-14");
 		expect(params.model).toBe("claude-sonnet-4.6");

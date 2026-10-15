@@ -1,6 +1,6 @@
 /**
- * The code of docs/pico-v5-chord-usage.md, compiled and run against a real Harness. Keep the two in sync: the guide's
- * blocks are copied here verbatim apart from formatting and the output sinks, which record instead of printing.
+ * 将 docs/pico-v5-chord-usage.md 中的代码通过真实 Harness 编译并运行。请保持两处同步：指南中的代码块
+ * 会原样复制到此处，仅调整格式，并将输出目标改为记录而非打印。
  */
 import {
 	type Context,
@@ -34,7 +34,7 @@ import { completed, deferred, eventually, openTasks } from "./task-support.ts";
 const logged: unknown[][] = [];
 const console = { log: (...values: unknown[]) => void logged.push(values) };
 
-// ─── 1. A Session-wide canvas ────────────────────────────────────────────────
+// ─── 1. Session 级画布 ──────────────────────────────────────────────────────
 
 type Stroke = { color: string; points: { x: number; y: number }[] };
 type CanvasState = { strokes: Stroke[] };
@@ -44,7 +44,7 @@ const CanvasDoc = defineDoc<CanvasState>({
 	version: 1,
 	scope: "session",
 	initial: () => ({ strokes: [] }),
-	// Store a complete base after at most 99 replayed deltas.
+	// 重放的增量最多达到 99 个后，保存一份完整基线。
 	checkpointWhen: (_value, _ops, info) => info.deltasSinceBase >= 99,
 });
 
@@ -55,7 +55,7 @@ interface CanvasService {
 const Canvas = defineService<CanvasService>("app.canvas");
 
 async function createCanvasFacet(session: Session, context: Context): Promise<Facet> {
-	// Creation is explicit; observation never writes.
+	// 创建操作必须显式执行；观察过程不会写入数据。
 	await session.commit(async (tx) => {
 		await tx.doc(CanvasDoc);
 	}, context);
@@ -70,7 +70,7 @@ async function createCanvasFacet(session: Session, context: Context): Promise<Fa
 				async addStroke(stroke, context) {
 					await session.commit(async (tx) => {
 						const draft = await tx.doc(CanvasDoc);
-						draft.strokes.push(stroke); // Chord copies the assigned stroke by value.
+						draft.strokes.push(stroke); // Chord 会按值复制已赋值的按键序列。
 					}, context);
 				},
 			});
@@ -81,13 +81,13 @@ async function createCanvasFacet(session: Session, context: Context): Promise<Fa
 const CanvasConsumer = defineFacet({
 	id: "app.canvas/consumer",
 	setup(env) {
-		const canvas = env.use(Canvas); // Declare now; access only after activation.
+		const canvas = env.use(Canvas); // 先声明，只在激活后访问。
 		env.onActivate(() => {
 			env.own(
 				canvas.state.subscribe((value, _context, delivery) => {
 					console.log(delivery.kind, delivery.sequence, value?.strokes.length ?? "retired");
 				}),
-			); // subscribe delivers the current hydrated value, then updates.
+			); // subscribe 会先传递当前已载入的值，再传递后续更新。
 		});
 	},
 });
@@ -108,7 +108,7 @@ async function runCanvasExample(session: Session): Promise<void> {
 			context,
 		);
 	} finally {
-		await host.dispose(); // Unsubscribes; does not delete the canvas or close Session.
+		await host.dispose(); // 取消订阅，但不会删除画布或关闭 Session。
 	}
 }
 
@@ -119,7 +119,7 @@ async function connectCanvas(transport: RemoteServiceTransport, context: Context
 		console.log(delivery.kind, delivery.sequence, value?.strokes ?? "retired");
 	});
 	try {
-		await services.ready(context); // Initial snapshot installed; not all future updates.
+		await services.ready(context); // 已安装初始快照；后续更新仍会继续到达。
 	} catch (error) {
 		stop();
 		await services.dispose(BACKGROUND_CONTEXT);
@@ -137,7 +137,7 @@ async function shutdown(host: FacetHost, detachClients: () => Promise<void>, har
 	await harness.close(context);
 }
 
-// ─── 2. Conversation-scoped diff reviews ─────────────────────────────────────
+// ─── 2. Conversation 级差异审查 ─────────────────────────────────────────────
 
 type ReviewInput = { path: string; patch: string };
 type ReviewComment = { id: string; line: number; text: string };
@@ -177,7 +177,7 @@ function reviewFacet(
 					const state = await session.documentState(ReviewDoc, conversationId, review.key, context);
 					if (state === undefined) throw new Error("review was retired during setup");
 					env.own(() => state.dispose());
-					// Chord instance keys route services; they are not numeric document incarnation IDs.
+					// Chord 实例键用于路由服务，并非文档实例的数字 ID。
 					instances.spawn(JSON.stringify([conversationId, review.key]), {
 						state,
 						async identity() {
@@ -186,17 +186,17 @@ function reviewFacet(
 						async addComment(comment, context) {
 							await session.commit(async (tx) => {
 								const draft = await tx.doc(ReviewDoc, conversationId, review.key, review.seed);
-								draft.comments.push(comment); // Chord copies the assigned comment by value.
+								draft.comments.push(comment); // Chord 会按值复制所赋的评论对象。
 							}, context);
 						},
-					}); // The facet owns spawned service lifetimes automatically.
+					}); // facet 会自动管理生成的服务实例的生命周期。
 				}
 			});
 		},
 	});
 }
 
-// ─── 3. Task-scoped output and a tool/task watch ─────────────────────────────
+// ─── 3. Task 级输出及工具/任务观察器 ─────────────────────────────────────────
 
 const sent: unknown[] = [];
 const rendered: string[] = [];
@@ -221,7 +221,7 @@ async function appendJobOutput(
 	chunk: string,
 	context: Context,
 ): Promise<void> {
-	// Read process output outside this callback. The runtime gates the live task.
+	// 在此回调之外读取进程输出。运行时会控制活动任务的执行。
 	await runtime.commit(async (tx) => {
 		const draft = await tx.doc(JobOutputDoc, runtime.taskId);
 		draft.stdout = (draft.stdout + chunk).slice(-50_000);
@@ -241,16 +241,16 @@ async function observeJob(
 		watch.start(async (value, ops, _context) => {
 			await sendCommittedFrame(value, ops);
 			await render(value === null ? "retired" : value.stdout);
-		}); // Serialized callbacks never overlap.
-		await finished; // Caller-supplied observation lifetime; outside any commit.
+		}); // 回调会串行执行，不会彼此重叠。
+		await finished; // 观察持续时间由调用方提供，且不在任何 commit 中执行。
 	} finally {
-		await watch.stop(); // Idempotent; prevents another callback from starting.
+		await watch.stop(); // 可重复调用；调用后不会再启动新的回调。
 	}
 }
 
-// ─── Runs ────────────────────────────────────────────────────────────────────
+// ─── 运行示例 ────────────────────────────────────────────────────────────────
 
-/** In-process transport to a host's service provider; a real client puts a socket between the two. */
+/** 连接到宿主服务提供方的进程内传输；实际客户端会在两者之间使用套接字。 */
 function inProcess(host: FacetHost): RemoteServiceTransport {
 	return {
 		invoke: (call, callContext) => host.services.invoke(call, callContext),
@@ -276,7 +276,7 @@ describe("Chord usage guide", () => {
 		]);
 		expect((await harness.snapshot(CanvasDoc, context))?.strokes).toHaveLength(1);
 
-		// A worker installs the canvas facet again; a late remote client hydrates the stroke, then follows updates.
+		// 工作进程再次安装画布 facet；之后连接的远程客户端会先载入笔画，再接收后续更新。
 		logged.length = 0;
 		const host = await createFacetHost({ facets: [await createCanvasFacet(harness, context)] });
 		const detach = await connectCanvas(inProcess(host), context);
@@ -286,7 +286,7 @@ describe("Chord usage guide", () => {
 			["hydrate", 1],
 			["update", 2],
 		]);
-		// Record the shutdown order: clients detach and services withdraw while the Harness is still open.
+		// 记录关闭顺序：Harness 仍打开时，客户端先断开连接，服务随后撤销。
 		const order: string[] = [];
 		const trackedHarness = new Proxy(harness, {
 			get: (target, key) => {
@@ -386,7 +386,7 @@ describe("Chord usage guide", () => {
 		gate.resolve();
 		await observing;
 		expect(logged).toEqual([["$ make\n"]]);
-		// Stopped once the task finished; the retirement frame may or may not have been delivered before.
+		// 任务结束后观察停止；此时可能已经发送了文档退役帧，也可能尚未发送。
 		expect(rendered.slice(0, 1)).toEqual(["$ make\nok\n"]);
 		expect(await harness.watchDoc(JobOutputDoc, id, context)).toBeUndefined();
 		await harness.close(context);

@@ -8,28 +8,28 @@ import { normalizePath } from "./utils/paths.ts";
 import { stripBom } from "./utils/text.ts";
 
 // =============================================================================
-// Package Detection
+// 包检测
 // =============================================================================
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 /**
- * Detect if we're running as a Bun compiled binary.
- * Bun binaries have import.meta.url containing "$bunfs", "~BUN", or "%7EBUN" (Bun's virtual filesystem path)
+ * 检测当前是否以 Bun 编译的二进制运行。
+ * Bun 二进制的 import.meta.url 会包含 "$bunfs"、"~BUN" 或 "%7EBUN"（Bun 的虚拟文件系统路径）
  */
 export const isBunBinary =
 	import.meta.url.includes("$bunfs") || import.meta.url.includes("~BUN") || import.meta.url.includes("%7EBUN");
 
-/** Detect if Bun is the runtime (compiled binary or bun run) */
+/** 检测 Bun 是否为运行时（编译出的二进制或 bun run）。 */
 export const isBunRuntime = !!process.versions.bun;
 
-/** Detect the esbuild-bundled Node.js distribution. */
+/** 检测 esbuild 打包的 Node.js 发行版。 */
 declare const PI_BUNDLED_NODE: boolean;
 export const isBundledNode = typeof PI_BUNDLED_NODE !== "undefined" && PI_BUNDLED_NODE;
 
 // =============================================================================
-// Install Method Detection
+// 安装方式检测
 // =============================================================================
 
 export type InstallMethod = "bun-binary" | "npm" | "pnpm" | "yarn" | "bun" | "unknown";
@@ -112,9 +112,8 @@ function getInferredNpmInstall(): { root: string; prefix: string } | undefined {
 	if (!root) return undefined;
 	const rootParent = path.dirname(root);
 	if (path.basename(rootParent) === "lib") return { root, prefix: path.dirname(rootParent) };
-	// Windows global npm prefixes use `<prefix>\\node_modules`, which is
-	// indistinguishable from local project installs by path shape alone. Do not
-	// infer unsupported Windows custom prefixes without `npm root -g` evidence.
+	// Windows 全局 npm 前缀采用 `<prefix>\\node_modules`，仅凭路径形状无法与本地项目
+	// 安装区分开。在没有 `npm root -g` 佐证时，不要推断不支持的 Windows 自定义前缀。
 	return undefined;
 }
 
@@ -173,9 +172,8 @@ function getSelfUpdateCommandForMethod(
 			const [command = "npm", ...npmArgs] = npmCommand ?? [];
 			const inferred = npmCommand?.length ? undefined : getInferredNpmInstall();
 			const prefixArgs = [...npmArgs, ...(inferred ? ["--prefix", inferred.prefix] : [])];
-			// pi.dev advertises releases immediately, so a configured npm age gate would
-			// block the update. npm has no per-package age gate, so this also lets new
-			// transitive dependency releases through. Managed installs avoid this.
+			// pi.dev 会立即发布 releases，配置了 npm age gate 反而会阻塞更新。npm 没有按包的
+			// age gate，所以这也让新的传递依赖 release 得以通过。托管安装（managed installs）不受影响。
 			const installStep = makeSelfUpdateCommandStep(command, [
 				...prefixArgs,
 				"install",
@@ -364,22 +362,22 @@ export function getUpdateInstruction(packageName: string): string {
 }
 
 // =============================================================================
-// Package Asset Paths (shipped with executable)
+// 随可执行文件一起发布的包资源路径
 // =============================================================================
 
 /**
- * Get the base directory for resolving package assets (themes, package.json, README.md, CHANGELOG.md).
- * - For Bun binary: returns the directory containing the executable
- * - For Node.js: returns the package root containing package.json
- * - Ignores Bun binary metadata copied into dist/ when the package root is available
+ * 获取解析包资源（themes、package.json、README.md、CHANGELOG.md）的基础目录。
+ * - Bun 二进制：返回可执行文件所在目录
+ * - Node.js：返回包含 package.json 的包根目录
+ * - 当包根目录可用时，忽略被复制进 dist/ 的 Bun 二进制元数据
  */
 export function findNodePackageDir(startDir: string): string {
 	let dir = startDir;
 	while (dir !== dirname(dir)) {
 		if (existsSync(join(dir, "package.json"))) {
 			const parent = dirname(dir);
-			// build:binary places Bun's metadata inside dist/. Node still needs the
-			// package root so its dist-relative asset paths do not become dist/dist/.
+			// build:binary 会把 Bun 的元数据放进 dist/。Node 仍然需要包根目录，
+			// 否则它相对 dist 的资源路径会变成 dist/dist/。
 			if (basename(dir) === "dist" && existsSync(join(parent, "package.json"))) {
 				return parent;
 			}
@@ -391,40 +389,40 @@ export function findNodePackageDir(startDir: string): string {
 }
 
 export function getPackageDir(): string {
-	// Allow override via environment variable (useful for Nix/Guix where store paths tokenize poorly)
+	// 允许通过环境变量覆盖（在 Nix/Guix 上很有用，因为 store 路径中的分词很差）
 	const envDir = process.env.PI_PACKAGE_DIR;
 	if (envDir) {
 		return normalizePath(envDir);
 	}
 
 	if (isBunBinary) {
-		// Bun binary: process.execPath points to the compiled executable
+		// Bun 二进制：process.execPath 指向编译出的可执行文件
 		return dirname(process.execPath);
 	}
 	return findNodePackageDir(__dirname);
 }
 
 /**
- * Get path to built-in themes directory (shipped with package)
- * - For Bun binary: theme/ next to executable
- * - For Node.js (dist/): dist/modes/interactive/theme/
- * - For source (src/): src/modes/interactive/theme/
+ * 获取内置主题目录的路径（随包发布）
+ * - Bun 二进制：可执行文件旁的 theme/
+ * - Node.js（dist/）：dist/modes/interactive/theme/
+ * - 源码（src/）：src/modes/interactive/theme/
  */
 export function getThemesDir(): string {
 	if (isBunBinary) {
 		return join(getPackageDir(), "theme");
 	}
-	// Theme is in modes/interactive/theme/ relative to src/ or dist/
+	// 主题位于相对 src/ 或 dist/ 的 modes/interactive/theme/
 	const packageDir = getPackageDir();
 	const srcOrDist = existsSync(join(packageDir, "src")) ? "src" : "dist";
 	return join(packageDir, srcOrDist, "modes", "interactive", "theme");
 }
 
 /**
- * Get path to HTML export template directory (shipped with package)
- * - For Bun binary: export-html/ next to executable
- * - For Node.js (dist/): dist/core/export-html/
- * - For source (src/): src/core/export-html/
+ * 获取 HTML 导出模板目录的路径（随包发布）
+ * - Bun 二进制：可执行文件旁的 export-html/
+ * - Node.js（dist/）：dist/core/export-html/
+ * - 源码（src/）：src/core/export-html/
  */
 export function getExportTemplateDir(): string {
 	if (isBunBinary) {
@@ -435,36 +433,36 @@ export function getExportTemplateDir(): string {
 	return join(packageDir, srcOrDist, "core", "export-html");
 }
 
-/** Get path to package.json */
+/** 获取 package.json 的路径 */
 export function getPackageJsonPath(): string {
 	return join(getPackageDir(), "package.json");
 }
 
-/** Get path to README.md */
+/** 获取 README.md 的路径 */
 export function getReadmePath(): string {
 	return resolve(join(getPackageDir(), "README.md"));
 }
 
-/** Get path to docs directory */
+/** 获取 docs 目录的路径 */
 export function getDocsPath(): string {
 	return resolve(join(getPackageDir(), "docs"));
 }
 
-/** Get path to examples directory */
+/** 获取 examples 目录的路径 */
 export function getExamplesPath(): string {
 	return resolve(join(getPackageDir(), "examples"));
 }
 
-/** Get path to CHANGELOG.md */
+/** 获取 CHANGELOG.md 的路径 */
 export function getChangelogPath(): string {
 	return resolve(join(getPackageDir(), "CHANGELOG.md"));
 }
 
 /**
- * Get path to built-in interactive assets directory.
- * - For Bun binary: assets/ next to executable
- * - For Node.js (dist/): dist/modes/interactive/assets/
- * - For source (src/): src/modes/interactive/assets/
+ * 获取内置交互式资源目录的路径。
+ * - Bun 二进制：可执行文件旁的 assets/
+ * - Node.js（dist/）：dist/modes/interactive/assets/
+ * - 源码（src/）：src/modes/interactive/assets/
  */
 export function getInteractiveAssetsDir(): string {
 	if (isBunBinary) {
@@ -475,35 +473,35 @@ export function getInteractiveAssetsDir(): string {
 	return join(packageDir, srcOrDist, "modes", "interactive", "assets");
 }
 
-/** Get path to a bundled interactive asset */
+/** 获取一个打包的交互式资源的路径 */
 export function getBundledInteractiveAssetPath(name: string): string {
 	return join(getInteractiveAssetsDir(), name);
 }
 
 let quickJSWasmPath: string | undefined;
 
-/** Called by the Bun entry with the path of the QuickJS wasm file embedded in the compiled executable. */
+/** 由 Bun 入口调用，传入编译进可执行文件的 QuickJS wasm 文件路径。 */
 export function setEmbeddedQuickJSWasmPath(path: string): void {
 	quickJSWasmPath = path;
 }
 
 /**
- * Get path to `quickjs-wasi/quickjs.wasm`, the VM that runs codemode scripts. Resolved once so the
- * compiled module cached per path keeps working after an update removes this install (#10439).
+ * 获取 `quickjs-wasi/quickjs.wasm` 的路径——即运行 codemode 脚本的 VM。只解析一次，
+ * 这样即使某次更新移除了当前安装，按路径缓存的编译模块也能继续工作（#10439）。
  */
 export function getQuickJSWasmPath(): string {
 	quickJSWasmPath ??= createRequire(import.meta.url).resolve("quickjs-wasi/quickjs.wasm");
 	return quickJSWasmPath;
 }
 
-/** Resolve the codemode worker entry for a release runtime. */
+/** 为 release 运行时解析 codemode worker 入口。 */
 export function resolveCodemodeWorkerSpecifier(
 	runtime: "bun-binary" | "bundled-node" | "unbundled",
 	moduleUrl: string,
 ): string | URL | undefined {
-	// Bun embeds explicit source entrypoints, but on Windows Bun 1.3 cannot map an absolute
-	// B:\~BUN URL back to one. A relative string with the original source extension works on
-	// every Bun platform.
+	// Bun 内嵌了显式的源码入口，但 Windows 上的 Bun 1.3 无法把绝对的
+	// B:\~BUN URL 映射回其中之一。带原始源码扩展名的相对字符串在所有
+	// Bun 平台上都有效。
 	if (runtime === "bun-binary") return "./src/extensions/codemode/worker.ts";
 	if (runtime === "bundled-node") return new URL("./codemode-worker.js", moduleUrl);
 	return undefined;
@@ -512,16 +510,15 @@ export function resolveCodemodeWorkerSpecifier(
 let codemodeWorkerDataUrl: URL | undefined;
 
 /**
- * Get the codemode worker entry, or undefined to use the worker that ships next to pi-codemode.
- * The Bun and Node release builds both pass the worker as an extra entrypoint.
+ * 获取 codemode worker 入口；返回 undefined 表示使用 pi-codemode 旁边自带的 worker。
+ * Bun 与 Node 的 release 构建都会把 worker 作为额外入口传入。
  */
 export function getCodemodeWorkerSpecifier(): string | URL | undefined {
 	const runtime = isBunBinary ? "bun-binary" : isBundledNode ? "bundled-node" : "unbundled";
 	const specifier = resolveCodemodeWorkerSpecifier(runtime, import.meta.url);
 	if (runtime !== "bundled-node" || !(specifier instanceof URL)) return specifier;
-	// Spawn workers from an in-memory copy. An update replaces or deletes the file while this
-	// process keeps running (#10439). The bundle build keeps the worker free of relative imports
-	// and import.meta, so it runs from a data: URL.
+	// 从内存副本 spawn worker。一次更新会在本进程仍在运行时替换或删除该文件（#10439）。
+	// bundle 构建保持 worker 不含相对导入和 import.meta，因此它能从 data: URL 运行。
 	codemodeWorkerDataUrl ??= new URL(`data:text/javascript;base64,${readFileSync(specifier).toString("base64")}`);
 	return codemodeWorkerDataUrl;
 }
@@ -529,14 +526,14 @@ export function getCodemodeWorkerSpecifier(): string | URL | undefined {
 export type InstallChange = { kind: "updated"; version: string } | { kind: "removed" };
 
 /**
- * Detect that the package this process runs from changed on disk, for example after `pi update`
- * in another terminal. Code loaded on demand can then be missing or from another version.
+ * 检测当前进程运行的包是否在磁盘上发生了变化，例如在另一个终端执行了 `pi update` 之后。
+ * 按需加载的代码届时可能缺失，或来自另一个版本。
  *
- * Checks the package.json read at startup. Resolving it again would walk up past a deleted install
- * and could find an unrelated package.json, such as one in the home directory.
+ * 检查启动时读取的 package.json。重新解析它会向上越过已被删除的安装目录，
+ * 进而可能找到一个无关的 package.json，例如主目录里的那个。
  */
 export function detectInstallChange(packageJsonPath = startupPackageJsonPath): InstallChange | undefined {
-	// The Bun binary embeds its code, so replacing the executable does not affect this process.
+	// Bun 二进制内嵌了自己的代码，替换可执行文件不会影响本进程。
 	if (isBunBinary || !packageJsonPath) return undefined;
 	let installed: PackageJson;
 	try {
@@ -550,7 +547,7 @@ export function detectInstallChange(packageJsonPath = startupPackageJsonPath): I
 }
 
 // =============================================================================
-// App Config (from package.json piConfig)
+// 应用配置（来自 package.json 的 piConfig）
 // =============================================================================
 
 interface PackageJson {
@@ -563,7 +560,7 @@ interface PackageJson {
 }
 
 let pkg: PackageJson = {};
-/** The package.json this process started from, if one existed. */
+/** 本进程启动时所在的 package.json（如果存在）。 */
 let startupPackageJsonPath: string | undefined;
 try {
 	const packageJsonPath = getPackageJsonPath();
@@ -581,7 +578,7 @@ export const APP_TITLE: string = piConfigName ? APP_NAME : "π";
 export const CONFIG_DIR_NAME: string = pkg.piConfig?.configDir || ".pi";
 export const VERSION: string = pkg.version || "0.0.0";
 
-// e.g., PI_CODING_AGENT_DIR or TAU_CODING_AGENT_DIR
+// 例如 PI_CODING_AGENT_DIR 或 TAU_CODING_AGENT_DIR
 export const ENV_AGENT_DIR = `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR`;
 export const ENV_SESSION_DIR = `${APP_NAME.toUpperCase()}_CODING_AGENT_SESSION_DIR`;
 
@@ -591,17 +588,17 @@ export function expandTildePath(path: string): string {
 
 const DEFAULT_SHARE_VIEWER_URL = "https://pi.dev/session/";
 
-/** Get the share viewer URL for a gist ID. */
+/** 获取某个 gist ID 的分享查看器 URL。 */
 export function getShareViewerUrl(gistId: string): string {
 	const baseUrl = process.env.PI_SHARE_VIEWER_URL || DEFAULT_SHARE_VIEWER_URL;
 	return `${baseUrl}#${gistId}`;
 }
 
 // =============================================================================
-// User Config Paths (~/.pi/agent/*)
+// 用户配置路径（~/.pi/agent/*）
 // =============================================================================
 
-/** Get the agent config directory (e.g., ~/.pi/agent/) */
+/** 获取 agent 配置目录（例如 ~/.pi/agent/） */
 export function getAgentDir(): string {
 	const envDir = process.env[ENV_AGENT_DIR];
 	if (envDir) {
@@ -610,47 +607,47 @@ export function getAgentDir(): string {
 	return join(homedir(), CONFIG_DIR_NAME, "agent");
 }
 
-/** Get path to user's custom themes directory */
+/** 获取用户自定义主题目录的路径 */
 export function getCustomThemesDir(): string {
 	return join(getAgentDir(), "themes");
 }
 
-/** Get path to models.json */
+/** 获取 models.json 的路径 */
 export function getModelsPath(): string {
 	return join(getAgentDir(), "models.json");
 }
 
-/** Get path to auth.json */
+/** 获取 auth.json 的路径 */
 export function getAuthPath(): string {
 	return join(getAgentDir(), "auth.json");
 }
 
-/** Get path to settings.json */
+/** 获取 settings.json 的路径 */
 export function getSettingsPath(): string {
 	return join(getAgentDir(), "settings.json");
 }
 
-/** Get path to tools directory */
+/** 获取 tools 目录的路径 */
 export function getToolsDir(): string {
 	return join(getAgentDir(), "tools");
 }
 
-/** Get path to managed binaries directory (fd, rg) */
+/** 获取托管二进制目录（fd、rg）的路径 */
 export function getBinDir(): string {
 	return join(getAgentDir(), "bin");
 }
 
-/** Get path to prompt templates directory */
+/** 获取 prompt 模板目录的路径 */
 export function getPromptsDir(): string {
 	return join(getAgentDir(), "prompts");
 }
 
-/** Get path to sessions directory */
+/** 获取 sessions 目录的路径 */
 export function getSessionsDir(): string {
 	return join(getAgentDir(), "sessions");
 }
 
-/** Get path to debug log file */
+/** 获取调试日志文件的路径 */
 export function getDebugLogPath(): string {
 	return join(getAgentDir(), `${APP_NAME}-debug.log`);
 }

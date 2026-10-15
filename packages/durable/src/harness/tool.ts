@@ -46,8 +46,8 @@ import type {
 import { recordUsage } from "./usage.ts";
 
 /**
- * A model-issued call, read from its assistant entry, or a nested call a running tool made through `executeTool()`,
- * whose call the input carries because no entry holds it.
+ * 模型发起的调用——从其 assistant entry 中读取；或某个运行中的工具通过 `executeTool()` 发起的嵌套调用——
+ * 因为没有任何 entry 持有它，所以由输入本身携带该调用。
  */
 export type ToolTaskInput =
 	| { kind: "model"; assistant: EntryId; callId: string }
@@ -57,24 +57,23 @@ export type ToolTaskInput =
 			parentCallId: string;
 			key: string;
 			call: ToolCall;
-			/** `false`: commit no running output, details, or diagnostics to the slot; the result still gets them. */
+			/** `false`：不向 slot 提交运行中的输出、details 或诊断；结果本身仍会带上它们。 */
 			progress?: false;
 	  };
 
 export type ToolTaskCheckpoint =
 	| { phase: "call" }
-	/** Durable intent: the final arguments and the replay policy recorded before execution. */
+	/** 持久化的意图：执行前记录的最终参数与 replay 策略。 */
 	| { phase: "execute"; arguments: JsonObject; replay: "safe" | "unsafe" };
 
 /**
- * A model-issued call's result is its transcript entry; a nested call's result is in its caller's
- * `NestedResultDoc`, so the receipt stays small and the result retires with the caller. A version 1 task that was
- * already holding its outcome as `completing` when the Harness upgraded finishes with a version 1 result,
- * `{ entryId, control? }` without `kind`; treat a result without `kind` as a model-issued call's.
+ * 模型发起的调用，其结果就是它的 transcript entry；嵌套调用的结果存在调用方的 `NestedResultDoc` 里，
+ * 这样回执保持很小，结果也随调用方一起退役。Harness 升级时已处于 `completing` 状态的 version 1 任务
+ * 会以 version 1 的结果——不带 `kind` 的 `{ entryId, control? }`——收尾；把没有 `kind` 的结果当作模型发起调用的结果。
  */
 export type ToolTaskResult = { kind: "model"; entryId: EntryId; control?: ToolControl } | { kind: "nested" };
 
-/** Index of a call's nested calls by key, so a rerun of the call finds the nested calls it already made. */
+/** 按键索引一个调用的各嵌套调用，使该调用重跑时能找回它已发起的嵌套调用。 */
 const NestedCallsDoc = defineDoc<{ calls: Record<string, TaskId<ToolTaskResult>> }>({
 	kind: "pi.tool.nested",
 	version: 1,
@@ -83,9 +82,8 @@ const NestedCallsDoc = defineDoc<{ calls: Record<string, TaskId<ToolTaskResult>>
 });
 
 /**
- * The result of one nested call, exactly as `executeTool()` returns it, a member of its caller's family keyed by the
- * nested task ID. Written in the nested call's terminal commit; one document per result, so no write rewrites other
- * results. Retires with the caller.
+ * 单个嵌套调用的结果，与 `executeTool()` 返回的完全一致；以嵌套任务 ID 为键，隶属于其调用方的 family。
+ * 在嵌套调用的 terminal commit 中写入；每个结果一个文档，任何写入都不会重写其他结果。随调用方一同退役。
  */
 export const NestedResultDoc = defineDocFamily<{ result: JsonRepresentation<NestedToolExecutionResult> }, JsonObject>({
 	kind: "pi.tool.nested-result",
@@ -99,16 +97,16 @@ type Runtime = TaskRuntime<ToolTaskInput, ToolTaskCheckpoint, ToolTaskResult, To
 type Content = (TextContent | ImageContent)[];
 
 /**
- * Built-in tool task: resolves the called tool among its phase agent's tools, validates, runs `beforeTool`, records intent,
- * executes, runs `afterTool`, and settles the result, all in one `call` handler so nothing separates resolution from
- * settlement. `execute` is reached only by recovery and applies the replay rule. A model-issued call settles by
- * appending its result entry; a nested call by writing its result to its caller's `NestedResultDoc`.
+ * 内置的工具任务：在该 phase agent 的工具中解析被调用的工具，校验，运行 `beforeTool`，记录意图，
+ * 执行，运行 `afterTool`，最终落定结果——全部在一个 `call` handler 内完成，解析与落定之间不隔着任何东西。
+ * 只有恢复流程才会进入 `execute`，并应用 replay 规则。模型发起的调用通过追加结果 entry 落定；
+ * 嵌套调用通过把结果写入调用方的 `NestedResultDoc` 落定。
  */
 export const ToolTask = defineTask<ToolTaskInput, ToolTaskCheckpoint, ToolTaskResult, ToolHooks>({
 	name: "pi.tool",
 	version: 2,
 	initial: () => ({ phase: "call" }),
-	// Version 1 had only model-issued calls.
+	// Version 1 只有模型发起的调用。
 	migrate: (input, checkpoint) => ({
 		input: { kind: "model", ...(input as { assistant: EntryId; callId: string }) },
 		checkpoint: checkpoint as ToolTaskCheckpoint,
@@ -145,13 +143,13 @@ export const ToolTask = defineTask<ToolTaskInput, ToolTaskCheckpoint, ToolTaskRe
 			const validated = validate(tool, call, args);
 			if ("error" in validated)
 				return settle(runtime, task.input, call, COMPLETED, () => invalid(validated.error), context);
-			// Strict JSON: repair may set optional properties to undefined, which the slot and checkpoint cannot hold.
+			// 严格 JSON：repair 可能把可选属性设成 undefined，而 slot 与 checkpoint 都无法承载 undefined。
 			const final = copyJson(validated.args, { omitUndefinedProperties: true }) as JsonObject;
 			await runtime.commit(async (tx) => {
 				const slot = toolSlot(await tx.doc(LiveDoc, runtime.conversationId), runtime.taskId);
 				if (slot !== undefined) slot.status = "running";
-				// A nested slot shows the arguments the call runs with, which repair, hooks, and coercion may have changed.
-				// Compared with the input, which the slot got at admission: reading the draft would track every leaf.
+				// 嵌套 slot 显示调用实际运行所用的参数——repair、hook 与类型强转都可能改过它们。
+				// 相比 slot 准入时拿到的输入：读 draft 会追踪每一个叶子节点。
 				const changed = task.input.kind === "nested" && !jsonEqual(task.input.call.arguments as JsonValue, final);
 				if (changed && slot !== undefined && "parentTaskId" in slot) slot.arguments = final;
 				const intent = { phase: "execute", arguments: final, replay: tool.replay ?? "unsafe" } as const;
@@ -159,13 +157,13 @@ export const ToolTask = defineTask<ToolTaskInput, ToolTaskCheckpoint, ToolTaskRe
 			}, context);
 			await run(runtime, task.input, call, tool, final, context);
 		},
-		/** Recovery after intent: rerun only when the stored and the current policy both say `safe`. */
+		/** 恢复流程：仅当存储的与当前的策略都为 `safe` 时才重跑。 */
 		execute: async (task, runtime, context) => {
 			const { arguments: args, replay } = task.state.checkpoint;
 			const call = await readCall(runtime, task.input, context);
 			const tool = await resolveTool(runtime, task.input, call.name, context);
 			if (replay === "safe" && tool?.replay === "safe") {
-				// The rerun reports from scratch; clear what the interrupted attempt published.
+				// 重跑从头开始上报；清掉被中断的那次尝试已发布的进度。
 				await runtime.commit(async (tx) => {
 					const slot = toolSlot(await tx.doc(LiveDoc, runtime.conversationId), runtime.taskId);
 					if (slot !== undefined) clearProgress(slot);
@@ -174,14 +172,14 @@ export const ToolTask = defineTask<ToolTaskInput, ToolTaskCheckpoint, ToolTaskRe
 				return run(runtime, task.input, call, tool, args, context);
 			}
 			const message = `Tool ${call.name} was interrupted and may have partially run`;
-			// `failed` records cancellation intent, so the call's owned conversations, left unsupervised, are aborted.
+			// `failed` 会记录取消意图，于是该调用所拥有的、无人监管的 conversation 会被中止。
 			const ending = { status: "failed", message } as const;
 			await settle(runtime, task.input, call, ending, (slot) => fromSlot(slot, "interrupted", message), context);
 		},
 	},
 	abort: async (task, runtime, context) => {
 		const call = await readCall(runtime, task.input, context);
-		// Abandoned after a restart (`TaskOptions.abandonOnRestart`): say whether the call may have run.
+		// 重启后被遗弃（`TaskOptions.abandonOnRestart`）：说明该调用是否可能已经运行过。
 		const [code, message] =
 			task.abortReason !== "restart"
 				? ["aborted", `Tool ${call.name} was aborted`]
@@ -193,7 +191,7 @@ export const ToolTask = defineTask<ToolTaskInput, ToolTaskCheckpoint, ToolTaskRe
 	},
 });
 
-/** The called tool: among the tools the model is offered for a model-issued call, else among those tools may call. */
+/** 被调用的工具：模型发起的调用在模型可选的工具中查找，嵌套调用在这些工具里可调用的范围内查找。 */
 async function resolveTool(
 	runtime: Runtime,
 	input: ToolTaskInput,
@@ -204,7 +202,7 @@ async function resolveTool(
 	return (input.kind === "model" ? agent.tools : agent.callable).find((tool) => tool.name === name);
 }
 
-/** The call: from the input for a nested call, which hooks see with its parent, else from the assistant entry. */
+/** 该调用：嵌套调用直接取自输入（hook 会连同其父级一并看到），模型发起的调用取自 assistant entry。 */
 async function readCall(runtime: Runtime, input: ToolTaskInput, context: Context): Promise<ToolHookCall> {
 	if (input.kind === "nested") return { ...input.call, parent: { taskId: input.parent, callId: input.parentCallId } };
 	const entry = await runtime.entry(AssistantEntry, input.assistant, context);
@@ -219,10 +217,10 @@ async function readCall(runtime: Runtime, input: ToolTaskInput, context: Context
 	return call;
 }
 
-/** Arguments, or why they are invalid. */
+/** 参数本身，或参数无效的原因。 */
 type Checked = { readonly args: JsonObject } | { readonly error: string };
 
-/** The call's arguments as repaired by the tool; a throwing repair makes them invalid. */
+/** 经该工具 repair（修复）后的调用参数；repair 抛错则视为无效。 */
 function prepare(tool: ToolRegistration, args: JsonObject): Checked {
 	if (tool.prepareArguments === undefined) return { args };
 	try {
@@ -232,7 +230,7 @@ function prepare(tool: ToolRegistration, args: JsonObject): Checked {
 	}
 }
 
-/** Arguments validated and coerced against the implementation's schema. */
+/** 按实现方的 schema 校验并强转后的参数。 */
 function validate(tool: ToolRegistration, call: ToolCall, args: JsonObject): Checked {
 	try {
 		return { args: validateToolArguments(tool, { ...call, arguments: args }) as JsonObject };
@@ -245,7 +243,7 @@ function invalid(message: string): ToolExecutionResult {
 	return harnessError("invalid_arguments", message);
 }
 
-/** What a running tool reported through its api: output, the last details, and diagnostics. */
+/** 运行中的工具通过其 api 上报的内容：输出、最近的 details 以及诊断。 */
 type Reported = {
 	readonly output: OutputBuffer;
 	readonly limits: OutputLimits;
@@ -253,7 +251,7 @@ type Reported = {
 	details: JsonValue | undefined;
 };
 
-/** Execute with the resolved implementation, then settle its result. */
+/** 使用已解析的实现执行调用，然后落定其结果。 */
 async function run(
 	runtime: Runtime,
 	input: ToolTaskInput,
@@ -270,12 +268,12 @@ async function run(
 	const reported: Reported = { output: new OutputBuffer(limits), limits, diagnostics: [], details: undefined };
 	const streams = input.kind === "model" || input.progress !== false;
 	const progress = publishProgress(runtime, reported, streams, context);
-	/** Nested call admissions this invocation started; cleanup waits for them, so it sees every nested call. */
+	/** 本次调用发起的嵌套调用准入；清理会等它们全部完成，因此能看到每一个嵌套调用。 */
 	const admissions: Promise<unknown>[] = [];
-	// A caller that can rerun reattaches to its nested calls and child tasks after a restart; any other caller never
-	// resumes, so they are abandoned (`TaskOptions.abandonOnRestart`).
+	// 能重跑的调用方在重启后会重新附着到它的嵌套调用与子任务；其他调用方从不恢复，
+	// 因此它们会被遗弃（`TaskOptions.abandonOnRestart`）。
 	const resumes = tool.replay === "safe";
-	/** Default keys: the order of this invocation's calls, so a rerun that calls in the same order reattaches. */
+	/** 默认键：本次调用序列的顺序号，使得按相同顺序调用的重跑能够重新附着。 */
 	let sequence = 0;
 	let ended = false;
 	const assertLive = (): void => {
@@ -316,7 +314,7 @@ async function run(
 			detailsContext.abortSignal?.throwIfAborted();
 			reported.details = copyJson(value, { omitUndefinedProperties: true });
 			const committed = progress.markAndWait();
-			// Cancelling the wait leaves the update in place; the commit's own outcome stays observed.
+			// 取消等待会保留已完成的更新；commit 自身的结局仍会被观察。
 			committed.catch(() => {});
 			return awaitWithContext(committed, detailsContext);
 		},
@@ -365,7 +363,7 @@ async function run(
 			const id = await admission;
 			const settled = await runtime.waitForTask(id, callContext);
 			const stored = await runtime.snapshot(NestedResultDoc, runtime.taskId, String(id), callContext);
-			// A copy the tool may change; a nested call the scheduler faulted or orphaned stored none.
+			// 该工具可能修改的副本；被 scheduler 故障化或孤儿化的嵌套调用没有存储结果。
 			return stored === undefined
 				? fallbackResult(id, name, settled.state.outcome)
 				: (copyJson(stored.result as unknown as JsonValue) as unknown as NestedToolExecutionResult);
@@ -374,10 +372,10 @@ async function run(
 
 	let result: ToolExecutionResult;
 	let ending = COMPLETED;
-	// Execution time of this attempt; a rerun after recovery measures only itself.
+	// 本次尝试的执行耗时；恢复后的重跑只测量它自己。
 	let durationMs: number | undefined;
 	try {
-		// Built for this call, so a rerun after recovery gets the conversation's environment at that time.
+		// 为本次调用构建，因此恢复后的重跑拿到的是当时的 conversation 环境。
 		const env = await runtime.env(context);
 		const startedAt = performance.now();
 		try {
@@ -392,15 +390,15 @@ async function run(
 			throw error;
 		}
 		result = { isError: true, diagnostics: [toolDiagnostic("tool_error", errorMessage(error))] };
-		// A throw, from `execute()` or from building the environment, ends the task `failed`, which cancels what the call
-		// owned; it no longer supervises it. The error text is already in the result.
+		// `execute()` 或环境构建抛出的异常会把任务以 `failed` 结束，从而取消该调用所拥有的一切；
+		// 它不再监护它们。错误文本已经在结果里。
 		ending = { status: "failed", message: `Tool ${call.name} threw` };
 	}
 	ended = true;
-	// No admission starts after `ended`; let those underway commit, so settlement aborts and lists their calls.
+	// `ended` 之后不再发起准入；让进行中的那些提交完毕，落定时即可中止并列出它们的调用。
 	await Promise.allSettled(admissions);
 	reported.output.end();
-	// Details still waiting for a progress commit settle with the terminal commit, the final flush.
+	// 仍在等待 progress commit 的 details 会随 terminal commit——最后一次 flush——一起落定。
 	const pending = await progress.stop();
 	try {
 		const settled = await finalResult(runtime, input, call, tool, result, reported, context);
@@ -413,21 +411,21 @@ async function run(
 }
 
 /**
- * Throttled commits of what the tool reported into its slot, in `pi.live.tools` or `pi.live.nestedTools`, each writing
- * only what changed since the last one; none when `enabled` is false.
+ * 对工具上报内容的节流提交，写入 `pi.live.tools` 或 `pi.live.nestedTools` 中它自己的 slot，每次只写相对上次的变化；
+ * `enabled` 为 false 时不提交。
  */
 function publishProgress(runtime: Runtime, reported: Reported, enabled: boolean, context: Context): Progress {
 	let written = { text: "", details: undefined as JsonValue | undefined, diagnostics: 0 };
 	return new Progress(
 		async () => {
 			if (!enabled) return 0;
-			// Capture everything synchronously: the tool keeps reporting while the commit is in flight.
+			// 同步捕获全部内容：commit 在途时工具仍在上报。
 			const snapshot = reported.output.snapshot();
 			const current = { text: snapshot.text, details: reported.details, diagnostics: reported.diagnostics.length };
 			const added = reported.diagnostics.slice(written.diagnostics, current.diagnostics);
 			const detailsChanged = current.details !== written.details;
-			// What the commit writes, as Chord diffs the string: an append, a trim plus an append of what follows the shared
-			// part, or the whole window when its bounded overlap search finds nothing.
+			// 这次 commit 要写的内容（由 Chord 对字符串做 diff）：一次追加；一次裁剪加上对共享部分之后内容的追加；
+			// 或有界重叠搜索找不到共享部分时，整个窗口。
 			let bytes = 0;
 			if (snapshot.text !== written.text) {
 				const shared = snapshot.text.startsWith(written.text)
@@ -440,12 +438,12 @@ function publishProgress(runtime: Runtime, reported: Reported, enabled: boolean,
 			await runtime.commit(async (tx) => {
 				const slot = toolSlot(await tx.doc(LiveDoc, runtime.conversationId), runtime.taskId);
 				if (slot === undefined) return undefined;
-				// REMINDER: assign `output` as one string field. Chord then diffs it into an append, or a trim plus an
-				// append for a sliding tail; replacing the slot object would record the whole window on every commit.
+				// 提醒：把 `output` 当作一个字符串字段赋值。Chord 随后把它 diff 成一次追加，或滑动尾部场景下的
+				// 一次裁剪加一次追加；替换整个 slot 对象会让每次 commit 都记录整个窗口。
 				if ((slot.output ?? "") !== snapshot.text) slot.output = snapshot.text;
 				if (snapshot.droppedBytes > 0) slot.droppedBytes = snapshot.droppedBytes;
 				if (snapshot.droppedLines > 0) slot.droppedLines = snapshot.droppedLines;
-				// Diff details leaf by leaf and append new diagnostics, so each commit writes only what changed.
+				// 逐叶子 diff details 并追加新诊断，因此每次 commit 只写变化的部分。
 				if (detailsChanged && current.details !== undefined) {
 					assignJson(slot as unknown as Record<string, JsonValue>, "details", current.details);
 				}
@@ -459,7 +457,7 @@ function publishProgress(runtime: Runtime, reported: Reported, enabled: boolean,
 			return bytes;
 		},
 		(error) => {
-			// Rejections after an abort mark or close are expected; the committed state stays consistent.
+			// abort 标记或关闭之后的 rejection 是预期内的；已提交的状态保持一致。
 			if (!runtime.signal.aborted) runtime.report(error);
 		},
 		runtime.settings.progress.outputIntervalMs,
@@ -467,10 +465,10 @@ function publishProgress(runtime: Runtime, reported: Reported, enabled: boolean,
 }
 
 /**
- * The settled result: the tool's result with the retained output and last details as fallbacks, its diagnostics after
- * those reported through the api, `afterTool` applied, explicit text bounded, and `structuredOutput` checked against the
- * tool's schema, with the Harness's diagnostics last. A nested call whose `structuredOutput` breaks the contract gets an
- * error result without it; a model-issued call only loses it, and the break is reported to the host.
+ * 落定的结果：工具的结果，以保留的输出和最近的 details 作为兜底；其诊断排在通过 api 上报的那些之后；
+ * 应用 `afterTool`；对显式的文本做上限约束；并按工具的 schema 校验 `structuredOutput`，Harness 的诊断放在最后。
+ * `structuredOutput` 违反契约的嵌套调用会得到一个不带它的错误结果；模型发起的调用只会丢失该字段，
+ * 且破坏契约一事会报告给宿主。
  */
 async function finalResult(
 	runtime: Runtime,
@@ -494,7 +492,7 @@ async function finalResult(
 	await runtime.hooks.each("afterTool", async (hook) => {
 		final = (await hook(call, final, runtime, context)) ?? final;
 	});
-	// The retained output's truncation applies only while afterTool kept that output.
+	// 保留输出的截断提示只在 afterTool 保住了那份输出时才适用。
 	if (retained !== undefined && retained.droppedBytes > 0 && final.output === output) {
 		harness.push(truncated(retained, reported.limits.retain));
 	}
@@ -507,12 +505,12 @@ async function finalResult(
 			final = { ...rest, isError: true };
 			harness.push(toolDiagnostic("invalid_structured_output", broken));
 		} else {
-			// The model never sees structured output, so its call stands; the host learns of the broken tool.
+			// 模型永远看不到 structured output，因此它的调用依然成立；宿主则会得知该工具破坏了契约。
 			final = rest;
 			runtime.report(new Error(broken));
 		}
 	}
-	// Without a schema, programs get the output itself; the model reads only `output`, so model-issued calls skip it.
+	// 没有 schema 时，程序拿到的是输出本身；模型只读 `output`，因此模型发起的调用跳过这一步。
 	if (input.kind === "nested" && tool.structuredOutputSchema === undefined) {
 		final = { ...final, structuredOutput: outputValue(bounded.content) as JsonValue };
 	}
@@ -521,7 +519,7 @@ async function finalResult(
 
 const structuredValidators = new WeakMap<object, ReturnType<typeof Compile>>();
 
-/** Why a result's `structuredOutput` breaks the tool's contract, or `undefined` when it keeps it. */
+/** 结果的 `structuredOutput` 违反工具契约的原因；未违反时为 `undefined`。 */
 function structuredOutputError(tool: ToolRegistration, result: ToolExecutionResult): string | undefined {
 	const schema = tool.structuredOutputSchema;
 	const value = result.structuredOutput;
@@ -545,11 +543,10 @@ function structuredOutputError(tool: ToolRegistration, result: ToolExecutionResu
 }
 
 /**
- * Commit the tool's terminal state and mark its slot done. A model-issued call appends its result entry and ends with
- * the entry ID; a nested call writes its result to the caller's `NestedResultDoc`, records its usage, and ends with a
- * small receipt. Nested calls this call left running are aborted first, so they report into their slots before the
- * slots below the call leave `pi.live`. `build` receives the slot so interruption and abort can report the durable
- * partial output.
+ * 提交工具的终态并把它的 slot 标记为完成。模型发起的调用会追加结果 entry 并以 entry ID 结束；
+ * 嵌套调用把结果写入调用方的 `NestedResultDoc`，记录用量，并以一个小回执结束。
+ * 该调用遗留在运行中的嵌套调用会先被中止，以便在调用之下那些 slot 离开 `pi.live` 之前向各自的 slot 上报。
+ * `build` 收到 slot，让中断与中止能把持久的部分输出写进结果。
  */
 async function settle(
 	runtime: Runtime,
@@ -560,10 +557,10 @@ async function settle(
 	context: Context,
 	durationMs?: number,
 ): Promise<void> {
-	// A crash in between leaves the call in `execute`: a safe rerun reattaches to the calls, an interruption ends here.
+	// 中途崩溃会把调用留在 `execute`：safe 重跑会重新附着到各调用，中断则在这里结束。
 	const index = await runtime.snapshot(NestedCallsDoc, runtime.taskId, context);
 	const nestedIds = Object.values(index?.calls ?? {}).sort((a, b) => a - b);
-	// Mark them all before waiting for any: one may run until a sibling is cancelled.
+	// 在等待任何一个之前先全部标记：其中某个可能要运行到兄弟调用被取消为止。
 	await Promise.all(nestedIds.map((id) => runtime.abortOwned(id, context)));
 	await runtime.commit(async (tx) => {
 		const conversationId = runtime.conversationId;
@@ -574,7 +571,7 @@ async function settle(
 		if (input.kind === "nested") {
 			const nested = nestedResult(runtime.taskId, result, durationMs);
 			if (nested.usage !== undefined) await recordUsage(tx, conversationId, "tools", call.name, nested.usage);
-			// The caller is never terminal before its owned nested calls; a missing entry is a bug, not a race.
+			// 调用方绝不会先于它所拥有的嵌套调用进入终态；entry 缺失属于 bug，而非竞态。
 			if ((await tx.doc(NestedCallsDoc, input.parent)).calls[input.key] !== runtime.taskId) {
 				throw new Error(`Nested call ${call.id} is not in its caller's index`);
 			}
@@ -592,14 +589,14 @@ async function settle(
 				finishSlot(slot);
 				slot.entry = entry.id;
 			}
-			// Tools build control objects freely; drop keys set to undefined so the task result is strict JSON.
+			// 工具构造 control 对象时很随意；去掉设为 undefined 的键，让任务结果是严格 JSON。
 			const control =
 				result.control === undefined || ending.status !== "completed"
 					? {}
 					: { control: copyJson(result.control as JsonValue, { omitUndefinedProperties: true }) as ToolControl };
 			settled = { kind: "model", entryId: entry.id, ...control };
 		}
-		// A call that made no nested calls has no slots below it; skipping the scan keeps many leaves linear.
+		// 结果里没有嵌套调用的调用，其下没有 slot；跳过扫描让大量叶子保持线性。
 		if (nestedIds.length > 0) removeNestedSlots(live, runtime.taskId);
 		if (ending.status === "aborted") return { status: "terminal", outcome: { status: "aborted", result: settled } };
 		if (ending.status === "failed") {
@@ -611,8 +608,8 @@ async function settle(
 }
 
 /**
- * A nested call's result, as stored and returned: strict JSON, without `output`, which only the model reads, and
- * without `control`, which only model-issued calls apply.
+ * 嵌套调用的结果，即存储与返回的形态：严格 JSON，不含只有模型读取的 `output`，
+ * 也不含只有模型发起调用才应用的 `control`。
  */
 function nestedResult(
 	taskId: TaskId,
@@ -634,8 +631,8 @@ function nestedResult(
 }
 
 /**
- * Create nested call `key` of the call `parentCallId` in one commit: its tool task, owned by the calling task, its slot,
- * and its index entry. A key already in the index returns that call's task when it names the same tool and arguments.
+ * 在一次 commit 里创建调用 `parentCallId` 的嵌套调用键 `key`：它的工具任务（由调用任务所拥有）、它的 slot，
+ * 以及它的索引项。键已存在且指向同一工具、同样参数的调用时，返回那个调用的任务。
  */
 async function startNestedCall(
 	runtime: Runtime,
@@ -699,8 +696,8 @@ async function startNestedCall(
 }
 
 /**
- * What programs get of a tool's output when it declares no schema: one text item as its string, one image as itself,
- * nothing as `""`, and anything else as the content list.
+ * 工具未声明 schema 时，程序从其输出中得到的内容：一个文本项返回其字符串，一个图像返回它自身，
+ * 空内容返回 `""`，其余返回内容列表本身。
  */
 function outputValue(output: Content): string | ImageContent | Content {
 	if (output.length === 0) return "";
@@ -709,7 +706,7 @@ function outputValue(output: Content): string | ImageContent | Content {
 	return only!.type === "text" ? only!.text : only!;
 }
 
-/** What the caller gets for a nested call without a stored result: one the scheduler faulted or orphaned. */
+/** 嵌套调用没有存储结果时调用方得到的内容：一个被 scheduler 故障化或孤儿化的结果。 */
 function fallbackResult(taskId: TaskId, name: string, outcome: TaskOutcome<ToolTaskResult>): NestedToolExecutionResult {
 	const message =
 		outcome.status === "faulted"
@@ -722,14 +719,14 @@ function fallbackResult(taskId: TaskId, name: string, outcome: TaskOutcome<ToolT
 }
 
 /**
- * How a tool task ends; the result entry is appended either way. `failed` (execution threw or was interrupted)
- * records cancellation intent for the conversations the call owns; a result with `isError` still completes.
+ * 工具任务如何结束；无论哪种方式都会追加结果 entry。`failed`（执行抛错或被中断）会为该调用所拥有的
+ * conversation 记录取消意图；带 `isError` 的结果仍算完成。
  */
 type Ending = { readonly status: "completed" | "aborted" } | { readonly status: "failed"; readonly message: string };
 
 const COMPLETED: Ending = { status: "completed" };
 
-/** An error result from the slot's durable partial output, details, and diagnostics. */
+/** 由 slot 中持久化的部分输出、details 与诊断组装出的错误结果。 */
 function fromSlot(
 	slot: Readonly<ToolSlot | NestedToolSlot> | undefined,
 	code: string,
@@ -747,7 +744,7 @@ function fromSlot(
 	};
 }
 
-/** An error result the Harness writes itself: no content and one `error` diagnostic with `code`. */
+/** Harness 自己写入的错误结果：没有内容，只有一条带 `code` 的 `error` 诊断。 */
 export function harnessError(code: string, message: string): ToolExecutionResult {
 	return { output: [], isError: true, diagnostics: [toolDiagnostic(code, message)] };
 }
@@ -756,7 +753,7 @@ function toolDiagnostic(code: string, message: string): ToolDiagnostic {
 	return { severity: "error", code, message };
 }
 
-/** The Harness's truncation diagnostic; `retain` is unknown when rebuilt from a slot after recovery. */
+/** Harness 的截断诊断；从 slot 恢复重建时 `retain` 未知。 */
 function truncated(
 	dropped: { readonly droppedLines: number; readonly droppedBytes: number },
 	retain?: "head" | "tail",
@@ -769,10 +766,10 @@ function truncated(
 	};
 }
 
-/** Error text a nested call's summary keeps. */
+/** 嵌套调用的 summary 保留的错误文本长度上限。 */
 const MAX_SUMMARY_ERROR_CHARS = 500;
 
-/** How a nested call ended, for its slot: error text, from its diagnostics or else its `output`, bounded. */
+/** 嵌套调用在其 slot 中的结束方式：错误文本——取自诊断，否则取自 `output`——并做上限约束。 */
 function summaryOf(result: NestedToolExecutionResult, output: Content): NestedToolSummary {
 	const error = result.isError ? errorTextOf(result, output).slice(0, MAX_SUMMARY_ERROR_CHARS) : "";
 	return {
@@ -783,7 +780,7 @@ function summaryOf(result: NestedToolExecutionResult, output: Content): NestedTo
 	};
 }
 
-/** The error messages of a nested result, else the text items of its output, joined with newlines. */
+/** 嵌套结果的错误消息；没有时取输出中的文本项，以换行连接。 */
 function errorTextOf(result: NestedToolExecutionResult, output: Content): string {
 	const errors = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error");
 	if (errors.length > 0) return errors.map((diagnostic) => diagnostic.message).join("\n");
@@ -791,8 +788,8 @@ function errorTextOf(result: NestedToolExecutionResult, output: Content): string
 }
 
 /**
- * Append a `pi.tool-result` entry. The content ends with the rendered diagnostics, so the stored message is exactly
- * what the model sees; `data` keeps the structured list. A result's usage is added to `pi.usage` in the same commit.
+ * 追加一条 `pi.tool-result` entry。内容以渲染后的诊断结尾，使存储的消息与模型所见完全一致；
+ * `data` 保存结构化列表。结果的用量会在同一次 commit 中计入 `pi.usage`。
  */
 export async function appendToolResult(
 	tx: Tx,
@@ -825,8 +822,8 @@ function renderDiagnostics(diagnostics: readonly ToolDiagnostic[]): string {
 }
 
 /**
- * Bound the text of result content. When the joined text exceeds the limits, the text items are replaced by one bounded
- * item at the position of the first (head) or last (tail) text item; other content is kept.
+ * 约束结果内容的文本。拼接后的文本超出上限时，文本项会被替换为单个有界文本项，位置在第一个（head）
+ * 或最后一个（tail）文本项处；其余内容保留。
  */
 function boundContent(
 	content: Content,
@@ -845,8 +842,8 @@ function boundContent(
 }
 
 /**
- * Explicit nested call keys are path segments of the call ID, so IDs of different nested calls never collide, and are
- * never plain positive integers, which default keys use. `__proto__` would not land in the index as an own key.
+ * 显式的嵌套调用键是 call ID 的路径段，因此不同嵌套调用的 ID 永不冲突，也绝不是默认键所用的普通正整数。
+ * `__proto__` 不会作为自有键落入索引。
  */
 function checkKey(key: string): void {
 	if (key === "" || key.includes("/") || key === "__proto__" || /^[1-9][0-9]*$/.test(key)) {
@@ -856,7 +853,7 @@ function checkKey(key: string): void {
 	}
 }
 
-/** Structural JSON equality; object key order does not matter. */
+/** 结构化的 JSON 相等；对象键顺序不影响结果。 */
 function jsonEqual(a: JsonValue, b: JsonValue): boolean {
 	if (a === b) return true;
 	if (typeof a !== "object" || typeof b !== "object" || a === null || b === null) return false;

@@ -62,7 +62,7 @@ type ScopeColumns = {
 
 const parseJson = <T>(value: string): T => JSON.parse(value) as T;
 const encodeJson = (value: unknown): string => JSON.stringify(value) as string;
-// Some SQLite bindings replace lone UTF-16 surrogates. JSON encoding keeps indexed identities lossless.
+// 部分 SQLite 绑定会替换孤立 UTF-16 代理对。JSON 编码可让参加索引的标识无损。
 const encodeIndexedString = (value: string): string => JSON.stringify(value);
 
 const cursorId = <I extends Id<string>>(cursor: Cursor | undefined): I | undefined => {
@@ -83,7 +83,7 @@ const page = <T extends { readonly id: Id<string> }>(
 	return { items, next: nextCursor(items.at(-1)!.id, order) };
 };
 
-/** The ID condition, its parameter, and the `ORDER BY` direction of a table scan. */
+/** 表扫描的 ID 条件、对应参数，以及 `ORDER BY` 方向。 */
 const scanSql = (start: ScanStart): { readonly clause: string; readonly param: number; readonly direction: string } =>
 	start.order === "ascending"
 		? { clause: "id > ?", param: start.after ?? -1, direction: "ASC" }
@@ -139,7 +139,7 @@ const writeId = (write: StorageWrite): Id<string> | undefined => {
 	}
 };
 
-/** Portable SQLite implementation of the Pico storage contract. */
+/** Pico 存储契约的可移植 SQLite 实现。 */
 export class SqliteStorage implements Storage {
 	private readonly db: SqliteDatabase;
 	private nextId: number;
@@ -153,7 +153,7 @@ export class SqliteStorage implements Storage {
 		this.nextId = nextId;
 	}
 
-	/** Initialize storage over an owned SQLite database facade. */
+	/** 基于持有的 SQLite 数据库门面初始化存储。 */
 	static async open(db: SqliteDatabase): Promise<SqliteStorage> {
 		try {
 			await applySqliteMigrations(db);
@@ -166,7 +166,7 @@ export class SqliteStorage implements Storage {
 			try {
 				await db.close();
 			} catch {
-				// Preserve the initialization failure.
+				// 保留初始化失败的错误。
 			}
 			throw error;
 		}
@@ -367,7 +367,7 @@ export class SqliteStorage implements Storage {
 		return page(values, limit, "descending");
 	}
 
-	/** Oldest first: the fork chain's segments from the root conversation forward, each up to its fork point. */
+	/** 最旧优先：分叉链的各段从根会话向前，每段最多到其分叉点。 */
 	private async readEntriesAscending(
 		query: EntryQuery,
 		limit: number,
@@ -533,7 +533,7 @@ export class SqliteStorage implements Storage {
 
 	async document(id: DocumentId, at: DocumentPoint, _context: Context): Promise<StoredDocument | undefined> {
 		this.assertOpen();
-		// The record and revision queries must observe one committed state; a commit between them can replace the base.
+		// 记录与修订查询必须观察到同一个已提交状态；两者之间若发生一次提交，可能替换掉基线。
 		return this.db.transaction((transaction) => this.materializeDocument(transaction, id, at));
 	}
 
@@ -586,8 +586,8 @@ export class SqliteStorage implements Storage {
 	}
 
 	/**
-	 * Run a read that issues several queries. Close waits for admitted reads, so their later queries never reach a
-	 * closed database. Single-query reads and transactions are already ordered before close by the database.
+	 * 运行会发出多个查询的读取。close 会等待已接纳的读取，使其后续查询不会打到已关闭的数据库上。
+	 * 单查询读取与事务已由数据库保证排在 close 之前。
 	 */
 	private async admitRead<T>(read: () => Promise<T>): Promise<T> {
 		this.assertOpen();

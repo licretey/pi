@@ -17,7 +17,7 @@ const artifactSet = produceArtifactSet({
 	build: false,
 	outDir: join(outputDirectory, "artifacts"),
 	repoRoot: repositoryRoot,
-	// Docker build contexts may omit Git metadata; this artifact set is consumed only within this image build.
+// Docker 构建上下文可能不包含 Git 元数据；这些产物只在当前镜像构建过程中使用。
 	source: null,
 });
 const artifactNames = new Set(artifactSet.packages.map((pkg) => pkg.name));

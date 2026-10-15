@@ -73,21 +73,21 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				reasoningEffort: "high",
 			});
 
-			// The key assertion: no 400 error from orphaned reasoning item
+			// 关键断言：不会因孤立的 reasoning 项而返回 400 错误。
 			expect(response.stopReason, `Error: ${response.errorMessage}`).not.toBe("error");
 			expect(response.errorMessage).toBeFalsy();
-			// Model should respond (text or tool call)
+			// 模型应返回文本或工具调用。
 			expect(response.content.length).toBeGreaterThan(0);
 		});
 
 		it("handles same-provider different-model handoff with tool calls", { retry: 2 }, async () => {
-			// This tests the scenario where:
-			// 1. Model A (gpt-5-mini) generates reasoning + function_call
-			// 2. User switches to Model B (gpt-5.2-codex) - same provider, different model
-			// 3. transform-messages: isSameModel=false, thinking converted to text
-			// 4. But tool call ID still has OpenAI pairing history (fc_xxx paired with rs_xxx)
-			// 5. Without fix: OpenAI returns 400 "function_call without required reasoning item"
-			// 6. With fix: tool calls/results converted to text, conversation continues
+			// 此测试覆盖以下场景：
+			// 1. 模型 A（gpt-5-mini）生成推理内容和 function_call。
+			// 2. 用户切换到模型 B（gpt-5.2-codex），提供商相同但模型不同。
+			// 3. transform-messages 检测到 isSameModel=false，并将 thinking 转换为文本。
+			// 4. 但工具调用 ID 仍带有 OpenAI 配对历史（fc_xxx 与 rs_xxx 配对）。
+			// 5. 修复前：OpenAI 返回 400，提示缺少 function_call 所需的 reasoning 项。
+			// 6. 修复后：工具调用和结果会转换为文本，对话可以继续。
 
 			const modelA = getModel("openai", "gpt-5-mini");
 			const modelB = getModel("openai", "gpt-5.5");
@@ -103,7 +103,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				timestamp: Date.now(),
 			};
 
-			// Get a real response from Model A with reasoning + tool call
+			// 获取模型 A 返回的真实响应，其中包含推理内容和工具调用。
 			const assistantResponse = await complete(
 				modelA,
 				{
@@ -125,7 +125,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				throw new Error("Missing tool call from OpenAI Responses - model did not use the tool");
 			}
 
-			// Provide a tool result
+			// 提供工具执行结果。
 			const toolResult: Message = {
 				role: "toolResult",
 				toolCallId: toolCallBlock.id,
@@ -141,7 +141,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				timestamp: Date.now(),
 			};
 
-			// Now continue with Model B (different model, same provider)
+			// 现在切换到模型 B 继续对话（模型不同，提供商相同）。
 			const context: Context = {
 				systemPrompt: "You are a helpful assistant. Answer concisely.",
 				messages: [userMessage, assistantResponse, toolResult, followUp],
@@ -157,12 +157,12 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				},
 			});
 
-			// The key assertion: no 400 error from orphaned function_call
+			// 关键断言：不会因孤立的 function_call 而返回 400 错误。
 			expect(response.stopReason, `Error: ${response.errorMessage}`).not.toBe("error");
 			expect(response.errorMessage).toBeFalsy();
 			expect(response.content.length).toBeGreaterThan(0);
 
-			// Log what was sent for debugging
+			// 记录发送的内容以便调试。
 			const input = capturedPayload?.input as any[];
 			const functionCalls = input?.filter((item: any) => item.type === "function_call") || [];
 			const reasoningItems = input?.filter((item: any) => item.type === "reasoning") || [];
@@ -172,7 +172,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 			console.log("- reasoning items:", reasoningItems.length);
 			console.log("- full input:", JSON.stringify(input, null, 2));
 
-			// Verify the model understood the context
+			// 验证模型理解了上下文。
 			const responseText = response.content
 				.filter((b) => b.type === "text")
 				.map((b) => (b as any).text)
@@ -181,12 +181,12 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 		});
 
 		it("handles cross-provider handoff from Anthropic to OpenAI Codex", { retry: 2 }, async () => {
-			// This tests cross-provider handoff:
-			// 1. Anthropic model generates thinking + function_call (toolu_xxx ID)
-			// 2. User switches to OpenAI Codex
-			// 3. transform-messages: isSameModel=false, thinking converted to text
-			// 4. Tool call ID is Anthropic format (toolu_xxx), no OpenAI pairing history
-			// 5. Should work because foreign IDs have no pairing expectation
+			// 此测试覆盖跨提供商切换：
+			// 1. Anthropic 模型生成 thinking 和 function_call（ID 格式为 toolu_xxx）。
+			// 2. 用户切换到 OpenAI Codex。
+			// 3. transform-messages 检测到 isSameModel=false，并将 thinking 转换为文本。
+			// 4. 工具调用 ID 使用 Anthropic 格式（toolu_xxx），没有 OpenAI 配对历史。
+			// 5. 外部提供商的 ID 不要求配对，因此该流程应正常工作。
 
 			const anthropicModel = getModel("anthropic", "claude-sonnet-4-5");
 			const codexModel = getModel("openai", "gpt-5.5");
@@ -203,7 +203,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				timestamp: Date.now(),
 			};
 
-			// Get a real response from Anthropic with thinking + tool call
+			// 获取 Anthropic 返回的真实响应，其中包含 thinking 和工具调用。
 			const assistantResponse = await complete(
 				anthropicModel,
 				{
@@ -228,7 +228,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 
 			console.log("Anthropic tool call ID:", toolCallBlock.id);
 
-			// Provide a tool result
+			// 提供工具执行结果。
 			const toolResult: Message = {
 				role: "toolResult",
 				toolCallId: toolCallBlock.id,
@@ -244,7 +244,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				timestamp: Date.now(),
 			};
 
-			// Now continue with Codex (different provider)
+			// 现在切换到 Codex 继续对话（提供商不同）。
 			const context: Context = {
 				systemPrompt: "You are a helpful assistant. Answer concisely.",
 				messages: [userMessage, assistantResponse, toolResult, followUp],
@@ -260,7 +260,7 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				},
 			});
 
-			// Log what was sent
+			// 记录发送的内容。
 			const input = capturedPayload?.input as any[];
 			const functionCalls = input?.filter((item: any) => item.type === "function_call") || [];
 			const reasoningItems = input?.filter((item: any) => item.type === "reasoning") || [];
@@ -275,12 +275,12 @@ describe.skipIf(!process.env.OPENAI_API_KEY || !process.env.ANTHROPIC_API_KEY)(
 				);
 			}
 
-			// The key assertion: no 400 error
+			// 关键断言：不会返回 400 错误。
 			expect(response.stopReason, `Error: ${response.errorMessage}`).not.toBe("error");
 			expect(response.errorMessage).toBeFalsy();
 			expect(response.content.length).toBeGreaterThan(0);
 
-			// Verify the model understood the context
+			// 验证模型理解了上下文。
 			const responseText = response.content
 				.filter((b) => b.type === "text")
 				.map((b) => (b as any).text)

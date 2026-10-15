@@ -22,7 +22,7 @@ const tool: ToolDefinition = {
 
 type OutputPaddedComponent = Component & { setOutputPad(outputPad: number): void };
 
-/** Text lines without ANSI codes or trailing fill. Blank lines and full-width borders are skipped. */
+/** 不含 ANSI 转义码或末尾填充的文本行；空行和全宽边框会被跳过。 */
 function renderLines(component: Component): string[] {
 	return component
 		.render(60)

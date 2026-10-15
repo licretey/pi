@@ -11,12 +11,12 @@ export interface SourceInfo {
 	baseDir?: string;
 }
 
-/** Prefix of built-in tool and extension paths, such as `builtin:read` or `builtin:mcp`. */
+/** 内置工具和扩展路径的前缀，例如 `builtin:read` 或 `builtin:mcp`。 */
 export const BUILTIN_PATH_PREFIX = "builtin:";
 
 /**
- * Source of a path that names no file: `builtin` for `builtin:<name>`, or the prefix of an
- * angle-bracket path such as `inline` for `<inline:name>`. Undefined for file paths.
+ * 不对应文件的路径来源：`builtin:<name>` 对应 `builtin`；尖括号路径（如 `<inline:name>`）则对应其中的前缀，
+ * 此例为 `inline`。文件路径返回 undefined。
  */
 export function getSyntheticPathSource(path: string): string | undefined {
 	if (path.startsWith(BUILTIN_PATH_PREFIX)) return "builtin";

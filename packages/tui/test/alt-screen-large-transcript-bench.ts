@@ -1,7 +1,7 @@
 /**
- * Alternate-screen large-transcript benchmark.
+ * 备用屏幕大容量会话记录基准测试。
  *
- * Mirrors the fullscreen transcript shape used by the coding agent:
+ * 模拟 coding-agent 使用的全屏会话记录结构：
  *
  * ScrollView
  * └── document Container
@@ -10,10 +10,9 @@
  *     └── chat Container
  *         └── 2,500 alternating user/assistant Markdown components
  *
- * Measures warm steady frames, one-line scrolling, streaming updates to the
- * final assistant message, and width changes that invalidate Markdown caches.
+ * 测量预热后的稳定帧、逐行滚动、流式更新最后一条助手消息，以及导致 Markdown 缓存失效的宽度变化。
  *
- * Run from the repository root:
+ * 在仓库根目录运行：
  *   node --experimental-strip-types packages/tui/test/alt-screen-large-transcript-bench.ts
  */
 

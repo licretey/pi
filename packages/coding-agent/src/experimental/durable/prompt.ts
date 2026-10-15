@@ -16,12 +16,12 @@ const CONTRIBUTIONS = {
 	write: writeToolSystemPromptContribution,
 };
 
-/** pi's section order; `buildSystemPromptSections()` omits the ones without content. */
+/** pi 的提示词分节顺序；`buildSystemPromptSections()` 会省略没有内容的分节。 */
 const KEYS = ["preamble", "tools", "rules", "docs", "project_context", "skills", "cwd"] as const;
 
 /**
- * pi's system prompt as one extension: the sections of `buildSystemPromptSections()` for the request's tools and the
- * conversation's directory. Context files and skills load once per directory, like pi at startup.
+ * 将 pi 的系统提示词作为一个扩展：包含针对请求所用工具以及会话目录生成的 `buildSystemPromptSections()` 分节。
+ * 上下文文件和技能按目录加载一次，与 pi 启动时的行为一致。
  */
 export function createPiPrompt(settings: SettingsManager, fallbackCwd: string) {
 	const resources = new Map<string, { contextFiles: { path: string; content: string }[]; skills: Skill[] }>();
@@ -37,7 +37,7 @@ export function createPiPrompt(settings: SettingsManager, fallbackCwd: string) {
 		}
 		return found;
 	};
-	// The sections of one request render from one build.
+	// 同一个请求的各分节由同一次构建生成。
 	const built = new WeakMap<PromptInput, Record<string, string>>();
 	const build = (input: PromptInput): Record<string, string> => {
 		let sections = built.get(input);
@@ -68,7 +68,7 @@ export function createPiPrompt(settings: SettingsManager, fallbackCwd: string) {
 	};
 	return defineExtension({
 		name: "pi-prompt",
-		// The built sections carry their own tags.
+		// 构建后的分节各自带有标签。
 		sections: KEYS.map((key) => section(key, (input) => build(input)[key], { tag: false })),
 	});
 }

@@ -46,7 +46,7 @@ async function readAll(
 	}
 }
 
-/** Whether a change reports `path`: an overflow, or a reported path at or above it. */
+/** 某次变更是否报告了 `path`：是溢出（overflow），或是报告了该路径本身或其上级目录。 */
 function covers(change: WatchChange, path: string): boolean {
 	if ("overflow" in change) return true;
 	if (!("paths" in change)) return false;
@@ -55,13 +55,13 @@ function covers(change: WatchChange, path: string): boolean {
 	);
 }
 
-/** Watch `targets` while `run` changes files, with a helper that waits for a change reporting a path. */
+/** 在 `run` 修改文件的同时监视 `targets`，并提供一个等待"报告某路径的变更"的辅助函数。 */
 async function watching(
 	env: ExecutionEnv,
 	targets: readonly WatchTarget[],
 	run: (helpers: {
 		readonly changes: WatchChange[];
-		/** Wait up to three seconds for a change, after the call, that reports `path`. */
+		/** 调用之后，最多等三秒，直到出现报告 `path` 的变更。 */
 		expectChange(path: string, change: () => Promise<void>): Promise<void>;
 		absolute(path: string): Promise<string>;
 	}) => Promise<void>,
@@ -92,8 +92,8 @@ async function watching(
 }
 
 /**
- * Creates runner-independent cases for an `ExecutionEnv`. `withEnv` must call and await its callback exactly once per
- * case with an environment whose `cwd` is a fresh, empty, writable directory.
+ * 为 `ExecutionEnv` 创建与运行器无关的测试用例。`withEnv` 必须对每个用例恰好调用并 await 其回调一次，
+ * 且环境的 `cwd` 是一个全新、空、可写的目录。
  */
 export function createEnvConformance(options: EnvConformanceOptions): readonly EnvConformanceCase[] {
 	const assert = options.assertions;
@@ -104,7 +104,7 @@ export function createEnvConformance(options: EnvConformanceOptions): readonly E
 		...(timeoutMs === undefined ? {} : { timeoutMs }),
 		run: () => options.withEnv(test),
 	});
-	// Watch cases wait up to three seconds per step, longer than test runners allow by default.
+	// 监视用例每步最多等三秒，超过测试运行器默认允许的时长。
 	const watchCase = (name: string, test: EnvTest): EnvConformanceCase => createCase(name, test, 30_000);
 	const execCollect = async (env: ExecutionEnv, command: string | readonly string[], cwd?: string) => {
 		const output: Record<ShellOutputInfo["stream"], string> = { stdout: "", stderr: "" };
@@ -142,7 +142,7 @@ export function createEnvConformance(options: EnvConformanceOptions): readonly E
 		}),
 
 		createCase("binary reader scans lines like decoding the whole file", async (env) => {
-			// A byte-order mark, an invalid sequence before a newline, an empty line, a later U+FEFF, and no final newline.
+			// 一个字节序标记、换行前的一个无效序列、一个空行、后一个 U+FEFF，以及结尾没有换行符。
 			const bytes = Uint8Array.from([
 				0xef, 0xbb, 0xbf, 0x61, 0x0a, 0xe2, 0x82, 0x0a, 0x0a, 0xef, 0xbb, 0xbf, 0x62, 0x0a, 0xc3, 0xa9,
 			]);
@@ -264,7 +264,7 @@ export function createEnvConformance(options: EnvConformanceOptions): readonly E
 				await expectChange("AGENTS.md", async () => {
 					getOrThrow(await env.writeFile("AGENTS.md", "two!", context));
 				});
-				// Editors replace a file by renaming a new one over it.
+				// 编辑器通过把新文件重命名到旧文件上来完成替换。
 				await expectChange("AGENTS.md", async () => {
 					getOrThrow(await env.writeFile("AGENTS.md.tmp", "three", context));
 					getOrThrow(await env.renameFile("AGENTS.md.tmp", "AGENTS.md", context));
@@ -289,7 +289,7 @@ export function createEnvConformance(options: EnvConformanceOptions): readonly E
 		watchCase("watch follows directories created together with their contents", async (env) => {
 			getOrThrow(await env.createDir("skills", undefined, context));
 			await watching(env, [{ path: "skills", recursive: true }], async ({ expectChange }) => {
-				// Written before any watcher on the new directories can exist.
+				// 在任何针对新目录的监视器尚可能存在之前就写入。
 				await expectChange("skills/a/b/SKILL.md", async () => {
 					getOrThrow(await env.writeFile("skills/a/b/SKILL.md", "one", context));
 				});
@@ -487,7 +487,7 @@ export function createEnvConformance(options: EnvConformanceOptions): readonly E
 					"invalid",
 				);
 
-				// Only the final component is refused; earlier symlinked directories still resolve.
+				// 只拒绝最后一个组件；更早的符号链接目录仍可解析。
 				const inner = getOrThrow(await env.openBinaryReader("dirlink/inner.txt", { noFollow: true }, context));
 				assert.strictEqual(decoder.decode(getOrThrow(await inner.read(0, 10, context))), "inner");
 				await inner.close(context);

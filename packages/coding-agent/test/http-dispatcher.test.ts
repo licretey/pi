@@ -148,7 +148,7 @@ describe("http dispatcher", () => {
 	});
 
 	it("allows two seconds for HTTPS connection attempts without changing the Node default", async () => {
-		// Preserve a deliberate host fetch override while testing the dispatcher itself.
+		// 测试调度器本身时保留有意设置的宿主 fetch 覆盖。
 		globalThis.fetch = async () => {
 			throw new Error("Unexpected global fetch");
 		};

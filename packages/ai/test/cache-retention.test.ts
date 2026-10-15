@@ -62,13 +62,13 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					}),
 				});
 
-				// Consume the stream to trigger the request
+				// 消费数据流以触发请求。
 				for await (const _ of s) {
-					// Just consume
+					// 仅消费数据流。
 				}
 
 				expect(capturedPayload).not.toBeNull();
-				// System prompt should have cache_control without ttl
+				// 系统提示应包含 cache_control，但不包含 ttl。
 				expect(capturedPayload.system).toBeDefined();
 				expect(capturedPayload.system[0].cache_control).toEqual({ type: "ephemeral" });
 			},
@@ -85,13 +85,13 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 				}),
 			});
 
-			// Consume the stream to trigger the request
+			// 消费数据流以触发请求。
 			for await (const _ of s) {
-				// Just consume
+				// 仅消费数据流。
 			}
 
 			expect(capturedPayload).not.toBeNull();
-			// System prompt should have cache_control with ttl: "1h"
+			// 系统提示应包含 cache_control，并设置 ttl: "1h"。
 			expect(capturedPayload.system).toBeDefined();
 			expect(capturedPayload.system[0].cache_control).toEqual({ type: "ephemeral", ttl: "1h" });
 		});
@@ -99,7 +99,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		it("should add ttl for non-api.anthropic.com baseUrl by default", async () => {
 			process.env.PI_CACHE_RETENTION = "long";
 
-			// Create a model with a different baseUrl (simulating a proxy)
+			// 创建 baseUrl 不同的模型，以模拟代理。
 			const baseModel = getModel("anthropic", "claude-haiku-4-5");
 			const proxyModel = {
 				...baseModel,
@@ -108,12 +108,11 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 
 			let capturedPayload: any = null;
 
-			// We can't actually make the request (no proxy), but we can verify the payload
-			// by using a mock or checking the logic directly
-			// For this test, we'll import the helper directly
+			// 当前无法实际发送请求（没有代理），但可以通过模拟请求或直接检查逻辑来验证负载。
+			// 本测试会直接导入辅助函数。
 
-			// Since we can't easily test this without mocking, we'll skip the actual API call
-			// and just verify the helper logic works correctly
+			// 由于不使用模拟就难以测试此场景，这里跳过实际 API 调用，
+			// 只验证辅助函数逻辑正确。
 
 			try {
 				const s = streamAnthropic(proxyModel, context, {
@@ -123,12 +122,12 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					}),
 				});
 
-				// This will fail since we're using a fake key and fake proxy, but the payload should be captured
+				// 使用伪造的密钥和代理会导致请求失败，但仍应捕获请求负载。
 				for await (const event of s) {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -157,7 +156,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -181,7 +180,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -204,7 +203,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -231,7 +230,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -259,9 +258,9 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					}),
 				});
 
-				// Consume the stream to trigger the request
+				// 消费数据流以触发请求。
 				for await (const _ of s) {
-					// Just consume
+					// 仅消费数据流。
 				}
 
 				expect(capturedPayload).not.toBeNull();
@@ -282,9 +281,9 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					}),
 				});
 
-				// Consume the stream to trigger the request
+				// 消费数据流以触发请求。
 				for await (const _ of s) {
-					// Just consume
+					// 仅消费数据流。
 				}
 
 				expect(capturedPayload).not.toBeNull();
@@ -295,7 +294,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		it("should set prompt_cache_retention for non-api.openai.com baseUrl by default", async () => {
 			process.env.PI_CACHE_RETENTION = "long";
 
-			// Create a model with a different baseUrl (simulating a proxy)
+			// 创建 baseUrl 不同的模型，以模拟代理。
 			const baseModel = getModel("openai", "gpt-4o-mini");
 			const proxyModel = {
 				...baseModel,
@@ -312,12 +311,12 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					}),
 				});
 
-				// This will fail since we're using a fake key and fake proxy, but the payload should be captured
+				// 使用伪造的密钥和代理会导致请求失败，但仍应捕获请求负载。
 				for await (const event of s) {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -345,7 +344,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -370,7 +369,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).toBeDefined();
@@ -397,7 +396,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).toBeDefined();
@@ -428,7 +427,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload?.prompt_cache_key).toBe("session-2");
@@ -471,7 +470,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -496,7 +495,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 此处预期会失败。
 			}
 
 			expect(capturedPayload).not.toBeNull();
@@ -528,7 +527,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					if (event.type === "error") break;
 				}
 			} catch {
-				// Expected to fail
+				// 预期会失败。
 			}
 
 			expect(model.compat?.supportsLongCacheRetention).toBe(false);
@@ -589,7 +588,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 						if (event.type === "error") break;
 					}
 				} catch {
-					// Expected to fail
+					// 此处预期会失败。
 				}
 
 				expect(model.compat?.supportsStrictMode).toBeUndefined();

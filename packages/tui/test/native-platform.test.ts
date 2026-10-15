@@ -26,7 +26,7 @@ test("Linux ARM64 prebuild supports 64 KB system pages", () => {
 	assert.ok(loadSegments > 0);
 });
 
-// Opt in on a Windows test desktop: this replaces the system clipboard contents.
+// 在 Windows 测试桌面上显式启用：此操作会替换系统剪贴板中的内容。
 test(
 	"writes Windows clipboard text through the native helper without command fallbacks",
 	{ skip: process.platform !== "win32" || process.env.PI_TEST_NATIVE_CLIPBOARD !== "1" },
@@ -76,7 +76,7 @@ test("Linux loads X11 lazily and rechecks DISPLAY", { skip: !["arm64", "x64"].in
 	Object.defineProperty(process, "platform", { value: "linux" });
 	delete process.env.DISPLAY;
 	process.env.WAYLAND_DISPLAY = "wayland-0";
-	assert.equal(getNativeClipboard(), undefined); // Wayland paste uses wl-paste.
+	assert.equal(getNativeClipboard(), undefined); // Wayland 粘贴使用 wl-paste。
 	let available = false;
 	const helper = {
 		getText: t.mock.fn(async () => (available ? "X11" : undefined)),

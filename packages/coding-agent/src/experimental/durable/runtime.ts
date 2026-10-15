@@ -40,23 +40,23 @@ export interface Notice {
 	readonly message: string;
 }
 
-/** A conversation the user can switch to: the main one, or a subagent's. */
+/** 用户可以切换到的会话：主会话或子代理会话。 */
 export interface ConversationSummary {
 	readonly id: ConversationId;
 	readonly label: string;
-	/** The first user message, for a subagent its task. */
+	/** 第一条用户消息；对子代理而言即其任务描述。 */
 	readonly title?: string;
 }
 
-/** Everything the TUI renders. Plain values; no Harness objects cross this boundary. */
+/** TUI 所需的全部渲染数据。均为普通值，不会有 Harness 对象跨越此边界。 */
 export interface DurableView {
 	readonly session: { readonly id: string; readonly directory: string; readonly cwd: string };
-	/** The conversation shown and talked to. */
+	/** 当前显示并用于交流的会话。 */
 	readonly conversation: ConversationView;
 	readonly conversations: readonly ConversationSummary[];
 	readonly models: readonly ModelSummary[];
 	readonly notices: readonly Notice[];
-	/** The live task graph while the task panel is open. */
+	/** 任务面板打开期间的实时任务图。 */
 	readonly tasks?: TaskGraph;
 }
 
@@ -65,16 +65,16 @@ export interface DurableViewSource {
 	subscribe(listener: () => void): () => void;
 }
 
-/** What the TUI may ask for. */
+/** TUI 可以发起的操作。 */
 export interface DurableController {
-	/** Prompt when idle; otherwise steer or queue a follow-up. */
+	/** 空闲时提交提示词；忙碌时引导当前运行或排入后续输入。 */
 	submit(text: string, whenBusy: "steer" | "followUp"): Promise<void>;
 	compact(instructions: string | undefined): Promise<void>;
 	abort(): Promise<void>;
 	cycleThinking(): Promise<void>;
 	setModel(model: ModelRef): Promise<void>;
 	toggleTasks(): Promise<void>;
-	/** Show and talk to another conversation. */
+	/** 显示并切换到另一个会话。 */
 	switchConversation(id: ConversationId): Promise<void>;
 }
 
@@ -86,17 +86,17 @@ export interface OpenDurableOptions {
 export interface OpenDurableResult {
 	readonly view: DurableViewSource;
 	readonly controller: DurableController;
-	/** pi's settings, for the TUI's theme and terminal capabilities. */
+	/** pi 的设置，供 TUI 获取主题和终端能力信息。 */
 	readonly settings: SettingsManager;
 	close(): Promise<void>;
 }
 
-/** The agent document of a view; absent while the conversation has none. */
+/** 视图对应的代理文档；会话尚无代理文档时为 undefined。 */
 export function agentOf(view: ConversationView): AgentState {
 	return (view.docs["pi.agent"] ?? {}) as AgentState;
 }
 
-/** A subagent's task: the oldest user message of its conversation. The main conversation needs no title. */
+/** 子代理的任务标题取自其会话中最早的用户消息；主会话无需标题。 */
 async function firstInput(harness: Harness, id: ConversationId): Promise<{ title?: string }> {
 	if (id === ROOT_CONVERSATION_ID) return {};
 	const conversation = (await harness.conversation(id, context))!;
@@ -110,7 +110,7 @@ async function firstInput(harness: Harness, id: ConversationId): Promise<{ title
 	return titleOf(first);
 }
 
-/** The text of a user entry, as a one-line title. */
+/** 用户条目的文本，用作单行标题。 */
 function titleOf(entry: EntryRecord | undefined): { title?: string } {
 	const message = entry?.model?.[0];
 	if (message?.role !== "user") return {};
@@ -182,7 +182,7 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 		};
 		const listeners = new Set<() => void>();
 		let notifying = false;
-		// Commit listeners and Chord frames call this on the Session line; rendering runs afterwards, once per burst.
+		// 提交监听器和 Chord 帧会在 Session 执行通道中调用此函数；之后每批事件只进行一次渲染。
 		const update = (patch: Partial<DurableView>): void => {
 			state = { ...state, ...patch };
 			if (notifying) return;
@@ -200,7 +200,7 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 		report = (error) => notice("warning", error instanceof Error ? error.message : String(error));
 		for (const error of pendingReports) report(error);
 		let unsubscribe = conversation.subscribe((value) => update({ conversation: value }));
-		// Subagents appear as their conversations are created. A commit listener only records; it calls no Session API.
+		// 子代理会随其会话创建而显示。提交监听器只记录状态，不调用任何 Session API。
 		const unsubscribeCommits = harness.subscribeCommits((publication) => {
 			let conversations = state.conversations;
 			for (const change of publication.changes) {
@@ -225,7 +225,7 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 		};
 
 		let queue = Promise.resolve();
-		// One at a time, so toggles, switches, and key presses apply in order.
+		// 操作逐个执行，确保切换、跳转和按键按顺序生效。
 		const command = (operation: () => Promise<void>): Promise<void> => {
 			queue = queue.then(operation).catch(fail);
 			return queue;
@@ -253,12 +253,12 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 			compact: (instructions) =>
 				command(async () => {
 					const id = await current.compact(instructions, context);
-					// Report the outcome once it is known; the status line shows the compaction meanwhile.
+					// 结果确定后再报告；等待期间，状态栏会显示压缩状态。
 					void opened.waitForTask(id, context).then(async (receipt) => {
 						const outcome = receipt.state.outcome;
 						if (outcome.status === "completed") {
 							const { entryId, submissionId } = outcome.result;
-							// A summary written while busy is a submission: placed now, queued, or dropped as stale.
+							// 忙碌时写入的摘要会作为提交处理：立即放入、排队等待或因过期而丢弃。
 							const status =
 								submissionId === undefined
 									? undefined
@@ -278,7 +278,7 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 							notice("error", `Compaction ${outcome.status}: ${outcome.error?.message ?? outcome.reason ?? ""}`);
 					}, fail);
 				}),
-			// Not queued: it waits until the conversation is idle.
+			// 不排队：等待会话空闲后再处理。
 			abort: () => current.abort(context).catch(fail),
 			cycleThinking: () =>
 				command(async () => {
@@ -326,9 +326,9 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 			notice("warning", `Saved model is unavailable: ${saved.provider}/${saved.modelId}`);
 		}
 		if (initial?.fallbackMessage !== undefined) notice("info", initial.fallbackMessage);
-		// The task panel starts open; /tasks hides it.
+		// 任务面板默认打开；输入 /tasks 可将其隐藏。
 		await controller.toggleTasks();
-		// Recovered work from an interrupted turn continues now.
+		// 现在继续处理从中断回合中恢复的工作。
 		harness.resume();
 
 		let closing: Promise<void> | undefined;
@@ -349,7 +349,7 @@ export async function openDurable(options: OpenDurableOptions = {}): Promise<Ope
 					conversation.dispose();
 					closeTasks();
 					try {
-						// Close writes no outcome: a running turn resumes with --continue.
+						// 关闭时不会写入结果：运行中的回合会通过 --continue 恢复。
 						await opened.close(context);
 						await envs.cleanup(context);
 					} finally {

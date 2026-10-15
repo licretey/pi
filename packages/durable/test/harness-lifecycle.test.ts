@@ -26,7 +26,7 @@ import { completed, countingReader, deferred, eventually, openTasks, settled } f
 
 type Step = { phase: "run" };
 
-/** A one-phase task running `run` and completing with null. */
+/** 执行 `run` 并以 null 结果完成的单阶段任务。 */
 function oneStep(name: string, run: () => Promise<void> = async () => {}) {
 	return defineTask<null, Step, null>({
 		name,
@@ -49,7 +49,7 @@ function start(conversation: Conversation, task: ReturnType<typeof oneStep>, bac
 	);
 }
 
-/** Drop the loaded trackers, so the next acquisition reads Storage on the line. */
+/** 卸载已加载的跟踪器，使下次获取时沿会话顺序线从 Storage 读取。 */
 function unloadDocuments(harness: Harness): Promise<void> {
 	return (harness as unknown as SessionImpl).unloadDocuments();
 }
@@ -58,7 +58,7 @@ function withSignal(signal: AbortSignal): Context {
 	return { ...context, abortSignal: signal };
 }
 
-/** Whether a raw Storage read still succeeds, as code of a joined invocation relies on. */
+/** 检查直接读取 Storage 是否仍然成功；已加入关闭流程的调用依赖此行为。 */
 async function storageOpen(storage: Storage): Promise<boolean> {
 	return storage.task(1 as TaskId, context).then(
 		() => true,
@@ -66,7 +66,7 @@ async function storageOpen(storage: Storage): Promise<boolean> {
 	);
 }
 
-/** Commit a conversation with a `running` task, as a crash leaves it, so open has a reconciliation commit to fail. */
+/** 提交一个包含 `running` 任务的对话，模拟崩溃后的状态，使 open 执行的协调提交可以失败。 */
 async function seedRunningTask(storage: Storage): Promise<void> {
 	const conversationId = await storage.mintId<ConversationId>();
 	const id = await storage.mintId<TaskId<JsonValue>>();
@@ -119,7 +119,7 @@ describe("Harness open", () => {
 			context,
 		);
 		await expect(opening).rejects.toThrow("disk full");
-		// The storage failure that failed open is the cause; the close that fails after it adds no report.
+		// 导致 open 失败的存储错误是根因；之后 close 再失败也不会额外上报。
 		expect(reports).toEqual([new Error("disk full")]);
 	});
 });
@@ -244,7 +244,7 @@ describe("Harness close", () => {
 		const cancelled = harness.close(withSignal(controller.signal));
 		controller.abort(new Error("stop waiting"));
 		await expect(cancelled).rejects.toThrow("stop waiting");
-		// Admission stays sealed and the invocation still holds Storage open.
+		// 新操作仍被禁止，且该调用仍使 Storage 保持打开状态。
 		await expect(harness.commit(() => {}, context)).rejects.toThrow("closed");
 		expect(await storageOpen(storage)).toBe(true);
 		const second = harness.close(context);
@@ -330,7 +330,7 @@ describe("Harness close", () => {
 		expect(await graphWatch.closed).toEqual({ reason: "session_closed" });
 		expect(await docWatch.closed).toEqual({ reason: "session_closed" });
 		expect(await viewWatch.closed).toEqual({ reason: "session_closed" });
-		// The commit itself settled.
+		// 提交本身已完成。
 		expect(storage.commits.at(-1)).toContainEqual(expect.objectContaining({ type: "entry" }));
 	});
 
@@ -347,7 +347,7 @@ describe("Harness close", () => {
 		await harness.commit(async (tx) => {
 			(await tx.doc(Notes)).text = "x";
 		}, context);
-		// Count commit subscriptions of document observers.
+		// 统计文档观察者的提交订阅数。
 		let subscriptions = 0;
 		const subscribe = harness.subscribeCommits.bind(harness);
 		harness.subscribeCommits = (listener) => {
@@ -361,7 +361,7 @@ describe("Harness close", () => {
 			};
 		};
 
-		// Cancel a document watch while its acquisition loads the document on the line.
+		// 在顺序线上获取文档的过程中取消文档监听。
 		await unloadDocuments(harness);
 		let find = storage.holdFindDocument();
 		let controller = new AbortController();
@@ -372,7 +372,7 @@ describe("Harness close", () => {
 		await expect(docWatch).rejects.toThrow("cancelled");
 		expect(subscriptions).toBe(0);
 
-		// Cancel a view watch while it builds its mount on the line.
+		// 在顺序线上构建视图挂载的过程中取消视图监听。
 		await unloadDocuments(harness);
 		find = storage.holdFindDocument();
 		controller = new AbortController();
@@ -381,7 +381,7 @@ describe("Harness close", () => {
 		controller.abort(new Error("cancelled"));
 		find.release();
 		await expect(viewWatch).rejects.toThrow("cancelled");
-		// No observer kept the mount: the next observer builds a new one, and the one after that another.
+		// 没有观察者保留该挂载：后续每个观察者都会重新构建挂载。
 		const first = await root.viewState(context);
 		const firstValue = first.value;
 		first.dispose();
@@ -514,7 +514,7 @@ describe("Harness close", () => {
 });
 
 describe("scheduling on a paused Harness", () => {
-	/** Open a paused Harness with one background task pending and a queued write submission. */
+	/** 打开一个暂停的 Harness，其中有一个待运行的后台任务和一个排队中的写入提交。 */
 	async function paused() {
 		let ran = false;
 		const Marker = oneStep("test.marker", async () => {
@@ -522,7 +522,7 @@ describe("scheduling on a paused Harness", () => {
 		});
 		const { harness } = await openTasks(new MemoryStorage(), [Marker]);
 		const root = await harness.root(context);
-		// Background, so idle waits and conversation abort leave it alone.
+		// 这是后台任务，因此空闲等待和会话中止不会影响它。
 		const id = await start(root, Marker, true);
 		const submissionId = await harness.commit(
 			async (tx) => (await tx.createSubmission({ conversationId: root.id, type: "write", status: "queued" })).id,
@@ -576,7 +576,7 @@ describe("scheduling on a paused Harness", () => {
 		};
 		for (const [name, call] of Object.entries(calls)) {
 			const opened = await paused();
-			// A queued write's wait settles only on placement; close rejects it.
+			// 排队中的写入只有被放置后等待才会结束；close 会拒绝该等待。
 			const pending = call(opened).catch(() => {});
 			await eventually(async () => opened.ran()).catch(() => {
 				throw new Error(`${name} did not enable scheduling`);
@@ -603,7 +603,7 @@ describe("registry changes before resume", () => {
 		]);
 		const installed = addTask(first.registry, define("v1"));
 		expect((await first.harness.inspect(context)).tasks).toMatchObject([{ state: { kind: "ready" } }]);
-		// The same extension name replaces the definition in place, still before resume.
+		// 仍在恢复调度前，同名扩展已原位替换任务定义。
 		installed.dispose();
 		addTask(first.registry, define("v2"));
 		first.harness.resume();

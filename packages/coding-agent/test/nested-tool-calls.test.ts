@@ -92,7 +92,7 @@ describe("NestedToolCallRunner", () => {
 			],
 			complete: true,
 		});
-		// The record is taken once.
+		// 该记录只会被取用一次。
 		expect(runner.takeRecord("call")).toBeUndefined();
 		expect(runner.takeRecord("other")).toBeUndefined();
 	});
@@ -145,7 +145,7 @@ describe("NestedToolCallRunner", () => {
 			parameters: Type.Object({}),
 			async execute(toolCallId) {
 				await runner.execute(toolCallId, "leaf", {});
-				// Its own usage only: the leaf's usage is counted once, by the recorder.
+				// 仅统计自身用量：叶节点的用量由记录器统计一次。
 				return { content: [], details: {}, usage: usage(5, 0.005) };
 			},
 		});
@@ -224,7 +224,7 @@ describe("NestedCallRecorder", () => {
 		const chunk = { text: "x".repeat(7000) };
 		const records = Array.from({ length: 6 }, (_, i) => recorder.start(call(`c${i}`, chunk)));
 		const snapshot = recorder.snapshot();
-		// 32 KiB fits four 7000-byte argument objects.
+		// 32 KiB 可容纳 4 个各为 7000 字节的参数对象。
 		expect(snapshot?.calls.filter((entry) => entry.arguments !== undefined)).toHaveLength(4);
 		expect(snapshot?.calls.every((entry) => entry.status === "unfinished")).toBe(true);
 		expect(snapshot?.complete).toBe(false);

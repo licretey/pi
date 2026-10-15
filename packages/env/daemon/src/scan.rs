@@ -1,5 +1,5 @@
-//! Port of Durable's `LineScanner` (`env/line-scan.ts`): locates lines `[start_line, end_line)` of a file fed in order
-//! and measures their decoded UTF-8 size as `new TextDecoder().decode(file)` would produce it.
+//! 移植自 Durable 的 `LineScanner`（`env/line-scan.ts`）：定位按顺序输入的文件中 `[start_line, end_line)` 范围内的行，
+//! 并按照 `new TextDecoder().decode(file)` 的解码结果计算 UTF-8 字节数。
 
 use crate::decode::{decode_into, range_decoder, starts_with_bom};
 use encoding_rs::Decoder;
@@ -26,7 +26,7 @@ pub struct LineScanner {
 }
 
 impl LineScanner {
-    /// `end_line`, when given, must be greater than `start_line`.
+    /// 如果指定 `end_line`，其值必须大于 `start_line`。
     pub fn new(start_line: u64, end_line: Option<u64>) -> LineScanner {
         let mut scanner = LineScanner {
             start_line,
@@ -80,7 +80,7 @@ impl LineScanner {
         let mut index = 0;
         while let Some(found) = chunk[index..].iter().position(|byte| *byte == NEWLINE) {
             let newline = index + found;
-            // The newline ends line `self.newlines`; it belongs to the selection between selected lines only.
+            // 换行符结束第 `self.newlines` 行；只有选中多行时，它才属于选中范围。
             self.feed(chunk, base, from, newline);
             let line = self.newlines;
             let position = base + newline as u64;
@@ -128,7 +128,7 @@ impl LineScanner {
             "start": start,
             "end": self.end.unwrap_or(size),
             "firstLineEnd": self.first_line_end.unwrap_or(size),
-            // A selection that reaches past the last line ends with the last line.
+            // 选区超出文件末尾时，范围结束于最后一行。
             "lastLineStart": self.last_line_start.unwrap_or(self.line_start),
             "selectedBytes": self.selected_bytes,
             "firstLineBytes": self.first_line_bytes,
@@ -159,7 +159,7 @@ impl LineScanner {
     }
 
     fn feed(&mut self, chunk: &[u8], base: u64, mut from: usize, to: usize) {
-        // Decoding the whole file drops a leading byte-order mark.
+        // 解码整个文件时会移除开头的字节顺序标记。
         if self.bom && base + (from as u64) < 3 {
             from = to.min((3 - base) as usize);
         }
@@ -190,7 +190,7 @@ mod tests {
 
     #[test]
     fn locates_and_measures_lines_like_whole_file_decoding() {
-        // BOM, "a", invalid sequence, empty line, a later U+FEFF, and no final newline.
+            // BOM、"a"、无效序列、空行、后续的 U+FEFF，以及没有结尾换行符。
         let file = [
             0xef, 0xbb, 0xbf, 0x61, 0x0a, 0xe2, 0x82, 0x0a, 0x0a, 0xef, 0xbb, 0xbf, 0x62, 0x0a,
             0xc3, 0xa9,
@@ -198,7 +198,7 @@ mod tests {
         for chunk in 1..6 {
             let all = scan(&file, 0, None, chunk);
             assert_eq!(all["newlines"], 4);
-            // "a\n\u{fffd}\n\n\u{feff}b\né" is 1+1+3+1+1+3+1+1+2 = 14 bytes.
+            // "a\n\u{fffd}\n\n\u{feff}b\né" 共 1+1+3+1+1+3+1+1+2 = 14 字节。
             assert_eq!(all["selectedBytes"], 14);
             assert_eq!(all["firstLineBytes"], 1);
             let middle = scan(&file, 1, Some(3), chunk);

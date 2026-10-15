@@ -1,45 +1,45 @@
 /**
- * Tools Extension
+ * 工具扩展
  *
- * Provides a /tools command to enable/disable tools interactively.
- * Tool selection persists across session reloads and respects branch navigation.
+ * 提供 /tools 命令，以交互方式启用或禁用工具。
+ * 工具选择会在会话重新加载后保留，并遵循会话分支导航。
  *
- * Usage:
- * 1. Copy this file to ~/.pi/agent/extensions/ or your project's .pi/extensions/
- * 2. Use /tools to open the tool selector
+ * 用法：
+ * 1. 将此文件复制到 ~/.pi/agent/extensions/ 或项目的 .pi/extensions/ 目录
+ * 2. 使用 /tools 打开工具选择器
  */
 
 import type { ExtensionAPI, ExtensionContext, ToolInfo } from "@earendil-works/pi-coding-agent";
 import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
 import { Container, type SettingItem, SettingsList } from "@earendil-works/pi-tui";
 
-// State persisted to session
+// 持久化到会话的状态
 interface ToolsState {
 	enabledTools: string[];
 }
 
 export default function toolsExtension(pi: ExtensionAPI) {
-	// Track enabled tools
+	// 跟踪已启用的工具
 	let enabledTools: Set<string> = new Set();
 	let allTools: ToolInfo[] = [];
 
-	// Persist current state
+	// 持久化当前状态
 	function persistState() {
 		pi.appendEntry<ToolsState>("tools-config", {
 			enabledTools: Array.from(enabledTools),
 		});
 	}
 
-	// Apply current tool selection
+	// 应用当前工具选择
 	function applyTools() {
 		pi.setActiveTools(Array.from(enabledTools));
 	}
 
-	// Find the last tools-config entry in the current branch
+	// 查找当前分支中最后一条 tools-config 记录
 	function restoreFromBranch(ctx: ExtensionContext) {
 		allTools = pi.getAllTools();
 
-		// Get entries in current branch only
+		// 仅获取当前分支中的条目
 		const branchEntries = ctx.sessionManager.getBranch();
 		let savedTools: string[] | undefined;
 
@@ -53,17 +53,17 @@ export default function toolsExtension(pi: ExtensionAPI) {
 		}
 
 		if (savedTools) {
-			// Restore saved tool selection (filter to only tools that still exist)
+			// 恢复已保存的工具选择（仅保留仍然存在的工具）
 			const allToolNames = allTools.map((t) => t.name);
 			enabledTools = new Set(savedTools.filter((t: string) => allToolNames.includes(t)));
 			applyTools();
 		} else {
-			// No saved state - sync with currently active tools
+			// 没有已保存的状态，将其与当前活动工具同步
 			enabledTools = new Set(pi.getActiveTools());
 		}
 	}
 
-	// Register /tools command
+	// 注册 /tools 命令
 	pi.registerCommand("tools", {
 		description: "Enable/disable tools",
 		handler: async (_args, ctx) => {
@@ -72,11 +72,11 @@ export default function toolsExtension(pi: ExtensionAPI) {
 				return;
 			}
 
-			// Refresh tool list
+			// 刷新工具列表
 			allTools = pi.getAllTools();
 
 			await ctx.ui.custom((tui, theme, _kb, done) => {
-				// Build settings items for each tool
+				// 为每个工具创建设置项
 				const items: SettingItem[] = allTools.map((tool) => ({
 					id: tool.name,
 					label: tool.name,
@@ -99,7 +99,7 @@ export default function toolsExtension(pi: ExtensionAPI) {
 					Math.min(items.length + 2, 15),
 					getSettingsListTheme(),
 					(id, newValue) => {
-						// Update enabled state and apply immediately
+						// 更新启用状态并立即应用
 						if (newValue === "enabled") {
 							enabledTools.add(id);
 						} else {
@@ -109,7 +109,7 @@ export default function toolsExtension(pi: ExtensionAPI) {
 						persistState();
 					},
 					() => {
-						// Close dialog
+						// 关闭对话框
 						done(undefined);
 					},
 				);
@@ -134,12 +134,12 @@ export default function toolsExtension(pi: ExtensionAPI) {
 		},
 	});
 
-	// Restore state on session start
+	// 会话开始时恢复状态
 	pi.on("session_start", async (_event, ctx) => {
 		restoreFromBranch(ctx);
 	});
 
-	// Restore state when navigating the session tree
+	// 导航会话树时恢复状态
 	pi.on("session_tree", async (_event, ctx) => {
 		restoreFromBranch(ctx);
 	});

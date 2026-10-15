@@ -1,4 +1,4 @@
-//! Windows, following libuv (`src/win/error.c`, `src/win/process.c`, `src/win/fs.c`) and Node's `child_process`.
+//! Windows 实现遵循 libuv（`src/win/error.c`、`src/win/process.c`、`src/win/fs.c`）和 Node 的 `child_process` 行为。
 
 use super::{OpenMode, ShellConfig, path_exists, synthetic};
 use crate::errors::Failure;
@@ -34,7 +34,7 @@ use windows_sys::Win32::System::JobObjects::{
 };
 use windows_sys::Win32::System::Threading::CREATE_NO_WINDOW;
 
-/// libuv's `uv_translate_sys_error` for the errors file and process operations produce.
+/// 将文件和进程操作产生的系统错误转换为 libuv 的 `uv_translate_sys_error` 错误代码。
 pub fn os_error_name(error: &io::Error) -> &'static str {
     let Some(code) = error.raw_os_error() else {
         return "UNKNOWN";
@@ -70,7 +70,7 @@ pub fn read_at(file: &File, buffer: &mut [u8], offset: u64) -> io::Result<usize>
     file.seek_read(buffer, offset)
 }
 
-/// Modification time as seconds and nanoseconds since the epoch; before 1970 the seconds are negative.
+/// 从纪元起算的修改时间，以秒和纳秒表示；1970 年之前的秒数为负值。
 pub fn mtime(metadata: &Metadata) -> (i64, i64) {
     let Ok(time) = metadata.modified() else {
         return (0, 0);
@@ -89,13 +89,13 @@ pub fn mtime(metadata: &Metadata) -> (i64, i64) {
     }
 }
 
-/// File index numbers need a handle per file; the creation time tells a replaced file or directory apart instead.
+/// 获取文件索引号需要为每个文件打开句柄；此处改用创建时间区分被替换的文件或目录。
 pub fn identity(metadata: &Metadata) -> (u64, u64) {
     use std::os::windows::fs::MetadataExt;
     (0, metadata.creation_time())
 }
 
-/// Node's `os.tmpdir()` on Windows.
+/// Windows 上 Node 的 `os.tmpdir()`。
 pub fn tmpdir() -> String {
     let variable = |key: &str| std::env::var(key).ok().filter(|value| !value.is_empty());
     let mut path = variable("TEMP")
@@ -114,13 +114,13 @@ pub fn tmpdir() -> String {
     path
 }
 
-/// libuv's `uv_os_homedir`: `USERPROFILE` first.
+/// libuv 的 `uv_os_homedir`：优先使用 `USERPROFILE`。
 pub fn home() -> String {
     std::env::var("USERPROFILE").unwrap_or_default()
 }
 
-/// A NUL-terminated wide path; an embedded NUL fails like the standard library's path conversion (Node rejects such
-/// paths before any system call, which the client reports with the same code).
+/// 以 NUL 结尾的宽字符路径；路径内含 NUL 时，行为与标准库路径转换失败一致（Node 会在执行系统调用前拒绝此类
+/// 路径，客户端也会报告相同错误代码）。
 fn wide(text: &str) -> io::Result<Vec<u16>> {
     if text.contains('\0') {
         return Err(io::Error::new(
@@ -134,7 +134,7 @@ fn wide(text: &str) -> io::Result<Vec<u16>> {
         .collect())
 }
 
-/// libuv's `fs__mkdtemp`: `prefix` plus six characters from `[a-zA-Z0-9]`, retried while the name exists.
+/// libuv 的 `fs__mkdtemp`：在 `prefix` 后追加六个 `[a-zA-Z0-9]` 字符；若名称已存在则重新尝试。
 pub fn mkdtemp(prefix: &str) -> io::Result<String> {
     const CHARACTERS: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     static COUNTER: AtomicU64 = AtomicU64::new(0);
@@ -157,8 +157,8 @@ pub fn mkdtemp(prefix: &str) -> io::Result<String> {
     Err(io::Error::from_raw_os_error(80))
 }
 
-/// Windows cannot open a directory as a file and has no `O_NOFOLLOW`: check the path first, as `NodeExecutionEnv` does
-/// there (not race-free).
+/// Windows 不能将目录作为文件打开，也不支持 `O_NOFOLLOW`；与 `NodeExecutionEnv` 一样，先检查路径
+///（此检查无法避免竞态）。
 pub fn open_reader(path: &str, no_follow: bool) -> Result<File, Failure> {
     if no_follow
         && std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink())
@@ -173,9 +173,9 @@ pub fn open_reader(path: &str, no_follow: bool) -> Result<File, Failure> {
     File::open(path).map_err(|error| Failure::io(&error, "open", path))
 }
 
-/// libuv's `fs__open` for Node's write modes: `CreateFileW` with its access, sharing and disposition, always with
-/// `FILE_FLAG_BACKUP_SEMANTICS`, so a directory opens and later calls on it fail as in Node; creating a file where a
-/// directory exists reports `EISDIR`. (Rust's `File::create` opens with `OPEN_ALWAYS` and truncates afterwards.)
+/// 对应 Node 写入模式下 libuv 的 `fs__open`：使用相应的访问权限、共享方式和打开选项调用 `CreateFileW`，始终设置
+/// `FILE_FLAG_BACKUP_SEMANTICS`，使目录可以打开，但后续操作会像 Node 一样失败；若尝试在已有目录的位置创建文件，则返回
+/// `EISDIR`。（Rust 的 `File::create` 使用 `OPEN_ALWAYS` 打开，然后再截断文件。）
 pub fn open(path: &str, mode: OpenMode) -> io::Result<File> {
     let (access, disposition) = match mode {
         OpenMode::Read => (FILE_GENERIC_READ, OPEN_EXISTING),
@@ -187,7 +187,7 @@ pub fn open(path: &str, mode: OpenMode) -> io::Result<File> {
         OpenMode::ReadWrite => (FILE_GENERIC_READ | FILE_GENERIC_WRITE, OPEN_EXISTING),
     };
     let name = wide(path)?;
-    // SAFETY: a NUL-terminated wide path; the returned handle is owned by the File on success.
+    // 安全性：路径以 NUL 结尾；成功时返回的句柄由 File 接管。
     let handle = unsafe {
         CreateFileW(
             name.as_ptr(),
@@ -201,17 +201,17 @@ pub fn open(path: &str, mode: OpenMode) -> io::Result<File> {
     };
     if handle == INVALID_HANDLE_VALUE {
         let error = io::Error::last_os_error();
-        // ERROR_FILE_EXISTS while creating means the path is a directory.
+        // 创建时收到 ERROR_FILE_EXISTS，表示该路径是目录。
         if error.raw_os_error() == Some(80) && matches!(mode, OpenMode::Write | OpenMode::Append) {
             return Err(synthetic("EISDIR"));
         }
         return Err(error);
     }
-    // SAFETY: `handle` is a valid, owned file handle.
+    // 安全性：`handle` 是有效且由当前代码拥有的文件句柄。
     Ok(unsafe { File::from_raw_handle(handle as _) })
 }
 
-/// libuv's `uv_fs_realpath`: the final path without the `\\?\` prefix.
+/// libuv 的 `uv_fs_realpath`：返回不带 `\\?\` 前缀的最终路径。
 pub fn realpath(path: &str) -> io::Result<String> {
     let resolved = std::fs::canonicalize(path)?.to_string_lossy().into_owned();
     Ok(if let Some(unc) = resolved.strip_prefix("\\\\?\\UNC\\") {
@@ -224,18 +224,18 @@ pub fn realpath(path: &str) -> io::Result<String> {
     })
 }
 
-/// libuv's `fs__rename`: `MoveFileExW` replacing an existing destination.
+/// libuv 的 `fs__rename`：调用 `MoveFileExW` 并替换已存在的目标。
 pub fn rename(from: &str, to: &str) -> io::Result<()> {
     let (from, to) = (wide(from)?, wide(to)?);
-    // SAFETY: both arguments are NUL-terminated wide strings that outlive the call.
+    // 安全性：两个参数都是 NUL 结尾的宽字符串，且其生命周期覆盖整个调用。
     if unsafe { MoveFileExW(from.as_ptr(), to.as_ptr(), MOVEFILE_REPLACE_EXISTING) } == 0 {
         return Err(io::Error::last_os_error());
     }
     Ok(())
 }
 
-/// Node's `rm` on Windows: a symbolic link or junction to a directory is removed as a directory entry (libuv's
-/// `fs__unlink`), and a read-only file is retried after making it writable.
+/// Windows 上 Node 的 `rm` 行为：指向目录的符号链接或目录联接按目录项删除（对应 libuv 的
+/// `fs__unlink`）；只读文件会在取消只读属性后重试删除。
 pub fn remove_file(path: &str) -> io::Result<()> {
     use std::os::windows::fs::FileTypeExt;
     if std::fs::symlink_metadata(path).is_ok_and(|metadata| metadata.file_type().is_symlink_dir()) {
@@ -253,11 +253,11 @@ pub fn remove_file(path: &str) -> io::Result<()> {
     }
 }
 
-/// A pipe a reader thread reads with blocking calls; `interrupt_reader` cancels a blocked read.
+/// 读取线程通过阻塞调用读取的管道；`interrupt_reader` 可取消阻塞的读取操作。
 pub trait Pipe: io::Read {}
 impl<T: io::Read> Pipe for T {}
 
-/// Read `pipe` until it ends, `on_data` returns false, or `stop` is set; the pipe closes when this returns.
+/// 持续读取 `pipe`，直到管道结束、`on_data` 返回 false 或 `stop` 被设置；函数返回时关闭管道。
 pub fn read_pipe(mut pipe: impl Pipe, stop: &AtomicBool, mut on_data: impl FnMut(&[u8]) -> bool) {
     let mut buffer = vec![0u8; 64 * 1024];
     while !stop.load(Ordering::SeqCst) {
@@ -272,17 +272,16 @@ pub fn read_pipe(mut pipe: impl Pipe, stop: &AtomicBool, mut on_data: impl FnMut
     }
 }
 
-/// Cancel a reader blocked in `ReadFile`, so it sees `stop` and closes its pipe.
+/// 取消阻塞在 `ReadFile` 中的读取线程，使其检查到 `stop` 并关闭管道。
 pub fn interrupt_reader(reader: &std::thread::JoinHandle<()>) {
-    // SAFETY: the handle of a live or finished thread; cancelling no pending I/O is harmless.
+    // 安全性：句柄属于仍在运行或已结束的线程；没有待处理 I/O 时取消操作不会产生影响。
     unsafe {
         CancelSynchronousIo(reader.as_raw_handle() as _);
     }
 }
 
-/// libuv's `search_path` for an argv command: a name with a directory is tried as given, otherwise the working
-/// directory and then each `PATH` entry; a name without an extension also tries `.com` and `.exe`. Node refuses
-/// batch files without a shell.
+/// argv 命令使用 libuv 的 `search_path`：名称包含目录时按原样尝试，否则依次搜索工作目录和各个 `PATH` 条目；
+/// 名称没有扩展名时还会尝试 `.com` 和 `.exe`。Node 不允许在没有 Shell 的情况下运行批处理文件。
 pub fn resolve_program(
     program: &str,
     cwd: &str,
@@ -330,7 +329,7 @@ pub fn resolve_program(
     Ok(found.to_string_lossy().into_owned())
 }
 
-/// Node's `isLegacyWslBashPath`: `^[a-z]:\\windows\\(system32|sysnative)\\bash\.exe$`, case-insensitive.
+/// Node 的 `isLegacyWslBashPath`：不区分大小写地匹配 `^[a-z]:\\windows\\(system32|sysnative)\\bash\.exe$`。
 fn is_legacy_wsl_bash(path: &str) -> bool {
     let normalized = path.replace('/', "\\").to_lowercase();
     let mut characters = normalized.chars();
@@ -379,7 +378,7 @@ fn where_bash() -> Option<String> {
     path_exists(&first).then_some(first)
 }
 
-/// Node's shell resolution on Windows: a configured shell, Git Bash, `where bash.exe`, or `shell_unavailable`.
+/// Node 在 Windows 上的 Shell 解析顺序：已配置的 Shell、Git Bash、`where bash.exe`，否则返回 `shell_unavailable`。
 pub fn shell_config(shell_path: Option<&str>) -> Result<ShellConfig, Failure> {
     if let Some(configured) = shell_path {
         if path_exists(configured) {
@@ -415,7 +414,7 @@ pub fn shell_config(shell_path: Option<&str>) -> Result<ShellConfig, Failure> {
     ))
 }
 
-/// libuv's `quote_cmd_arg`: how one argument is written into the command line the child splits again.
+/// libuv 的 `quote_cmd_arg`：将单个参数写入命令行，以便子进程再次拆分时还原出原参数。
 pub fn quote_argument(argument: &str) -> String {
     if argument.is_empty() {
         return "\"\"".into();
@@ -426,7 +425,7 @@ pub fn quote_argument(argument: &str) -> String {
     if !argument.contains(['"', '\\']) {
         return format!("\"{argument}\"");
     }
-    // Walk backwards: backslashes before a quote (or the closing quote) are doubled, and quotes are escaped.
+    // 从后向前处理：引号前（或结束引号前）的反斜杠数量加倍，同时转义引号。
     let mut reversed = Vec::new();
     let mut quote_hit = true;
     for character in argument.chars().rev() {
@@ -446,7 +445,7 @@ pub fn quote_argument(argument: &str) -> String {
     quoted
 }
 
-/// Variables libuv copies from the parent into every child environment that lacks them.
+/// libuv 会从父进程复制到子进程环境中、且子进程尚未设置的变量。
 const REQUIRED_VARIABLES: [&str; 11] = [
     "HOMEDRIVE",
     "HOMEPATH",
@@ -461,8 +460,8 @@ const REQUIRED_VARIABLES: [&str; 11] = [
     "WINDIR",
 ];
 
-/// The child environment as Node builds it on Windows: the variables in object order, sorted by UTF-16 code units,
-/// keeping the first of names that differ only in case; then libuv adds required variables the result lacks.
+/// Node 在 Windows 上构建的子进程环境：按对象顺序读取变量，并按 UTF-16 代码单元排序；仅大小写不同的变量名保留首个；
+/// 随后 libuv 会补入结果中缺失的必需变量。
 fn child_environment(env: &Map<String, Value>, inherit_env: bool) -> Vec<(String, String)> {
     let mut entries: Vec<(String, String)> = Vec::new();
     let mut set =
@@ -498,7 +497,7 @@ fn child_environment(env: &Map<String, Value>, inherit_env: bool) -> Vec<(String
     entries
 }
 
-/// Arguments quoted as libuv quotes them, Node's environment, and a hidden console.
+/// 按 libuv 规则转义的参数、Node 环境变量，以及隐藏的控制台。
 pub fn configure(
     command: &mut Command,
     args: &[String],
@@ -515,11 +514,11 @@ pub fn configure(
     command.creation_flags(CREATE_NO_WINDOW);
 }
 
-/// libuv puts every child it starts into one job that ends its processes when the daemon exits.
+/// libuv 会将启动的所有子进程放入同一个作业对象；守护进程退出时，该对象会终止其中的进程。
 fn job() -> Option<isize> {
     static JOB: OnceLock<Option<isize>> = OnceLock::new();
     *JOB.get_or_init(|| {
-        // SAFETY: plain Win32 calls with a zeroed, correctly sized information struct.
+        // 安全性：使用已清零且大小正确的信息结构调用普通 Win32 函数。
         unsafe {
             let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
             if job.is_null() {
@@ -543,14 +542,14 @@ fn job() -> Option<isize> {
 
 pub fn after_spawn(child: &Child) {
     if let Some(job) = job() {
-        // SAFETY: both handles are valid for the duration of the call.
+        // 安全性：两个句柄在整个调用期间均有效。
         unsafe {
             AssignProcessToJobObject(job as _, child.as_raw_handle() as _);
         }
     }
 }
 
-/// Node's `killProcessTree` on Windows: `taskkill /F /T`, not waited for.
+/// Windows 上 Node 的 `killProcessTree` 行为：调用 `taskkill /F /T`，但不等待其完成。
 pub fn kill_tree(pid: u32) {
     let system_root = std::env::var("SystemRoot").unwrap_or_else(|_| "C:\\Windows".into());
     let _ = Command::new(format!("{system_root}\\System32\\taskkill.exe"))
@@ -562,17 +561,17 @@ pub fn kill_tree(pid: u32) {
         .spawn();
 }
 
-/// Exit codes are unsigned 32-bit values on Windows (an access violation is 3221225477).
+/// Windows 退出码是 32 位无符号值（访问冲突的退出码为 3221225477）。
 pub fn exit_code(status: ExitStatus) -> i64 {
     i64::from(status.code().unwrap_or(1) as u32)
 }
 
-/// Windows listings keep the file system's order; nothing sorts by raw names.
+/// Windows 目录列表保留文件系统顺序；不会按原始名称排序。
 pub fn raw_name(_name: &OsStr) -> Option<Vec<u8>> {
     None
 }
 
-/// The per-drive working directories of the `=C:` variables, which Node's `path.resolve` uses for drive-relative paths.
+/// `=C:` 等变量记录的各盘符工作目录，Node 的 `path.resolve` 会用它们解析相对盘符的路径。
 pub fn drive_cwds() -> Map<String, Value> {
     std::env::vars_os()
         .filter_map(|(key, value)| {
@@ -592,7 +591,7 @@ pub fn drive_cwds() -> Map<String, Value> {
         .collect()
 }
 
-/// libuv's `scandir` and `opendir` report a file as `ENOTDIR` (elsewhere `ERROR_DIRECTORY` is `ENOENT`).
+/// libuv 的 `scandir` 和 `opendir` 在路径指向文件时返回 `ENOTDIR`（其他情况下 `ERROR_DIRECTORY` 对应 `ENOENT`）。
 pub fn read_dir(path: &str) -> io::Result<std::fs::ReadDir> {
     std::fs::read_dir(path).map_err(|error| {
         if error.raw_os_error() == Some(267) {
@@ -603,9 +602,9 @@ pub fn read_dir(path: &str) -> io::Result<std::fs::ReadDir> {
     })
 }
 
-/// Volume serial number and file index of `path`, as libuv's `stat` reports `dev` and `ino`: the creation time is not
-/// enough, because NTFS gives a file created under a recently removed name the old one's creation time ("tunneling").
-/// Opens a handle, like libuv; falls back to the metadata when the path cannot be opened.
+/// `path` 的卷序列号和文件索引，分别对应 libuv `stat` 返回的 `dev` 和 `ino`：仅凭创建时间不足以识别文件，
+/// 因为 NTFS 可能将近期删除名称下创建的文件赋予旧文件的创建时间（“隧道效应”）。
+/// 与 libuv 一样打开句柄；路径无法打开时回退使用元数据。
 pub fn path_identity(path: &str, metadata: &Metadata, follow: bool) -> (u64, u64) {
     let Ok(name) = wide(path) else {
         return identity(metadata);
@@ -616,7 +615,7 @@ pub fn path_identity(path: &str, metadata: &Metadata, follow: bool) -> (u64, u64
         } else {
             FILE_FLAG_OPEN_REPARSE_POINT
         };
-    // SAFETY: a NUL-terminated wide path; the handle is closed below.
+    // 安全性：路径以 NUL 结尾；句柄会在下方关闭。
     let handle = unsafe {
         CreateFileW(
             name.as_ptr(),
@@ -631,10 +630,10 @@ pub fn path_identity(path: &str, metadata: &Metadata, follow: bool) -> (u64, u64
     if handle == INVALID_HANDLE_VALUE {
         return identity(metadata);
     }
-    // SAFETY: a valid handle and a zeroed buffer for the call to fill.
+    // 安全性：句柄有效，并提供已清零、供函数填充的缓冲区。
     let mut information: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
     let found = unsafe { GetFileInformationByHandle(handle, &mut information) } != 0;
-    // SAFETY: the handle opened above.
+    // 安全性：使用上方打开的句柄。
     unsafe { CloseHandle(handle) };
     if !found {
         return identity(metadata);

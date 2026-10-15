@@ -17,7 +17,7 @@ export interface OutputSnapshot {
 
 export interface FullOutput {
 	content: string;
-	/** Whether `content` omits part of the output. */
+	/** `content` 是否省略了部分输出。 */
 	truncated: boolean;
 }
 
@@ -26,11 +26,10 @@ function byteLength(text: string): number {
 }
 
 /**
- * Incrementally tracks streaming output with bounded memory.
+ * 以有界内存增量跟踪流式输出。
  *
- * Appends decode chunks with a streaming UTF-8 decoder, keeps only a decoded
- * tail for display snapshots, and opens a temp file when the full output needs
- * to be preserved.
+ * 使用流式 UTF-8 解码器追加并解码数据块，仅保留解码后的尾部内容用于显示快照；
+ * 需要保留完整输出时则写入临时文件。
  */
 export class OutputAccumulator {
 	private readonly maxLines: number;
@@ -142,9 +141,8 @@ export class OutputAccumulator {
 	}
 
 	/**
-	 * The complete output, for callers that can take more than the display snapshot. Call after
-	 * `finish()` and `closeTempFile()`. Output longer than `maxBytes` raw bytes keeps its first and
-	 * last `maxBytes / 2` bytes around an omission marker.
+	 * 获取完整输出，供需要多于显示快照内容的调用方使用。必须在调用 `finish()` 和 `closeTempFile()` 后调用。
+	 * 原始输出超过 `maxBytes` 字节时，保留开头和结尾各 `maxBytes / 2` 字节，并在中间插入省略标记。
 	 */
 	async readFullOutput(maxBytes: number): Promise<FullOutput> {
 		if (!this.tempFilePath) {
@@ -162,8 +160,7 @@ export class OutputAccumulator {
 			const tail = Buffer.alloc(tailBytes);
 			await file.read(head, 0, headBytes, 0);
 			await file.read(tail, 0, tailBytes, size - tailBytes);
-			// Cut at character boundaries: streaming decode holds back an incomplete trailing sequence,
-			// and the tail skips leading continuation bytes.
+			// 按字符边界截取：流式解码会暂存不完整的尾部序列；尾部内容则跳过开头的 UTF-8 延续字节。
 			const headText = new TextDecoder().decode(head, { stream: true });
 			let tailStart = 0;
 			while (tailStart < tail.length && (tail[tailStart] & 0xc0) === 0x80) tailStart++;

@@ -3,7 +3,7 @@ import { getApiProvider } from "@earendil-works/pi-ai/compat";
 import { expect, it } from "vitest";
 import { createHarness } from "../harness.ts";
 
-// Regression for #8964: extensions can stream responses from providers registered with pi.registerProvider().
+// #8964 回归测试：扩展可以流式接收通过 pi.registerProvider() 注册的提供商响应。
 it.each(["stream", "streamSimple"] as const)(
 	"allows an extension command to use ctx.modelRegistry.%s",
 	async (method) => {

@@ -4,7 +4,7 @@ import { Chalk } from "chalk";
 import { TruncatedText } from "../src/components/truncated-text.ts";
 import { visibleWidth } from "../src/utils.ts";
 
-// Force full color in CI so ANSI assertions are deterministic
+// 在 CI 中强制启用真彩色，确保 ANSI 断言结果稳定。
 const chalk = new Chalk({ level: 3 });
 
 describe("TruncatedText component", () => {
@@ -12,10 +12,10 @@ describe("TruncatedText component", () => {
 		const text = new TruncatedText("Hello world", 1, 0);
 		const lines = text.render(50);
 
-		// Should have exactly one content line (no vertical padding)
+		// 应恰好只有一行内容（没有垂直留白）。
 		assert.strictEqual(lines.length, 1);
 
-		// Line should be exactly 50 visible characters
+		// 可见内容应恰好为 50 个字符。
 		const visibleLen = visibleWidth(lines[0]);
 		assert.strictEqual(visibleLen, 50);
 	});
@@ -24,10 +24,10 @@ describe("TruncatedText component", () => {
 		const text = new TruncatedText("Hello", 0, 2);
 		const lines = text.render(40);
 
-		// Should have 2 padding lines + 1 content line + 2 padding lines = 5 total
+		// 应有 2 行顶部留白、1 行内容和 2 行底部留白，共 5 行。
 		assert.strictEqual(lines.length, 5);
 
-		// All lines should be exactly 40 characters
+		// 每行都应恰好为 40 个字符。
 		for (const line of lines) {
 			assert.strictEqual(visibleWidth(line), 40);
 		}
@@ -40,10 +40,10 @@ describe("TruncatedText component", () => {
 
 		assert.strictEqual(lines.length, 1);
 
-		// Should be exactly 30 characters
+		// 可见内容应恰好为 30 个字符。
 		assert.strictEqual(visibleWidth(lines[0]), 30);
 
-		// Should contain ellipsis
+		// 内容应包含省略号。
 		const stripped = lines[0].replace(/\x1b\[[0-9;]*m/g, "");
 		assert.ok(stripped.includes("..."));
 	});
@@ -55,10 +55,10 @@ describe("TruncatedText component", () => {
 
 		assert.strictEqual(lines.length, 1);
 
-		// Should be exactly 40 visible characters (ANSI codes don't count)
+		// 可见内容应恰好为 40 个字符（ANSI 转义码不计入长度）。
 		assert.strictEqual(visibleWidth(lines[0]), 40);
 
-		// Should preserve the color codes
+		// 应保留颜色转义码。
 		assert.ok(lines[0].includes("\x1b["));
 	});
 
@@ -69,23 +69,23 @@ describe("TruncatedText component", () => {
 
 		assert.strictEqual(lines.length, 1);
 
-		// Should be exactly 20 visible characters
+		// 可见内容应恰好为 20 个字符。
 		assert.strictEqual(visibleWidth(lines[0]), 20);
 
-		// Should contain reset code before ellipsis
+		// 省略号前应包含颜色重置码。
 		assert.ok(lines[0].includes("\x1b[0m..."));
 	});
 
 	it("handles text that fits exactly", () => {
-		// With paddingX=1, available width is 30-2=28
-		// "Hello world" is 11 chars, fits comfortably
+		// paddingX=1 时，可用宽度为 30-2=28。
+		// "Hello world" 共 11 个字符，可以完整显示。
 		const text = new TruncatedText("Hello world", 1, 0);
 		const lines = text.render(30);
 
 		assert.strictEqual(lines.length, 1);
 		assert.strictEqual(visibleWidth(lines[0]), 30);
 
-		// Should NOT contain ellipsis
+		// 不应包含省略号。
 		const stripped = lines[0].replace(/\x1b\[[0-9;]*m/g, "");
 		assert.ok(!stripped.includes("..."));
 	});
@@ -106,7 +106,7 @@ describe("TruncatedText component", () => {
 		assert.strictEqual(lines.length, 1);
 		assert.strictEqual(visibleWidth(lines[0]), 40);
 
-		// Should only contain "First line"
+		// 内容中应只有 "First line"。
 		const stripped = lines[0].replace(/\x1b\[[0-9;]*m/g, "").trim();
 		assert.ok(stripped.includes("First line"));
 		assert.ok(!stripped.includes("Second line"));
@@ -121,7 +121,7 @@ describe("TruncatedText component", () => {
 		assert.strictEqual(lines.length, 1);
 		assert.strictEqual(visibleWidth(lines[0]), 25);
 
-		// Should contain ellipsis and not second line
+		// 内容应包含省略号，且不应包含第二行。
 		const stripped = lines[0].replace(/\x1b\[[0-9;]*m/g, "");
 		assert.ok(stripped.includes("..."));
 		assert.ok(!stripped.includes("Second line"));

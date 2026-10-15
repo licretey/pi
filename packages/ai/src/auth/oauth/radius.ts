@@ -1,12 +1,11 @@
 /**
- * Radius gateway OAuth flow.
+ * Radius 网关 OAuth 授权流程。
  *
- * Radius is a pi-messages gateway. OAuth client APIs live on the configured
- * gateway; only the interactive browser authorization endpoint is discovered.
- * Model catalog loading is owned by the Radius provider.
+ * Radius 是 pi-messages 网关。OAuth 客户端 API 位于已配置的网关上；只有交互式浏览器授权端点需要通过发现流程获取。
+ * 模型目录由 Radius 提供商负责加载。
  *
- * NOTE: This module uses node:http (via callback-server.ts) for the OAuth callback server.
- * It is only intended for CLI use, not browser environments.
+ * 注意：此模块通过 callback-server.ts 使用 node:http 创建 OAuth 回调服务器。
+ * 此模块仅供 CLI 使用，不适用于浏览器环境。
  */
 
 import { normalizeRadiusGatewayUrl } from "../../providers/radius-config.ts";

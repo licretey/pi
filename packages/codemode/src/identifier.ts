@@ -1,6 +1,6 @@
 /**
- * The identifier a script uses for a tool: characters that are not valid in a JavaScript
- * identifier become `_`. `mcp__docs__search` stays as is, `my-tool` becomes `my_tool`.
+ * 脚本用于调用工具的标识符：不符合 JavaScript 标识符规则的字符会替换为 `_`。
+ * `mcp__docs__search` 保持不变，`my-tool` 会变为 `my_tool`。
  */
 export function toCodemodeIdentifier(name: string): string {
 	let identifier = "";

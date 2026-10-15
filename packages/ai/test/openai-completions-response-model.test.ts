@@ -2,8 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { complete } from "../src/compat.ts";
 import type { Model } from "../src/types.ts";
 
-// Router/virtual ids (e.g. OpenRouter `auto`) keep `model` pinned to the
-// requested id and surface the routed concrete id on `responseModel`.
+// 路由器或虚拟模型 ID（例如 OpenRouter 的 `auto`）会让 `model` 保持为请求的 ID，
+// 并通过 `responseModel` 返回路由后的实际模型 ID。
 
 const mockState = vi.hoisted(() => ({
 	chunks: [] as unknown[],

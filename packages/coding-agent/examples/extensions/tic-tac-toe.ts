@@ -1,20 +1,17 @@
 /**
- * Tic-Tac-Toe extension - demonstrates executionMode: "sequential" on tools.
+ * 井字棋扩展：演示工具的 executionMode: "sequential" 执行模式。
  *
- * The user plays via /tic-tac-toe (arrow keys + Enter).
- * The agent plays via a single tool `tic_tac_toe` that takes ONE atomic action
- * per call. To play at (r, c) from its cursor (r0, c0) the agent must emit the
- * required move_* and a final `play` as SEPARATE tool_use blocks inside ONE
- * assistant response.
+ * 用户通过 /tic-tac-toe 命令操作（方向键 + Enter）。
+ * 智能体通过单个工具 `tic_tac_toe` 操作，每次调用只执行一个原子动作。
+ * 若要从当前光标位置 (r0, c0) 移至 (r, c)，智能体必须在同一条 assistant 响应中，
+ * 将所需的 move_* 动作和最后的 `play` 分别作为独立的 tool_use 块发出。
  *
- * Move actions share the agent cursor and have a 300ms delay. Under the
- * default parallel tool-execution mode this races: `play` can resolve before
- * the earlier `move_*` calls finish and O lands on the wrong cell. With
- * `executionMode: "sequential"` the runner serializes the sibling calls and O
- * lands on the intended cell.
+ * 移动动作共用智能体光标，并有 300 毫秒延迟。在默认的并行工具执行模式下会发生竞态：
+ * `play` 可能先于之前的 `move_*` 调用完成，导致 O 落在错误的格子中。设置
+ * `executionMode: "sequential"` 后，执行器会依次执行同级调用，O 就会落在预期格子中。
  *
- * The user cursor (TUI-only) and the agent cursor (tool-only) are stored in
- * separate variables. Only the agent cursor is ever exposed to the agent.
+ * 用户光标（仅供 TUI 使用）和智能体光标（仅供工具使用）分别存储在不同变量中。
+ * 只有智能体光标会暴露给智能体。
  */
 
 import { StringEnum } from "@earendil-works/pi-ai";
@@ -22,8 +19,7 @@ import type { ExtensionAPI, ExtensionContext, Theme, ToolExecutionMode } from "@
 import { type Component, matchesKey, Text, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 
-// Thrown from the tool on illegal actions. The agent runtime surfaces thrown
-// errors as tool errors (isError=true) without resetting any of our state.
+// 工具遇到非法操作时会抛出此错误。智能体运行时会将其作为工具错误（isError=true）返回，且不会重置任何状态。
 class TicTacToeError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -32,7 +28,7 @@ class TicTacToeError extends Error {
 }
 
 // ---------------------------------------------------------------------------
-// Types
+// 类型定义
 // ---------------------------------------------------------------------------
 
 type Cell = " " | "X" | "O";
@@ -40,10 +36,10 @@ type GameStatus = "playing" | "win_X" | "win_O" | "draw";
 
 interface GameState {
 	board: Cell[][];
-	// User cursor (TUI-only, never exposed to the agent).
+	// 用户光标（仅供 TUI 使用，不会暴露给智能体）。
 	userCursorRow: number;
 	userCursorCol: number;
-	// Agent cursor (manipulated by the tool, shown in the TUI during O's turn).
+	// 智能体光标（由工具操作，在 O 的回合中显示于 TUI）。
 	agentCursorRow: number;
 	agentCursorCol: number;
 	status: GameStatus;
@@ -52,9 +48,8 @@ interface GameState {
 	currentTurn: Cell;
 }
 
-// Persisted with each toolResult for state reconstruction AND sent to the
-// agent as `details`. Only the agent cursor is included: the user cursor is
-// private to the TUI.
+// 随每个 toolResult 一起持久化以便重建状态，同时作为 `details` 发送给智能体。
+// 其中只包含智能体光标；用户光标属于 TUI 私有数据。
 interface BoardDetails {
 	board: Cell[][];
 	agentCursorRow: number;
@@ -64,15 +59,13 @@ interface BoardDetails {
 }
 
 // ---------------------------------------------------------------------------
-// Game logic
+// 游戏逻辑
 // ---------------------------------------------------------------------------
 
-// Agent cursor home: where the cursor is reset to after a SUCCESSFUL play.
-// Pinned at (0,0) so every non-origin play requires at least one move, which
-// guarantees multiple tool calls per turn and makes the parallel-vs-sequential
-// behavior observable in the demo. The cursor is NOT reset when the user plays
-// nor on a failed `play` (cell taken), so the agent can retry without
-// starting over.
+// 智能体光标的初始位置：成功落子后光标会重置到此处。
+// 固定为 (0,0)，使落在其他位置都至少需要一次移动，从而确保每回合会有多次工具调用，
+// 并让演示能够体现并行与顺序执行的区别。用户落子或 `play` 失败（格子已被占用）时，
+// 光标都不会重置，因此智能体可以直接重试。
 const AGENT_CURSOR_HOME_ROW = 0;
 const AGENT_CURSOR_HOME_COL = 0;
 
@@ -159,9 +152,8 @@ function checkWin(board: Cell[][]): GameStatus {
 }
 
 function boardToAscii(board: Cell[][], agentCursorRow: number, agentCursorCol: number): string {
-	// Plain grid with coordinates for empty cells, marking the agent cursor
-	// position with angle brackets. The user cursor is NEVER included: it is a
-	// TUI-only concept and must not leak to the agent.
+	// 输出带网格的纯文本：空格显示坐标，智能体光标位置用尖括号标记。
+	// 绝不包含用户光标；它仅供 TUI 使用，不得泄露给智能体。
 	const rows = board.map((row, r) =>
 		row
 			.map((c, cIdx) => {
@@ -176,24 +168,23 @@ function boardToAscii(board: Cell[][], agentCursorRow: number, agentCursorCol: n
 }
 
 // ---------------------------------------------------------------------------
-// Visual board rendering (ANSI).
-// - Cells have NO background fill. Only the centered glyph is drawn.
-// - Played cells color their glyph AND their surrounding borders in the
-//   player's color, so each mark reads as a colored boxed region.
-// - Cursor is indicated with colored borders around the cursor cell.
+// 使用 ANSI 序列绘制棋盘。
+// - 格子没有背景填充，只绘制居中的字符。
+// - 已落子的字符和周围边框均使用对应玩家的颜色，使每个棋子呈现为有色方框区域。
+// - 光标所在格通过彩色边框标示。
 // ---------------------------------------------------------------------------
 
 const CELL_WIDTH = 7;
 const CELL_HEIGHT = 3;
 
-// Player colors (SGR fg codes). Also used for the borders of played cells.
-const FG_CODE_X = "34"; // blue
-const FG_CODE_O = "33"; // yellow
-const FG_CODE_WIN = "32"; // green (overrides on the winning line)
+// 玩家颜色（SGR 前景色代码），也用于已落子格子的边框。
+const FG_CODE_X = "34"; // 蓝色
+const FG_CODE_O = "33"; // 黄色
+const FG_CODE_WIN = "32"; // 绿色（连成获胜线时覆盖原颜色）
 
-// Single-character glyphs, picked for maximum visual size without emoji.
-// - \u2573 (BOX DRAWINGS LIGHT DIAGONAL CROSS) for X
-// - \u25ef (LARGE CIRCLE) for O
+// 使用单字符字形，避免 emoji，并尽可能增大视觉尺寸。
+// - X 使用 \u2573（方框绘制中的轻型对角交叉）。
+// - O 使用 \u25ef（大圆圈）。
 const GLYPH_X = "\u2573";
 const GLYPH_O = "\u25ef";
 
@@ -208,8 +199,7 @@ function centerPad(content: string, width: number): string {
 	return " ".repeat(left) + content + " ".repeat(pad - left);
 }
 
-// Fg color for a played cell's glyph and its surrounding borders. Undefined
-// for empty cells.
+// 返回已落子格子的字符及其周围边框的前景色；空格返回 undefined。
 function cellFgCode(cell: Cell, isWin: boolean): string | undefined {
 	if (cell === " ") return undefined;
 	if (isWin) return FG_CODE_WIN;
@@ -231,9 +221,8 @@ function buildCellContent(mark: Cell, lineIdx: number, isWin: boolean): string {
 	return `${" ".repeat(leftPad)}\x1b[${fg};1m${glyph}${RESET}${" ".repeat(rightPad)}`;
 }
 
-// Fg color for a border char based on its adjacent cells. Undefined when no
-// adjacent cell is played or when adjacent plays disagree (border stays dim
-// to show the separation).
+// 根据边框相邻格子的状态返回前景色。相邻格均未落子或棋子颜色不一致时返回 undefined，
+// 让边框保持暗色以显示格子之间的分隔。
 function borderFgCode(adjacent: ReadonlyArray<{ cell: Cell; isWin: boolean }>): string | undefined {
 	const fgs = adjacent.map((a) => cellFgCode(a.cell, a.isWin)).filter((f): f is string => !!f);
 	if (fgs.length === 0) return undefined;
@@ -244,8 +233,7 @@ function borderFgCode(adjacent: ReadonlyArray<{ cell: Cell; isWin: boolean }>): 
 interface BoardRenderOpts {
 	board: Cell[][];
 	maxWidth: number;
-	// Optional cursor overlay. Omit to render a static snapshot (used in tool
-	// results, move messages, and the game-over banner).
+	// 可选的光标叠加层。省略后会绘制静态快照（用于工具结果、移动消息和游戏结束横幅）。
 	cursor?: { row: number; col: number; owner: "user" | "agent" };
 }
 
@@ -255,7 +243,7 @@ function renderBoard(opts: BoardRenderOpts): string[] {
 	const cr = cursor?.row ?? -1;
 	const cc = cursor?.col ?? -1;
 
-	// Green for user cursor, yellow for agent cursor.
+	// 用户光标为绿色，智能体光标为黄色。
 	const cursorSgr = cursor?.owner === "agent" ? "\x1b[33;1m" : "\x1b[32;1m";
 
 	const winLine = getWinLine(board);
@@ -305,7 +293,7 @@ function renderBoard(opts: BoardRenderOpts): string[] {
 	const lines: string[] = [];
 
 	for (let gridR = 0; gridR <= 3; gridR++) {
-		// Horizontal border row.
+		// 水平边框行。
 		let row = "";
 		for (let gridC = 0; gridC <= 3; gridC++) {
 			const cornerColor = borderFgCode(cornerAdjacent(gridR, gridC));
@@ -341,7 +329,7 @@ function renderBoard(opts: BoardRenderOpts): string[] {
 	return lines;
 }
 
-// Full TUI board with the right cursor overlayed for the current turn.
+// 完整 TUI 棋盘，并根据当前回合叠加相应光标。
 function renderVisualBoard(state: GameState, maxWidth: number): string[] {
 	const isUserTurn = state.currentTurn === state.userMark;
 	const cursor =
@@ -355,13 +343,13 @@ function renderVisualBoard(state: GameState, maxWidth: number): string[] {
 	return renderBoard({ board: state.board, maxWidth, cursor });
 }
 
-/** Static snapshot used inside tool results and custom messages. */
+/** 用于工具结果和自定义消息中的静态快照。 */
 function renderBoardSnapshot(board: Cell[][], maxWidth: number): string[] {
 	return renderBoard({ board, maxWidth });
 }
 
 // ---------------------------------------------------------------------------
-// TUI component
+// TUI 组件
 // ---------------------------------------------------------------------------
 
 class TicTacToeComponent implements Component {
@@ -450,7 +438,7 @@ class TicTacToeComponent implements Component {
 
 		const lines: string[] = [];
 
-		// Top title banner, full width.
+		// 顶部标题横幅，占满整行。
 		const titleText = " Tic-Tac-Toe ";
 		const titleLen = visibleWidth(titleText);
 		const borderLen = Math.max(0, width - titleLen);
@@ -460,7 +448,7 @@ class TicTacToeComponent implements Component {
 
 		lines.push("");
 
-		// Status line.
+		// 状态行。
 		if (this.state.status !== "playing") {
 			const statusText =
 				this.state.status === "draw"
@@ -483,7 +471,7 @@ class TicTacToeComponent implements Component {
 		lines.push("");
 		lines.push("");
 
-		// Footer.
+		// 页脚。
 		let footer: string;
 		if (this.state.status !== "playing") {
 			footer = `${bold("R")} restart  ${dim("|")}  ${bold("Q")}/${bold("ESC")} quit`;
@@ -494,7 +482,7 @@ class TicTacToeComponent implements Component {
 		}
 		lines.push(centerPad(footer, width));
 
-		// Bottom separator between the component and the editor below.
+		// 组件与下方编辑器之间的底部分隔线。
 		lines.push("");
 		lines.push(dim("\u2500".repeat(width)));
 
@@ -506,10 +494,10 @@ class TicTacToeComponent implements Component {
 }
 
 // ---------------------------------------------------------------------------
-// Move-message renderer (full width banner)
+// 移动消息渲染器（全宽横幅）
 // ---------------------------------------------------------------------------
 
-// Full-width banner message with an optional board snapshot underneath.
+// 全宽横幅消息，可在下方附带棋盘快照。
 class BannerMessageComponent implements Component {
 	private readonly title: string;
 	private readonly details: BoardDetails | undefined;
@@ -543,8 +531,7 @@ class BannerMessageComponent implements Component {
 	}
 }
 
-// End-of-game banner: two dim hrs, a big colored title line, and the final
-// board with the winning line highlighted.
+// 游戏结束横幅：两条暗色水平线、一行醒目的彩色标题，以及突出显示获胜连线的最终棋盘。
 class GameOverMessageComponent implements Component {
 	private readonly status: GameStatus;
 	private readonly details: BoardDetails | undefined;
@@ -605,7 +592,7 @@ class GameOverMessageComponent implements Component {
 }
 
 // ---------------------------------------------------------------------------
-// Delay helper
+// 延迟辅助函数
 // ---------------------------------------------------------------------------
 
 function delay(ms: number): Promise<void> {
@@ -613,7 +600,7 @@ function delay(ms: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Extension
+// 扩展入口
 // ---------------------------------------------------------------------------
 
 const SAVE_TYPE = "tic-tac-toe-save";
@@ -659,9 +646,8 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => reconstructState(ctx));
 	pi.on("session_tree", async (_event, ctx) => reconstructState(ctx));
 
-	// Sent once per game at end-of-game. The custom renderer paints the banner;
-	// `content` is a plain-text fallback for any non-TUI consumer and for the
-	// LLM (in case the message ends up in future context).
+	// 每局游戏结束时发送一次。自定义渲染器负责绘制横幅；`content` 是纯文本回退内容，
+	// 供非 TUI 使用方和 LLM 使用（以防消息进入后续上下文）。
 	const emitGameOverMessage = (): void => {
 		const label =
 			gameState.status === "win_X"
@@ -680,7 +666,7 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	// -----------------------------------------------------------------------
-	// Custom message renderer for user move messages
+	// 用户移动消息的自定义渲染器。
 	// -----------------------------------------------------------------------
 	pi.registerMessageRenderer(MOVE_MESSAGE_TYPE, (message, { expanded }, theme) => {
 		const details = message.details as BoardDetails | undefined;
@@ -693,7 +679,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// -----------------------------------------------------------------------
-	// Custom message renderer for game-over messages
+	// 游戏结束消息的自定义渲染器。
 	// -----------------------------------------------------------------------
 	pi.registerMessageRenderer(GAME_OVER_MESSAGE_TYPE, (message, _options, theme) => {
 		const details = message.details as BoardDetails | undefined;
@@ -702,7 +688,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// -----------------------------------------------------------------------
-	// before_agent_start - inject game instructions each turn
+	// before_agent_start：在每个回合注入游戏说明。
 	// -----------------------------------------------------------------------
 	pi.on("before_agent_start", async (event) => {
 		if (!gameActive) return undefined;
@@ -773,7 +759,7 @@ Decide the target cell first, then dump every action for the turn in one go.
 	});
 
 	// -----------------------------------------------------------------------
-	// /tic-tac-toe command
+	// /tic-tac-toe 命令
 	// -----------------------------------------------------------------------
 	pi.registerCommand("tic-tac-toe", {
 		description: "Play tic-tac-toe against the agent",
@@ -809,8 +795,8 @@ Decide the target cell first, then dump every action for the turn in one go.
 						pi.appendEntry(SAVE_TYPE, getBoardDetails());
 
 						if (gameState.status === "playing") {
-							// IMPORTANT: user play does NOT touch the agent cursor.
-							// The agent cursor is only reset after a successful agent play.
+							// 注意：用户落子不会影响智能体光标。
+							// 只有智能体成功落子后，智能体光标才会重置。
 							const boardAscii = boardToAscii(
 								gameState.board,
 								gameState.agentCursorRow,
@@ -843,7 +829,7 @@ Decide the target cell first, then dump every action for the turn in one go.
 	});
 
 	// -----------------------------------------------------------------------
-	// tic_tac_toe tool - one action per call.
+	// tic_tac_toe 工具：每次调用执行一个动作。
 	// -----------------------------------------------------------------------
 
 	type Action = "move_up" | "move_down" | "move_left" | "move_right" | "play";
@@ -907,8 +893,7 @@ Decide the target cell first, then dump every action for the turn in one go.
 					const r = gameState.agentCursorRow;
 					const c = gameState.agentCursorCol;
 					if (gameState.board[r][c] !== " ") {
-						// Do NOT reset the cursor on failure. The agent can retry
-						// from the cursor's current position.
+						// 失败时不要重置光标，智能体可以从当前位置重试。
 						component?.updateState(gameState);
 						pi.appendEntry(SAVE_TYPE, getBoardDetails());
 						throw new TicTacToeError(
@@ -917,7 +902,7 @@ Decide the target cell first, then dump every action for the turn in one go.
 					}
 					gameState.board[r][c] = gameState.agentMark;
 					gameState.status = checkWin(gameState.board);
-					// Reset agent cursor to home ONLY on successful play.
+					// 仅在成功落子后将智能体光标重置到初始位置。
 					gameState.agentCursorRow = AGENT_CURSOR_HOME_ROW;
 					gameState.agentCursorCol = AGENT_CURSOR_HOME_COL;
 					if (gameState.status === "playing") {
@@ -967,7 +952,7 @@ Decide the target cell first, then dump every action for the turn in one go.
 	});
 
 	// -----------------------------------------------------------------------
-	// tic_tac_toe_see_board tool - inspect board + agent cursor.
+	// tic_tac_toe_see_board 工具：查看棋盘和智能体光标。
 	// -----------------------------------------------------------------------
 	pi.registerTool({
 		name: "tic_tac_toe_see_board",

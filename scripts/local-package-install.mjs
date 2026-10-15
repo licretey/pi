@@ -20,7 +20,7 @@ function packageDirectory(directory, packageName) {
 	return join(directory, "node_modules", ...packageName.split("/"));
 }
 
-// Generic consumers run Node ESM, so other export conditions are outside this smoke test's scope.
+// 普通使用方运行 Node ESM，因此其他导出条件不在本次冒烟检查范围内。
 function runtimeTarget(value) {
 	if (typeof value === "string") return value;
 	if (Array.isArray(value)) {
@@ -43,9 +43,9 @@ function typesTarget(value) {
 	return typeof value.types === "string" ? value.types : undefined;
 }
 
-// Generic validation covers literal exports only; wildcard exports need package-specific test inputs.
+// 通用校验只覆盖字面量导出；通配符导出需要各包提供专用测试输入。
 function literalExports(manifest) {
-	// Packages without an exports map are still checked through main, types, and the root import.
+	// 没有 exports 映射的包仍会通过 main、types 和根入口导入进行检查。
 	if (manifest.exports === undefined) return [];
 	if (typeof manifest.exports === "string" || Array.isArray(manifest.exports)) return [[".", manifest.exports]];
 	const keys = Object.keys(manifest.exports);

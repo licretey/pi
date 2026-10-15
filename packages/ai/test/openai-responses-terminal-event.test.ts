@@ -225,7 +225,7 @@ async function* createUnfinishedToolCallEvents(): AsyncIterable<ResponseStreamEv
 	} as ResponseStreamEvent;
 }
 
-// llama.cpp omits output_index from every event and sends both done events after all deltas.
+// llama.cpp 的所有事件都不包含 output_index，并会在所有增量事件之后发送两个完成事件。
 async function* createToolCallsWithoutOutputIndexEvents(): AsyncIterable<ResponseStreamEvent> {
 	const call = (n: string) => ({ type: "function_call", id: `fc_${n}`, call_id: `call_${n}`, name: "bash" });
 	const events = [

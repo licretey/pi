@@ -1,5 +1,5 @@
-// Reload extension code through the registry.
-// Run from packages/durable:
+// 通过注册表重新加载扩展代码。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/10-registry-reload.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { Type } from "@earendil-works/pi-ai";
@@ -24,15 +24,13 @@ const harness = await Harness.open(new MemoryStorage(), { models: createModels()
 const root = await harness.root(context);
 const tools = async () => (await root.agent(context)).tools.map((tool) => `${tool.name}: ${tool.description}`);
 
-// Reloading is installing a new object with the same name: it replaces the old
-// one in place, in one publication, so no conversation ever sees it missing.
-// A task phase that already started keeps the snapshot it took; the next phase
-// uses the new code.
+// 重新加载时安装一个同名的新对象：它会在一次发布中原位替换旧对象，因此对话不会观察到扩展缺失。
+// 已经开始的任务阶段会继续使用其获取的快照；下一阶段
+// 则使用新代码。
 registry.install(defineExtension({ name: "files", tools: [read, exampleTool("grep", "Search files, faster")] }));
 console.log("after reload:", await tools());
 
-// Another extension may wrap a tool by name. The wrap applies where the
-// wrapping extension is selected, and survives reloads of the wrapped tool.
+// 其他扩展可以按名称包装工具。只有选用了包装扩展的地方才会应用包装；即使被包装工具重新加载，包装仍然有效。
 const Audit = defineExtension({
 	name: "audit",
 	wraps: [wrapTool(read, (tool) => ({ ...tool, description: `${tool.description} (audited)` }))],
@@ -40,8 +38,7 @@ const Audit = defineExtension({
 registry.install(Audit);
 console.log("with audit:", await tools());
 
-// Uninstall removes an extension by name; conversations that select it stop
-// getting its code.
+// 卸载操作会按名称移除扩展；选择该扩展的对话将不再获得它提供的代码。
 registry.uninstall(Audit);
 console.log("after uninstall:", await tools());
 

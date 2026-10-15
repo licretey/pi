@@ -32,36 +32,36 @@ import { RemoteWatcher, type RemoteWatchOptions } from "./watch.ts";
 
 const MAX_TIMEOUT_MS = 2_147_483_647;
 const MAX_TIMEOUT_SECONDS = MAX_TIMEOUT_MS / 1000;
-/** Bytes per `pread` request of a binary reader; several are in flight at once. */
+/** 二进制读取器每次 `pread` 请求读取的字节数；多个请求可并行进行。 */
 const READ_CHUNK = 256 * 1024;
 const READ_DEPTH = 8;
-/** Node's `writeFile` writes at most this much per call and checks for an abort before each. */
+/** Node 的 `writeFile` 每次调用最多写入这么多字节，并在每次写入前检查是否已中止。 */
 const WRITE_CHUNK = 512 * 1024;
 const WRITE_DEPTH = 8;
-/** Node's `readFile`: chunk of known-size reads, chunk of unknown-size reads, and the largest file it reads. */
+/** Node 的 `readFile` 参数：已知大小读取的分块大小、未知大小读取的分块大小，以及可读取的最大文件大小。 */
 const READ_FILE_CHUNK = 512 * 1024;
 const READ_FILE_UNKNOWN_CHUNK = 64 * 1024;
 const READ_FILE_MAX = 2 ** 31 - 1;
-/** `NodeTextLineReader`'s read size. */
+/** `NodeTextLineReader` 每次读取的字节数。 */
 const LINE_CHUNK = 64 * 1024;
 
 export interface RemoteExecutionEnvOptions {
 	connection: Connection;
-	/** The file namespace: equal ids see the same files (`FileSystem.id`), e.g. `pi-env:<env name>`. */
+	/** 文件命名空间：相同 ID 可访问相同文件（`FileSystem.id`），例如 `pi-env:<env name>`。 */
 	id: string;
 	cwd: string;
 	shellPath?: string;
-	/** Added to the remote environment of every command that inherits it, like `NodeExecutionEnv`'s `shellEnv`. */
+	/** 添加到每个继承该环境的远程命令中，例如 `NodeExecutionEnv` 的 `shellEnv`。 */
 	shellEnv?: Record<string, string>;
-	/** How the daemon watches, like `NodeExecutionEnv`'s `watch` option. */
+	/** 守护进程的文件监视方式，例如 `NodeExecutionEnv` 的 `watch` 选项。 */
 	watch?: RemoteWatchOptions;
 }
 
-/** An info record from the daemon. */
+/** 守护进程返回的信息记录。 */
 type RemoteFileInfo = { name: string; kind: FileKind | "other"; size: number; mtimeSec: number; mtimeNsec: number };
 type RemoteDirEntry = { name: string; raw?: number[]; info?: RemoteFileInfo; error?: Json };
 
-/** Node's path rules of the remote system. */
+/** 远程系统使用的 Node 路径规则。 */
 export async function remotePath(connection: Connection): Promise<PlatformPath> {
 	return (await connection.info()).os === "windows" ? win32 : posix;
 }
@@ -89,9 +89,9 @@ function concat(chunks: readonly Uint8Array[], total: number): Uint8Array {
 }
 
 /**
- * Read `length` bytes from `offset` as consecutive reads of at most `chunk` bytes, several in flight. Ends early at
- * the end of the file. A short read continues from where it ended, as sequential reads would. `aborted` is checked
- * after each read; `undefined` means aborted.
+ * 从 `offset` 开始读取 `length` 字节，每次最多读取 `chunk` 字节，并允许多个读取同时进行。到达文件末尾时提前结束。
+ * 如果某次读取返回的字节数较少，则从该位置继续读取，与顺序读取的行为一致。每次读取后都会检查 `aborted`；
+ * 返回 `undefined` 表示操作已中止。
  */
 async function readRange(
 	read: (offset: number, length: number) => Promise<Uint8Array>,
@@ -119,7 +119,7 @@ async function readRange(
 		chunks.push(bytes);
 		total += bytes.length;
 		if (bytes.length < head.length) {
-			// Reads already in flight assumed a full read; continue right after this one.
+			// 已在进行中的读取按完整读取处理；从本次读取结束的位置继续。
 			inFlight.length = 0;
 			next = offset + total;
 		}
@@ -127,7 +127,7 @@ async function readRange(
 	return { chunks, total };
 }
 
-/** A daemon handle: valid only in the session that opened it. */
+/** 守护进程句柄：仅在打开它的会话中有效。 */
 class Handle {
 	readonly env: RemoteExecutionEnv;
 	readonly id: number;
@@ -258,7 +258,7 @@ class RemoteDirReader implements DirReader {
 		const entries: FileInfo[] = [];
 		try {
 			const paths = await remotePath(this.#handle.env.connection);
-			// Like `NodeDirReader`, count only entries that are part of the listing.
+			// 与 `NodeDirReader` 一样，只统计属于当前目录列表的条目。
 			while (!this.#done && entries.length < maxEntries) {
 				const { json } = await this.#handle.request("readdir", { max: maxEntries - entries.length });
 				const loopAbort = abortResult<{ entries: FileInfo[]; done: boolean }>(context.abortSignal, path);
@@ -266,7 +266,7 @@ class RemoteDirReader implements DirReader {
 				for (const entry of json.entries as RemoteDirEntry[]) {
 					const entryPath = paths.resolve(path, entry.name);
 					if (entry.error !== undefined) {
-						// Removed between enumeration and lstat: not part of the listing any more.
+						// 条目在枚举后、执行 lstat 前已被删除，因此不再属于当前列表。
 						if (entry.error.code === "ENOENT") continue;
 						return err(toFileError(new RemoteError(entry.error), entryPath));
 					}
@@ -288,7 +288,7 @@ class RemoteDirReader implements DirReader {
 	}
 }
 
-/** `NodeTextLineReader`: positional reads of a file opened like `open(path, "r")`. */
+/** `NodeTextLineReader`：对以 `open(path, "r")` 方式打开的文件执行定位读取。 */
 class RemoteTextLineReader implements TextLineReader {
 	readonly #handle: Handle;
 	readonly #decoder = new StreamDecoder();
@@ -345,8 +345,8 @@ class RemoteTextLineReader implements TextLineReader {
 }
 
 /**
- * An `ExecutionEnv` on another machine, reached through a pi-env daemon. Results match `NodeExecutionEnv` running on
- * that machine: the daemon performs the system calls, and this class applies Node's path, error, and result rules.
+ * 通过 pi-env 守护进程访问另一台机器上的 `ExecutionEnv`。结果与在该机器上运行 `NodeExecutionEnv` 相同：
+ * 守护进程负责执行系统调用，本类负责遵循 Node 的路径、错误和结果处理规则。
  */
 export class RemoteExecutionEnv implements ExecutionEnv {
 	readonly id: string;
@@ -355,7 +355,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 	readonly #shellPath: string | undefined;
 	readonly #shellEnv: Record<string, string> | undefined;
 	readonly #watchOptions: RemoteWatchOptions;
-	/** Running commands this environment started, for `cleanup()`. */
+	/** 此环境启动且仍在运行的命令，供 `cleanup()` 清理。 */
 	readonly #running = new Map<number, number>();
 
 	constructor(options: RemoteExecutionEnvOptions) {
@@ -367,7 +367,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 		this.#watchOptions = options.watch ?? {};
 	}
 
-	/** Node's `resolvePath` on the remote system, with its home directory and working directories. */
+	/** 在远程系统上按 Node 规则解析路径，并使用其主目录和各驱动器工作目录。 */
 	async #resolve(path: string): Promise<string> {
 		const info = await this.connection.info();
 		const windows = info.os === "windows";
@@ -381,13 +381,13 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 			try {
 				normalized = fileURLToPath(normalized, { windows });
 			} catch {
-				// Keep malformed URLs as ordinary paths, as Node does.
+				// 与 Node 一致，将格式错误的 URL 作为普通路径处理。
 			}
 		}
 		if (paths.isAbsolute(normalized)) return paths.resolve(normalized);
 		if (windows) {
-			// A drive-relative path on another drive: Node on Windows resolves it against that drive's working directory
-			// (`=D:`), else its own working directory if on that drive, else the drive's root.
+			// 相对路径指定了另一个驱动器：Windows 上的 Node 会根据该驱动器的工作目录解析路径。
+			// 先使用对应驱动器的工作目录（例如 `=D:`）；若该驱动器没有记录，则使用当前工作目录；否则回退到驱动器根目录。
 			const drive = /^([a-zA-Z]:)(?![\\/])/.exec(normalized)?.[1];
 			if (drive !== undefined && drive.toLowerCase() !== this.cwd.slice(0, 2).toLowerCase()) {
 				let base = info.driveCwds[drive.toUpperCase()] ?? info.cwd;
@@ -445,7 +445,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 		}
 	}
 
-	/** Node's `readFile`, with or without UTF-8 decoding, over a file opened like `open(path, "r")`. */
+	/** 对通过 `open(path, "r")` 打开的文件执行 Node 的 `readFile`，可选择是否按 UTF-8 解码。 */
 	async #readFile(path: string, encoding: boolean, context: Context): Promise<Result<Uint8Array | string, FileError>> {
 		const signal = context.abortSignal;
 		return this.#fileOp(path, context, async (resolved) => {
@@ -461,7 +461,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 					throw new FileError("unknown", `File size (${size}) is greater than 2 GiB`, resolved);
 				}
 				if (size === 0) {
-					// Unknown size: sequential reads until the end, as for FIFOs and devices.
+					// 大小未知：逐次读取直至结束，FIFO 和设备也采用此方式。
 					const decoder = new StringDecoder("utf8");
 					const chunks: Uint8Array[] = [];
 					let total = 0;
@@ -478,7 +478,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 					return total === 0 ? "" : text + decoder.end();
 				}
 				if (!encoding) {
-					// A single read of the whole size, or reads of 512 KiB until the size or the end of the file.
+					// 一次读取完整文件，或每次读取 512 KiB，直到达到文件大小或文件末尾。
 					if (size <= READ_FILE_CHUNK) return Buffer.from(await handle.pread(0, size));
 					const read = await readRange(
 						(at, length) => handle.pread(at, length),
@@ -490,7 +490,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 					if (read === undefined) throw abort();
 					return Buffer.concat(read.chunks, read.total);
 				}
-				// Decoding: reads of min(size, 512 KiB) until the size, a short read, or the end of the file.
+				// 解码读取：每次读取 min(size, 512 KiB)，直到达到文件大小、发生短读取或到达文件末尾。
 				const length = Math.min(size, READ_FILE_CHUNK);
 				const decoder = new StringDecoder("utf8");
 				let text = "";
@@ -581,8 +581,8 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 	}
 
 	/**
-	 * Node's `writeFile` (abort checked before each 512 KiB write) or `appendFile` (no checks, one after): the first
-	 * request creates parents, opens, and writes the first chunk; later chunks go to the same open file.
+	 * 模拟 Node 的 `writeFile`（每写入 512 KiB 前检查中止状态）或 `appendFile`（写入前不检查，完成后检查）：
+	 * 第一个请求会创建父目录、打开文件并写入首个数据块；后续数据块写入同一个已打开的文件。
 	 */
 	async #write(path: string, content: string | Uint8Array, append: boolean, context: Context) {
 		const bytes = typeof content === "string" ? Buffer.from(content, "utf8") : content;
@@ -600,7 +600,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 				try {
 					for (let offset = WRITE_CHUNK; offset < bytes.length; offset += WRITE_CHUNK) {
 						if (signal?.aborted) {
-							// A chunk that failed before this check fails the write, as it would have in sequence.
+							// 若某个数据块在此检查前失败，则整个写入失败，与顺序写入时的行为一致。
 							const failed = (await Promise.allSettled(inFlight)).find((result) => result.status === "rejected");
 							if (failed !== undefined) throw failed.reason;
 							throw new FileError("aborted", "The operation was aborted", resolved);
@@ -614,7 +614,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 						inFlight.push(written);
 						if (inFlight.length >= WRITE_DEPTH) await inFlight.shift();
 					}
-					// The first failure; later chunks are refused by the daemon, so the file has no gaps.
+					// 等待首个失败结果；守护进程会拒绝后续数据块，因此文件中不会出现缺口。
 					for (const written of inFlight) await written;
 				} finally {
 					await Promise.allSettled(inFlight);
@@ -698,8 +698,8 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 			} finally {
 				await handle.close();
 			}
-			// Node's `readdir` fails on any entry it cannot lstat. libuv sorts names by their bytes on POSIX; on Windows it
-			// keeps the file system's order, which the daemon reports.
+			// Node 的 `readdir` 遇到无法 lstat 的条目时会失败。POSIX 上的 libuv 按名称字节排序；Windows 上则保留
+			// 文件系统返回的顺序，守护进程会报告该顺序。
 			const paths = await remotePath(this.connection);
 			if (paths === posix) {
 				const key = (entry: RemoteDirEntry) => Buffer.from(entry.raw ?? Buffer.from(entry.name, "utf8"));
@@ -794,7 +794,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 		try {
 			const paths = await remotePath(this.connection);
 			filePath = paths.join(dir.value, `${options?.prefix ?? ""}${randomUUID()}${options?.suffix ?? ""}`);
-			// Node's `writeFile(filePath, "")`, which does not create parents.
+			// 模拟 Node 的 `writeFile(filePath, "")` 行为，不创建父目录。
 			await this.connection.request(
 				"write",
 				{ path: filePath, append: false, parents: false },
@@ -930,7 +930,7 @@ export class RemoteExecutionEnv implements ExecutionEnv {
 	}
 
 	async cleanup(_context: Context): Promise<void> {
-		// Kill without aborting, so the commands settle with their killed status, as `NodeExecutionEnv` does.
+		// 仅结束进程而不发送中止信号，使命令以被结束的状态完成，与 `NodeExecutionEnv` 的行为一致。
 		for (const [id, session] of this.#running) this.connection.kill(id, session);
 		this.#running.clear();
 	}

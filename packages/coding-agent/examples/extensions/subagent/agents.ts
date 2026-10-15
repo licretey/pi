@@ -1,5 +1,5 @@
 /**
- * Agent discovery and configuration
+ * 智能体发现与配置。
  */
 
 import * as fs from "node:fs";
@@ -24,12 +24,12 @@ export interface AgentDiscoveryResult {
 }
 
 /**
- * Raw agent frontmatter. Values are `unknown` because `parseFrontmatter` runs a
- * real YAML parser, so any scalar or collection can appear here.
+ * 智能体 frontmatter 原始数据。由于 `parseFrontmatter` 使用完整的 YAML 解析器，
+ * 此处的值可能是任意标量或集合，因此统一标记为 `unknown`。
  *
- * A type alias rather than an interface: `parseFrontmatter` constrains its
- * parameter to `Record<string, unknown>`, and only an alias picks up the
- * implicit index signature that satisfies it.
+ * 此处使用类型别名而非接口：`parseFrontmatter` 会将其约束为
+ * 的参数要求为 `Record<string, unknown>`；只有类型别名会获得满足该要求的
+ * 隐式索引签名。
  */
 type AgentFrontmatter = {
 	name?: unknown;
@@ -39,16 +39,16 @@ type AgentFrontmatter = {
 };
 
 /**
- * Normalize a frontmatter `tools` value to a list of tool names.
+ * 将 frontmatter 中的 `tools` 值规范化为工具名称列表。
  *
- * Both spellings are valid YAML and both are in use:
+ * 以下两种写法在 YAML 中都有效，且都有人使用：
  *
  *     tools: read, bash        # string
  *     tools: [read, bash]      # array
  *
- * so accept either. Anything else (a number, a map, a nested list) yields no
- * tools rather than throwing: this runs inside agent discovery, where a single
- * bad file must not take down every other agent in the same directory.
+ * 因此两种写法都接受。其他格式（数字、映射或嵌套列表）会被视为未指定工具，
+ * 而不会抛出异常：此解析发生在智能体发现过程中，单个错误文件不应影响
+ * 同一目录中的其他智能体。
  */
 function parseToolList(value: unknown): string[] | undefined {
 	const raw = Array.isArray(value) ? value : typeof value === "string" ? value.split(",") : [];

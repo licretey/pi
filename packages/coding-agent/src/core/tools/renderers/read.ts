@@ -1,9 +1,8 @@
 /**
- * Presentation for the read tool.
+ * read 工具的展示逻辑。
  *
- * Renderers live apart from the implementation so a process that only displays tool output does not
- * load the execution path or its typebox parameter schema. `read.ts` spreads these into its
- * definition, so the tool's public shape is unchanged.
+ * 将渲染器与工具实现分开，避免只负责显示工具输出的进程加载执行逻辑或 TypeBox 参数 schema。
+ * `read.ts` 会将这些渲染器合并到工具定义中，因此工具的公开结构保持不变。
  */
 
 import { basename, dirname, isAbsolute, relative, resolve as resolvePath, sep } from "node:path";
@@ -26,7 +25,7 @@ interface CompactReadClassification {
 const COMPACT_RESOURCE_FILE_NAMES = new Set(["AGENTS.override.md", "AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"]);
 type ReadRenderArgs = { path?: string; file_path?: string; offset?: number; limit?: number };
 function formatReadLineRange(args: ReadRenderArgs | undefined, theme: Theme): string {
-	// Strict tool schemas make models send null for omitted optional fields.
+	// 严格工具模式会让模型为省略的可选字段发送 null。
 	if (args?.offset == null && args?.limit == null) return "";
 	const startLine = args.offset ?? 1;
 	const endLine = args.limit != null ? startLine + args.limit - 1 : "";

@@ -22,8 +22,8 @@ export interface OpenRouterModelListItem {
 }
 
 /**
- * A conditional price. `min_prompt_tokens` selects prompt-length pricing; `utc_*` fields select
- * time-of-day or weekday pricing. Missing rates keep the base price.
+ * 条件价格。`min_prompt_tokens` 用于指定按提示词长度区分的价格；`utc_*` 字段用于指定按时段或星期区分的价格。
+ * 未提供的费率沿用基础价格。
  */
 export interface OpenRouterPricingOverride {
 	min_prompt_tokens?: number;
@@ -52,7 +52,7 @@ function modalities(values: string[] | undefined): ("text" | "image")[] {
 	);
 }
 
-// Convert pricing from $/token to $/million tokens
+// 将单令牌价格换算为每百万令牌的价格。
 function perMillion(value: string | undefined, fallback: number): number {
 	return value ? roundCost(parseFloat(value) * 1_000_000) : fallback;
 }
@@ -65,8 +65,8 @@ function cost(model: OpenRouterModelListItem): ModelCost {
 		cacheRead: perMillion(pricing?.input_cache_read, 0),
 		cacheWrite: perMillion(pricing?.input_cache_write, 0),
 	};
-	// Prompt-length overrides become request-wide tiers. Time-of-day overrides are skipped
-	// because ModelCost cannot express them.
+	// 按提示词长度设置的覆盖价格会转换为适用于整个请求的分级价格。
+	// 按时段设置的覆盖价格会被跳过，因为 ModelCost 无法表示这类价格。
 	const tiers = (pricing?.overrides ?? []).flatMap((override): ModelCostTier[] => {
 		if (
 			override.min_prompt_tokens === undefined ||
@@ -90,11 +90,9 @@ function cost(model: OpenRouterModelListItem): ModelCost {
 }
 
 /**
- * Build the OpenRouter catalog from the default listing and the
- * `output_modalities=image` and `output_modalities=decisions` listings. The
- * default listing omits image-only and decision models, so those come from
- * the other listings. An upstream model may appear in several results; it then
- * gets separate entries per operation.
+ * 根据默认模型列表以及 `output_modalities=image` 和 `output_modalities=decisions` 模型列表构建 OpenRouter 目录。
+ * 默认列表不包含仅支持图像输出或决策操作的模型，因此需要从其他列表补充。
+ * 同一个上游模型可能出现在多个列表中，此时会按操作类型分别创建条目。
  */
 export function buildOpenRouterCatalog(
 	listed: readonly OpenRouterModelListItem[],
@@ -104,9 +102,9 @@ export function buildOpenRouterCatalog(
 	const chat: OpenRouterCatalog["chat"] = [];
 
 	for (const model of listed) {
-		// Only include models that support tools
+		// 仅纳入支持工具调用的模型。
 		if (!model.supported_parameters?.includes("tools")) continue;
-		// Parse input modalities
+		// 解析输入模态。
 		const input: ("text" | "image")[] = ["text"];
 		if (model.architecture?.modality?.includes("image")) {
 			input.push("image");
@@ -149,8 +147,7 @@ export function buildOpenRouterCatalog(
 		});
 	}
 
-	// Decision models such as TypeSafe's Jev are served through OpenRouter's
-	// TypeSafe-compatible System One endpoint.
+	// TypeSafe 的 Jev 等决策模型通过 OpenRouter 提供的 TypeSafe 兼容 System One 端点访问。
 	const classifiers: OpenRouterCatalog["classifiers"] = [];
 	for (const model of decisionListed) {
 		if (classifiers.some((entry) => entry.id === model.id)) continue;

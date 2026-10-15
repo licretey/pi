@@ -134,7 +134,7 @@ describe("model discriminants", () => {
 		expect(isModelType(chat, "image")).toBe(false);
 		expect(isModelType(image, "image")).toBe(true);
 
-		// hasApi never matches an image model, even on an equal api string
+		// 即使 api 字符串相同，hasApi 也不会将图像模型判定为匹配。
 		expect(hasApi({ ...image, api: "test-chat" }, "test-chat")).toBe(false);
 		expect(hasApi(chat, "test-chat")).toBe(true);
 	});
@@ -267,7 +267,7 @@ describe("Models with image models", () => {
 		expect(ghost.stopReason).toBe("error");
 		expect(ghost.errorMessage).toContain("Unknown provider: ghost");
 
-		// Unconfigured auth is an error, matching stream().
+		// 未配置身份验证时应报错，与 stream() 的行为一致。
 		const calls: GenerateCall[] = [];
 		models.setProvider(testProvider({ id: "p1", envVar: "MISSING", calls }));
 		const model = models.getModelOfType("image", "p1", "model-a")!;
@@ -283,7 +283,7 @@ describe("Models with image models", () => {
 		expect(cancelled.stopReason).toBe("aborted");
 		expect(calls).toEqual([]);
 
-		// A provider without any images implementation rejects image models it lists.
+		// 提供方未实现任何图像功能时，应拒绝其列出的图像模型。
 		models.setProvider(
 			createProvider({
 				id: "chat-only",
@@ -299,7 +299,7 @@ describe("Models with image models", () => {
 		expect(unsupported.stopReason).toBe("error");
 		expect(unsupported.errorMessage).toContain("does not support image generation");
 
-		// An images map without the model's api yields a provider error result.
+		// 图像映射中缺少模型对应的 API 时，应返回提供方错误结果。
 		models.setProvider(
 			testProvider({ id: "wrong-api", models: [imageModel("wrong-api", "i")], images: { "other-images": true } }),
 		);
@@ -396,13 +396,13 @@ describe("Models with image models", () => {
 		expect(images.every((m) => m.type === "image" && m.api === "openrouter-images")).toBe(true);
 		expect(models.getModelsOfType("image").every((m) => m.provider === "openrouter")).toBe(true);
 
-		// One upstream id can expose separate chat and image operations.
+		// 一个上游 ID 可以分别提供聊天和图像操作。
 		const chat = models.getModel("openrouter", "google/gemini-3-pro-image");
 		const image = models.getModelOfType("image", "openrouter", "google/gemini-3-pro-image");
 		expect(chat?.api).toBe("openai-completions");
 		expect(image?.api).toBe("openrouter-images");
 
-		// One credential covers both.
+		// 一个凭据可同时用于两种操作。
 		expect((await models.getAuth(images[0]))?.auth.apiKey).toBe("or-key");
 		expect((await models.getAuth(chat!))?.auth.apiKey).toBe("or-key");
 		expect(provider.generateImages).toBeDefined();

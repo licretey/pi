@@ -35,12 +35,12 @@ interface DefaultModelReference {
 type ModelScope = "all" | "scoped";
 
 /**
- * Component that renders a model selector with search
+ * 显示可搜索模型选择器的组件。
  */
 export class ModelSelectorComponent extends Container implements Focusable {
 	private searchInput: Input;
 
-	// Focusable implementation - propagate to searchInput for IME cursor positioning
+	// Focusable 接口实现：将焦点状态传递给搜索框，以正确定位输入法光标。
 	private _focused = false;
 	get focused(): boolean {
 		return this._focused;
@@ -96,11 +96,11 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		this.onSelectAsDefaultCallback = onSelectAsDefault;
 		this.onCancelCallback = onCancel;
 
-		// Add top border
+		// 添加顶部边框。
 		this.addChild(new DynamicBorder());
 		this.addChild(new Spacer(1));
 
-		// Add hint about model filtering
+		// 添加模型筛选提示。
 		if (scopedModels.length > 0) {
 			this.scopeText = new Text(this.getScopeText(), 0, 0);
 			this.addChild(this.scopeText);
@@ -112,13 +112,13 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		}
 		this.addChild(new Spacer(1));
 
-		// Create search input
+		// 创建搜索输入框。
 		this.searchInput = new Input();
 		if (initialSearchInput) {
 			this.searchInput.setValue(initialSearchInput);
 		}
 		this.searchInput.onSubmit = () => {
-			// Enter on search input selects the first filtered item
+			// 在搜索框中按 Enter 会选中第一个筛选结果。
 			if (this.filteredModels[this.selectedIndex]) {
 				this.handleSelect(this.filteredModels[this.selectedIndex].model);
 			}
@@ -127,13 +127,13 @@ export class ModelSelectorComponent extends Container implements Focusable {
 
 		this.addChild(new Spacer(1));
 
-		// Create list container
+		// 创建列表容器。
 		this.listContainer = new Container();
 		this.addChild(this.listContainer);
 
 		this.addChild(new Spacer(1));
 
-		// Hint
+		// 操作提示。
 		if (this.onSelectAsDefaultCallback) {
 			this.addChild(
 				new Text(
@@ -147,10 +147,10 @@ export class ModelSelectorComponent extends Container implements Focusable {
 			);
 		}
 
-		// Add bottom border
+		// 添加底部边框。
 		this.addChild(new DynamicBorder());
 
-		// Render the current snapshot immediately, then refresh in the background.
+		// 立即渲染当前快照，然后在后台刷新。
 		this.loadModelsFromSnapshot();
 		if (initialSearchInput) this.filterModels(initialSearchInput);
 		else this.updateList();
@@ -230,7 +230,7 @@ export class ModelSelectorComponent extends Container implements Focusable {
 
 	private sortModels(models: ModelItem[]): ModelItem[] {
 		const sorted = [...models];
-		// Sort: current model first, default model second, then by provider.
+		// 排序顺序：当前模型优先，其次是默认模型，最后按提供商排序。
 		sorted.sort((a, b) => {
 			const aIsCurrent = modelsAreEqual(this.currentModel, a.model);
 			const bIsCurrent = modelsAreEqual(this.currentModel, b.model);
@@ -295,9 +295,8 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		} else {
 			this.filteredModels = this.activeModels;
 		}
-		// When filtering by a query, move the selector to the top row so the best
-		// match is highlighted. When the query is cleared, keep the current position
-		// clamped to the (restored) list length.
+		// 使用查询筛选时，将选择器移至首行以突出最佳匹配。清空查询后，保留当前位置，
+		// 但将索引限制在恢复后的列表范围内。
 		this.selectedIndex = query ? 0 : Math.min(this.selectedIndex, Math.max(0, this.filteredModels.length - 1));
 		this.updateList();
 	}
@@ -312,7 +311,7 @@ export class ModelSelectorComponent extends Container implements Focusable {
 		);
 		const endIndex = Math.min(startIndex + maxVisible, this.filteredModels.length);
 
-		// Show visible slice of filtered models
+		// 显示筛选模型中的可见部分。
 		for (let i = startIndex; i < endIndex; i++) {
 			const item = this.filteredModels[i];
 			if (!item) continue;
@@ -331,15 +330,15 @@ export class ModelSelectorComponent extends Container implements Focusable {
 			this.listContainer.addChild(new Text(line, 0, 0));
 		}
 
-		// Add scroll indicator if needed
+		// 必要时添加滚动指示符。
 		if (startIndex > 0 || endIndex < this.filteredModels.length) {
 			const scrollInfo = theme.fg("muted", `  (${this.selectedIndex + 1}/${this.filteredModels.length})`);
 			this.listContainer.addChild(new Text(scrollInfo, 0, 0));
 		}
 
-		// Show error message or "no results" if empty
+		// 列表为空时显示错误消息或“无结果”提示。
 		if (this.errorMessage) {
-			// Show error in red
+			// 以红色显示错误。
 			const errorLines = this.errorMessage.split("\n");
 			for (const line of errorLines) {
 				this.listContainer.addChild(new Text(theme.fg("error", line), 0, 0));
@@ -371,31 +370,31 @@ export class ModelSelectorComponent extends Container implements Focusable {
 			}
 			return;
 		}
-		// Up arrow - wrap to bottom when at top
+		// 按向上键：位于顶部时循环到列表底部。
 		if (kb.matches(keyData, "tui.select.up")) {
 			if (this.filteredModels.length === 0) return;
 			this.selectedIndex = this.selectedIndex === 0 ? this.filteredModels.length - 1 : this.selectedIndex - 1;
 			this.updateList();
 		}
-		// Down arrow - wrap to top when at bottom
+		// 按向下键：位于底部时循环到列表顶部。
 		else if (kb.matches(keyData, "tui.select.down")) {
 			if (this.filteredModels.length === 0) return;
 			this.selectedIndex = this.selectedIndex === this.filteredModels.length - 1 ? 0 : this.selectedIndex + 1;
 			this.updateList();
 		}
-		// Enter
+		// 回车键。
 		else if (kb.matches(keyData, "tui.select.confirm")) {
 			const selectedModel = this.filteredModels[this.selectedIndex];
 			if (selectedModel) {
 				this.handleSelect(selectedModel.model);
 			}
 		}
-		// Escape or Ctrl+C
+		// Escape 或 Ctrl+C。
 		else if (kb.matches(keyData, "tui.select.cancel")) {
 			this.dispose();
 			this.onCancelCallback();
 		}
-		// Select and save as default
+		// 选中模型并将其保存为默认模型。
 		else if (kb.matches(keyData, "app.models.save") && this.onSelectAsDefaultCallback) {
 			const selectedModel = this.filteredModels[this.selectedIndex];
 			if (selectedModel) {
@@ -403,7 +402,7 @@ export class ModelSelectorComponent extends Container implements Focusable {
 				this.onSelectAsDefaultCallback(selectedModel.model);
 			}
 		}
-		// Pass everything else to search input
+		// 其他输入交由搜索框处理。
 		else {
 			this.searchInput.handleInput(keyData);
 			this.filterModels(this.searchInput.getValue());

@@ -38,7 +38,7 @@ type OpenRouterImageGenerationResponse = ChatCompletion & {
 	choices: OpenRouterImageGenerationChoice[];
 };
 
-/** Image generation over OpenRouter's chat completions endpoint. */
+/** 通过 OpenRouter 的聊天补全端点生成图像。 */
 export const generateImages: ImagesFunction<ImagesOptions> = async (
 	model: ImageModel<ImageApi>,
 	context: ImagesContext,

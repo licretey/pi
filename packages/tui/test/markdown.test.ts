@@ -9,7 +9,7 @@ import { TuiMainScreen } from "../src/tui-main-screen.ts";
 import { defaultMarkdownTheme } from "./test-themes.ts";
 import { VirtualTerminal } from "./virtual-terminal.ts";
 
-// Force full color in CI so ANSI assertions are deterministic
+// 在 CI 中强制启用完整颜色，以确保 ANSI 断言结果稳定。
 const chalk = new Chalk({ level: 3 });
 
 function getCell(terminal: VirtualTerminal, row: number, col: number) {
@@ -79,13 +79,13 @@ describe("Markdown component", () => {
 
 			const lines = markdown.render(80);
 
-			// Check that we have content
+			// 验证渲染结果包含内容。
 			assert.ok(lines.length > 0);
 
-			// Strip ANSI codes for checking
+			// 移除 ANSI 控制码后再进行检查。
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 
-			// Check structure
+			// 检查结构。
 			assert.ok(plainLines.some((line) => line.includes("- Item 1")));
 			assert.ok(plainLines.some((line) => line.includes("    - Nested 1.1")));
 			assert.ok(plainLines.some((line) => line.includes("    - Nested 1.2")));
@@ -106,7 +106,7 @@ describe("Markdown component", () => {
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 
-			// Check proper indentation
+			// 检查缩进是否正确。
 			assert.ok(plainLines.some((line) => line.includes("- Level 1")));
 			assert.ok(plainLines.some((line) => line.includes("    - Level 2")));
 			assert.ok(plainLines.some((line) => line.includes("        - Level 3")));
@@ -229,19 +229,19 @@ describe("Markdown component", () => {
 		});
 
 		it("should maintain numbering when code blocks are not indented (LLM output)", () => {
-			// When code blocks aren't indented, marked parses each item as a separate list.
-			// We use token.start to preserve the original numbering.
+			// 代码块未缩进时，marked 会将每个条目解析为单独的列表。
+			// 这里使用 token.start 保留原始编号。
 			const markdown = new Markdown(
 				`1. First item
 
 \`\`\`typescript
-// code block
+// 代码块。
 \`\`\`
 
 2. Second item
 
 \`\`\`typescript
-// another code block
+// 另一个代码块。
 \`\`\`
 
 3. Third item`,
@@ -253,13 +253,13 @@ describe("Markdown component", () => {
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trim());
 
-			// Find all lines that start with a number and period
+			// 找出所有以数字和句点开头的行。
 			const numberedLines = plainLines.filter((line) => /^\d+\./.test(line));
 
-			// Should have 3 numbered items
+			// 应有 3 个编号条目。
 			assert.strictEqual(numberedLines.length, 3, `Expected 3 numbered items, got: ${numberedLines.join(", ")}`);
 
-			// Check the actual numbers
+			// 检查实际编号。
 			assert.ok(numberedLines[0].startsWith("1."), `First item should be "1.", got: ${numberedLines[0]}`);
 			assert.ok(numberedLines[1].startsWith("2."), `Second item should be "2.", got: ${numberedLines[1]}`);
 			assert.ok(numberedLines[2].startsWith("3."), `Third item should be "3.", got: ${numberedLines[2]}`);
@@ -342,12 +342,12 @@ describe("Markdown component", () => {
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 
-			// Check table structure
+			// 检查表格结构。
 			assert.ok(plainLines.some((line) => line.includes("Name")));
 			assert.ok(plainLines.some((line) => line.includes("Age")));
 			assert.ok(plainLines.some((line) => line.includes("Alice")));
 			assert.ok(plainLines.some((line) => line.includes("Bob")));
-			// Check for table borders
+			// 检查表格边框。
 			assert.ok(plainLines.some((line) => line.includes("│")));
 			assert.ok(plainLines.some((line) => line.includes("─")));
 		});
@@ -412,11 +412,11 @@ describe("Markdown component", () => {
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 
-			// Check headers
+			// 检查标题。
 			assert.ok(plainLines.some((line) => line.includes("Left")));
 			assert.ok(plainLines.some((line) => line.includes("Center")));
 			assert.ok(plainLines.some((line) => line.includes("Right")));
-			// Check content
+			// 检查内容。
 			assert.ok(plainLines.some((line) => line.includes("Long text")));
 		});
 
@@ -433,7 +433,7 @@ describe("Markdown component", () => {
 
 			const lines = markdown.render(80);
 
-			// Should render without errors
+			// 渲染过程不应报错。
 			assert.ok(lines.length > 0);
 
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
@@ -452,16 +452,16 @@ describe("Markdown component", () => {
 				defaultMarkdownTheme,
 			);
 
-			// Render at narrow width that forces wrapping
+			// 以较窄宽度渲染，强制触发换行。
 			const lines = markdown.render(50);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// All lines should fit within width
+			// 所有行都应适配指定宽度。
 			for (const line of plainLines) {
 				assert.ok(line.length <= 50, `Line exceeds width 50: "${line}" (length: ${line.length})`);
 			}
 
-			// Content should still be present (possibly wrapped across lines)
+			// 内容仍应完整存在（可能分布在多行中）。
 			const allText = plainLines.join(" ");
 			assert.ok(allText.includes("Command"), "Should contain 'Command'");
 			assert.ok(allText.includes("Description"), "Should contain 'Description'");
@@ -524,7 +524,7 @@ describe("Markdown component", () => {
 			const quoteColor = 0x123456;
 			const theme: MarkdownTheme = {
 				...defaultMarkdownTheme,
-				// Use a basic wrapper that does not automatically reopen itself after nested resets.
+				// 使用基础包装器，避免嵌套重置后自动重新打开自身。
 				quote: (text) => `\x1b[38;2;18;52;86m${text}\x1b[39m`,
 				link: (text) => `\x1b[38;2;129;162;190m${text}\x1b[39m`,
 			};
@@ -578,15 +578,15 @@ describe("Markdown component", () => {
 				defaultMarkdownTheme,
 			);
 
-			// Render at width that forces the cell to wrap
+			// 以会使单元格换行的宽度进行渲染。
 			const lines = markdown.render(25);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// Should have multiple data rows due to wrapping
+			// 换行后应产生多行数据。
 			const dataRows = plainLines.filter((line) => line.startsWith("│") && !line.includes("─"));
 			assert.ok(dataRows.length > 2, `Expected wrapped rows, got ${dataRows.length} rows`);
 
-			// All content should be preserved (may be split across lines)
+			// 所有内容都应保留（可能分布在多行中）。
 			const allText = plainLines.join(" ");
 			assert.ok(allText.includes("very long"), "Should preserve 'very long'");
 			assert.ok(allText.includes("cell content"), "Should preserve 'cell content'");
@@ -594,7 +594,7 @@ describe("Markdown component", () => {
 		});
 
 		it("should wrap long unbroken tokens inside table cells (not only at line start)", () => {
-			// Pin to no-hyperlinks so width checks work on plain text without OSC 8 sequences.
+			// 禁用超链接，以便在不含 OSC 8 序列的纯文本上检查宽度。
 			setCapabilities({ images: null, trueColor: false, hyperlinks: false });
 			const url = "https://example.com/this/is/a/very/long/url/that/should/wrap";
 			const markdown = new Markdown(
@@ -615,7 +615,7 @@ describe("Markdown component", () => {
 				assert.ok(line.length <= width, `Line exceeds width ${width}: "${line}" (length: ${line.length})`);
 			}
 
-			// Borders should stay intact (exactly 2 vertical borders for a 1-col table)
+			// 边框应保持完整（单列网格恰好包含 2 条竖直边框）。
 			const tableLines = plainLines.filter((line) => line.startsWith("│"));
 			assert.ok(tableLines.length > 0, "Expected table rows to render");
 			for (const line of tableLines) {
@@ -623,8 +623,7 @@ describe("Markdown component", () => {
 				assert.strictEqual(borderCount, 2, `Expected 2 borders, got ${borderCount}: "${line}"`);
 			}
 
-			// Strip box drawing characters + whitespace so we can assert the URL is preserved
-			// even if it was split across multiple wrapped lines.
+			// 移除框线字符和空白，以便验证 URL 即使被换行拆分也仍然完整。
 			const extracted = plainLines.join("").replace(/[│├┤─\s]/g, "");
 			assert.ok(extracted.includes("prefix"), "Should preserve 'prefix'");
 			assert.ok(extracted.includes(url), "Should preserve URL");
@@ -667,14 +666,14 @@ describe("Markdown component", () => {
 				defaultMarkdownTheme,
 			);
 
-			// Very narrow width
+			// 使用非常窄的宽度。
 			const lines = markdown.render(15);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// Should not crash and should produce output
+			// 不应崩溃，并且应生成输出。
 			assert.ok(lines.length > 0, "Should produce output");
 
-			// Lines should not exceed width
+			// 行宽不应超过指定宽度。
 			for (const line of plainLines) {
 				assert.ok(line.length <= 15, `Line exceeds width 15: "${line}" (length: ${line.length})`);
 			}
@@ -690,11 +689,11 @@ describe("Markdown component", () => {
 				defaultMarkdownTheme,
 			);
 
-			// Wide width where table fits naturally
+			// 使用足够宽的宽度，使表格可以自然显示。
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// Should have proper table structure
+			// 表格结构应正确。
 			const headerLine = plainLines.find((line) => line.includes("A") && line.includes("B"));
 			assert.ok(headerLine, "Should have header row");
 			assert.ok(headerLine?.includes("│"), "Header should have borders");
@@ -716,16 +715,16 @@ describe("Markdown component", () => {
 				defaultMarkdownTheme,
 			);
 
-			// Width 40 with paddingX=2 means contentWidth=36
+			// 宽度为 40 且 paddingX=2 时，contentWidth 为 36。
 			const lines = markdown.render(40);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// All lines should respect width
+			// 所有行都应遵守宽度限制。
 			for (const line of plainLines) {
 				assert.ok(line.length <= 40, `Line exceeds width 40: "${line}" (length: ${line.length})`);
 			}
 
-			// Table rows should have left padding
+			// 表格行应有左侧填充。
 			const tableRow = plainLines.find((line) => line.includes("│"));
 			assert.ok(tableRow?.startsWith("  "), "Table should have left padding");
 		});
@@ -771,12 +770,12 @@ describe("Markdown component", () => {
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 
-			// Check heading
+			// 检查标题。
 			assert.ok(plainLines.some((line) => line.includes("Test Document")));
-			// Check list
+			// 检查列表。
 			assert.ok(plainLines.some((line) => line.includes("- Item 1")));
 			assert.ok(plainLines.some((line) => line.includes("    - Nested item")));
-			// Check table
+			// 检查表格。
 			assert.ok(plainLines.some((line) => line.includes("Col1")));
 			assert.ok(plainLines.some((line) => line.includes("│")));
 		});
@@ -1004,7 +1003,7 @@ Inline \(A_{sf}\)`,
 
 	describe("Pre-styled text (thinking traces)", () => {
 		it("should preserve gray italic styling after inline code", () => {
-			// This replicates how thinking content is rendered in assistant-message.ts
+			// 此处模拟 assistant-message.ts 中思考内容的渲染方式。
 			const markdown = new Markdown(
 				"This is thinking with `inline code` and more text after",
 				1,
@@ -1019,14 +1018,14 @@ Inline \(A_{sf}\)`,
 			const lines = markdown.render(80);
 			const joinedOutput = lines.join("\n");
 
-			// Should contain the inline code block
+			// 输出应包含行内代码块。
 			assert.ok(joinedOutput.includes("inline code"));
 
-			// The output should have ANSI codes for gray (90) and italic (3)
+			// 输出应包含灰色（90）和斜体（3）对应的 ANSI 控制码。
 			assert.ok(joinedOutput.includes("\x1b[90m"), "Should have gray color code");
 			assert.ok(joinedOutput.includes("\x1b[3m"), "Should have italic code");
 
-			// Verify that inline code is styled (theme uses yellow)
+			// 验证行内代码应用了样式（主题使用黄色）。
 			const hasCodeColor = joinedOutput.includes("\x1b[33m");
 			assert.ok(hasCodeColor, "Should style inline code");
 		});
@@ -1046,14 +1045,14 @@ Inline \(A_{sf}\)`,
 			const lines = markdown.render(80);
 			const joinedOutput = lines.join("\n");
 
-			// Should contain bold text
+			// 输出应包含粗体文本。
 			assert.ok(joinedOutput.includes("bold text"));
 
-			// The output should have ANSI codes for gray (90) and italic (3)
+			// 输出应包含灰色（90）和斜体（3）对应的 ANSI 控制码。
 			assert.ok(joinedOutput.includes("\x1b[90m"), "Should have gray color code");
 			assert.ok(joinedOutput.includes("\x1b[3m"), "Should have italic code");
 
-			// Should have bold codes (1 or 22 for bold on/off)
+			// 输出应包含粗体控制码（启用为 1，关闭为 22）。
 			assert.ok(joinedOutput.includes("\x1b[1m"), "Should have bold code");
 		});
 
@@ -1300,7 +1299,7 @@ again, hello world`,
 
 	describe("Blockquotes with multiline content", () => {
 		it("should apply consistent styling to all lines in lazy continuation blockquote", () => {
-			// Markdown "lazy continuation" - second line without > is still part of the quote
+			// Markdown 的“惰性延续”：第二行即使没有 >，仍属于引用块。
 			const markdown = new Markdown(
 				`>Foo
 bar`,
@@ -1308,28 +1307,28 @@ bar`,
 				0,
 				defaultMarkdownTheme,
 				{
-					color: (text) => chalk.magenta(text), // This should NOT be applied to blockquotes
+					color: (text) => chalk.magenta(text), // 此样式不应应用于引用块。
 				},
 			);
 
 			const lines = markdown.render(80);
 
-			// Both lines should have the quote border
+			// 两行都应显示引用边框。
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 			const quotedLines = plainLines.filter((line) => line.startsWith("│ "));
 			assert.strictEqual(quotedLines.length, 2, `Expected 2 quoted lines, got: ${JSON.stringify(plainLines)}`);
 
-			// Both lines should have italic (from theme.quote styling)
+			// 两行都应应用斜体样式（来自 theme.quote）。
 			const fooLine = lines.find((line) => line.includes("Foo"));
 			const barLine = lines.find((line) => line.includes("bar"));
 			assert.ok(fooLine, "Should have Foo line");
 			assert.ok(barLine, "Should have bar line");
 
-			// Check that both have italic (\x1b[3m) - blockquotes use theme styling, not default message color
+			// 检查两行是否均使用斜体（\x1b[3m）；引用块使用主题样式，而非默认消息颜色。
 			assert.ok(fooLine?.includes("\x1b[3m"), `Foo line should have italic: ${fooLine}`);
 			assert.ok(barLine?.includes("\x1b[3m"), `bar line should have italic: ${barLine}`);
 
-			// Blockquotes should NOT have the default message color (magenta)
+			// 引用块不应使用默认消息颜色（洋红色）。
 			assert.ok(!fooLine?.includes("\x1b[35m"), `Foo line should NOT have magenta color: ${fooLine}`);
 			assert.ok(!barLine?.includes("\x1b[35m"), `bar line should NOT have magenta color: ${barLine}`);
 		});
@@ -1342,24 +1341,24 @@ bar`,
 				0,
 				defaultMarkdownTheme,
 				{
-					color: (text) => chalk.cyan(text), // This should NOT be applied to blockquotes
+					color: (text) => chalk.cyan(text), // 此样式不应应用于引用块。
 				},
 			);
 
 			const lines = markdown.render(80);
 
-			// Both lines should have the quote border
+			// 两行都应显示引用边框。
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 			const quotedLines = plainLines.filter((line) => line.startsWith("│ "));
 			assert.strictEqual(quotedLines.length, 2, `Expected 2 quoted lines, got: ${JSON.stringify(plainLines)}`);
 
-			// Both lines should have italic (from theme.quote styling)
+			// 两行都应应用斜体样式（来自 theme.quote）。
 			const fooLine = lines.find((line) => line.includes("Foo"));
 			const barLine = lines.find((line) => line.includes("bar"));
 			assert.ok(fooLine?.includes("\x1b[3m"), `Foo line should have italic: ${fooLine}`);
 			assert.ok(barLine?.includes("\x1b[3m"), `bar line should have italic: ${barLine}`);
 
-			// Blockquotes should NOT have the default message color (cyan)
+			// 引用块不应使用默认消息颜色（青色）。
 			assert.ok(!fooLine?.includes("\x1b[36m"), `Foo line should NOT have cyan color: ${fooLine}`);
 			assert.ok(!barLine?.includes("\x1b[36m"), `bar line should NOT have cyan color: ${barLine}`);
 		});
@@ -1391,22 +1390,22 @@ bar`,
 			const longText = "This is a very long blockquote line that should wrap to multiple lines when rendered";
 			const markdown = new Markdown(`> ${longText}`, 0, 0, defaultMarkdownTheme);
 
-			// Render at narrow width to force wrapping
+			// 以较窄宽度渲染，强制触发换行。
 			const lines = markdown.render(30);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// Filter to non-empty lines (exclude trailing blank line after blockquote)
+			// 筛选非空行（排除引用块后的尾部空行）。
 			const contentLines = plainLines.filter((line) => line.length > 0);
 
-			// Should have multiple lines due to wrapping
+			// 换行后应有多行。
 			assert.ok(contentLines.length > 1, `Expected multiple wrapped lines, got: ${JSON.stringify(contentLines)}`);
 
-			// Every content line should start with the quote border
+			// 每行内容都应以引用边框开头。
 			for (const line of contentLines) {
 				assert.ok(line.startsWith("│ "), `Wrapped line should have quote border: "${line}"`);
 			}
 
-			// All content should be preserved
+			// 所有内容都应保留。
 			const allText = contentLines.join(" ");
 			assert.ok(allText.includes("very long"), "Should preserve 'very long'");
 			assert.ok(allText.includes("blockquote"), "Should preserve 'blockquote'");
@@ -1420,7 +1419,7 @@ bar`,
 				0,
 				defaultMarkdownTheme,
 				{
-					color: (text) => chalk.yellow(text), // This should NOT be applied to blockquotes
+					color: (text) => chalk.yellow(text), // 此样式不应应用于引用块。
 					italic: true,
 				},
 			);
@@ -1428,19 +1427,19 @@ bar`,
 			const lines = markdown.render(25);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, "").trimEnd());
 
-			// Filter to non-empty lines
+			// 筛选非空行。
 			const contentLines = plainLines.filter((line) => line.length > 0);
 
-			// All lines should have the quote border
+			// 所有行都应显示引用边框。
 			for (const line of contentLines) {
 				assert.ok(line.startsWith("│ "), `Line should have quote border: "${line}"`);
 			}
 
-			// Check that italic is applied (from theme.quote)
+			// 检查是否应用斜体样式（来自 theme.quote）。
 			const allOutput = lines.join("\n");
 			assert.ok(allOutput.includes("\x1b[3m"), "Should have italic");
 
-			// Blockquotes should NOT have the default message color (yellow)
+			// 引用块不应使用默认消息颜色（黄色）。
 			assert.ok(!allOutput.includes("\x1b[33m"), "Should NOT have yellow color from default style");
 		});
 
@@ -1450,13 +1449,13 @@ bar`,
 			const lines = markdown.render(80);
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 
-			// Should have the quote border
+			// 应显示引用边框。
 			assert.ok(
 				plainLines.some((line) => line.startsWith("│ ")),
 				"Should have quote border",
 			);
 
-			// Content should be preserved
+			// 内容应保留。
 			const allPlain = plainLines.join(" ");
 			assert.ok(allPlain.includes("Quote with"), "Should preserve 'Quote with'");
 			assert.ok(allPlain.includes("bold"), "Should preserve 'bold'");
@@ -1464,13 +1463,13 @@ bar`,
 
 			const allOutput = lines.join("\n");
 
-			// Should have bold styling (\x1b[1m)
+			// 应使用粗体样式（\x1b[1m）。
 			assert.ok(allOutput.includes("\x1b[1m"), "Should have bold styling");
 
-			// Should have code styling (yellow = \x1b[33m from defaultMarkdownTheme)
+			// 应使用代码样式（defaultMarkdownTheme 中黄色对应 \x1b[33m）。
 			assert.ok(allOutput.includes("\x1b[33m"), "Should have code styling (yellow)");
 
-			// Should have italic from quote styling (\x1b[3m)
+			// 应使用引用块的斜体样式（\x1b[3m）。
 			assert.ok(allOutput.includes("\x1b[3m"), "Should have italic from quote styling");
 		});
 	});
@@ -1482,18 +1481,17 @@ bar`,
 			const lines = markdown.render(80);
 			const joinedOutput = lines.join("\n");
 
-			// The heading theme is bold+cyan. After the yellow inline code, the heading
-			// styling (bold+cyan) must be restored so subsequent text is styled correctly.
-			// bold = \x1b[1m, cyan = \x1b[36m, yellow = \x1b[33m
+			// 标题主题为粗体加青色。黄色行内代码结束后，必须恢复标题样式，确保后续文本显示正确。
+			// 粗体 = \x1b[1m，青色 = \x1b[36m，黄色 = \x1b[33m。
 			assert.ok(joinedOutput.includes("\x1b[33m"), "Should have yellow for inline code");
 
-			// Find the position of "should not be optional" in the raw output.
-			// It must be preceded by heading style codes (bold+cyan), not appear unstyled.
+			// 在原始输出中查找 "should not be optional" 的位置。
+			// 该文本前必须有标题样式控制码（粗体加青色），不能以无样式状态出现。
 			const afterCodeIndex = joinedOutput.indexOf("should not be optional");
 			assert.ok(afterCodeIndex > 0, "Should contain text after inline code");
 
-			// Look at the ANSI codes between the code span end and "should not be optional".
-			// There should be bold (\x1b[1m) and cyan (\x1b[36m) re-applied.
+			// 检查代码片段结束与 "should not be optional" 之间的 ANSI 控制码。
+			// 其中应重新应用粗体（\x1b[1m）和青色（\x1b[36m）。
 			const precedingChunk = joinedOutput.slice(Math.max(0, afterCodeIndex - 40), afterCodeIndex);
 			assert.ok(
 				precedingChunk.includes("\x1b[1m"),
@@ -1515,7 +1513,7 @@ bar`,
 			assert.ok(afterCodeIndex > 0, "Should contain text after inline code");
 
 			const precedingChunk = joinedOutput.slice(Math.max(0, afterCodeIndex - 40), afterCodeIndex);
-			// H1 uses heading + bold + underline
+			// 一级标题使用标题样式、粗体和下划线。
 			assert.ok(precedingChunk.includes("\x1b[1m"), `Should re-apply bold for h1: ${precedingChunk}`);
 			assert.ok(precedingChunk.includes("\x1b[36m"), `Should re-apply cyan for h1: ${precedingChunk}`);
 			assert.ok(precedingChunk.includes("\x1b[4m"), `Should re-apply underline for h1: ${precedingChunk}`);
@@ -1591,7 +1589,7 @@ bar`,
 		});
 
 		it("should not duplicate URL for autolinked emails", () => {
-			// Hyperlinks capability does not affect the mailto: display check.
+			// 超链接能力不会影响 mailto: 显示检查。
 			setCapabilities({ images: null, trueColor: false, hyperlinks: false });
 			const markdown = new Markdown("Contact user@example.com for help", 0, 0, defaultMarkdownTheme);
 
@@ -1599,7 +1597,7 @@ bar`,
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 			const joinedPlain = plainLines.join(" ");
 
-			// Should contain the email once, not duplicated with mailto:
+			// 邮箱地址应只出现一次，不应与 mailto: 形式重复。
 			assert.ok(joinedPlain.includes("user@example.com"), "Should contain email");
 			assert.ok(!joinedPlain.includes("mailto:"), "Should not show mailto: prefix for autolinked emails");
 		});
@@ -1612,7 +1610,7 @@ bar`,
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 			const joinedPlain = plainLines.join(" ");
 
-			// URL should appear only once
+			// URL 应只出现一次。
 			const urlCount = (joinedPlain.match(/https:\/\/example\.com/g) || []).length;
 			assert.strictEqual(urlCount, 1, "URL should appear exactly once");
 		});
@@ -1648,14 +1646,14 @@ bar`,
 			const lines = markdown.render(80);
 			const joined = lines.join("");
 
-			// OSC 8 open: ESC ] 8 ; ; <url> ESC \
+			// OSC 8 开始序列：ESC ] 8 ; ; <url> ESC \
 			assert.ok(joined.includes("\x1b]8;;https://example.com\x1b\\"), "Should contain OSC 8 open sequence");
-			// OSC 8 close: ESC ] 8 ; ; ESC \
+			// OSC 8 结束序列：ESC ] 8 ; ; ESC \
 			assert.ok(joined.includes("\x1b]8;;\x1b\\"), "Should contain OSC 8 close sequence");
-			// Visible text is present
+			// 可见文本应存在。
 			const plainLines = lines.map((line) => line.replace(/\x1b[^a-zA-Z]*[a-zA-Z]|\x1b\].*?\x1b\\/g, ""));
 			assert.ok(plainLines.join("").includes("click here"), "Should contain link text");
-			// URL is NOT printed inline as plain text
+			// URL 不应以纯文本形式直接输出。
 			const rawPlain = lines.map((line) =>
 				line.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, "").replace(/\x1b\[[0-9;]*m/g, ""),
 			);
@@ -1684,7 +1682,7 @@ bar`,
 			const joined = lines.join("");
 
 			assert.ok(joined.includes("\x1b]8;;https://example.com\x1b\\"), "Should contain OSC 8 hyperlink");
-			// URL should not also appear as raw parenthetical text
+			// URL 不应同时以括号内的原始文本形式显示。
 			const rawPlain = lines.map((line) =>
 				line.replace(/\x1b\]8;;[^\x1b]*\x1b\\/g, "").replace(/\x1b\[[0-9;]*m/g, ""),
 			);
@@ -1694,8 +1692,8 @@ bar`,
 
 	describe("HTML-like tags in text", () => {
 		it("should render content with HTML-like tags as text", () => {
-			// When the model emits something like <thinking>content</thinking> in regular text,
-			// marked might treat it as HTML and hide the content
+			// 当模型在普通文本中输出类似 <thinking>content</thinking> 的内容时，
+			// marked 可能会将其当作 HTML 处理，导致内容被隐藏。
 			const markdown = new Markdown(
 				"This is text with <thinking>hidden content</thinking> that should be visible",
 				0,
@@ -1707,7 +1705,7 @@ bar`,
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 			const joinedPlain = plainLines.join(" ");
 
-			// The content inside the tags should be visible
+			// 标签内部的内容应可见。
 			assert.ok(
 				joinedPlain.includes("hidden content") || joinedPlain.includes("<thinking>"),
 				"Should render HTML-like tags or their content as text, not hide them",
@@ -1721,7 +1719,7 @@ bar`,
 			const plainLines = lines.map((line) => line.replace(/\x1b\[[0-9;]*m/g, ""));
 			const joinedPlain = plainLines.join("\n");
 
-			// HTML in code blocks should be visible
+			// 代码块中的 HTML 应可见。
 			assert.ok(
 				joinedPlain.includes("<div>") && joinedPlain.includes("</div>"),
 				"Should render HTML in code blocks",

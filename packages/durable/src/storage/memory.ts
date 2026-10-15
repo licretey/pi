@@ -209,7 +209,7 @@ const page = <T extends { readonly id: Id<string> }>(
 	return { items: clone(items), next: nextCursor(items.at(-1)!.id, order) };
 };
 
-/** Indexes of sorted `ids` in scan order, after the cursor's ID when there is one. */
+/** 按扫描顺序给出有序 `ids` 的索引；若游标带有 ID，则从其之后开始。 */
 function* scanIndexes(ids: readonly Id<string>[], start: ScanStart): Generator<number> {
 	if (start.order === "ascending") {
 		const first = start.after === undefined ? 0 : upperBound(ids, start.after);
@@ -220,19 +220,19 @@ function* scanIndexes(ids: readonly Id<string>[], start: ScanStart): Generator<n
 	}
 }
 
-/** A fully validated, detached state mutation whose application performs no fallible preparation. */
+/** 一个经过完整校验、已脱离（detached）的状态变更，其应用阶段不再执行任何可能失败的准备。 */
 export interface PreparedMemoryCommit {
 	readonly seq: Seq;
-	/** Deeply frozen detached writes for persistence. */
+	/** 深度冻结的脱离写入，用于持久化。 */
 	readonly writes: readonly StorageWrite[];
 	apply(): Seq;
 }
 
 /**
- * Detached in-memory reference implementation of `Storage`.
+ * `Storage` 的内存引用实现（与外部状态脱离）。
  *
- * Reads and retained writes are cloned intentionally to match the ownership boundary
- * of serialization-backed stores. This is backend conformance, not validation.
+ * 读取与保留的写入都会有意克隆，以对齐序列化存储的所有权边界。
+ * 这里做的是后端一致性，而非校验。
  */
 export class MemoryStorage implements Storage {
 	private readonly state: State = {
@@ -264,7 +264,7 @@ export class MemoryStorage implements Storage {
 		return this.prepareCommit(writes).apply();
 	}
 
-	/** Validate and detach one commit without changing observable state. */
+	/** 校验并脱离一次提交，而不改变可观察状态。 */
 	prepareCommit(writes: readonly StorageWrite[], seq: Seq = seqFromNumber(this.nextSeq)): PreparedMemoryCommit {
 		this.assertOpen();
 		if (!Number.isSafeInteger(seq) || seq < this.nextSeq) {
@@ -521,7 +521,7 @@ export class MemoryStorage implements Storage {
 	): Promise<Page<EntryRecord, Cursor>> {
 		this.assertOpen();
 		const { order, after } = scanStart(query.order, cursor, "descending");
-		// The cursor narrows the bound on the side the scan moves away from.
+		// 游标在扫描远离的那一侧收紧边界。
 		let minEntryId: number | undefined = query.minEntryId;
 		let maxEntryId: number | undefined = query.maxEntryId;
 		if (after !== undefined && order === "descending") maxEntryId = Math.min(maxEntryId ?? after, after - 1);
@@ -700,7 +700,7 @@ export class MemoryStorage implements Storage {
 		}
 	}
 
-	/** Visible entries oldest first: the fork chain's segments from the root conversation forward. */
+	/** 可见条目按最旧优先：分叉链的各段从根会话向前。 */
 	private *visibleEntriesAscending(
 		conversationId: ConversationId,
 		minEntryId: number = Number.NEGATIVE_INFINITY,

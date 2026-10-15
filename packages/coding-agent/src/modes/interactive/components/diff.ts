@@ -2,8 +2,8 @@ import * as Diff from "diff";
 import { theme } from "../theme/theme.ts";
 
 /**
- * Parse diff line to extract prefix, line number, and content.
- * Format: "+123 content" or "-123 content" or " 123 content" or "     ..."
+ * 解析差异行，提取前缀、行号和内容。
+ * 格式："+123 content"、"-123 content"、" 123 content" 或 "     ..."。
  */
 function parseDiffLine(line: string): { prefix: string; lineNum: string; content: string } | null {
 	const match = line.match(/^([+-\s])(\s*\d*)\s(.*)$/);
@@ -12,16 +12,16 @@ function parseDiffLine(line: string): { prefix: string; lineNum: string; content
 }
 
 /**
- * Replace tabs with spaces for consistent rendering.
+ * 将制表符替换为空格，以保证渲染一致。
  */
 function replaceTabs(text: string): string {
 	return text.replace(/\t/g, "   ");
 }
 
 /**
- * Compute word-level diff and render with inverse on changed parts.
- * Uses diffWords which groups whitespace with adjacent words for cleaner highlighting.
- * Strips leading whitespace from inverse to avoid highlighting indentation.
+ * 计算词级差异，并对变更部分使用反色显示。
+ * 使用 diffWords 将空白与相邻单词分组，使高亮更清晰。
+ * 移除反色部分开头的空白，避免缩进也被高亮。
  */
 function renderIntraLineDiff(oldContent: string, newContent: string): { removedLine: string; addedLine: string } {
 	const wordDiff = Diff.diffWords(oldContent, newContent);
@@ -34,7 +34,7 @@ function renderIntraLineDiff(oldContent: string, newContent: string): { removedL
 	for (const part of wordDiff) {
 		if (part.removed) {
 			let value = part.value;
-			// Strip leading whitespace from the first removed part
+			// 移除第一个删除片段开头的空白。
 			if (isFirstRemoved) {
 				const leadingWs = value.match(/^(\s*)/)?.[1] || "";
 				value = value.slice(leadingWs.length);
@@ -46,7 +46,7 @@ function renderIntraLineDiff(oldContent: string, newContent: string): { removedL
 			}
 		} else if (part.added) {
 			let value = part.value;
-			// Strip leading whitespace from the first added part
+			// 移除第一个新增片段开头的空白。
 			if (isFirstAdded) {
 				const leadingWs = value.match(/^(\s*)/)?.[1] || "";
 				value = value.slice(leadingWs.length);
@@ -66,15 +66,15 @@ function renderIntraLineDiff(oldContent: string, newContent: string): { removedL
 }
 
 export interface RenderDiffOptions {
-	/** File path (unused, kept for API compatibility) */
+	/** 文件路径（当前未使用，保留此字段以兼容 API）。 */
 	filePath?: string;
 }
 
 /**
- * Render a diff string with colored lines and intra-line change highlighting.
- * - Context lines: dim/gray
- * - Removed lines: red, with inverse on changed tokens
- * - Added lines: green, with inverse on changed tokens
+ * 渲染差异文本，为各类行着色并高亮行内变更。
+ * - 上下文行：暗色/灰色
+ * - 删除行：红色，变更词元反色显示
+ * - 新增行：绿色，变更词元反色显示
  */
 export function renderDiff(diffText: string, _options: RenderDiffOptions = {}): string {
 	const lines = diffText.split("\n");
@@ -92,7 +92,7 @@ export function renderDiff(diffText: string, _options: RenderDiffOptions = {}): 
 		}
 
 		if (parsed.prefix === "-") {
-			// Collect consecutive removed lines
+			// 收集连续的删除行。
 			const removedLines: { lineNum: string; content: string }[] = [];
 			while (i < lines.length) {
 				const p = parseDiffLine(lines[i]);
@@ -101,7 +101,7 @@ export function renderDiff(diffText: string, _options: RenderDiffOptions = {}): 
 				i++;
 			}
 
-			// Collect consecutive added lines
+			// 收集连续的新增行。
 			const addedLines: { lineNum: string; content: string }[] = [];
 			while (i < lines.length) {
 				const p = parseDiffLine(lines[i]);
@@ -110,8 +110,8 @@ export function renderDiff(diffText: string, _options: RenderDiffOptions = {}): 
 				i++;
 			}
 
-			// Only do intra-line diffing when there's exactly one removed and one added line
-			// (indicating a single line modification). Otherwise, show lines as-is.
+			// 仅当恰好有一条删除行和一条新增行时才计算行内差异（表示单行修改）。
+			// 其他情况下直接显示原始行。
 			if (removedLines.length === 1 && addedLines.length === 1) {
 				const removed = removedLines[0];
 				const added = addedLines[0];
@@ -124,7 +124,7 @@ export function renderDiff(diffText: string, _options: RenderDiffOptions = {}): 
 				result.push(theme.fg("toolDiffRemoved", `-${removed.lineNum} ${removedLine}`));
 				result.push(theme.fg("toolDiffAdded", `+${added.lineNum} ${addedLine}`));
 			} else {
-				// Show all removed lines first, then all added lines
+				// 先显示所有删除行，再显示所有新增行。
 				for (const removed of removedLines) {
 					result.push(theme.fg("toolDiffRemoved", `-${removed.lineNum} ${replaceTabs(removed.content)}`));
 				}
@@ -133,11 +133,11 @@ export function renderDiff(diffText: string, _options: RenderDiffOptions = {}): 
 				}
 			}
 		} else if (parsed.prefix === "+") {
-			// Standalone added line
+			// 单独的新增行。
 			result.push(theme.fg("toolDiffAdded", `+${parsed.lineNum} ${replaceTabs(parsed.content)}`));
 			i++;
 		} else {
-			// Context line
+			// 上下文行。
 			result.push(theme.fg("toolDiffContext", ` ${parsed.lineNum} ${replaceTabs(parsed.content)}`));
 			i++;
 		}

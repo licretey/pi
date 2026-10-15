@@ -202,7 +202,7 @@ describe("Models with classifier models", () => {
 		const luna = models.getModelOfType("classifier", "openai", "gpt-6-luna");
 		if (!luna) throw new Error("missing OpenAI Decisions model");
 		expect(luna).toMatchObject({ api: "openai-decisions", input: ["text", "image"], contextWindow: 922000 });
-		// The chat entry with the same id stays separate.
+		// 相同 ID 的聊天模型条目仍保持独立。
 		expect(models.getModel("openai", "gpt-6-luna")?.api).toBe("openai-responses");
 
 		const urls: string[] = [];
@@ -241,7 +241,7 @@ describe("Models with classifier models", () => {
 			"gpt-6-luna",
 		]);
 		expect(await withOAuth.getAvailableOfType("classifier", "openai")).toEqual([]);
-		// Chat models stay available with ChatGPT OAuth.
+		// 使用 ChatGPT OAuth 时，聊天模型仍可用。
 		expect((await withOAuth.getAvailable("openai")).some((model) => model.id === "gpt-6-luna")).toBe(true);
 	});
 

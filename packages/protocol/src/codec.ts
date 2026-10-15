@@ -52,12 +52,12 @@ function encodeProtocolMessage<T>(
 	}
 }
 
-/** Validates and encodes one complete length-prefixed client message. */
+/** 校验并编码一条完整的带长度前缀的客户端消息。 */
 export function encodeClientMessage(message: ClientMessage, options?: FrameDecoderOptions): Uint8Array {
 	return encodeProtocolMessage(message, parseClientMessage, "client", options);
 }
 
-/** Validates and encodes one complete length-prefixed server message. */
+/** 校验并编码一条完整的带长度前缀的服务器消息。 */
 export function encodeServerMessage(message: ServerMessage, options?: FrameDecoderOptions): Uint8Array {
 	return encodeProtocolMessage(message, parseServerMessage, "server", options);
 }
@@ -102,7 +102,7 @@ class ValidatedMessageDecoder<T> {
 	}
 }
 
-/** Incrementally decodes and validates framed client messages. */
+/** 增量解码并校验带帧的客户端消息。 */
 export class ClientMessageDecoder {
 	private readonly decoder: ValidatedMessageDecoder<ClientMessage>;
 
@@ -119,7 +119,7 @@ export class ClientMessageDecoder {
 	}
 }
 
-/** Incrementally decodes and validates framed server messages. */
+/** 增量解码并校验带帧的服务器消息。 */
 export class ServerMessageDecoder {
 	private readonly decoder: ValidatedMessageDecoder<ServerMessage>;
 

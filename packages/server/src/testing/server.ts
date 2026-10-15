@@ -12,7 +12,7 @@ export interface TestServer {
 	host: ServerHost;
 }
 
-/** Create an unstarted Server with deterministic defaults for transport conformance tests. */
+/** 使用确定性默认值创建尚未启动的 Server，供传输一致性测试使用。 */
 export function createTestServer(options: TestServerOptions): TestServer {
 	const host = options.host ?? new TestServerHost();
 	return {

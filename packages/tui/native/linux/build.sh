@@ -48,7 +48,7 @@ common_flags=(
     -Wl,--no-as-needed
     -Wl,-O2
     -Wl,--gc-sections
-    # A timed-out private thread may outlive the Node environment that loaded us.
+# 私有线程超时后，可能仍会在加载它的 Node 环境退出后继续运行。
     -Wl,-z,nodelete
     -Wl,-s
 )

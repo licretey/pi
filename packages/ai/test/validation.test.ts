@@ -184,7 +184,7 @@ describe("validateToolArguments", () => {
 			{ type: ["array", "null"], items: { type: "string" } } as Tool["parameters"],
 			null,
 		);
-		// The CSP test above selects TypeBox's process-wide interpreted fallback, so exercise the generated validator explicitly.
+		// 上方的 CSP 测试会启用 TypeBox 的进程级解释执行回退，因此此处要显式测试生成的校验器。
 		const generatedCheck = new Function(Compile(tool.parameters).Code())() as (value: unknown) => boolean;
 
 		expect(generatedCheck(toolCall.arguments)).toBe(true);

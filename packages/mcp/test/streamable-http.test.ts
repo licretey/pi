@@ -108,7 +108,7 @@ describe("consumeSseStream", () => {
 		let sent = 0;
 		const stream = new ReadableStream<Uint8Array>({
 			pull(controller) {
-				// Never sends a blank line, so the event is never dispatched.
+				// 始终不发送空行，因此该事件永远不会被分发。
 				if (sent++ > 1000) controller.close();
 				else controller.enqueue(encoder.encode("data: xxxxxxxxxxxxxxxx\n"));
 			},
@@ -219,7 +219,7 @@ describe("StreamableHttpTransport", () => {
 			if (request.method !== "POST") return protocolHandler(request, response, requests);
 			const message = JSON.parse(await readBody(request)) as Record<string, unknown>;
 			if (message.method !== "tools/call") return protocolHandler(request, response, requests, message);
-			// Priming event (ID, no data) and a retry hint, then the server drops the stream.
+			// 先发送用于初始化的事件（有 ID、无数据）和重试提示，然后服务器断开数据流。
 			response.writeHead(200, { "content-type": "text/event-stream" });
 			response.end("id: 1\nretry: 5\ndata:\n\n");
 		});
@@ -342,7 +342,7 @@ describe("StreamableHttpTransport", () => {
 		await client.close();
 	});
 
-	// #10565: the auth provider may refresh over the network, which closing must not wait for.
+	// #10565：认证提供器可能通过网络刷新令牌，关闭连接时不得等待刷新完成。
 	it("closes the session with the last request's token, without asking the auth provider", async () => {
 		const { url, requests } = await startServer(protocolHandler);
 		let calls = 0;
@@ -362,7 +362,7 @@ describe("StreamableHttpTransport", () => {
 		expect(deletes[0]?.headers["mcp-session-id"]).toBe("session-1");
 	});
 
-	// #10188: Cloudflare Workers reject the platform fetch when called with a receiver other than globalThis.
+	// #10188：Cloudflare Workers 会拒绝以 globalThis 之外的接收者调用平台 fetch。
 	it("calls fetch without a receiver", async () => {
 		const realFetch = globalThis.fetch;
 		const strictFetch = function (this: unknown, input: string | URL, init?: RequestInit) {

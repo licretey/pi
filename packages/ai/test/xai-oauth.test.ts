@@ -136,7 +136,7 @@ describe("xAI OAuth device flow", () => {
 		await vi.advanceTimersByTimeAsync(5000);
 		expect(pollTimes).toEqual([startTime.getTime() + 5000]);
 
-		// slow_down raised the interval to 10 seconds
+		// slow_down 响应将轮询间隔延长至 10 秒。
 		await vi.advanceTimersByTimeAsync(5000);
 		expect(pollTimes).toEqual([startTime.getTime() + 5000, startTime.getTime() + 10_000]);
 
@@ -172,7 +172,7 @@ describe("xAI OAuth device flow", () => {
 		);
 
 		const loginPromise = loginXaiForTest({ onDeviceCode: () => {} });
-		// RFC 8628 default interval is 5 seconds when the server does not require a wait.
+		// 根据 RFC 8628，服务器未要求等待时，默认轮询间隔为 5 秒。
 		await vi.advanceTimersByTimeAsync(5000);
 		await loginPromise;
 		expect(pollTimes).toEqual([startTime.getTime() + 5000]);

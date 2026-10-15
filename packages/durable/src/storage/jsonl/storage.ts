@@ -75,7 +75,7 @@ type EncodedCommit = {
 };
 
 export type JsonlStorageOptions = {
-	/** Flush every affected sidecar before appending the main marker. Defaults to false. */
+	/** 在追加主标记（marker）之前，对每个受影响的 sidecar 执行 flush。默认为 false。 */
 	readonly fsync?: boolean;
 };
 
@@ -238,7 +238,7 @@ const parseSidecarRecord = (text: string, file: string, line: number): SidecarRe
 	return value as SidecarRecord;
 };
 
-/** Portable JSONL implementation of the storage contract. */
+/** 存储契约的可移植 JSONL 实现。 */
 export class JsonlStorage implements Storage {
 	private readonly fs: FileSystem;
 	private readonly directory: string;
@@ -257,7 +257,7 @@ export class JsonlStorage implements Storage {
 		this.fsync = options.fsync ?? false;
 	}
 
-	/** Open or create a JSONL storage directory using the supplied filesystem. */
+	/** 使用给定的文件系统打开或创建一个 JSONL 存储目录。 */
 	static async open(
 		directory: string,
 		fs: FileSystem,
@@ -504,7 +504,7 @@ export class JsonlStorage implements Storage {
 		}
 	}
 
-	/** The marker already published this state, so reclamation is retryable best-effort maintenance. */
+	/** 标记（marker）已发布过该状态，因此回收是可重试的尽力而为式维护。 */
 	private async reclaimSidecars(replacements: ReadonlyMap<string, string>, context: Context): Promise<void> {
 		if (replacements.size === 0) return;
 		if (this.fsync) {

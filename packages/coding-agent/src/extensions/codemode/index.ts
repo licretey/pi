@@ -1,9 +1,9 @@
 /**
- * The `codemode` tool as an extension. The CLI loads it as a built-in extension; SDK users
- * add `createCodemodeExtension()` to their extension factories.
+ * 以扩展形式提供的 `codemode` 工具。CLI 会将其作为内置扩展加载；SDK 用户可将
+ * `createCodemodeExtension()` 添加到扩展工厂中。
  *
- * `codemode` is registered inactive. Activate it with `--tools`, the `defaultTools` setting, or
- * `setActiveTools()`; the MCP extension activates it when MCP tools are only reachable from scripts.
+ * `codemode` 注册时默认不启用。可通过 `--tools`、`defaultTools` 设置或 `setActiveTools()` 启用；
+ * 当 MCP 工具只能通过脚本访问时，MCP 扩展会自动启用它。
  */
 
 import type { ExtensionAPI, ExtensionFactory } from "../../core/extensions/types.ts";
@@ -12,11 +12,11 @@ import type { CodemodeMode } from "../../core/settings-manager.ts";
 import { createCodemodeToolDefinition } from "./tool.ts";
 
 export interface CodemodeExtensionOptions {
-	/** Overrides the `codemode.mode` setting. */
+	/** 覆盖 `codemode.mode` 设置。 */
 	mode?: CodemodeMode;
-	/** Overrides the `codemode.inlineBudget` setting. */
+	/** 覆盖 `codemode.inlineBudget` 设置。 */
 	inlineBudget?: number;
-	/** Expose the model catalog and classifiers to scripts as `models`. Default: `true`. */
+	/** 是否通过 `models` 向脚本开放模型目录和分类器。默认值：`true`。 */
 	models?: boolean;
 }
 

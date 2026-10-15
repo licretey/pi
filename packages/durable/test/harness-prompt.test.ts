@@ -20,7 +20,7 @@ import { context } from "./session-support.ts";
 
 type Planned = { readonly sections: Record<string, string | null>; readonly omit?: readonly EntryId[] };
 
-/** Plan against the current context, append the plan, and check that replay then yields `desired` in order. */
+/** 根据当前上下文制定计划并追加，然后检查重放时是否按顺序得到 `desired`。 */
 async function apply(conversation: Conversation, desired: Record<string, string>): Promise<Planned[]> {
 	const drafts = planSystemEntries(await conversation.context(context), new Map(Object.entries(desired)), [], 7);
 	await conversation.commit(async (tx) => {
@@ -159,7 +159,7 @@ describe("system prompt preparation", () => {
 		const readded = await root();
 		await apply(readded, { a: "1", b: "2", c: "3" });
 		expect(await apply(readded, { a: "1", c: "3" })).toEqual([{ sections: { b: null } }]);
-		// Patching would append `b` after `c`.
+		// 若采用补丁方式，`b` 会被追加到 `c` 之后。
 		expect(await apply(readded, { a: "1", b: "2", c: "3" })).toEqual([
 			{ sections: { a: null, c: null } },
 			{ sections: { a: "1", b: "2", c: "3" } },
@@ -175,16 +175,16 @@ describe("system prompt preparation", () => {
 		);
 		await apply(conversation, { a: "1", b: "20" });
 		const delta = await lastSystemId(conversation);
-		// The head keeps the delta but cuts its baseline: replay alone would show only `b`.
+		// 头部保留增量但截断其基准；单独重放只会显示 `b`。
 		await marker(conversation, delta);
 		expect(await apply(conversation, { a: "1", b: "20" })).toEqual([
 			{ sections: { a: "1", b: "20" }, omit: [delta] },
 		]);
 		const baseline = await lastSystemId(conversation);
-		// A system entry follows the marker now, so later changes are ordinary patches.
+		// 现在标记后面跟着一条 system 条目，因此后续更改均作为普通补丁处理。
 		expect(await apply(conversation, { a: "1", b: "21" })).toEqual([{ sections: { b: "21" } }]);
 		const after = await lastSystemId(conversation);
-		// A second marker keeps deltas from both sides of the first one.
+		// 第二个标记会保留第一个标记两侧的增量。
 		await marker(conversation, delta);
 		expect(await apply(conversation, { a: "1", b: "21" })).toEqual([
 			{ sections: { a: "1", b: "21" }, omit: [delta, baseline, after] },
@@ -210,7 +210,7 @@ describe("tool loadout preparation", () => {
 		parameters: Type.Object({}),
 	});
 
-	/** Plan tools only, append the plan, check that replay offers `tools` in order, and return each message's changes. */
+	/** 仅使用规划工具制定并追加计划，检查重放时是否按顺序提供 `tools`，并返回每条消息的变更。 */
 	async function applyTools(
 		conversation: Conversation,
 		tools: readonly Tool[],
@@ -244,13 +244,13 @@ describe("tool loadout preparation", () => {
 		expect(await applyTools(conversation, [a, b])).toEqual([]);
 		expect(await applyTools(conversation, [a, b, c])).toEqual([{ added: ["c"] }]);
 		expect(await applyTools(conversation, [a, c])).toEqual([{ removed: ["b"] }]);
-		// A changed declaration at the end is removed and re-added in place.
+		// 末尾发生更改的声明会先删除，再在原位置添加。
 		const c2 = declaration("c", "changed");
 		expect(await applyTools(conversation, [a, c2])).toEqual([{ removed: ["c"], added: ["c"] }]);
-		// A changed declaration in the middle would move to the end, so the whole order is rewritten.
+		// 中间发生更改的声明会移至末尾，因此需要重写完整顺序。
 		const a2 = declaration("a", "changed");
 		expect(await applyTools(conversation, [a2, c2])).toEqual([{ removed: ["a", "c"], added: ["a", "c"] }]);
-		// Order-only change.
+		// 仅顺序发生变化。
 		expect(await applyTools(conversation, [c2, a2])).toEqual([{ removed: ["a", "c"], added: ["c", "a"] }]);
 		expect(await applyTools(conversation, [])).toEqual([{ removed: ["c", "a"] }]);
 	});
@@ -261,7 +261,7 @@ describe("tool loadout preparation", () => {
 		expect(await applyTools(conversation, [a], { x: "1", y: "2" })).toEqual([
 			{ added: ["a"], sections: { x: "1", y: "2" } },
 		]);
-		// Section order changes need two entries; the tool change rides on the second.
+		// 分区顺序变化需要两个条目；工具变更会附加在第二个条目中。
 		expect(await applyTools(conversation, [a, b], { y: "2", x: "1" })).toEqual([
 			{ sections: { x: null, y: null } },
 			{ added: ["b"], sections: { y: "2", x: "1" } },

@@ -1,4 +1,4 @@
-//! File operations with Node's semantics where the Rust standard library differs (docs/semantics.md).
+//! 当 Rust 标准库行为与 Node 不同时，按 Node 语义执行文件操作（见 docs/semantics.md）。
 
 use crate::errors::Failure;
 use crate::sys;
@@ -10,7 +10,7 @@ use std::path::Path;
 
 pub type Outcome<T> = Result<T, Failure>;
 
-/// `{ name, kind, size, mtimeSec, mtimeNsec, dev, ino }` of lstat or fstat metadata.
+/// lstat 或 fstat 元数据，字段为 `{ name, kind, size, mtimeSec, mtimeNsec, dev, ino }`。
 pub fn info(path: &str, metadata: &Metadata) -> Value {
     let file_type = metadata.file_type();
     let kind = if file_type.is_file() {
@@ -51,8 +51,8 @@ pub fn realpath(path: &str) -> Outcome<Value> {
         .map_err(|error| Failure::io(&error, "realpath", path))
 }
 
-/// Node's recursive `mkdir`: an existing directory is fine, an existing file is `EEXIST`, a file in the way of a
-/// parent is `ENOTDIR`.
+/// Node 的递归 `mkdir` 语义：目录已存在时正常返回，文件已存在时返回 `EEXIST`，
+/// 创建路径中的父级被文件阻挡时返回 `ENOTDIR`。
 pub fn mkdir_recursive(path: &Path) -> io::Result<()> {
     let is_dir = |path: &Path| {
         fs::metadata(path)
@@ -103,8 +103,8 @@ pub fn mkdir(path: &str, recursive: bool) -> Outcome<Value> {
         .map_err(|error| Failure::io(&error, "mkdir", path))
 }
 
-/// `writeFile`/`appendFile`: create missing parents like Node's recursive `mkdir`, then write. Returns the open file
-/// for further chunks.
+/// `writeFile`/`appendFile`：像 Node 的递归 `mkdir` 一样创建缺失的父目录，然后写入数据。返回打开的文件，
+/// 供后续数据块继续写入。
 pub fn write(path: &str, append: bool, parents: bool, content: &[u8]) -> Outcome<File> {
     if let Some(parent) = Path::new(path)
         .parent()
@@ -137,7 +137,7 @@ pub fn truncate(path: &str, size: u64) -> Outcome<Value> {
 }
 
 pub fn fsync(path: &str) -> Outcome<Value> {
-    // POSIX refuses to open a directory for writing; check first so Windows reports the same.
+    // POSIX 不允许以写入方式打开目录；先行检查，使 Windows 也返回相同结果。
     if fs::metadata(path).is_ok_and(|metadata| metadata.is_dir()) {
         return Err(Failure::new(
             "EISDIR",
@@ -157,7 +157,7 @@ pub fn rename(from: &str, to: &str) -> Outcome<Value> {
         .map_err(|error| Failure::io_between(&error, "rename", from, Some(to)))
 }
 
-/// Node's `fs.rm`: missing paths fail unless `force`; a directory without `recursive` fails with `ERR_FS_EISDIR`.
+/// Node 的 `fs.rm` 语义：路径不存在时除非设置 `force` 否则失败；删除目录但未设置 `recursive` 时返回 `ERR_FS_EISDIR`。
 pub fn rm(path: &str, recursive: bool, force: bool) -> Outcome<Value> {
     let metadata = match fs::symlink_metadata(path) {
         Ok(metadata) => metadata,
@@ -181,15 +181,15 @@ pub fn rm(path: &str, recursive: bool, force: bool) -> Outcome<Value> {
         .map_err(|error| Failure::io(&error, "rm", path))
 }
 
-/// A new directory named `prefix` plus six random characters, as libuv's `mkdtemp` creates it.
+/// 新建目录，名称由 `prefix` 和六个随机字符组成，与 libuv 的 `mkdtemp` 行为一致。
 pub fn mkdtemp(prefix: &str) -> Outcome<Value> {
     sys::mkdtemp(prefix)
         .map(|path| json!({ "path": path }))
         .map_err(|error| Failure::io(&error, "mkdtemp", &format!("{prefix}XXXXXX")))
 }
 
-/// Open a regular file for positional reads; directories fail with `EISDIR`, other non-regular files with
-/// `NOT_REGULAR`, and with `no_follow` a final symbolic link with `SYMLINK`.
+/// 打开普通文件以进行定位读取；目录返回 `EISDIR`，其他非普通文件返回 `NOT_REGULAR`，
+/// 设置 `no_follow` 时，最终路径分量为符号链接则返回 `SYMLINK`。
 pub fn open_reader(path: &str, no_follow: bool) -> Outcome<(File, Value)> {
     let file = sys::open_reader(path, no_follow)?;
     let metadata = file
@@ -207,7 +207,7 @@ pub fn open_reader(path: &str, no_follow: bool) -> Outcome<(File, Value)> {
     Ok((file, info))
 }
 
-/// Up to `length` bytes at `offset`; fewer only at the end of the file.
+/// 从 `offset` 开始读取最多 `length` 个字节；只有到达文件末尾时才可能少于该长度。
 pub fn pread(file: &File, path: &str, offset: u64, length: usize) -> Outcome<Vec<u8>> {
     let mut buffer = vec![0u8; length];
     let mut filled = 0;
@@ -223,8 +223,8 @@ pub fn pread(file: &File, path: &str, offset: u64, length: usize) -> Outcome<Vec
     Ok(buffer)
 }
 
-/// Up to `length` bytes from the current position: one `read` call, as Node's `readFile` makes for files of unknown
-/// size (FIFOs, devices).
+/// 从当前位置读取最多 `length` 个字节，只调用一次 `read`；与 Node 对大小未知的文件（FIFO、设备）执行
+/// `readFile` 时的行为一致。
 pub fn read(mut file: &File, path: &str, length: usize) -> Outcome<Vec<u8>> {
     let mut buffer = vec![0u8; length];
     loop {
@@ -239,9 +239,8 @@ pub fn read(mut file: &File, path: &str, length: usize) -> Outcome<Vec<u8>> {
     }
 }
 
-/// One directory entry as Node lists it: the name decoded as UTF-8 (invalid bytes replaced), and lstat of the
-/// directory joined with that decoded name, so a name that is not valid UTF-8 reports `ENOENT` as in Node. `raw`
-/// carries the original bytes of such a name, which libuv sorts by.
+/// Node 枚举到的单个目录项：名称按 UTF-8 解码（无效字节会被替换），并对目录与解码后名称拼接出的路径执行 lstat，
+/// 因此名称包含无效 UTF-8 时会像 Node 一样返回 `ENOENT`。`raw` 保存该名称的原始字节，供 libuv 排序使用。
 pub fn dir_entry(dir: &str, file_name: &OsStr) -> Value {
     let name = file_name.to_string_lossy().into_owned();
     let entry_path = Path::new(dir).join(&name).to_string_lossy().into_owned();

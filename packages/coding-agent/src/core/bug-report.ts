@@ -23,7 +23,7 @@ function isSensitiveKey(key: string): boolean {
 	return SENSITIVE_KEY.test(key.replace(/([a-z0-9])([A-Z])/g, "$1_$2"));
 }
 
-/** Strip credentials and secret-looking query parameters from a URL. */
+/** 从 URL 中移除凭据和疑似机密的查询参数。 */
 export function redactUrl(value: string): string {
 	const nested = /^([a-z][a-z0-9+.-]*:)([a-z][a-z0-9+.-]*:\/\/.*)$/i.exec(value);
 	if (nested) return `${nested[1]}${redactUrl(nested[2])}`;
@@ -47,7 +47,7 @@ export function redactUrl(value: string): string {
 	}
 }
 
-/** Copy a JSON value while removing values that may contain credentials. */
+/** 复制 JSON 值，同时移除可能包含凭据的字段值。 */
 export function redactJsonValue(value: unknown): unknown {
 	if (value === undefined) return undefined;
 	return JSON.parse(
@@ -83,7 +83,7 @@ function collectEnvironment() {
 			ssh: Boolean(process.env.SSH_CONNECTION || process.env.SSH_CLIENT || process.env.SSH_TTY),
 			ci: Boolean(process.env.CI),
 		},
-		// Names help diagnose configuration; values never leave the machine.
+		// 名称有助于诊断配置；字段值不会离开本机。
 		piEnvironmentVariables: Object.keys(process.env)
 			.filter((name) => name.startsWith("PI_"))
 			.sort(),
@@ -179,7 +179,7 @@ export function collectBugReportMetadata(options: CollectBugReportMetadataOption
 	};
 }
 
-/** Collect failed assistant turns without collecting conversation content. */
+/** 收集失败的助手轮次诊断信息，但不收集对话内容。 */
 export function collectBugReportDiagnostics(
 	sessionManager: ReadonlySessionManager,
 	crashes: readonly CrashRecord[] = [],
@@ -248,7 +248,7 @@ interface BugReportFile {
 	data: string;
 }
 
-/** Files shared by upload and zip export. */
+/** 上传和 ZIP 导出共用的文件列表。 */
 export function bugReportFiles(bundle: BugReportBundle): BugReportFile[] {
 	const files: BugReportFile[] = [
 		{ name: "report.json", contentType: "application/json", data: `${JSON.stringify(bundle.metadata, null, 2)}\n` },
@@ -326,7 +326,7 @@ interface GenerateBugReportSummaryOptions {
 	sessionId?: string;
 }
 
-/** Ask the session model for a report when the user does not share the transcript. */
+/** 用户不分享会话记录时，请当前会话模型生成问题报告。 */
 export async function generateBugReportSummary(options: GenerateBugReportSummaryOptions): Promise<string> {
 	const { model } = options;
 	const contextWindow = model.contextWindow > 0 ? model.contextWindow : 128_000;

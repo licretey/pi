@@ -1,12 +1,12 @@
 import type { SqliteDatabase, SqliteExecutor, SqliteValue } from "./database.ts";
 import { SqliteStorage } from "./storage.ts";
 
-/** Values a Durable Object SQL binding accepts and returns. */
+/** Durable Object SQL 绑定可接受并返回的值类型。 */
 type DurableObjectSqlValue = ArrayBuffer | string | number | null;
 
 /**
- * The parts of a SQLite-backed Durable Object's `ctx.storage` this adapter uses, typed structurally so the package
- * needs no Workers type dependency.
+ * 本适配器用到的 SQLite Durable Object `ctx.storage` 的部分成员，以结构化类型声明，
+ * 使本包无需依赖 Workers 类型。
  */
 export type DurableObjectSqliteStorage = {
 	readonly sql: {
@@ -15,7 +15,7 @@ export type DurableObjectSqliteStorage = {
 	transaction<T>(closure: () => Promise<T>): Promise<T>;
 };
 
-/** Runs operations one at a time in call order, so a transaction excludes every other operation. */
+/** 按调用顺序逐个运行操作，因此一个事务会排除所有其他操作。 */
 class SerialQueue {
 	private tail: Promise<unknown> = Promise.resolve();
 
@@ -26,7 +26,7 @@ class SerialQueue {
 	}
 }
 
-/** Durable Object SQL binds numbers as doubles: a `bigint` outside the safe integer range would lose precision. */
+/** Durable Object SQL 以双精度浮点绑定数字：超出安全整数范围的 `bigint` 会丢失精度。 */
 function bindValue(value: SqliteValue): DurableObjectSqlValue {
 	if (value instanceof Uint8Array) return value.slice().buffer as ArrayBuffer;
 	if (typeof value !== "bigint") return value;
@@ -38,7 +38,7 @@ function bindValue(value: SqliteValue): DurableObjectSqlValue {
 
 const bind = (params: readonly SqliteValue[]): DurableObjectSqlValue[] => params.map(bindValue);
 
-/** Rows as returned, with `BLOB` columns converted to `Uint8Array` in place; no other copy is made. */
+/** 按原样返回的行，`BLOB` 列就地转换为 `Uint8Array`；不做其他拷贝。 */
 function rows<T>(rows: Record<string, DurableObjectSqlValue>[]): T[] {
 	for (const row of rows) {
 		for (const key in row) {
@@ -49,7 +49,7 @@ function rows<T>(rows: Record<string, DurableObjectSqlValue>[]): T[] {
 	return rows as T[];
 }
 
-/** Executes SQL through `ctx.storage.sql`, which has no separate prepare step. */
+/** 通过 `ctx.storage.sql` 执行 SQL，它没有独立的 prepare 步骤。 */
 class DurableObjectSqliteExecutor implements SqliteExecutor {
 	protected readonly storage: DurableObjectSqliteStorage;
 
@@ -77,11 +77,11 @@ class DurableObjectSqliteExecutor implements SqliteExecutor {
 		return rows<T>(this.storage.sql.exec(sql, ...bind(params)).toArray());
 	}
 
-	/** Throws when this handle may no longer run SQL. */
+	/** 当此句柄可能不能再执行 SQL 时抛出。 */
 	protected check(): void {}
 }
 
-/** The handle a transaction callback receives; invalid once the callback settles. */
+/** 事务回调拿到的句柄；回调落定后即失效。 */
 class DurableObjectSqliteTransaction extends DurableObjectSqliteExecutor {
 	active = true;
 
@@ -91,8 +91,8 @@ class DurableObjectSqliteTransaction extends DurableObjectSqliteExecutor {
 }
 
 /**
- * `SqliteDatabase` adapter for the SQLite storage of a Cloudflare Durable Object. Integers are JavaScript numbers;
- * binding a `bigint` outside the safe integer range throws.
+ * 面向 Cloudflare Durable Object SQLite 存储的 `SqliteDatabase` 适配器。整数是 JavaScript number；
+ * 绑定超出安全整数范围的 `bigint` 会抛出异常。
  */
 export class DurableObjectSqliteDatabase extends DurableObjectSqliteExecutor implements SqliteDatabase {
 	private readonly queue = new SerialQueue();
@@ -113,7 +113,7 @@ export class DurableObjectSqliteDatabase extends DurableObjectSqliteExecutor imp
 		return this.queue.run(() => super.all<T>(sql, ...params));
 	}
 
-	/** `ctx.storage.transaction()` commits when the callback resolves and rolls back when it rejects. */
+	/** `ctx.storage.transaction()` 在回调 resolve 时提交、reject 时回滚。 */
 	transaction<T>(callback: (transaction: SqliteExecutor) => Promise<T>): Promise<T> {
 		return this.queue.run(() =>
 			this.storage.transaction(async () => {
@@ -127,13 +127,13 @@ export class DurableObjectSqliteDatabase extends DurableObjectSqliteExecutor imp
 		);
 	}
 
-	/** Waits for queued work. The Durable Object owns its storage, so nothing else closes. */
+	/** 等待排队的工作完成。Durable Object 拥有自己的存储，因此没有其他需要关闭的东西。 */
 	close(): Promise<void> {
 		return this.queue.run(() => {});
 	}
 }
 
-/** Open durable storage on a SQLite-backed Durable Object's `ctx.storage`. */
+/** 在 SQLite Durable Object 的 `ctx.storage` 上打开持久存储。 */
 export function openDurableObjectSqliteStorage(storage: DurableObjectSqliteStorage): Promise<SqliteStorage> {
 	return SqliteStorage.open(new DurableObjectSqliteDatabase(storage));
 }

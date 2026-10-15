@@ -1,10 +1,8 @@
 /**
- * Presentation for the codemode tool.
+ * codemode 工具的展示逻辑。
  *
- * The call shows the script; the result lists the nested tool calls with their status as they
- * run and the cost of its model calls, followed by the script output without the "Script completed"
- * header. Nested calls are not
- * separate tool rows because they never reach the model as tool calls.
+ * 调用内容展示脚本；结果展示嵌套工具调用及其运行状态、模型调用费用，随后展示脚本输出，但不包含
+ * "Script completed" 标题。嵌套调用不会单独占用工具行，因为它们不会作为工具调用传给模型。
  */
 
 import { Container, Spacer, Text } from "@earendil-works/pi-tui";
@@ -30,7 +28,7 @@ function formatDuration(ms: number | undefined): string {
 	return ms < 1000 ? `${Math.round(ms)}ms` : `${(ms / 1000).toFixed(1)}s`;
 }
 
-/** Cents for larger amounts, two significant digits for the fractions of a cent classifier calls cost. */
+/** 较大金额按美分显示；分类器调用费用不足一美分时保留两位有效数字。 */
 function formatCost(cost: number): string {
 	return `$${cost >= 0.01 ? cost.toFixed(2) : cost.toPrecision(2)}`;
 }
@@ -67,7 +65,7 @@ export const codemodeRenderers: Pick<
 	"renderCall" | "renderResult"
 > = {
 	renderCall(args, theme, context) {
-		// The code includes the `// @options:` line, so options show as part of the script.
+		// 代码中包含 `// @options:` 行，因此选项也会作为脚本的一部分显示。
 		const code = str((args as { code?: unknown } | undefined)?.code);
 		const title = theme.fg("toolTitle", theme.bold("codemode"));
 		const component = (context.lastComponent as Container | undefined) ?? new Container();
@@ -104,7 +102,7 @@ export const codemodeRenderers: Pick<
 					`${theme.fg("muted", `... (${calls.length - shown.length} earlier calls,`)} ${keyHint("app.tools.expand", "to expand")}${theme.fg("muted", ")")}`,
 				);
 			}
-			// Collapsed rows hide earlier calls, so the total covers every call.
+			// 折叠行会隐藏较早的调用，因此总数需包含所有调用。
 			const priced = calls.filter((call) => call.cost);
 			if (priced.length > 1) {
 				const total = priced.reduce((sum, call) => sum + (call.cost ?? 0), 0);
@@ -114,8 +112,7 @@ export const codemodeRenderers: Pick<
 			component.addChild(new Text(lines.join("\n"), 0, 0));
 		}
 
-		// Drop the "Script completed\nWall time ...\nOutput:\n" header. Rejected input (invalid options)
-		// has no header.
+		// 移除 "Script completed\nWall time ...\nOutput:\n" 标题。输入被拒绝（选项无效）时不会有标题。
 		const [first, ...rest] = result.content;
 		const hasHeader = first?.type === "text" && SCRIPT_HEADER.test(first.text);
 		const output = options.isPartial
@@ -131,7 +128,7 @@ export const codemodeRenderers: Pick<
 			if (options.expanded) {
 				component.addChild(new Text(styled, 0, 0));
 			} else {
-				// Limit wrapped lines, not logical ones: script output is often one long JSON line.
+				// 限制折行后的行数，而非逻辑行数：脚本输出常常是一整行很长的 JSON。
 				component.addChild(
 					new VisualLinePreview({
 						text: styled,
@@ -140,7 +137,7 @@ export const codemodeRenderers: Pick<
 						formatHint: (hidden) => expandHint(theme, hidden, "lines"),
 					}),
 				);
-				// The collapsed preview hides the truncation notice at the end, so name the file here.
+				// 折叠预览会隐藏末尾的截断提示，因此在这里注明文件名。
 				const fullOutputPath = result.details?.fullOutputPath;
 				if (fullOutputPath) component.addChild(new Text(theme.fg("muted", `Full output: ${fullOutputPath}`), 0, 0));
 			}

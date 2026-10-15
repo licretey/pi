@@ -22,19 +22,19 @@ import { ProviderDoc } from "./provider.ts";
 import { UsageDoc } from "./usage.ts";
 import { closedError } from "./util.ts";
 
-/** Structural mount of one conversation's active transcript and built-in documents (spec §9.3). */
+/** 单个对话的活动记录和内置文档的结构化挂载（规范 §9.3）。 */
 export type ConversationView = {
 	readonly conversation: ConversationRecord;
-	/** Raw active entries, as `ContextView.entries`: the head marker, then the non-head entries from its head. */
+	/** 原始活动条目，与 `ContextView.entries` 一致：先放头部标记，再放该头部包含的非头部条目。 */
 	readonly entries: readonly EntryRecord[];
-	/** Built-in conversation documents keyed by kind; absent documents are absent. */
+	/** 按类型索引的内置对话文档；不存在的文档不会出现在此处。 */
 	readonly docs: Readonly<Record<string, JsonObject>>;
 };
 
-/** Receives each next revision of a mount, and the Session's close. */
+/** 接收挂载的每个后续版本，以及 Session 关闭通知。 */
 export type ViewObserver = {
 	advance?(value: ConversationView, ops: readonly Op[], context: Context): void;
-	/** Every publication, after the mount took it; `ops` are the mount's, possibly none. */
+	/** 挂载处理每次发布后触发；`ops` 是挂载自身的操作，也可能为空。 */
 	publication?(
 		before: ConversationView,
 		after: ConversationView,
@@ -54,17 +54,17 @@ const MOUNTED = [
 ] as unknown as readonly ConversationDocToken<JsonObject>[];
 const MOUNTED_KINDS: ReadonlySet<string> = new Set(MOUNTED.map((token) => token.definition.kind));
 
-/** One conversation's mount: its current revision, the document incarnations it shows, and its observers. */
+/** 单个对话的挂载：当前版本、所展示的文档实例及其观察者。 */
 type Mount = {
 	value: ConversationView;
-	/** Mounted incarnation and definition version per kind; another incarnation or version is set whole. */
+	/** 每种文档已挂载的实例及定义版本；实例或版本变化时会整体设置文档。 */
 	readonly docs: Map<string, { id: DocumentId; version: number }>;
 	readonly observers: Set<ViewObserver>;
 };
 
 const VIEWS = new WeakMap<object, ConversationViews>();
 
-/** The view mounts of a Harness, for adapters built on them. */
+/** Harness 的视图挂载集合，供基于这些挂载构建的适配器使用。 */
 export function conversationViews(harness: object): ConversationViews {
 	const views = VIEWS.get(harness);
 	if (views === undefined) throw new Error("Not a Harness");
@@ -72,8 +72,8 @@ export function conversationViews(harness: object): ConversationViews {
 }
 
 /**
- * The Harness's conversation view mounts: at most one per conversation, built on the Session line by its first
- * observer and dropped with its last. Each mount advances from the Session's commit publications, which are durable.
+ * Harness 的对话视图挂载集合：每个对话最多挂载一次，由首个观察者在 Session 顺序线上创建，并在最后一个观察者离开时移除。
+ * 每个挂载都根据 Session 的提交发布推进；这些发布具有持久性。
  */
 export class ConversationViews {
 	readonly #session: SessionImpl;
@@ -102,12 +102,12 @@ export class ConversationViews {
 		});
 	}
 
-	/** Report an observer's listener error through the Harness. */
+	/** 通过 Harness 上报观察者监听器中的错误。 */
 	report(error: unknown): void {
 		this.#session.report(error);
 	}
 
-	/** A disposable read-only Chord state of the view. */
+	/** 视图的只读 Chord 状态；释放后不再观察更新。 */
 	async state(id: ConversationId, context: Context): Promise<AttachedReplicatedState<ConversationView>> {
 		const { observer, detach } = await this.attach(
 			id,
@@ -122,7 +122,7 @@ export class ConversationViews {
 		}
 	}
 
-	/** A serialized exact-frame watch of the view; cancelling `context` stops it. */
+	/** 按帧串行观察视图；取消 `context` 会停止观察。 */
 	async watch(id: ConversationId, context: Context): Promise<WatchHandle<ConversationView>> {
 		const { observer } = await this.attach(
 			id,
@@ -140,9 +140,9 @@ export class ConversationViews {
 	}
 
 	/**
-	 * Register an observer created from the current revision, atomically on the Session line: it sees every later
-	 * publication and nothing earlier. `create` may read committed Storage, still on the line. `release` drops it, and
-	 * the mount with its last observer.
+	 * 在 Session 顺序线上，以原子方式注册基于当前版本创建的观察者：它能看到之后的每次
+	 * 发布，而看不到此前的发布。`create` 可在线读取已提交的 Storage。`release` 会移除观察者，并在
+	 * 最后一个观察者离开时卸载视图。
 	 */
 	attach<O extends ViewObserver>(
 		id: ConversationId,
@@ -156,7 +156,7 @@ export class ConversationViews {
 				if (mount.observers.size === 0 && this.#mounts.get(id) === mount) this.#mounts.delete(id);
 			};
 			const observer = await create(mount.value, detach, this.#storage);
-			// Close or cancellation may begin while the mount hydrates; register nothing then.
+			// 挂载加载期间可能开始关闭或取消；此时不要注册观察者。
 			if (this.#closed) throw closedError(this.#session);
 			context.abortSignal?.throwIfAborted();
 			this.#mounts.set(id, mount);
@@ -183,8 +183,8 @@ export class ConversationViews {
 }
 
 /**
- * Derive the mount's operations from one publication, apply them, and hand the revision to every observer; one that
- * throws is reported through `report`, and the others still get it.
+ * 根据一次发布推导挂载操作并应用，然后将新版本交给所有观察者；某个观察者
+ * 抛出异常时通过 `report` 上报，其他观察者仍会收到该版本。
  */
 function advance(
 	id: ConversationId,
@@ -196,7 +196,7 @@ function advance(
 	const docOps: Op[] = [];
 	const entryOps: Op[] = [];
 	let entries = mount.value.entries;
-	// Entry writes are published in ID order.
+	// 条目写入按 ID 顺序发布。
 	for (const change of publication.changes) {
 		if (change.type === "entry" && change.value.conversationId === id) {
 			const entry = change.value;
@@ -206,7 +206,7 @@ function advance(
 				entries = [...entries, entry];
 				continue;
 			}
-			// A head marker keeps the non-head entries from its head, which are always a suffix, and goes in front.
+			// 头部标记会保留其头部对应的非头部条目；这些条目始终构成后缀，标记本身放在最前面。
 			const target = entry.head;
 			let kept = entries.findIndex((candidate) => candidate.head === undefined && candidate.id >= target);
 			if (kept < 0) kept = entries.length;
@@ -245,7 +245,7 @@ function advance(
 	}
 }
 
-/** `op` moved under `prefix`; a root replacement becomes a set of the prefix. */
+/** 将 `op` 移到 `prefix` 之下；根节点替换会转换为对该前缀的设置操作。 */
 function prefixed(op: Op, prefix: NonEmptyPath): Op {
 	const at = (path: Path): NonEmptyPath => [...prefix, ...path] as unknown as NonEmptyPath;
 	switch (op[0]) {

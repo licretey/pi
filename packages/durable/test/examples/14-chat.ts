@@ -1,5 +1,5 @@
-// A chat turn.
-// Run from packages/durable:
+// 一轮对话。
+// 在 packages/durable 目录下运行：
 //   node --conditions=source --experimental-strip-types test/examples/14-chat.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import { createModels } from "@earendil-works/pi-ai/models";
@@ -8,7 +8,7 @@ import { AssistantEntry, createRegistry, defineExtension, Harness, MemoryStorage
 
 const context = BACKGROUND_CONTEXT;
 
-// The faux provider stands in for a real model (see 16-real-model.ts).
+// 使用模拟提供商代替真实模型（参见 16-real-model.ts）。
 const faux = fauxProvider();
 const models = createModels();
 models.setProvider(faux.provider);
@@ -24,10 +24,9 @@ registry.install(
 const harness = await Harness.open(new MemoryStorage(), { models, registry }, context);
 const root = await harness.root(context, { agent: { model: { provider: "faux", modelId: "faux-1" } } });
 
-// submit() durably admits user input and returns a Submission. The built-in
-// pi.generation task prepares the system prompt from the agent's sections,
-// calls the model, and appends the answer; wait() resolves once the input is
-// answered or has failed.
+// submit() 会持久化接纳用户输入并返回 Submission。内置的
+// pi.generation 任务会根据智能体的区段构造系统提示词、调用模型并追加回答；
+// 输入得到回答或处理失败后，wait() 才会兑现。
 const capital = await root.submit({ type: "input", content: "Capital of France?" }, context);
 const answered = await capital.wait(context);
 if (answered.status === "done" && answered.type === "input") {
@@ -36,7 +35,7 @@ if (answered.status === "done" && answered.type === "input") {
 	console.log("answer:", reply?.role === "assistant" ? reply.content : reply);
 }
 
-// The transcript holds the user input, the positional system prompt, and the answer.
+// 对话记录包含用户输入、按位置记录的系统提示词和回答。
 const transcript = await root.entries({}, 10, undefined, context);
 console.log(
 	"transcript:",

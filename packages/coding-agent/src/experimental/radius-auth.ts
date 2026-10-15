@@ -13,7 +13,7 @@ export interface RadiusRelayAuth {
 	readonly token: string;
 }
 
-/** Resolve explicit or stored Radius credentials anew for every relay connection attempt. */
+/** 每次中继连接尝试时，重新解析显式提供或已存储的 Radius 凭据。 */
 export class RadiusRelayAuthResolver {
 	readonly #input: AuthInput | undefined;
 	readonly #gateway: string;

@@ -33,7 +33,7 @@
       min-height: 100vh;
     }
 
-    /* Sidebar */
+    /* 侧边栏 */
     #sidebar {
       width: var(--sidebar-width);
       min-width: var(--sidebar-width);
@@ -243,7 +243,7 @@
       flex-shrink: 0;
     }
 
-    /* Main content */
+    /* 主内容区 */
     #content {
       flex: 1;
       min-width: 0;
@@ -259,7 +259,7 @@
       max-width: 800px;
     }
 
-    /* Help bar */
+    /* 帮助栏 */
     .help-bar {
       font-size: 11px;
       color: var(--warning);
@@ -306,7 +306,7 @@
       font-weight: bold;
     }
 
-    /* Header */
+    /* 页眉 */
     .header {
       background: var(--container-bg);
       border-radius: 4px;
@@ -345,7 +345,7 @@
       flex: 1;
     }
 
-    /* Messages */
+    /* 消息 */
     #messages {
       display: flex;
       flex-direction: column;
@@ -371,7 +371,7 @@
       position: relative;
     }
 
-    /* Copy link button - appears on hover */
+    /* 复制链接按钮：悬停时显示 */
     .copy-link-btn {
       position: absolute;
       top: 8px;
@@ -410,7 +410,7 @@
       border-color: var(--success, #22c55e);
     }
 
-    /* Highlight effect for deep-linked messages */
+    /* 深链接定位到消息时的高亮效果。 */
     .user-message.highlight,
     .assistant-message.highlight {
       animation: highlight-pulse 2s ease-out;
@@ -462,7 +462,7 @@
       font-style: italic;
     }
 
-    /* Tool execution */
+    /* 工具执行 */
     .tool-execution {
       padding: var(--line-height);
       border-radius: 4px;
@@ -583,7 +583,7 @@
       color: var(--toolOutput);
     }
 
-    /* Diff */
+    /* 差异 */
     .tool-diff {
       font-size: 11px;
       overflow-x: auto;
@@ -594,7 +594,7 @@
     .diff-removed { color: var(--toolDiffRemoved); }
     .diff-context { color: var(--toolDiffContext); }
 
-    /* Model change */
+    /* 模型变更 */
     .model-change {
       padding: 0 var(--line-height);
       color: var(--dim);
@@ -606,7 +606,7 @@
       font-weight: bold;
     }
 
-    /* Compaction / Branch Summary - matches customMessage colors from TUI */
+    /* 压缩摘要和分支摘要：颜色与 TUI 的自定义消息保持一致。 */
     .compaction {
       background: var(--customMessageBg);
       border-radius: 4px;
@@ -638,7 +638,7 @@
       display: block;
     }
 
-    /* System prompt */
+    /* 系统提示 */
     .system-prompt {
       background: var(--customMessageBg);
       padding: var(--line-height);
@@ -698,7 +698,7 @@
       margin-top: 4px;
     }
 
-    /* Tools list */
+    /* 工具列表 */
     .tools-list {
       background: var(--customMessageBg);
       padding: var(--line-height);
@@ -784,7 +784,7 @@
       margin-left: 8px;
     }
 
-    /* Hook/custom messages */
+    /* 钩子消息和自定义消息 */
     .hook-message {
       background: var(--customMessageBg);
       color: var(--customMessageText);
@@ -801,7 +801,7 @@
       font-weight: bold;
     }
 
-    /* Skill invocation - matches compaction style (clickable, collapsed by default) */
+    /* 技能调用：样式与压缩摘要一致，可点击，默认折叠 */
     .skill-invocation {
       background: var(--customMessageBg);
       border-radius: 4px;
@@ -840,7 +840,7 @@
       position: relative;
     }
 
-    /* Branch summary */
+    /* 分支摘要 */
     .branch-summary {
       background: var(--customMessageBg);
       padding: var(--line-height);
@@ -852,7 +852,7 @@
       color: var(--borderAccent);
     }
 
-    /* Error */
+    /* 错误 */
     .error-text {
       color: var(--error);
       padding: 0 var(--line-height);
@@ -861,7 +861,7 @@
       color: var(--error);
     }
 
-    /* Images */
+    /* 图像 */
     .message-images {
       margin-bottom: 12px;
     }
@@ -873,7 +873,7 @@
       margin: var(--line-height) 0;
     }
 
-    /* Markdown content */
+    /* Markdown 内容 */
     .markdown-content h1,
     .markdown-content h2,
     .markdown-content h3,
@@ -971,9 +971,9 @@
     .hljs-keyword, .hljs-selector-tag { color: var(--syntaxKeyword); }
     .hljs-number, .hljs-literal { color: var(--syntaxNumber); }
     .hljs-string, .hljs-doctag { color: var(--syntaxString); }
-    /* Function names: hljs v11 uses .hljs-title.function_ compound class */
+    /* 函数名：hljs v11 使用 .hljs-title.function_ 复合类名。 */
     .hljs-function, .hljs-title, .hljs-title.function_, .hljs-section, .hljs-name { color: var(--syntaxFunction); }
-    /* Types: hljs v11 uses .hljs-title.class_ for class names */
+    /* 类型样式：hljs v11 使用 .hljs-title.class_ 表示类名。 */
     .hljs-type, .hljs-class, .hljs-title.class_, .hljs-built_in { color: var(--syntaxType); }
     .hljs-attr, .hljs-variable, .hljs-variable.language_, .hljs-params, .hljs-property { color: var(--syntaxVariable); }
     .hljs-meta, .hljs-meta .hljs-keyword, .hljs-meta .hljs-string { color: var(--syntaxKeyword); }

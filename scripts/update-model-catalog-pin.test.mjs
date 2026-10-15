@@ -27,10 +27,10 @@ const liveBody = catalog([model, { ...model, id: "model-b" }]);
 const liveRevision = revisionOf(liveBody);
 const currentBody = catalog([model]);
 const currentRevision = revisionOf(currentBody);
-// Hydration fails when a checkout provider is missing, e.g. after main adds one.
+// 检出版本缺少某个提供商时，数据水合会失败，例如主分支新增提供商之后。
 const staleBody = `${JSON.stringify({ "other-provider": [model] })}\n`;
 const staleRevision = revisionOf(staleBody);
-// Hydrates, but lacks a model type the live catalog (generated from main) has.
+// 数据水合成功，但缺少由主分支生成的在线目录中包含的某种模型类型。
 const classifier = { ...model, type: "classifier", id: "classifier-a", name: "Classifier A" };
 delete classifier.reasoning;
 delete classifier.maxTokens;

@@ -1,12 +1,12 @@
 /**
- * E2E tests for AgentSession tree navigation with branch summarization.
+ * 测试 AgentSession 在生成分支摘要时的会话树导航。
  *
- * These tests verify:
- * - Navigation to user messages (root and non-root)
- * - Navigation to non-user messages
- * - Branch summarization during navigation
- * - Summary attachment at correct position in tree
- * - Abort handling during summarization
+ * 这些测试验证：
+ * - 导航到用户消息（根节点和非根节点）
+ * - 导航到非用户消息
+ * - 导航过程中生成分支摘要
+ * - 将摘要附加到树中的正确位置
+ * - 摘要生成过程中的中止处理
  */
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -29,66 +29,66 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 	it("should navigate to user message and put text in editor", async () => {
 		const { session } = ctx;
 
-		// Build conversation: u1 -> a1 -> u2 -> a2
+		// 构造对话：u1 -> a1 -> u2 -> a2
 		await session.prompt("First message");
 		await session.agent.waitForIdle();
 		await session.prompt("Second message");
 		await session.agent.waitForIdle();
 
-		// Get tree entries
+		// 获取树形条目
 		const tree = session.sessionManager.getTree();
 		expect(tree.length).toBe(1);
 
-		// Find the first user entry (u1)
+		// 查找第一条用户消息（u1）。
 		const rootNode = tree[0];
 		expect(rootNode.entry.type).toBe("message");
 
-		// Navigate to root user message without summarization
+		// 导航到根用户消息，不生成摘要
 		const result = await session.navigateTree(rootNode.entry.id, { summarize: false });
 
 		expect(result.cancelled).toBe(false);
 		expect(result.editorText).toBe("First message");
 
-		// After navigating to root user message, leaf should be null (empty conversation)
+		// 导航到根用户消息后，叶节点应为 null（对话为空）
 		expect(session.sessionManager.getLeafId()).toBeNull();
 	}, 60000);
 
 	it("should navigate to non-user message without editor text", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation
+		// 构建对话
 		await session.prompt("Hello");
 		await session.agent.waitForIdle();
 
-		// Get the assistant message
+		// 获取 assistant 消息
 		const entries = sessionManager.getEntries();
 		const assistantEntry = entries.find((e) => e.type === "message" && e.message.role === "assistant");
 		expect(assistantEntry).toBeDefined();
 
-		// Navigate to assistant message
+		// 导航到 assistant 消息
 		const result = await session.navigateTree(assistantEntry!.id, { summarize: false });
 
 		expect(result.cancelled).toBe(false);
 		expect(result.editorText).toBeUndefined();
 
-		// Leaf should be the assistant entry
+		// 叶节点应为 assistant 条目
 		expect(sessionManager.getLeafId()).toBe(assistantEntry!.id);
 	}, 60000);
 
 	it("should create branch summary when navigating with summarize=true", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation: u1 -> a1 -> u2 -> a2
+		// 构造对话：u1 -> a1 -> u2 -> a2
 		await session.prompt("What is 2+2?");
 		await session.agent.waitForIdle();
 		await session.prompt("What is 3+3?");
 		await session.agent.waitForIdle();
 
-		// Get tree and find first user message
+		// 获取对话树并查找第一条用户消息
 		const tree = sessionManager.getTree();
 		const rootNode = tree[0];
 
-		// Navigate to root user message WITH summarization
+		// 导航到根用户消息并生成摘要
 		const result = await session.navigateTree(rootNode.entry.id, { summarize: true });
 
 		expect(result.cancelled).toBe(false);
@@ -98,17 +98,17 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 		expect(result.summaryEntry?.summary).toBeTruthy();
 		expect(result.summaryEntry?.summary.length).toBeGreaterThan(0);
 
-		// Summary should be a root entry (parentId = null) since we navigated to root user
+		// 已导航到根用户消息，因此摘要应为根条目（parentId = null）。
 		expect(result.summaryEntry?.parentId).toBeNull();
 
-		// Leaf should be the summary entry
+		// 叶节点应为摘要条目
 		expect(sessionManager.getLeafId()).toBe(result.summaryEntry?.id);
 	}, 120000);
 
 	it("should attach summary to correct parent when navigating to nested user message", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation: u1 -> a1 -> u2 -> a2 -> u3 -> a3
+		// 构造对话：u1 -> a1 -> u2 -> a2 -> u3 -> a3
 		await session.prompt("Message one");
 		await session.agent.waitForIdle();
 		await session.prompt("Message two");
@@ -116,26 +116,25 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 		await session.prompt("Message three");
 		await session.agent.waitForIdle();
 
-		// Get the second user message (u2)
+		// 获取第二条用户消息（u2）。
 		const entries = sessionManager.getEntries();
 		const userEntries = entries.filter((e) => e.type === "message" && e.message.role === "user");
 		expect(userEntries.length).toBe(3);
 
 		const u2 = userEntries[1];
-		const a1 = entries.find((e) => e.id === u2.parentId); // a1 is parent of u2
+		const a1 = entries.find((e) => e.id === u2.parentId); // a1 是 u2 的父条目。
 
-		// Navigate to u2 with summarization
+		// 导航到 u2 并生成摘要。
 		const result = await session.navigateTree(u2.id, { summarize: true });
 
 		expect(result.cancelled).toBe(false);
 		expect(result.editorText).toBe("Message two");
 		expect(result.summaryEntry).toBeDefined();
 
-		// Summary should be attached to a1 (parent of u2)
-		// So a1 now has two children: u2 and the summary
+		// 摘要应附加到 u2 的父条目 a1，因此 a1 现在有两个子项：u2 和摘要。
 		expect(result.summaryEntry?.parentId).toBe(a1?.id);
 
-		// Verify tree structure
+		// 验证树结构
 		const children = sessionManager.getChildren(a1!.id);
 		expect(children.length).toBe(2);
 
@@ -147,35 +146,35 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 	it("should attach summary to selected node when navigating to assistant message", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation: u1 -> a1 -> u2 -> a2
+		// 构造对话：u1 -> a1 -> u2 -> a2
 		await session.prompt("Hello");
 		await session.agent.waitForIdle();
 		await session.prompt("Goodbye");
 		await session.agent.waitForIdle();
 
-		// Get the first assistant message (a1)
+		// 获取第一条助手消息（a1）。
 		const entries = sessionManager.getEntries();
 		const assistantEntries = entries.filter((e) => e.type === "message" && e.message.role === "assistant");
 		const a1 = assistantEntries[0];
 
-		// Navigate to a1 with summarization
+		// 导航到 a1 并生成摘要。
 		const result = await session.navigateTree(a1.id, { summarize: true });
 
 		expect(result.cancelled).toBe(false);
-		expect(result.editorText).toBeUndefined(); // No editor text for assistant messages
+		expect(result.editorText).toBeUndefined(); // 助手消息没有编辑器文本。
 		expect(result.summaryEntry).toBeDefined();
 
-		// Summary should be attached to a1 (the selected node)
+		// 摘要应附加到当前选中的节点 a1。
 		expect(result.summaryEntry?.parentId).toBe(a1.id);
 
-		// Leaf should be the summary entry
+		// 叶节点应为摘要条目
 		expect(sessionManager.getLeafId()).toBe(result.summaryEntry?.id);
 	}, 120000);
 
 	it("should handle abort during summarization", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation
+		// 构建对话
 		await session.prompt("Tell me about something");
 		await session.agent.waitForIdle();
 		await session.prompt("Continue");
@@ -184,17 +183,17 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 		const entriesBefore = sessionManager.getEntries();
 		const leafBefore = sessionManager.getLeafId();
 
-		// Get root user message
+		// 获取根用户消息
 		const tree = sessionManager.getTree();
 		const rootNode = tree[0];
 
-		// Start navigation with summarization but abort immediately
+		// 启动带摘要的导航，但立即中止
 		const navigationPromise = session.navigateTree(rootNode.entry.id, { summarize: true });
 
-		// Abort after a short delay (let the LLM call start)
+		// 短暂延迟后中止（留出时间启动大语言模型调用）
 		await new Promise((resolve) => setTimeout(resolve, 100));
 
-		// isCompacting should be true during branch summarization
+		// 分支摘要生成期间，isCompacting 应为 true
 		expect(session.isCompacting).toBe(true);
 
 		session.abortBranchSummary();
@@ -205,7 +204,7 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 		expect(result.aborted).toBe(true);
 		expect(result.summaryEntry).toBeUndefined();
 
-		// Session should be unchanged
+		// 会话应保持不变
 		const entriesAfter = sessionManager.getEntries();
 		expect(entriesAfter.length).toBe(entriesBefore.length);
 		expect(sessionManager.getLeafId()).toBe(leafBefore);
@@ -214,7 +213,7 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 	it("should not create summary when navigating without summarize option", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation
+		// 构建对话
 		await session.prompt("First");
 		await session.agent.waitForIdle();
 		await session.prompt("Second");
@@ -222,15 +221,15 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 
 		const entriesBefore = sessionManager.getEntries().length;
 
-		// Navigate without summarization
+		// 不生成摘要，直接导航
 		const tree = sessionManager.getTree();
 		await session.navigateTree(tree[0].entry.id, { summarize: false });
 
-		// No new entries should be created
+		// 不应创建新条目
 		const entriesAfter = sessionManager.getEntries().length;
 		expect(entriesAfter).toBe(entriesBefore);
 
-		// No branch_summary entries
+		// 不包含 branch_summary 条目。
 		const summaries = sessionManager.getEntries().filter((e) => e.type === "branch_summary");
 		expect(summaries.length).toBe(0);
 	}, 60000);
@@ -238,7 +237,7 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 	it("should handle navigation to same position (no-op)", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation
+		// 构建对话
 		await session.prompt("Hello");
 		await session.agent.waitForIdle();
 
@@ -246,7 +245,7 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 		expect(leafBefore).toBeTruthy();
 		const entriesBefore = sessionManager.getEntries().length;
 
-		// Navigate to current leaf
+		// 导航到当前叶节点
 		const result = await session.navigateTree(leafBefore!, { summarize: false });
 
 		expect(result.cancelled).toBe(false);
@@ -257,11 +256,11 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 	it("should support custom summarization instructions", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build conversation
+		// 构建对话
 		await session.prompt("What is TypeScript?");
 		await session.agent.waitForIdle();
 
-		// Navigate with custom instructions (appended as "Additional focus")
+		// 使用自定义说明导航（会追加为 "Additional focus"）。
 		const tree = sessionManager.getTree();
 		const result = await session.navigateTree(tree[0].entry.id, {
 			summarize: true,
@@ -271,7 +270,7 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation e2e", () => {
 
 		expect(result.summaryEntry).toBeDefined();
 		expect(result.summaryEntry?.summary).toBeTruthy();
-		// Verify custom instructions were followed
+		// 验证是否遵循了自定义指令
 		expect(result.summaryEntry?.summary).toContain("MONKEY MONKEY MONKEY");
 	}, 120000);
 });
@@ -292,22 +291,22 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation - branch scenarios", () 
 	it("should navigate between branches correctly", async () => {
 		const { session, sessionManager } = ctx;
 
-		// Build main path: u1 -> a1 -> u2 -> a2
+		// 构造主分支：u1 -> a1 -> u2 -> a2
 		await session.prompt("Main branch start");
 		await session.agent.waitForIdle();
 		await session.prompt("Main branch continue");
 		await session.agent.waitForIdle();
 
-		// Get a1 id for branching
+		// 获取用于创建分支的 a1 ID。
 		const entries = sessionManager.getEntries();
 		const a1 = entries.find((e) => e.type === "message" && e.message.role === "assistant");
 
-		// Create a branch from a1: a1 -> u3 -> a3
+		// 从 a1 创建分支：a1 -> u3 -> a3。
 		sessionManager.branch(a1!.id);
 		await session.prompt("Branch path");
 		await session.agent.waitForIdle();
 
-		// Now navigate back to u2 (on main branch) with summarization
+		// 现在通过摘要导航回主分支上的 u2。
 		const userEntries = entries.filter((e) => e.type === "message" && e.message.role === "user");
 		const u2 = userEntries[1]; // "Main branch continue"
 
@@ -317,7 +316,7 @@ describe.skipIf(!API_KEY)("AgentSession tree navigation - branch scenarios", () 
 		expect(result.editorText).toBe("Main branch continue");
 		expect(result.summaryEntry).toBeDefined();
 
-		// Summary captures the branch we're leaving (the "Branch path" conversation)
+		// 摘要记录即将离开的分支（"Branch path" 对话）。
 		expect(result.summaryEntry?.summary.length).toBeGreaterThan(0);
 	}, 180000);
 });

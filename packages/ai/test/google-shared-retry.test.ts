@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { retryGoogleRequest } from "../src/api/google-shared.ts";
 
-/** Shaped like @google/genai's ApiError: has `status`, but no `headers`. */
+/** 模拟 @google/genai 的 ApiError 结构：包含 `status`，但没有 `headers`。 */
 function googleApiError(status: number): Error {
 	return Object.assign(new Error(`got status: ${status}`), { status });
 }

@@ -3,8 +3,8 @@ import type { JsonRpcId } from "./jsonrpc.ts";
 
 export const LATEST_PROTOCOL_VERSION = "2025-11-25";
 /**
- * Versions the client accepts from a server. Servers that do not support the requested version answer
- * with their own latest one, so older versions stay accepted for servers built on older SDKs.
+ * 客户端接受的服务器协议版本。服务器不支持请求的版本时，会返回自身支持的最新版本，
+ * 因此客户端仍可与基于旧版 SDK 构建的服务器兼容。
  */
 export const SUPPORTED_PROTOCOL_VERSIONS = [LATEST_PROTOCOL_VERSION, "2025-06-18", "2025-03-26", "2024-11-05"] as const;
 export type SupportedProtocolVersion = (typeof SUPPORTED_PROTOCOL_VERSIONS)[number];
@@ -90,7 +90,7 @@ export interface ListToolsResult {
 	_meta?: Record<string, unknown>;
 }
 
-/** A resource a server lists in `resources/list`. */
+/** 服务器通过 `resources/list` 列出的资源。 */
 export interface Resource {
 	uri: string;
 	name: string;
@@ -102,7 +102,7 @@ export interface Resource {
 	_meta?: Record<string, unknown>;
 }
 
-/** A family of resources, addressed by an RFC 6570 URI template, from `resources/templates/list`. */
+/** 服务器通过 `resources/templates/list` 列出的资源集合，使用 RFC 6570 URI 模板寻址。 */
 export interface ResourceTemplate {
 	uriTemplate: string;
 	name: string;

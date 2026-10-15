@@ -1,5 +1,5 @@
 /**
- * xAI OAuth device-code flow.
+ * xAI OAuth 设备码授权流程。
  */
 
 import type { OAuthAuth, OAuthCredential, ProviderAuthInteraction } from "../types.ts";
@@ -9,7 +9,7 @@ const XAI_CLIENT_ID = "b1a00492-073a-47ea-816f-4c329264a828";
 const XAI_SCOPE = "openid profile email offline_access grok-cli:access api:access";
 const XAI_DEVICE_CODE_URL = "https://auth.x.ai/oauth2/device/code";
 const XAI_TOKEN_URL = "https://auth.x.ai/oauth2/token";
-// Refresh slightly before the reported expiry to avoid using a token that dies mid-request.
+// 在报告的过期时间之前稍早刷新，避免请求过程中 token 过期。
 const REFRESH_SKEW_MS = 5 * 60 * 1000;
 const DEFAULT_TOKEN_LIFETIME_SECONDS = 3600;
 
@@ -46,8 +46,8 @@ function positiveNumber(body: JsonObject, field: string): number {
 	return value;
 }
 
-// The verification URI is opened in the user's browser; force it to be an https URL
-// so a malicious response cannot make `open` launch something else.
+// 验证 URI 会在用户浏览器中打开；强制要求它是 https URL，
+// 防止恶意响应让 `open` 启动其他内容。
 function validateVerificationUri(raw: string): string {
 	let url: URL;
 	try {
@@ -106,8 +106,8 @@ function requestFailure(action: string, response: OAuthHttpResponse): Error {
 }
 
 function parseDeviceCode(body: JsonObject): XaiDeviceCode {
-	// RFC 8628 allows interval 0 (no minimum wait); fall back to the poller's
-	// default instead of failing on non-positive or malformed values.
+	// RFC 8628 允许 interval 为 0（不要求最短等待时间）；遇到非正数或格式错误的值时，
+	// 使用轮询器的默认间隔，而不是直接失败。
 	const interval = body.interval;
 	const intervalSeconds =
 		typeof interval === "number" && Number.isFinite(interval) && interval > 0 ? interval : undefined;
@@ -127,7 +127,7 @@ function parseDeviceCode(body: JsonObject): XaiDeviceCode {
 
 function credentialsFromTokenResponse(body: JsonObject, previousRefreshToken?: string): OAuthCredential {
 	const access = requiredString(body, "access_token");
-	// xAI may omit refresh_token on refresh when the token is not rotated.
+	// token 未轮换时，xAI 刷新令牌可能不会返回 refresh_token。
 	const refresh =
 		body.refresh_token === undefined && previousRefreshToken
 			? previousRefreshToken

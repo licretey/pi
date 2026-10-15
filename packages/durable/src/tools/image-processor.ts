@@ -1,47 +1,46 @@
-/** Limits an image the model sees must keep; the defaults below are the coding agent's. */
+/** 模型看到的图像必须遵守的限制；以下默认值来自编码代理。 */
 export type ImageLimits = {
-	/** Pixels. Default 2000. */
+	/** 像素。默认 2000。 */
 	readonly maxWidth: number;
-	/** Pixels. Default 2000. */
+	/** 像素。默认 2000。 */
 	readonly maxHeight: number;
-	/** Bytes of base64. Default 4.5 MiB, below Anthropic's 5 MB. */
+	/** base64 字节数。默认 4.5 MiB，低于 Anthropic 的 5 MB。 */
 	readonly maxBytes: number;
 };
 
 export const DEFAULT_IMAGE_LIMITS: ImageLimits = { maxWidth: 2000, maxHeight: 2000, maxBytes: 4.5 * 1024 * 1024 };
 
-/** An image the model can take: a supported format, within the limits, as base64. */
+/** 模型可接收的图像：受支持的格式、在限制之内、以 base64 表示。 */
 export type PreparedImage = {
 	readonly data: string;
 	readonly mimeType: string;
-	/** Set when the image was resized: its size before and after, for the model to map coordinates back. */
+	/** 图像被缩放时设置：缩放前后的尺寸，供模型把坐标映射回去。 */
 	readonly resized?: {
 		readonly from: { readonly width: number; readonly height: number };
 		readonly to: { readonly width: number; readonly height: number };
 	};
-	/** The original format, set when it differs from `mimeType`: BMP becomes PNG, a large PNG may become JPEG. */
+	/** 原始格式，与 `mimeType` 不同时设置：BMP 转为 PNG，较大的 PNG 可能转为 JPEG。 */
 	readonly convertedFrom?: string;
 };
 
 /**
- * Decodes, orients, resizes, and re-encodes images so the model can take them. `read` uses one when given; without
- * one, it passes supported images within the byte limit through as they are. `@earendil-works/pi-durable/images`
- * provides a Photon-based one.
+ * 解码、定向、缩放并重新编码图像，使模型能够接收。`read` 在提供处理器时使用它；没有时，会把字节限制之内的
+ * 受支持图像原样放行。`@earendil-works/pi-durable/images` 提供基于 Photon 的实现。
  */
 export type ImageProcessor = {
 	/**
-	 * The image, prepared to fit `limits`, or `undefined` when it cannot be decoded or made to fit. A promise, so a
-	 * processor can do the work off the event loop.
+	 * 已按 `limits` 准备好的图像，或无法解码/无法缩减到限制之内时的 `undefined`。返回 promise，
+	 * 因此处理器可以把工作放到事件循环之外。
 	 */
 	prepare(bytes: Uint8Array, mimeType: string, limits: ImageLimits): Promise<PreparedImage | undefined>;
 };
 
-/** Formats every provider takes inline; others, such as BMP, need converting. */
+/** 所有提供方都直接内联接收的格式；其他格式（如 BMP）需要转换。 */
 export const INLINE_IMAGE_TYPES: ReadonlySet<string> = new Set(["image/png", "image/jpeg", "image/gif", "image/webp"]);
 
 const BASE64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-/** Standard base64 of `bytes`, without platform APIs such as `Buffer` or `btoa`. */
+/** `bytes` 的标准 base64，不依赖 `Buffer` 或 `btoa` 等平台 API。 */
 export function toBase64(bytes: Uint8Array): string {
 	const parts: string[] = [];
 	let chunk = "";
@@ -53,7 +52,7 @@ export function toBase64(bytes: Uint8Array): string {
 		chunk += BASE64[((a & 3) << 4) | ((b ?? 0) >> 4)]!;
 		chunk += b === undefined ? "=" : BASE64[((b & 15) << 2) | ((c ?? 0) >> 6)]!;
 		chunk += c === undefined ? "=" : BASE64[c & 63]!;
-		// Join in pieces: one string grown a character at a time is slow for megabytes.
+		// 分段拼接：一次增长一个字符的字符串在兆字节量级下很慢。
 		if (chunk.length >= 8192) {
 			parts.push(chunk);
 			chunk = "";
@@ -63,7 +62,7 @@ export function toBase64(bytes: Uint8Array): string {
 	return parts.join("");
 }
 
-/** The length of the base64 of `byteLength` bytes. */
+/** `byteLength` 个字节对应的 base64 长度。 */
 export function base64Length(byteLength: number): number {
 	return Math.ceil(byteLength / 3) * 4;
 }

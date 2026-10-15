@@ -70,7 +70,7 @@ export type ServiceUpdatePublisher = (
 	context: Context,
 ) => void | Promise<void>;
 
-/** Hosts one provider for one remote consumer and owns that consumer's subscriptions. */
+/** 为单个远程使用方托管一个提供程序，并管理该使用方的订阅。 */
 export interface RemoteServiceEndpoint {
 	invoke(call: ServiceCall, publish: ServiceUpdatePublisher, context: Context): Promise<JsonValue | undefined>;
 	dispose(): void;
@@ -125,7 +125,7 @@ export class RemoteServiceProvider {
 		registration.singletonShape = shape;
 	}
 
-	/** Disconnect one singleton while preserving active subscriptions and remote facades. */
+	/** 断开一个单例，同时保留活动订阅和远程门面。 */
 	withdraw<T>(service: Service<T>): void {
 		this.#assertActive();
 		this.#assertRemotable(service);
@@ -139,7 +139,7 @@ export class RemoteServiceProvider {
 		this.#emit(registration, { type: "unavailable" });
 	}
 
-	/** Check a singleton replacement without changing the active provider. */
+	/** 检查单例替换是否可行，但不更改当前活动提供程序。 */
 	validateReplacement<T>(service: Service<T>, implementation: NoInfer<RemoteServiceContract<T>>): void {
 		this.#assertActive();
 		this.#assertRemotable(service);
@@ -149,7 +149,7 @@ export class RemoteServiceProvider {
 		this.#assertSingletonShape(registration, serviceMemberShape(classified.members));
 	}
 
-	/** Replace one singleton without making its stable remote facade unavailable. */
+	/** 替换一个单例，同时确保其稳定的远程门面持续可用。 */
 	replace<T>(service: Service<T>, implementation: NoInfer<RemoteServiceContract<T>>): void {
 		this.#assertActive();
 		this.#assertRemotable(service);
@@ -447,7 +447,7 @@ export class RemoteServiceProvider {
 		const deliveryContext = context ?? serviceDeliveryContext();
 		const errors: unknown[] = [];
 		const subscribers = [...registration.subscribers];
-		// Queue for everyone before invoking user code, including reentrant publications.
+		// 调用用户代码前先为所有订阅者排队，包括重入发布的内容。
 		for (const subscriber of subscribers) {
 			if (subscriber.closed || updateCoveredBySnapshot(subscriber.snapshotSequences, update)) continue;
 			if (subscriber.buffer.length === 100) {

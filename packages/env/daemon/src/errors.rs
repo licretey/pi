@@ -1,9 +1,9 @@
-//! Errors as Node reports them: a code such as `ENOENT` plus a diagnostic message.
+//! 按 Node 的格式报告错误：包含 `ENOENT` 等错误代码及诊断消息。
 
 use serde_json::{Value, json};
 use std::io;
 
-/// A failure with a Node-style code; messages are diagnostic only.
+/// 使用 Node 风格错误代码表示的失败；消息仅用于诊断。
 #[derive(Debug)]
 pub struct Failure {
     pub code: String,
@@ -15,7 +15,7 @@ pub struct Failure {
 struct Details {
     syscall: Option<String>,
     path: Option<String>,
-    /// Extra fields for the client, such as `spillPath`.
+    /// 提供给客户端的额外字段，例如 `spillPath`。
     extra: Option<Value>,
 }
 
@@ -32,18 +32,18 @@ impl Failure {
         self.details.get_or_insert_with(Default::default)
     }
 
-    /// Add fields to the error JSON, such as `spillPath`.
+    /// 向错误 JSON 添加字段，例如 `spillPath`。
     pub fn extra(mut self, extra: Value) -> Failure {
         self.details().extra = Some(extra);
         self
     }
 
-    /// An I/O error of `syscall` on `path`, with libuv's error name as code.
+    /// `path` 上的 `syscall` I/O 错误，错误代码采用 libuv 的错误名称。
     pub fn io(error: &io::Error, syscall: &str, path: &str) -> Failure {
         Failure::io_between(error, syscall, path, None)
     }
 
-    /// Node's message for an error of a two-path call: `CODE: description, syscall 'from' -> 'to'`.
+    /// 双路径调用错误的 Node 消息格式：`CODE: description, syscall 'from' -> 'to'`。
     pub fn io_between(
         error: &io::Error,
         syscall: &str,
@@ -52,7 +52,7 @@ impl Failure {
     ) -> Failure {
         let code = crate::sys::error_name(error).to_string();
         let description = describe(&code).map(str::to_string).unwrap_or_else(|| {
-            // Unknown to libuv's table: the OS text without Rust's " (os error N)".
+            // libuv 错误表中没有此错误代码：使用操作系统消息，并去掉 Rust 添加的 " (os error N)"。
             let text = error.to_string();
             text.split(" (os error")
                 .next()
@@ -93,7 +93,7 @@ impl Failure {
     }
 }
 
-/// libuv's `uv_strerror` texts, which Node uses on every system.
+/// libuv 的 `uv_strerror` 错误文本，Node 在所有系统上都使用这些文本。
 fn describe(code: &str) -> Option<&'static str> {
     Some(match code {
         "EACCES" => "permission denied",

@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
- * OpenAI models served through Bedrock Converse (e.g. `global.openai.gpt-5.6-terra`)
- * return encrypted reasoning as the opaque `redactedContent` member of
- * `reasoningContent`, not as `reasoningText`. The AWS SDK decodes the wire blob to
- * `Uint8Array`.
+ * 通过 Bedrock Converse 提供服务的 OpenAI 模型（例如 `global.openai.gpt-5.6-terra`）
+ * 会将加密推理内容放在 `reasoningContent` 的不透明字段 `redactedContent` 中，
+ * 而不是 `reasoningText`。AWS SDK 会将传输数据块解码为 `Uint8Array`。
  * @see https://docs.aws.amazon.com/bedrock/latest/APIReference/API_runtime_ReasoningContentBlockDelta.html
  */
 const bedrockMock = vi.hoisted(() => {
@@ -87,7 +86,7 @@ const emptyUsage = {
 	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
 };
 
-/** Mirrors the ConverseStream frames GPT-5.6 emits: encrypted reasoning, then text. */
+/** 模拟 GPT-5.6 发出的 ConverseStream 帧：先是加密推理内容，之后是文本。 */
 function redactedReasoningEvents(): unknown[] {
 	return [
 		{ messageStart: { role: "assistant" } },
@@ -140,7 +139,7 @@ describe("Bedrock redacted reasoning", () => {
 		const response = await streamBedrock(gptModel, helloContext).result();
 
 		expect(response.stopReason, response.errorMessage).not.toBe("error");
-		// Reasoning precedes the answer, matching the order Bedrock streamed it.
+		// 思考内容位于回答之前，与 Bedrock 的流式发送顺序一致。
 		expect(response.content.map((c) => c.type)).toEqual(["thinking", "text"]);
 		expect(response.content[1]).toEqual({ type: "text", text: "done" });
 	});
@@ -152,12 +151,12 @@ describe("Bedrock redacted reasoning", () => {
 
 		const thinking = response.content.find((c): c is ThinkingContent => c.type === "thinking");
 		expect(thinking).toBeDefined();
-		// Same representation Anthropic redacted thinking already uses: the opaque
-		// payload rides in `thinkingSignature` with `redacted: true`.
+		// 使用与 Anthropic 脱敏思考内容相同的表示方式：不透明负载存放在 `thinkingSignature` 中，
+		// 并将 `redacted` 设为 true。
 		expect(thinking?.redacted).toBe(true);
 		expect(thinking?.thinkingSignature).toBe(bedrockMock.redactedBase64);
-		// The byte buffer is streaming scratch state: persisting it would bloat the
-		// session, since a Uint8Array serializes to an index-keyed object.
+		// 字节缓冲区仅用于流式处理；若将其持久化，由于 Uint8Array 会序列化为以索引为键的对象，
+		// 会导致会话文件显著膨胀。
 		expect("redactedChunks" in thinking!).toBe(false);
 	});
 
@@ -177,7 +176,7 @@ describe("Bedrock redacted reasoning", () => {
 
 		const thinking = response.content.find((c): c is ThinkingContent => c.type === "thinking");
 		expect(thinking?.thinkingSignature).toBe(bedrockMock.redactedBase64);
-		// Streaming scratch state must not survive into the persisted message.
+		// 流式处理的临时状态不得保留在持久化消息中。
 		expect("redactedChunks" in thinking!).toBe(false);
 		expect("index" in thinking!).toBe(false);
 	});
@@ -196,7 +195,7 @@ describe("Bedrock redacted reasoning", () => {
 
 		const thinking = response.content.find((c): c is ThinkingContent => c.type === "thinking");
 		expect(thinking?.thinkingSignature).toBe(bedrockMock.redactedBase64);
-		// The placeholder marks the block once, not once per delta.
+		// 占位文本应为整个内容块添加一次，而不是每个增量都添加一次。
 		expect(thinking?.thinking).toBe("[Reasoning redacted]");
 	});
 
@@ -230,8 +229,7 @@ describe("Bedrock redacted reasoning", () => {
 	});
 
 	it("replays redacted reasoning before the toolUse block it belongs to", async () => {
-		// Bedrock rejects a tool continuation whose reasoning block is missing or
-		// reordered, so the opaque payload must land ahead of the matching toolUse.
+		// Bedrock 会拒绝缺少思考块或思考块顺序错误的工具续接，因此不透明负载必须放在对应 toolUse 之前。
 		const messages: Message[] = [
 			{ role: "user", content: "read the file", timestamp: Date.now() },
 			{

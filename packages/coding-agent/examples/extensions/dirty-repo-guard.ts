@@ -1,8 +1,8 @@
 /**
- * Dirty Repo Guard Extension
+ * 脏工作区保护扩展。
  *
- * Prevents session changes when there are uncommitted git changes.
- * Useful to ensure work is committed before switching context.
+ * 存在未提交的 Git 更改时，阻止切换会话。
+ * 可确保切换上下文前先提交当前工作。
  */
 
 import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
@@ -12,11 +12,11 @@ async function checkDirtyRepo(
 	ctx: ExtensionContext,
 	action: string,
 ): Promise<{ cancel: boolean } | undefined> {
-	// Check for uncommitted changes
+	// 检查是否存在未提交的更改。
 	const { stdout, code } = await pi.exec("git", ["status", "--porcelain"]);
 
 	if (code !== 0) {
-		// Not a git repo, allow the action
+		// 当前目录不是 Git 仓库，允许执行操作。
 		return;
 	}
 
@@ -26,11 +26,11 @@ async function checkDirtyRepo(
 	}
 
 	if (!ctx.hasUI) {
-		// In non-interactive mode, block by default
+		// 在非交互模式下，默认阻止操作。
 		return { cancel: true };
 	}
 
-	// Count changed files
+	// 统计已更改的文件数。
 	const changedFiles = stdout.trim().split("\n").filter(Boolean).length;
 
 	const choice = await ctx.ui.select(`You have ${changedFiles} uncommitted file(s). ${action} anyway?`, [

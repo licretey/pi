@@ -1,5 +1,5 @@
 /**
- * Default themes for TUI tests using chalk
+ * 使用 chalk 的 TUI 测试默认主题。
  */
 
 import { Chalk } from "chalk";

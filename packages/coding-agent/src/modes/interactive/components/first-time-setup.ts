@@ -29,7 +29,7 @@ const ANALYTICS_OPTIONS: Array<{ value: boolean; label: string }> = [
 
 const SETUP_LOGO_LINES = ["██████", "██  ██", "████  ██", "██    ██"];
 
-/** First-time setup dialog: theme choice and analytics opt-in. */
+/** 首次设置对话框：选择主题并决定是否启用使用情况统计。 */
 export class FirstTimeSetupComponent extends Container {
 	private step: "theme" | "analytics" = "theme";
 	private themeIndex: number;
@@ -43,13 +43,13 @@ export class FirstTimeSetupComponent extends Container {
 		this.update();
 	}
 
-	/** Rebuild on theme changes, e.g. when the system theme receives the terminal's colors. */
+	/** 主题变化时重新构建，例如系统主题获取终端配色后。 */
 	override invalidate(): void {
 		this.update();
 		super.invalidate();
 	}
 
-	// Rebuild the whole dialog on every change so theme previews recolor all text.
+	// 每次变化时都重建整个对话框，以便主题预览能为所有文本重新着色。
 	private update(): void {
 		this.clear();
 		this.addChild(new DynamicBorder());

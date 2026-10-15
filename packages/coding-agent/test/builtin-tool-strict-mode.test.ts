@@ -26,7 +26,7 @@ describe("strict built-in tools", () => {
 		for (const name of ["grep", "find", "ls"] as const) {
 			expect(definitions[name].constrainedSampling).toBeUndefined();
 		}
-		// Strictness is a provider-side conversion, not a change to the execution schema.
+		// 严格模式是在提供方侧进行的转换，不会改变执行时使用的 schema。
 		expect(definitions.read.parameters.required).toEqual(["path"]);
 		expect(definitions.bash.parameters.required).toEqual(["command"]);
 	});

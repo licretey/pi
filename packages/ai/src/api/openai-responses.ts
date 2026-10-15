@@ -29,13 +29,12 @@ import { convertResponsesMessages, convertResponsesTools, processResponsesStream
 import { buildBaseOptions, resolveSamplingParams } from "./simple-options.ts";
 
 const OPENAI_TOOL_CALL_PROVIDERS = new Set(["openai", "openai-codex", "opencode"]);
-// OpenAI Responses rejects max_output_tokens below 16: https://github.com/earendil-works/pi/issues/6265
+// OpenAI Responses 会拒绝小于 16 的 max_output_tokens：https://github.com/earendil-works/pi/issues/6265
 const OPENAI_RESPONSES_MIN_OUTPUT_TOKENS = 16;
 const CHATGPT_USAGE_URL = "https://chatgpt.com/settings/usage";
 
 /**
- * OpenAI API keys start with `sk-`; a different credential sent directly to OpenAI
- * is a Sign in with ChatGPT access token.
+ * OpenAI API 密钥以 `sk-` 开头；直接发送给 OpenAI 的其他凭据属于“使用 ChatGPT 登录”访问 token。
  */
 function isChatGPTSignIn(model: Model<"openai-responses">, apiKey: string | undefined): boolean {
 	return (
@@ -66,8 +65,8 @@ function detectSessionAffinityFormat(model: Pick<Model<"openai-responses">, "pro
 }
 
 /**
- * Resolve cache retention preference.
- * Defaults to "short" and uses PI_CACHE_RETENTION for backward compatibility.
+ * 解析缓存保留策略。
+ * 默认使用 "short"，并通过 PI_CACHE_RETENTION 保持向后兼容。
  */
 function resolveCacheRetention(cacheRetention?: CacheRetention, env?: ProviderEnv): CacheRetention {
 	if (cacheRetention) {
@@ -113,7 +112,7 @@ function getPromptCacheOptions(
 	return undefined;
 }
 
-// OpenAI Responses-specific options
+// OpenAI Responses 专用选项
 export interface OpenAIResponsesOptions extends StreamOptions {
 	reasoningEffort?: "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 	reasoningSummary?: "auto" | "detailed" | "concise" | null;
@@ -122,7 +121,7 @@ export interface OpenAIResponsesOptions extends StreamOptions {
 }
 
 /**
- * Generate function for OpenAI Responses API
+ * OpenAI Responses API 的生成函数。
  */
 export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> = (
 	model: Model<"openai-responses">,
@@ -132,7 +131,7 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 	const stream = new AssistantMessageEventStream();
 	const normalizedContext = resolveTranscript(context, getCompat(model).supportsMidConvoSystemMessages);
 
-	// Start async processing
+	// 开始异步处理。
 	(async () => {
 		const output: AssistantMessage = {
 			role: "assistant",
@@ -153,7 +152,7 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 		};
 
 		try {
-			// Create OpenAI client
+			// 创建 OpenAI 客户端。
 			const apiKey = getClientApiKey(model.provider, options?.apiKey, options?.headers);
 			const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
 			const cacheSessionId = cacheRetention === "none" ? undefined : options?.sessionId;
@@ -214,7 +213,7 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 		} catch (error) {
 			for (const block of output.content) {
 				delete (block as { index?: number }).index;
-				// Streaming scratch buffers are only used during parsing; never persist them.
+				// 流式解析的临时缓冲区仅在解析期间使用，绝不持久化。
 				delete (block as { partialJson?: string }).partialJson;
 				delete (block as { customInput?: unknown }).customInput;
 			}
@@ -223,7 +222,7 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 				normalizeProviderError(error),
 				`${model.provider === "openai" ? "OpenAI" : model.provider} API error`,
 			);
-			// Sign in with ChatGPT shares the subscription's usage limit with other apps.
+			// “使用 ChatGPT 登录”会与其他应用共享订阅用量上限。
 			output.errorMessage = errorMessage.includes("subscription_sharing_usage_limit_exceeded")
 				? `${errorMessage}\nCheck your ChatGPT usage: ${CHATGPT_USAGE_URL}`
 				: errorMessage;
@@ -285,7 +284,7 @@ function createClient(
 		}
 	}
 
-	// Merge options headers last so they can override defaults
+	// 最后合并 options 中的标头，以便它们覆盖默认值。
 	if (optionsHeaders) {
 		Object.assign(headers, optionsHeaders);
 	}
@@ -325,7 +324,7 @@ function buildParams(
 	});
 
 	const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
-	// Sign in with ChatGPT rejects these request fields.
+	// “使用 ChatGPT 登录”会拒绝这些请求字段。
 	const omitUnsupportedFields = isChatGPTSignIn(model, options?.apiKey);
 	const params: ResponseCreateParamsStreaming = {
 		model: model.id,
@@ -379,7 +378,7 @@ function buildParams(
 		if (model.provider === "xai") params.include = ["reasoning.encrypted_content"];
 	}
 
-	// Last so model and request sampling parameters override named request fields.
+	// 最后合并，使模型和请求中的采样参数覆盖具名请求字段。
 	const samplingParams = resolveSamplingParams(model, reasoningEffort ?? "off", options?.samplingParams);
 	if (samplingParams) {
 		Object.assign(params, samplingParams);

@@ -12,18 +12,18 @@ import type { Component } from "../tui.ts";
 import { truncateToWidth } from "../utils.ts";
 
 /**
- * Converts base64 image data to base64 PNG data, or returns null if it cannot.
- * Called synchronously during rendering.
+ * 将 Base64 图片数据转换为 Base64 PNG 数据；无法转换时返回 null。
+ * 此函数在渲染期间同步调用。
  */
 export type ImageTranscoder = (base64Data: string, mimeType: string) => string | null;
 
 let imageTranscoder: ImageTranscoder | undefined;
-// Backstop for callers that recreate Image instances. Keyed by source data, least recently used first.
+// 为会重复创建 Image 实例的调用方提供后备缓存。以源数据为键，并按最近最少使用顺序淘汰。
 const pngCache = new Map<string, string | null>();
 
 /**
- * Register the converter used for non-PNG images on Kitty-protocol terminals, which only accept PNG.
- * Without one, such images render as text fallbacks.
+ * 注册 Kitty 协议终端上非 PNG 图片使用的转换器；该协议仅接受 PNG。
+ * 未注册转换器时，此类图片会以文本形式降级显示。
  */
 export function setImageTranscoder(transcoder: ImageTranscoder | undefined): void {
 	imageTranscoder = transcoder;
@@ -48,7 +48,7 @@ export interface ImageOptions {
 	maxWidthCells?: number;
 	maxHeightCells?: number;
 	filename?: string;
-	/** Kitty image ID. If provided, reuses this ID (for animations/updates). */
+	/** Kitty 图片 ID。若提供，则复用此 ID（用于动画或更新）。 */
 	imageId?: number;
 }
 
@@ -59,7 +59,7 @@ export class Image implements Component {
 	private theme: ImageTheme;
 	private options: ImageOptions;
 	private imageId?: number;
-	/** Converted PNG data for Kitty. Failures are not stored so a later transcoder can retry. */
+	/** 为 Kitty 转换后的 PNG 数据。失败结果不会缓存，以便后续转换器重试。 */
 	private pngData?: string;
 
 	private cachedLines?: string[];
@@ -80,7 +80,7 @@ export class Image implements Component {
 		this.imageId = options.imageId;
 	}
 
-	/** Get the Kitty image ID used by this image (if any). */
+	/** 获取此图片使用的 Kitty 图片 ID（如果有）。 */
 	getImageId(): number | undefined {
 		return this.imageId;
 	}
@@ -106,7 +106,7 @@ export class Image implements Component {
 		if (caps.images === "kitty" && this.mimeType !== "image/png") {
 			this.pngData ??= toPng(this.base64Data, this.mimeType) ?? undefined;
 			data = this.pngData ?? null;
-			// Conversion may apply EXIF rotation, so prefer the PNG's own dimensions.
+			// 转换过程可能会应用 EXIF 旋转，因此优先使用 PNG 自身的尺寸。
 			if (data) dimensions = getPngDimensions(data) ?? dimensions;
 		}
 		let lines: string[];
@@ -123,25 +123,24 @@ export class Image implements Component {
 			});
 
 			if (result) {
-				// Store the image ID for later cleanup
+				// 保存图片 ID，以便稍后清理。
 				if (result.imageId) {
 					this.imageId = result.imageId;
 				}
 
 				if (caps.images === "kitty") {
-					// For Kitty: C=1 prevents cursor movement.
-					// Don't need the cursor movement.
+					// Kitty 中 C=1 表示不移动光标；此处不需要移动光标。
 					lines = [result.sequence];
 
-					// Return `rows` lines so TUI accounts for image height.
+					// 返回 `rows` 行，使 TUI 能正确计算图片高度。
 					for (let i = 0; i < result.rows - 1; i++) {
 						lines.push("");
 					}
 				} else {
-					// Return `rows` lines so TUI accounts for image height.
-					// First (rows-1) lines are empty and cleared before the image is drawn.
-					// Last line: move cursor back up, draw the image, then move back down
-					// so TUI cursor accounting stays inside the scroll area.
+					// 返回 `rows` 行，使 TUI 能正确计算图片高度。
+					// 前 `rows-1` 行为空，并会在绘制图片前清除。
+					// 最后一行先将光标上移并绘制图片，再将光标移回，
+					// 使 TUI 的光标计数保持在滚动区域内。
 					lines = [];
 					for (let i = 0; i < result.rows - 1; i++) {
 						lines.push("");

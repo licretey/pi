@@ -5,7 +5,7 @@ import { CURRENT_SESSION_VERSION, type SessionHeader, type SessionManager } from
 
 type TrailingEntries = (parentId: string | null, timestamp: string) => readonly object[];
 
-/** Serialize the current branch and optional export-only entries as JSONL. */
+/** 将当前分支及可选的仅导出条目序列化为 JSONL。 */
 export function serializeSessionBranch(
 	sessionManager: SessionManager,
 	createTrailingEntries?: TrailingEntries,
@@ -28,7 +28,7 @@ export function serializeSessionBranch(
 	return `${entries.map((entry) => JSON.stringify(entry)).join("\n")}\n`;
 }
 
-/** Write the current session branch and optional export-only entries as JSONL. */
+/** 将当前会话分支及可选的仅导出条目写入 JSONL。 */
 export function exportSessionToJsonl(
 	sessionManager: SessionManager,
 	outputPath?: string,

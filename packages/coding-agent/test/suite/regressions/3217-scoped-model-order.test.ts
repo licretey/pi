@@ -21,7 +21,7 @@ describe("issue #3217 scoped model ordering", () => {
 	});
 
 	beforeEach(() => {
-		// Ensure test isolation: keybindings are a global singleton
+		// 确保测试相互隔离：按键绑定是全局单例。
 		setKeybindings(new KeybindingsManager());
 	});
 

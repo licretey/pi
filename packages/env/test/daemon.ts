@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
 /**
- * The daemon the tests run: `PI_ENV_DAEMON` (CI points it at release builds), else the one `cargo build` built in
- * ../daemon.
+ * 测试运行所需的守护进程：优先使用 `PI_ENV_DAEMON`（CI 会将其指向发布构建）；否则使用 `cargo build` 在
+ * ../daemon 目录中构建。
  */
 export const daemon =
 	process.env.PI_ENV_DAEMON ??

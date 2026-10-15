@@ -10,10 +10,10 @@ import { hasBedrockCredentials } from "./bedrock-utils.ts";
 import { hasCloudflareAiGatewayCredentials, hasCloudflareWorkersAICredentials } from "./cloudflare-utils.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-// Empty schema for test tools - must be proper OBJECT type for Cloud Code Assist
+// 测试工具使用的空架构必须是有效的 OBJECT 类型，Cloud Code Assist 才能接受。
 const emptySchema = Type.Object({});
 
-// Resolve OAuth tokens at module level (async, runs before tests)
+// 在模块级别解析 OAuth 令牌（异步执行，先于测试运行）。
 const oauthTokens = await Promise.all([
 	resolveApiKey("anthropic"),
 	resolveApiKey("github-copilot"),
@@ -22,19 +22,18 @@ const oauthTokens = await Promise.all([
 const [anthropicOAuthToken, githubCopilotToken, openaiCodexToken] = oauthTokens;
 
 /**
- * Test for Unicode surrogate pair handling in tool results.
+ * 测试工具结果中的 Unicode 代理项对处理。
  *
- * Issue: When tool results contain emoji or other characters outside the Basic Multilingual Plane,
- * they may be incorrectly serialized as unpaired surrogates, causing "no low surrogate in string"
- * errors when sent to the API provider.
+ * 问题：工具结果包含表情符号或其他基本多文种平面之外的字符时，
+ * 可能会被错误地序列化为不成对的代理项，发送给 API 提供商后导致 "no low surrogate in string" 错误。
  *
- * Example error from Anthropic:
+ * Anthropic 返回的错误示例：
  * "The request body is not valid JSON: no low surrogate in string: line 1 column 197667"
  */
 
 async function testEmojiInToolResults<TApi extends Api>(llm: Model<TApi>, options: StreamOptionsWithExtras = {}) {
 	const toolCallId = llm.provider === "mistral" ? "testtool1" : "test_1";
-	// Simulate a tool that returns emoji
+	// 模拟返回表情符号的工具。
 	const context: Context = {
 		systemPrompt: "You are a helpful assistant.",
 		messages: [
@@ -77,7 +76,7 @@ async function testEmojiInToolResults<TApi extends Api>(llm: Model<TApi>, option
 		],
 	};
 
-	// Add tool result with various problematic Unicode characters
+	// 添加包含多种问题 Unicode 字符的工具结果。
 	const toolResult: ToolResultMessage = {
 		role: "toolResult",
 		toolCallId: toolCallId,
@@ -104,14 +103,14 @@ async function testEmojiInToolResults<TApi extends Api>(llm: Model<TApi>, option
 
 	context.messages.push(toolResult);
 
-	// Add follow-up user message
+	// 添加后续用户消息。
 	context.messages.push({
 		role: "user",
 		content: "Summarize the tool result briefly.",
 		timestamp: Date.now(),
 	});
 
-	// This should not throw a surrogate pair error
+	// 此处不应因代理项对问题而抛出错误。
 	const response = await complete(llm, context, options);
 
 	expect(response.stopReason).not.toBe("error");
@@ -163,7 +162,7 @@ async function testRealWorldLinkedInData<TApi extends Api>(llm: Model<TApi>, opt
 		],
 	};
 
-	// Real-world tool result from LinkedIn with emoji
+	// 来自 LinkedIn、包含表情符号的真实工具结果。
 	const toolResult: ToolResultMessage = {
 		role: "toolResult",
 		toolCallId: toolCallId,
@@ -200,7 +199,7 @@ Unanswered Comments: 2
 		timestamp: Date.now(),
 	});
 
-	// This should not throw a surrogate pair error
+	// 此处不应因代理项对问题而抛出错误。
 	const response = await complete(llm, context, options);
 
 	expect(response.stopReason).not.toBe("error");
@@ -252,9 +251,9 @@ async function testUnpairedHighSurrogate<TApi extends Api>(llm: Model<TApi>, opt
 		],
 	};
 
-	// Construct a string with an intentionally unpaired high surrogate
-	// This simulates what might happen if text processing corrupts emoji
-	const unpairedSurrogate = String.fromCharCode(0xd83d); // High surrogate without low surrogate
+	// 构造一个故意不成对的高位代理项字符串。
+	// 用于模拟文本处理过程破坏表情符号的情况。
+	const unpairedSurrogate = String.fromCharCode(0xd83d); // 没有对应低位代理项的高位代理项
 
 	const toolResult: ToolResultMessage = {
 		role: "toolResult",
@@ -273,8 +272,8 @@ async function testUnpairedHighSurrogate<TApi extends Api>(llm: Model<TApi>, opt
 		timestamp: Date.now(),
 	});
 
-	// This should not throw a surrogate pair error
-	// The unpaired surrogate should be sanitized before sending to API
+	// 此处不应因代理项对问题而抛出错误。
+	// 不成对的代理项应在发送给 API 前完成清理。
 	const response = await complete(llm, context, options);
 
 	expect(response.stopReason).not.toBe("error");
@@ -366,7 +365,7 @@ describe("AI Providers Unicode Surrogate Pair Tests", () => {
 	});
 
 	// =========================================================================
-	// OAuth-based providers (credentials from ~/.pi/agent/oauth.json)
+	// 使用 OAuth 的提供商（凭据来自 ~/.pi/agent/oauth.json）。
 	// =========================================================================
 
 	describe("Anthropic OAuth Provider Unicode Handling", () => {

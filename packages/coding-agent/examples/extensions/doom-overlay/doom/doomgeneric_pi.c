@@ -1,7 +1,7 @@
 /**
- * pi-doom platform implementation for doomgeneric
+ * doomgeneric 的 pi-doom 平台实现。
  *
- * Minimal implementation - no sound, just framebuffer and input.
+ * 最小化实现：不提供声音，只处理帧缓冲区和输入。
  */
 
 #include "doomgeneric.h"
@@ -9,7 +9,7 @@
 #include <emscripten.h>
 #include <stdint.h>
 
-// Key event queue
+// 按键事件队列。
 #define KEY_QUEUE_SIZE 256
 static struct {
   int pressed;
@@ -18,18 +18,18 @@ static struct {
 static int key_queue_read = 0;
 static int key_queue_write = 0;
 
-// Get the framebuffer pointer for JS to read
+// 获取供 JavaScript 读取的帧缓冲区指针。
 EMSCRIPTEN_KEEPALIVE
 uint32_t *DG_GetFrameBuffer(void) { return DG_ScreenBuffer; }
 
-// Get framebuffer dimensions
+// 获取帧缓冲区尺寸。
 EMSCRIPTEN_KEEPALIVE
 int DG_GetScreenWidth(void) { return DOOMGENERIC_RESX; }
 
 EMSCRIPTEN_KEEPALIVE
 int DG_GetScreenHeight(void) { return DOOMGENERIC_RESY; }
 
-// Push a key event from JavaScript
+// 接收并加入来自 JavaScript 的按键事件。
 EMSCRIPTEN_KEEPALIVE
 void DG_PushKeyEvent(int pressed, unsigned char key) {
   int next_write = (key_queue_write + 1) % KEY_QUEUE_SIZE;
@@ -41,15 +41,15 @@ void DG_PushKeyEvent(int pressed, unsigned char key) {
 }
 
 void DG_Init(void) {
-  // Nothing to initialize
+  // 无需初始化。
 }
 
 void DG_DrawFrame(void) {
-  // Frame is in DG_ScreenBuffer, JS reads via DG_GetFrameBuffer
+  // 当前帧存储在 DG_ScreenBuffer 中，JavaScript 通过 DG_GetFrameBuffer 读取。
 }
 
 void DG_SleepMs(uint32_t ms) {
-  // No-op - JS handles timing
+  // 不执行操作，计时由 JavaScript 负责。
   (void)ms;
 }
 

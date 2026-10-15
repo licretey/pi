@@ -1,15 +1,15 @@
 /**
- * Custom Compaction Extension
+ * 自定义压缩扩展。
  *
- * Replaces the default compaction behavior with a full summary of the entire context.
- * Instead of keeping the last 20k tokens of conversation turns, this extension:
- * 1. Summarizes ALL messages (messagesToSummarize + turnPrefixMessages)
- * 2. Discards all old turns completely, keeping only the summary
+ * 将默认压缩行为替换为对整个上下文的完整摘要。
+ * 此扩展不会保留最近 20k 个对话 token，而是：
+ * 1. 总结全部消息（messagesToSummarize + turnPrefixMessages）。
+ * 2. 完全丢弃旧轮次，只保留摘要。
  *
- * This example also demonstrates using a different model (Gemini Flash) for summarization,
- * which can be cheaper/faster than the main conversation model.
+ * 此示例还演示使用另一个模型（Gemini Flash）生成摘要，
+ * 它可能比主要对话模型更便宜或更快。
  *
- * Usage:
+ * 用法：
  *   pi --extension examples/extensions/custom-compaction.ts
  */
 
@@ -24,14 +24,14 @@ export default function (pi: ExtensionAPI) {
 		const { preparation, branchEntries: _, signal } = event;
 		const { messagesToSummarize, turnPrefixMessages, tokensBefore, firstKeptEntryId, previousSummary } = preparation;
 
-		// Use Gemini Flash for summarization (cheaper/faster than most conversation models)
+		// 使用 Gemini Flash 生成摘要（比多数对话模型更便宜或更快）。
 		const model = ctx.modelRegistry.find("google", "gemini-2.5-flash");
 		if (!model) {
 			ctx.ui.notify(`Could not find Gemini Flash model, using default compaction`, "warning");
 			return;
 		}
 
-		// Combine all messages for full summary
+		// 合并所有消息，以生成完整摘要。
 		const allMessages = [...messagesToSummarize, ...turnPrefixMessages];
 
 		ctx.ui.notify(
@@ -39,13 +39,13 @@ export default function (pi: ExtensionAPI) {
 			"info",
 		);
 
-		// Convert messages to readable text format
+		// 将消息转换为易读的文本格式。
 		const conversationText = serializeConversation(convertToLlm(allMessages));
 
-		// Include previous summary context if available
+		// 如果存在先前摘要，将其作为上下文。
 		const previousContext = previousSummary ? `\n\nPrevious session summary for context:\n${previousSummary}` : "";
 
-		// Build messages that ask for a comprehensive summary
+		// 构造请求，要求生成完整摘要。
 		const summaryMessages = [
 			{
 				role: "user" as const,
@@ -75,7 +75,7 @@ ${conversationText}
 		];
 
 		try {
-			// Pass signal to honor abort requests (e.g., user cancels compaction)
+			// 传入 signal，以响应中止请求（例如用户取消压缩）。
 			const response = await ctx.modelRegistry.complete(
 				model,
 				{ messages: summaryMessages },
@@ -97,8 +97,8 @@ ${conversationText}
 				return;
 			}
 
-			// Return compaction content - SessionManager adds id/parentId
-			// Use firstKeptEntryId from preparation to keep recent messages
+			// 返回压缩内容；SessionManager 会补充 id/parentId。
+			// 使用 preparation 中的 firstKeptEntryId 保留近期消息。
 			return {
 				compaction: {
 					summary,
@@ -110,7 +110,7 @@ ${conversationText}
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			ctx.ui.notify(`Compaction failed: ${message}`, "error");
-			// Fall back to default compaction on error
+			// 出错时回退到默认压缩逻辑。
 			return;
 		}
 	});

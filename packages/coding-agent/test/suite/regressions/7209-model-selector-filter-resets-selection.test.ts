@@ -10,7 +10,7 @@ function createFakeTui(): TUI {
 	return { requestRender: () => {} } as unknown as TUI;
 }
 
-/** Return the model id of the highlighted (→) row in the rendered selector. */
+/** 返回渲染后的选择器中高亮（→）行对应的模型 ID。 */
 function selectedModelId(rendered: string): string | undefined {
 	const line = rendered.split("\n").find((l) => l.startsWith("→ "));
 	if (!line) return undefined;
@@ -62,23 +62,23 @@ describe("model selector filter resets selection to top", () => {
 			expect(rendered).toContain("Model catalogs refreshed.");
 		});
 
-		// Current model (alpha-1) is sorted first, so selection starts on row 0.
+		// 当前模型（alpha-1）排在首位，因此初始选中第 0 行。
 		expect(selectedModelId(stripAnsi(selector.render(120).join("\n")))).toBe("alpha-1");
 
-		// Move selection down two rows to alpha-3.
+		// 将选中项向下移动两行，选中 alpha-3。
 		selector.handleInput("\x1b[B");
 		selector.handleInput("\x1b[B");
 		expect(selectedModelId(stripAnsi(selector.render(120).join("\n")))).toBe("alpha-3");
 
-		// Type a query that matches the three alpha models. The selection must
-		// move back to the top row (alpha-1), not stay clamped at index 2.
+		// 输入可匹配三个 alpha 模型的查询。选中项必须回到首行（alpha-1），
+		// 不能停留在索引 2 处。
 		for (const char of "alpha") {
 			selector.handleInput(char);
 		}
 
 		const rendered = stripAnsi(selector.render(120).join("\n"));
 		expect(selectedModelId(rendered)).toBe("alpha-1");
-		// Sanity: the filter actually narrowed the list.
+		// 确认筛选确实缩小了列表范围。
 		expect(rendered).not.toContain("beta-1");
 	});
 
@@ -96,8 +96,8 @@ describe("model selector filter resets selection to top", () => {
 		const alpha2 = harness.getModel("alpha-2")!;
 		const alpha3 = harness.getModel("alpha-3")!;
 
-		// Scoped list is intentionally not in current-model-first order; the
-		// current model (alpha-1) sits at index 2.
+		// 作用域列表特意不按当前模型优先的顺序排列；
+		// 当前模型（alpha-1）位于索引 2。
 		const selector = new ModelSelectorComponent(
 			createFakeTui(),
 			alpha1,
@@ -112,11 +112,11 @@ describe("model selector filter resets selection to top", () => {
 			expect(rendered).toContain("Model catalogs refreshed.");
 		});
 
-		// Selection starts on the current model (alpha-1), which is row 2 here.
+		// 初始选中当前模型（alpha-1），此处位于第 2 行。
 		expect(selectedModelId(stripAnsi(selector.render(120).join("\n")))).toBe("alpha-1");
 
-		// Type a query matching all three scoped models. Selection must move to
-		// the top row (alpha-2), not stay clamped at index 2 (alpha-1).
+		// 输入可匹配三个作用域模型的查询。选中项必须移动到首行（alpha-2），
+		// 不能停留在索引 2 处的 alpha-1。
 		for (const char of "alpha") {
 			selector.handleInput(char);
 		}

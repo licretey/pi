@@ -1,12 +1,10 @@
 /**
- * Nested image storage benchmark. One model-issued `script` call, as a code mode call would, loops `count` times: a
- * nested `read_image` call returns a unique base64 image of `bytes` characters, then a nested `classify` call reads it.
- * The `inline` variant passes the image data in `classify`'s arguments; the `reference` variant passes the `taskId` of
- * the `read_image` result, whose value is the image, and `classify` resolves it from its caller's `NestedResultDoc`.
- * Reports commits, wall time, logical bytes written (JSON of the storage writes) by write type, the stored size before
- * `script` returns, after the run settles, after close, and after reopening, the heap (peak during the run, sampled
- * every 5 ms and at each commit; after a GC once the run settles, after `waitForIdle()`, and after reopening; all over
- * the heap after a GC before opening), the number of nested task records, and the size of the largest one.
+ * 嵌套图像存储基准测试。模型发起一次 `script` 调用（类似代码模式调用），循环 `count` 次：每次先通过嵌套的
+ * `read_image` 调用返回一张由 `bytes` 个字符组成的唯一 Base64 图像，再通过嵌套的 `classify` 调用读取它。
+ * `inline` 变体将图像数据放入 `classify` 参数；`reference` 变体传入 `read_image` 结果的 `taskId`，由 `classify`
+ * 从调用方的 `NestedResultDoc` 中读取图像。统计提交次数、耗时、按写入类型划分的逻辑写入字节数（存储写入的 JSON 大小）、
+ * `script` 返回前/运行结算后/关闭后/重新打开后的存储大小，以及堆内存：运行期间每 5 毫秒和每次提交时采样峰值，
+ * 运行结算后执行 GC、`waitForIdle()` 后和重新打开后的堆大小（均以打开前 GC 后的堆大小为基准），并统计嵌套任务记录数和最大记录大小。
  *
  *   node --conditions=source --experimental-strip-types --expose-gc test/nested-images-bench.ts [count]
  */
@@ -37,19 +35,19 @@ import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 type Backend = "sqlite" | "jsonl";
 type Variant = "inline" | "reference";
 type Scenario = { backend: Backend; variant: Variant; count: number; bytes: number };
-/** Hooks the tools call: a heap sample, and the stored size measured before `script` returns. */
+/** 在工具调用中执行的探针：采样堆内存，并在 `script` 返回前测量存储大小。 */
 type Probe = { sample: () => void; beforeReturn: () => Promise<void> };
 type Written = Record<StorageWrite["type"], number>;
 type Result = {
 	commits: number;
 	ms: number;
 	written: Written;
-	/** Before `script` returns, while its nested results are live. */
+	/** `script` 返回前测得的大小，此时嵌套结果仍然有效。 */
 	storedLive: number;
 	storedRun: number;
 	storedClosed: number;
 	storedReopened: number;
-	/** Over the heap after a GC before opening. */
+	/** 相对于打开存储前 GC 后的堆大小。 */
 	peakHeap: number;
 	settledHeap: number;
 	idleHeap: number;
@@ -107,7 +105,7 @@ function registryFor(scenario: Scenario, probe: Probe) {
 		name: "read_image",
 		description: "Read an image",
 		parameters: Type.Object({ n: Type.Number() }),
-		// One image, so programs get it as an `ImageContent`. Unique per call: base64 of random bytes.
+		// 只返回一张图像，因此程序会将其作为 `ImageContent` 获取。每次调用都不同：内容由随机字节编码为 Base64。
 		execute: async () => ({
 			output: [
 				{ type: "image", data: randomBytes((scenario.bytes / 4) * 3).toString("base64"), mimeType: "image/png" },
@@ -122,7 +120,7 @@ function registryFor(scenario: Scenario, probe: Probe) {
 			for (const image of args.images) {
 				let data = image.data;
 				if (image.source !== undefined) {
-					// The caller is the nested call's `parent`; its `NestedResultDoc` holds the referenced result.
+					// 调用方是嵌套调用的 `parent`；其 `NestedResultDoc` 保存了被引用的结果。
 					const input = (await api.getTask(api.taskId, callContext))?.input as ToolTaskInput | undefined;
 					if (input?.kind !== "nested") throw new Error("classify resolves references only as a nested call");
 					const stored = await api.snapshot(
@@ -192,7 +190,7 @@ async function runScenario(scenario: Scenario): Promise<Result> {
 		const commit = storage.commit.bind(storage);
 		storage.commit = (writes, commitContext) => {
 			commits++;
-			// SQLite commits synchronously, which can starve the timer; sample here too.
+			// SQLite 会同步提交，可能导致计时器得不到运行机会，因此也在此处采样。
 			sample();
 			for (const write of writes) written[write.type] += JSON.stringify(write).length;
 			return commit(writes, commitContext);
@@ -211,7 +209,7 @@ async function runScenario(scenario: Scenario): Promise<Result> {
 		const started = performance.now();
 		const settled = await (await root.submit({ type: "input", content: "run" }, context)).wait(context);
 		if (settled.status !== "done") throw new Error(`run: ${settled.status}`);
-		// `done` only says the model answered; the script's result says whether it ran through.
+		// `done` 只表示模型已回答；脚本的结果才说明执行是否完整结束。
 		const latest = (await root.entries({}, 10, undefined, context)).items;
 		const result = latest.find((entry) => ToolResultEntry.is(entry))?.model?.[0];
 		if (result?.role !== "toolResult" || result.isError) throw new Error("run: the script failed");

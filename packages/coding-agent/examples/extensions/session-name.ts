@@ -1,10 +1,10 @@
 /**
- * Session naming example.
+ * 会话命名示例。
  *
- * Shows setSessionName/getSessionName to give sessions friendly names
- * that appear in the session selector instead of the first message.
+ * 演示如何使用 setSessionName/getSessionName 为会话设置易读名称，
+ * 使会话选择器显示该名称，而不是首条消息。
  *
- * Usage: /session-name [name] - set or show session name
+ * 用法：/session-name [name] - 设置或显示会话名称
  */
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

@@ -1,6 +1,6 @@
 /**
- * CredentialStore implementation backed by auth.json.
- * Provider auth orchestration belongs to ModelRuntime and pi-ai Models.
+ * 基于 auth.json 实现的 CredentialStore。
+ * 提供方身份验证流程由 ModelRuntime 和 pi-ai Models 管理。
  */
 
 import type { AuthOperationOptions, Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
@@ -21,7 +21,7 @@ type LockResult<T> = {
 	next?: string;
 };
 
-// The mode applies only on creation so administrator-managed modes and ACLs remain intact.
+// 文件权限仅在创建时设置，以保留管理员管理的权限模式和 ACL。
 const AUTH_FILE_WRITE_OPTIONS = { encoding: "utf-8", mode: 0o600 } as const;
 
 type AuthFileReload = {
@@ -85,7 +85,7 @@ export class FileAuthStorageBackend implements AuthStorageBackend {
 				lastError = error;
 				const start = Date.now();
 				while (Date.now() - start < delayMs) {
-					// Sleep synchronously to avoid changing callers to async.
+					// 同步休眠，避免将调用方改为异步。
 				}
 			}
 		}
@@ -193,7 +193,7 @@ export class FileAuthStorageBackend implements AuthStorageBackend {
 				try {
 					await release();
 				} catch {
-					// Ignore unlock errors when lock is compromised.
+					// 锁失效时忽略解锁错误。
 				}
 			}
 		}
@@ -322,7 +322,7 @@ export class InMemoryAuthStorageBackend implements AuthStorageBackend {
 }
 
 /**
- * Credential storage backed by a JSON file.
+ * 由 JSON 文件支持的凭据存储。
  */
 export class AuthStorage implements CredentialStore {
 	private storage: AuthStorageBackend;
@@ -372,7 +372,7 @@ export class AuthStorage implements CredentialStore {
 	}
 
 	/**
-	 * Reload credentials from storage.
+	 * 从存储中重新加载凭据。
 	 */
 	reload(): void {
 		let content: string | undefined;
@@ -385,7 +385,7 @@ export class AuthStorage implements CredentialStore {
 			});
 			this.updateReadState(this.parseStorageData(content), revision);
 		} catch {
-			// Preserve the last valid in-memory snapshot.
+			// 保留最近一次有效的内存快照。
 		}
 	}
 
@@ -481,7 +481,7 @@ export class AuthStorage implements CredentialStore {
 		this.updateReadState(latestData);
 	}
 
-	/** List credential metadata without resolving configured key values. */
+	/** 列出凭据元数据，但不解析已配置的密钥值。 */
 	async list(options?: AuthOperationOptions): Promise<readonly CredentialInfo[]> {
 		const entries = Object.entries(await this.readLatestData(options));
 		options?.signal?.throwIfAborted();
@@ -490,8 +490,8 @@ export class AuthStorage implements CredentialStore {
 }
 
 /**
- * One-off synchronous read of a stored credential from an auth.json file,
- * without instantiating a store or resolving configured key values.
+ * 从 auth.json 文件中一次性同步读取已存储的凭据，
+ * 无需实例化存储对象，也不会解析已配置的密钥值。
  */
 export function readStoredCredential(
 	providerId: string,

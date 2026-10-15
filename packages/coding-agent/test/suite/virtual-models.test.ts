@@ -16,7 +16,7 @@ const echoTool: AgentTool = {
 
 type Route = (request: ModelRouteRequest, ctx: ExtensionContext) => ModelRoute;
 
-/** Router used by these tests: new user turns pick by thinking level, everything else stays put. */
+/** 此测试使用的路由器：新用户轮次按思考级别选择模型，其余请求保持当前模型。 */
 const defaultRoute: Route = (request, ctx) => {
 	const find = (id: string) => ctx.modelRegistry.find("faux", id)!;
 	if (request.reason === "direct") return { model: find("large"), thinkingLevel: "low" };
@@ -63,13 +63,13 @@ describe("AgentSession virtual models", () => {
 			],
 		});
 		harnesses.push(harness);
-		// Stream through the runtime, which records the thinking level on responses.
+		// 通过运行时建立流式调用；运行时会记录响应中的思考级别。
 		const runtime = harness.session.modelRuntime;
 		harness.session.agent.streamFunction = (model, context, options) => runtime.streamSimple(model, context, options);
 		await harness.session.setModel(runtime.getModel("router", "auto")!);
 		harness.session.setThinkingLevel("high");
 		const reasons = () => requests.map((request) => request.reason);
-		/** Physical model and thinking level recorded on each response. */
+		/** 每条响应中记录的实际模型和思考级别。 */
 		const dispatched = () =>
 			harness.session.messages.flatMap((message) =>
 				message.role === "assistant" ? [`${message.provider}/${message.model}:${message.thinkingLevel}`] : [],
@@ -95,7 +95,7 @@ describe("AgentSession virtual models", () => {
 		expect(dispatched()).toEqual(["faux/large:high", "faux/large:high"]);
 		expect(harness.session.model).toMatchObject({ provider: "router", id: "auto" });
 		expect(harness.session.thinkingLevel).toBe("high");
-		// Limits come from the physical model that produced the latest response, not the virtual model.
+		// 限制取自生成最近一次响应的实际模型，而非虚拟模型。
 		expect(harness.session.getContextUsage()?.contextWindow).toBe(50_000);
 	});
 
@@ -115,7 +115,7 @@ describe("AgentSession virtual models", () => {
 		await harness.session.prompt("hard");
 
 		expect(reasons()).toEqual(["user", "user", "retry"]);
-		// The retry reports the failed request on large next to the small response of the previous turn.
+		// 重试信息应指向 large 上失败的请求，同时保留上一轮由 small 生成的响应。
 		expect(requests[2].failed?.model.id).toBe("large");
 		expect(requests[2].previous?.model.id).toBe("small");
 		expect(dispatched()).toEqual(["faux/small:off", "faux/large:high"]);
@@ -140,7 +140,7 @@ describe("AgentSession virtual models", () => {
 		await harness.session.prompt("x".repeat(5000));
 
 		expect(harness.eventsOfType("compaction_start").map((event) => event.reason)).toEqual(["overflow"]);
-		// Compaction may fold the prompt into the summary, so the retry is not a new user turn.
+		// 压缩可能会将提示词并入摘要，因此重试不属于新的用户轮次。
 		expect(reasons()).toEqual(["user", "retry"]);
 		expect(requests[1].failed?.model.id).toBe("large");
 		expect(requests[1].failed?.message.stopReason).toBe("length");
@@ -166,7 +166,7 @@ describe("AgentSession virtual models", () => {
 
 		await harness.session.prompt("hello");
 
-		// The hidden custom message becomes a user message for the model, but the user did not write it.
+		// 隐藏的自定义消息会作为用户消息发送给模型，但它并非用户编写。
 		expect(reasons()).toEqual(["user", "continuation"]);
 	});
 
@@ -185,7 +185,7 @@ describe("AgentSession virtual models", () => {
 		await harness.session.prompt("hello");
 		await harness.session.prompt("again");
 
-		// The context ends with the extension message, but the request answers the user's prompt.
+		// 上下文以扩展消息结尾，但该请求仍是在回答用户的提示词。
 		expect(harness.session.messages.at(-2)?.role).toBe("custom");
 		expect(reasons()).toEqual(["user", "user"]);
 	});
@@ -210,7 +210,7 @@ describe("AgentSession virtual models", () => {
 			errorMessage: expect.stringContaining("router unavailable"),
 		});
 		expect(harness.faux.state.callCount).toBe(1);
-		// The failed attempt names the virtual model, whose declared window is 1k; the large model's 50k applies.
+		// 失败尝试记录的是虚拟模型，其声明的上下文窗口为 1k；实际应采用 large 模型的 50k 窗口。
 		expect(harness.session.getContextUsage()?.contextWindow).toBe(50_000);
 	});
 
@@ -219,7 +219,7 @@ describe("AgentSession virtual models", () => {
 		harness.setResponses([fauxAssistantMessage("short answer"), fauxAssistantMessage("long answer")]);
 		await harness.session.prompt("hello");
 
-		// About 20k tokens exceed the virtual model's declared 1k window but fit the large model's 50k.
+		// 约 20k 个令牌超过虚拟模型声明的 1k 窗口，但仍在 large 模型的 50k 窗口内。
 		await harness.session.prompt("x".repeat(80_000));
 
 		expect(harness.eventsOfType("compaction_start")).toHaveLength(0);
@@ -247,7 +247,7 @@ describe("AgentSession virtual models", () => {
 		await harness.session.prompt("hello");
 		expect(harness.eventsOfType("compaction_start")).toHaveLength(0);
 
-		// About 2k tokens fit the large model that answered last, but not the small model's 1k window.
+		// 约 2k 个令牌符合上次响应所用 large 模型的限制，但超过 small 模型的 1k 窗口。
 		harness.session.setThinkingLevel("low");
 		await harness.session.prompt("next");
 
@@ -280,7 +280,7 @@ describe("AgentSession virtual models", () => {
 			},
 		]);
 
-		// About 2k tokens fit the large model of the first turn, but not the small model of the second.
+		// 约 2k 个令牌符合第一轮 large 模型的限制，但超过第二轮 small 模型的限制。
 		await harness.session.prompt("x".repeat(8000));
 
 		expect(harness.eventsOfType("compaction_start").map((event) => event.reason)).toEqual(["threshold"]);
@@ -298,7 +298,7 @@ describe("AgentSession virtual models", () => {
 
 		await harness.session.prompt("hello");
 
-		// One per request, one between the turns, and one for the compaction check after the run.
+		// 每个请求构建一次，轮次之间构建一次，运行结束后压缩检查再构建一次。
 		expect(projections).toHaveBeenCalledTimes(4);
 	});
 
@@ -309,7 +309,7 @@ describe("AgentSession virtual models", () => {
 				states.push(request.state);
 				const turns = (request.state as { turns: number } | undefined)?.turns ?? 0;
 				const route = defaultRoute(request, ctx);
-				// Returning request.state keeps it without storing it again. Direct requests neither get nor store state.
+				// 返回 request.state 可沿用该状态而不重复存储。直接请求既不读取也不存储状态。
 				if (request.reason === "continuation") return { ...route, state: request.state };
 				return { ...route, state: { turns: turns + 1 } };
 			},
@@ -377,7 +377,7 @@ describe("AgentSession virtual models", () => {
 			summaries.push(`${model.id}:${options?.reasoning ?? "off"}:${options?.maxTokens}`);
 			return fauxAssistantMessage("summary");
 		};
-		// Compaction summarizes the history and the split turn prefix with one routed model.
+		// 压缩使用同一个路由模型概括历史记录和拆分轮次的前缀。
 		harness.setResponses([
 			fauxAssistantMessage("first answer"),
 			fauxAssistantMessage("second answer"),
@@ -391,7 +391,7 @@ describe("AgentSession virtual models", () => {
 
 		expect(result.summary).toContain("summary");
 		expect(reasons()).toEqual(["user", "user", "direct"]);
-		// The router's thinking level applies, and the output budget respects the large model's 4000 tokens.
+		// 应用路由器指定的思考级别，且输出预算遵守 large 模型的 4000 令牌上限。
 		expect(summaries).toEqual(["large:low:4000", "large:low:4000"]);
 	});
 });

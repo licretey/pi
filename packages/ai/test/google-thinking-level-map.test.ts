@@ -135,7 +135,7 @@ describe("Google thinking level maps", () => {
 		);
 	});
 
-	// Regression test for https://github.com/earendil-works/pi/issues/9455
+	// https://github.com/earendil-works/pi/issues/9455 回归测试。
 	it.each(googleAdapters)("uses the lowest supported $name level when reasoning is omitted", async ({ capture }) => {
 		const payload = await capture("gemini-3.8-flash", {
 			off: null,

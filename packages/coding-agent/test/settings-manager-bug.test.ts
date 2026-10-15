@@ -4,16 +4,15 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { SettingsManager } from "../src/core/settings-manager.ts";
 
 /**
- * Tests for the fix to a bug where external file changes to arrays were overwritten.
+ * 测试修复外部文件中的数组更改被覆盖的问题。
  *
- * The bug scenario was:
- * 1. Pi starts with settings.json containing packages: ["npm:some-pkg"]
- * 2. User externally edits file to packages: []
- * 3. User changes an unrelated setting (e.g., theme) via UI
- * 4. save() would overwrite packages back to ["npm:some-pkg"] from stale in-memory state
+ * 问题场景如下：
+ * 1. Pi 启动时，settings.json 中的 packages 为 ["npm:some-pkg"]。
+ * 2. 用户在外部将文件中的 packages 改为空数组。
+ * 3. 用户通过界面更改一项无关设置（例如主题）。
+ * 4. save() 使用过期的内存状态，将 packages 恢复为 ["npm:some-pkg"]。
  *
- * The fix tracks which fields were explicitly modified during the session, and only
- * those fields override file values during save().
+ * 修复方案会跟踪会话期间明确修改过的字段，并且只在保存时用这些字段覆盖文件中的值。
  */
 describe("SettingsManager - External Edit Preservation", () => {
 	const testDir = join(process.cwd(), "test-settings-bug-tmp");
@@ -37,7 +36,7 @@ describe("SettingsManager - External Edit Preservation", () => {
 	it("should preserve file changes to packages array when changing unrelated setting", async () => {
 		const settingsPath = join(agentDir, "settings.json");
 
-		// Initial state: packages has one item
+		// 初始状态：packages 中有一个条目。
 		writeFileSync(
 			settingsPath,
 			JSON.stringify({
@@ -46,25 +45,25 @@ describe("SettingsManager - External Edit Preservation", () => {
 			}),
 		);
 
-		// Pi starts up, loads settings into memory
+		// Pi 启动并将设置加载到内存中。
 		const manager = SettingsManager.create(projectDir, agentDir);
 
-		// At this point, globalSettings.packages = ["npm:pi-mcp-adapter"]
+		// 此时 globalSettings.packages = ["npm:pi-mcp-adapter"]。
 		expect(manager.getPackages()).toEqual(["npm:pi-mcp-adapter"]);
 
-		// User externally edits settings.json to remove the package
+		// 用户在外部编辑 settings.json，移除该包。
 		const currentSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
-		currentSettings.packages = []; // User wants to remove this!
+		currentSettings.packages = []; // 用户希望移除此项！
 		writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2));
 
-		// Verify file was changed
+		// 验证文件已更改。
 		expect(JSON.parse(readFileSync(settingsPath, "utf-8")).packages).toEqual([]);
 
-		// User changes an UNRELATED setting via UI (this triggers save)
+		// 用户通过界面更改一项无关设置（这会触发保存）。
 		manager.setTheme("light");
 		await manager.flush();
 
-		// With the fix, packages should be preserved as [] (not reverted to startup value)
+		// 修复后应保留空的 packages（不能恢复为启动时的值）。
 		const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 
 		expect(savedSettings.packages).toEqual([]);
@@ -84,18 +83,18 @@ describe("SettingsManager - External Edit Preservation", () => {
 
 		const manager = SettingsManager.create(projectDir, agentDir);
 
-		// User externally updates extensions
+		// 用户在外部更新 extensions。
 		const currentSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 		currentSettings.extensions = ["/new/extension.ts"];
 		writeFileSync(settingsPath, JSON.stringify(currentSettings, null, 2));
 
-		// Change unrelated setting
+		// 更改一项无关设置。
 		manager.setDefaultThinkingLevel("high");
 		await manager.flush();
 
 		const savedSettings = JSON.parse(readFileSync(settingsPath, "utf-8"));
 
-		// With the fix, extensions should be preserved (not reverted to startup value)
+		// 修复后应保留 extensions（不能恢复为启动时的值）。
 		expect(savedSettings.extensions).toEqual(["/new/extension.ts"]);
 	});
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Rewrites relative source import specifiers in package source directories from .js to .ts.
-# TypeScript's rewriteRelativeImportExtensions option rewrites these back to .js in emitted output.
+# 将各软件包源码目录中的相对导入路径后缀从 .js 改为 .ts。
+# TypeScript 的 rewriteRelativeImportExtensions 选项会在生成输出时将后缀改回 .js。
 find packages -mindepth 2 -maxdepth 2 -type d -name src -print0 |
 	while IFS= read -r -d '' src_dir; do
 		find "$src_dir" -type f -name '*.ts' -print0

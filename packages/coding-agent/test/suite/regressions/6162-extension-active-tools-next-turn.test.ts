@@ -16,7 +16,7 @@ function getProviderToolNames(context: TranscriptContext): string[] {
 		.sort();
 }
 
-/** Register `switch_tools`, which swaps the active set to `after_switch` when executed. */
+/** 注册 `switch_tools` 工具；执行时将启用工具集合切换为 `after_switch`。 */
 function registerSwitchTools(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "switch_tools",
@@ -40,7 +40,7 @@ function registerSwitchTools(pi: ExtensionAPI): void {
 }
 
 describe("extension active tools next-turn refresh", () => {
-	// Regression #6162
+	// #6162 回归测试。
 	it("applies pi.setActiveTools before the next provider request in the same run", async () => {
 		const harness = await createHarness({ extensionFactories: [registerSwitchTools] });
 

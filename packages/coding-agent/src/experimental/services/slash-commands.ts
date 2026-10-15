@@ -21,7 +21,7 @@ export interface SlashCommandContribution {
 
 export interface SlashCommands {
 	register(command: SlashCommandContribution): () => void;
-	/** Stage a same-name replacement while the previous facet generation retires. */
+	/** 等待上一版功能面退出期间，暂存同名替换项。 */
 	replace(command: SlashCommandContribution): () => void;
 	list(): readonly SlashCommandContribution[];
 	subscribe(listener: (commands: readonly SlashCommandContribution[]) => void): () => void;

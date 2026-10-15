@@ -1,8 +1,7 @@
 #ifndef PI_NAPI_H
 #define PI_NAPI_H
 
-// Resolve the small N-API surface we use from Node or Bun, without Node headers
-// or a link-time dependency on a particular runtime.
+// 在不依赖 Node 头文件或特定运行时链接的情况下，解析 Node 或 Bun 所需的少量 N-API 接口。
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

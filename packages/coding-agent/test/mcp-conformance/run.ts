@@ -1,8 +1,7 @@
 /**
- * Runs the official MCP client conformance suite against pi (client.ts) and compares every check with
- * the committed baseline (baseline.json). Fails when a check that passed in the baseline no longer
- * passes, or when a check fails that the baseline does not list. Known failures stay visible in the
- * output. See README.md.
+ * 使用官方 MCP 客户端一致性测试套件测试 pi（client.ts），并将每项检查与已提交的基线（baseline.json）比较。
+ * 基线中原本通过的检查若不再通过，或出现基线未列出的失败项，脚本就会报错。已知失败仍会显示在
+ * 输出中。详见 README.md。
  */
 
 import { spawn } from "node:child_process";
@@ -21,12 +20,12 @@ import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { parseArgs } from "node:util";
 
-/** The pinned upstream suite. Bumping it requires reviewing and regenerating the baseline. */
+/** 固定版本的上游测试套件。升级版本前必须审查并重新生成基线。 */
 const CONFORMANCE_PACKAGE = "@modelcontextprotocol/conformance@0.2.0-alpha.11";
-/** Protocol versions pi negotiates. 2026-07-28 is a different (stateless) protocol pi does not speak. */
+/** pi 会协商的协议版本。2026-07-28 属于 pi 不支持的另一种无状态协议。 */
 const MODES = ["2025-03-26", "2025-06-18", "2025-11-25"] as const;
 const SCENARIO_TIMEOUT_MS = 30_000;
-/** Checks that are part of the suite's HTTP trace, not assertions. */
+/** 属于测试套件 HTTP 跟踪记录的检查项，不是断言。 */
 const IGNORED_STATUSES = new Set(["INFO", "SKIPPED"]);
 
 const here = fileURLToPath(new URL(".", import.meta.url));
@@ -39,9 +38,9 @@ type CheckStatus = "pass" | "fail";
 interface ScenarioResult {
 	mode: string;
 	scenario: string;
-	/** Check id to status. Repeated ids pass only when every instance passes. */
+	/** 检查 ID 到状态的映射。重复 ID 只有在每次检查都通过时才算通过。 */
 	checks: Map<string, CheckStatus>;
-	/** Failure messages by check id, for the report. */
+	/** 按检查 ID 记录的失败消息，用于生成报告。 */
 	messages: Map<string, string>;
 }
 
@@ -82,7 +81,7 @@ function runCommand(
 			options.timeoutMs === undefined
 				? undefined
 				: setTimeout(() => {
-						// The runner spawns the client and scenario servers; end the whole group.
+						// 运行器会启动客户端和场景服务器，因此要结束整个进程组。
 						if (child.pid !== undefined) {
 							try {
 								process.kill(-child.pid, "SIGKILL");
@@ -98,7 +97,7 @@ function runCommand(
 }
 
 function conformanceEnv(): NodeJS.ProcessEnv {
-	// The suite comes from npm with prebuilt files; nothing needs install scripts.
+	// 测试套件通过 npm 获取且已包含构建产物，无需运行安装脚本。
 	return { ...process.env, npm_config_ignore_scripts: "true", npm_config_yes: "true" };
 }
 
@@ -178,8 +177,8 @@ async function runScenario(
 		const message = String(check.errorMessage ?? check.description ?? "");
 		record(result, id, status === "SUCCESS" ? "pass" : "fail", message);
 	}
-	// Whether pi completed the scenario. Some scenarios expect the client to give up, so this is
-	// baselined like any other check.
+	// pi 是否完成了场景。有些场景预期客户端会放弃，因此此项也像其他检查一样
+	// 建立基线。
 	let client: { success?: unknown; error?: unknown } = { error: "client.ts wrote no report" };
 	if (existsSync(reportPath)) client = JSON.parse(readFileSync(reportPath, "utf8")) as typeof client;
 	record(result, "pi-client", client.success === true ? "pass" : "fail", String(client.error ?? ""));
@@ -204,7 +203,7 @@ function toBaseline(results: ScenarioResult[]): Baseline {
 	return baseline;
 }
 
-/** Compare with the baseline. Returns whether there is no regression. */
+/** 与基线比较，并返回是否存在回归。 */
 function evaluate(results: ScenarioResult[], baseline: Baseline): boolean {
 	const regressions: string[] = [];
 	const fixed: string[] = [];
@@ -302,7 +301,7 @@ Options:
 
 	const workDir = mkdtempSync(join(tmpdir(), "pi-mcp-conformance-"));
 	try {
-		// The upstream runner splits --command on spaces, so use a launcher path without any.
+		// 上游运行器会按空格拆分 --command，因此启动器路径中不能包含空格。
 		const launcher = join(workDir, "pi-client");
 		writeFileSync(
 			launcher,

@@ -74,7 +74,7 @@ type ExtensionFixture = {
 
 describe("InteractiveMode.showStatus", () => {
 	beforeAll(() => {
-		// showStatus uses the global theme instance
+		// showStatus 使用全局主题实例。
 		initTheme("dark");
 	});
 
@@ -91,7 +91,7 @@ describe("InteractiveMode.showStatus", () => {
 		expect(renderLastLine(fakeThis.chatContainer)).toContain("STATUS_ONE");
 
 		(InteractiveMode as any).prototype.showStatus.call(fakeThis, "STATUS_TWO");
-		// second status updates the previous line instead of appending
+		// 第二条状态会更新上一行，而不是追加新行。
 		expect(fakeThis.chatContainer.children).toHaveLength(2);
 		expect(renderLastLine(fakeThis.chatContainer)).toContain("STATUS_TWO");
 		expect(renderLastLine(fakeThis.chatContainer)).not.toContain("STATUS_ONE");
@@ -108,12 +108,12 @@ describe("InteractiveMode.showStatus", () => {
 		(InteractiveMode as any).prototype.showStatus.call(fakeThis, "STATUS_ONE");
 		expect(fakeThis.chatContainer.children).toHaveLength(2);
 
-		// Something else gets added to the chat in between status updates
+		// 两次状态更新之间，聊天内容又追加了其他内容。
 		fakeThis.chatContainer.addChild({ render: () => ["OTHER"], invalidate: () => {} });
 		expect(fakeThis.chatContainer.children).toHaveLength(3);
 
 		(InteractiveMode as any).prototype.showStatus.call(fakeThis, "STATUS_TWO");
-		// adds spacer + text
+		// 添加间隔组件和文本组件。
 		expect(fakeThis.chatContainer.children).toHaveLength(5);
 		expect(renderLastLine(fakeThis.chatContainer)).toContain("STATUS_TWO");
 	});
@@ -508,7 +508,7 @@ describe("InteractiveMode.createBaseAutocompleteProvider", () => {
 			},
 		]);
 
-		// OAuth sign-in without a subscription, such as Radius, is an account.
+		// 对于 Radius 这类无需订阅的 OAuth 登录，登录身份代表一个账户。
 		const radiusLine = "/login radius";
 		const radiusSuggestions = await provider.getSuggestions([radiusLine], 0, radiusLine.length, {
 			signal: new AbortController().signal,

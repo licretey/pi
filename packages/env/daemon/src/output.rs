@@ -1,7 +1,6 @@
-//! The single writer of stdout. Control frames (results, errors, pings, watch events) always go before bulk command
-//! output, so a slow link delays output but never a cancel's result or a ping. Bulk output is bounded: readers of
-//! commands without an output window wait while too much of it is unsent, which slows the command down like a full
-//! pipe would.
+//! 标准输出的唯一写入者。控制帧（结果、错误、ping、监视事件）始终优先于大量命令输出，
+//! 因此连接缓慢只会延迟输出，不会延迟取消结果或 ping。大量输出有大小上限：未设置输出窗口的命令，
+//! 如果待发送数据过多，读取线程就会等待，效果类似管道已满时对命令施加反压。
 
 use crate::frame::{self, Frame};
 use std::collections::VecDeque;
@@ -10,7 +9,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::time::Duration;
 
-/// Unsent bulk bytes above which unwindowed command output waits.
+/// 未设置输出窗口时，待发送的大量输出超过此字节数后命令输出将等待。
 const BULK_LIMIT: usize = 4 * 1024 * 1024;
 
 #[derive(Default)]
@@ -24,9 +23,9 @@ struct Queues {
 #[derive(Default)]
 pub struct Output {
     queues: Mutex<Queues>,
-    /// Signalled when a frame is queued or the writer stops.
+    /// 有帧入队或写入器停止时发出通知。
     queued: Condvar,
-    /// Signalled when bulk bytes were written.
+    /// 大量输出字节写入后发出通知。
     drained: Condvar,
 }
 
@@ -37,7 +36,7 @@ impl Output {
         self.queued.notify_one();
     }
 
-    /// Queue bulk output; `unsent` counts this sender's frames until they are written.
+    /// 将大量输出加入队列；在帧写入前，`unsent` 会统计此发送方待写入的字节数。
     pub fn bulk(&self, frame: Frame, unsent: Option<Arc<AtomicUsize>>) {
         let mut queues = self.queues.lock().unwrap();
         queues.bulk_bytes += frame.payload.len();
@@ -48,7 +47,7 @@ impl Output {
         self.queued.notify_one();
     }
 
-    /// Wait while more than the bulk limit is unsent, unless `stop` is set.
+    /// 待发送数据超过大量输出上限时等待，除非 `stop` 已设置。
     pub fn wait_for_room(&self, stop: &AtomicBool) {
         let mut queues = self.queues.lock().unwrap();
         while queues.bulk_bytes > BULK_LIMIT && !queues.closed && !stop.load(Ordering::SeqCst) {
@@ -67,7 +66,7 @@ impl Output {
         self.drained.notify_all();
     }
 
-    /// Write frames to `writer` until closed or a write fails.
+    /// 持续向 `writer` 写入帧，直到关闭或写入失败。
     pub fn run(&self, writer: &mut impl Write) {
         loop {
             let (frame, unsent) = {

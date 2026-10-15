@@ -12,7 +12,7 @@ function bufferTail(content: string, maxBytes: number): string {
 	return bytes.subarray(start).toString("utf8");
 }
 
-/** A single line longer than the byte limit is cut like Buffer's tail slice on a character boundary. */
+/** 超出字节上限的单行文本会按字符边界截断，行为与 Buffer 的尾部切片一致。 */
 function assertMatchesBufferTail(input: string, maxByteValues?: readonly number[]): void {
 	const totalBytes = Buffer.byteLength(input, "utf8");
 	const values = maxByteValues ?? Array.from({ length: totalBytes + 5 }, (_, maxBytes) => maxBytes);
@@ -72,7 +72,7 @@ describe("tool output bounds", () => {
 		expect(bound("a\nb\nc\n", head(2))).toEqual({ kept: "a\nb\n", droppedBytes: 2, droppedLines: 1 });
 		expect(bound("a\nb\nc\n", tail(2))).toEqual({ kept: "b\nc\n", droppedBytes: 2, droppedLines: 1 });
 		expect(bound("a\nb\nc", tail(2))).toEqual({ kept: "b\nc", droppedBytes: 2, droppedLines: 1 });
-		// Blank lines are lines.
+		// 空行也计为一行。
 		expect(bound("a\nb\nc\n\n", tail(3))).toEqual({ kept: "b\nc\n\n", droppedBytes: 2, droppedLines: 1 });
 	});
 
@@ -82,7 +82,7 @@ describe("tool output bounds", () => {
 	});
 
 	it("cuts a single line longer than the byte limit on a character boundary", () => {
-		// "é" is two bytes; five bytes hold two whole characters.
+		// "é" 占两个字节；五个字节只能容纳两个完整字符。
 		expect(bound("ééé\n", head(10, 5))).toEqual({ kept: "éé", droppedBytes: 3, droppedLines: 0 });
 		expect(bound("x\néééé", tail(10, 5))).toEqual({ kept: "éé", droppedBytes: 6, droppedLines: 1 });
 	});
@@ -158,7 +158,7 @@ describe("OutputBuffer", () => {
 		buffer.push(bom.subarray(0, 1));
 		buffer.push(Uint8Array.of(0xbb, 0xbf, 0x61));
 		buffer.push("b");
-		// A U+FEFF after a string chunk is text.
+		// 字符串数据块之后的 U+FEFF 按普通文本处理。
 		buffer.push(Uint8Array.of(...bom, 0x63));
 		buffer.end();
 		expect(buffer.snapshot().text).toBe("ab\ufeffc");
@@ -234,7 +234,7 @@ describe("Progress", () => {
 		progress.mark();
 		await vi.advanceTimersByTimeAsync(0);
 		expect(commits).toEqual([0]);
-		// 50 KiB buys 500 ms; changes meanwhile coalesce into one commit.
+		// 50 KiB 对应 500 毫秒；此期间的多次更改会合并为一次提交。
 		size = 10;
 		progress.mark();
 		progress.mark();
@@ -242,7 +242,7 @@ describe("Progress", () => {
 		expect(commits).toEqual([0]);
 		await vi.advanceTimersByTimeAsync(1);
 		expect(commits).toEqual([0, 500]);
-		// A small commit still waits the minimum 100 ms.
+		// 即使提交内容很少，仍需等待最短的 100 毫秒。
 		progress.mark();
 		await vi.advanceTimersByTimeAsync(99);
 		expect(commits).toEqual([0, 500]);

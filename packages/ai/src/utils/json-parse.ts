@@ -25,9 +25,9 @@ function escapeControlCharacter(char: string): string {
 }
 
 /**
- * Repairs malformed JSON string literals by:
- * - escaping raw control characters inside strings
- * - doubling backslashes before invalid escape characters
+ * 修复格式错误的 JSON 字符串字面量，方式包括：
+ * - 转义字符串中的原始控制字符
+ * - 在非法转义字符前补加倍反斜杠
  */
 export function repairJson(json: string): string {
 	let repaired = "";
@@ -95,11 +95,11 @@ export function parseJsonWithRepair<T>(json: string): T {
 }
 
 /**
- * Attempts to parse potentially incomplete JSON during streaming.
- * Always returns a valid object, even if the JSON is incomplete.
+ * 尝试解析流式传输中可能不完整的 JSON。
+ * 即使 JSON 不完整，也总是返回一个有效对象。
  *
- * @param partialJson The partial JSON string from streaming
- * @returns Parsed object or empty object if parsing fails
+ * @param partialJson 来自流式传输的部分 JSON 字符串
+ * @returns 解析出的对象；解析失败时返回空对象
  */
 export function parseStreamingJson<T = Record<string, unknown>>(partialJson: string | undefined): T {
 	if (!partialJson || partialJson.trim() === "") {

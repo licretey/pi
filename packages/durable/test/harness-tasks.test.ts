@@ -24,7 +24,7 @@ import { aborted, abortedWith, completed, deferred, eventually, openTasks, settl
 type Step = { phase: "run" };
 type StepRuntime<R> = TaskRuntime<null, Step, R, object>;
 
-/** A one-phase task; the default abort handler settles `aborted` with reason "test". */
+/** 单阶段任务；默认中止处理器会以 "test" 为原因将任务置为中止状态。 */
 function oneStep<R = null>(
 	name: string,
 	run: (task: { readonly id: TaskId<R> }, runtime: StepRuntime<R>, context: Context) => Promise<void>,
@@ -40,7 +40,7 @@ function oneStep<R = null>(
 	});
 }
 
-/** A one-phase task that waits for `gate` and completes with null. */
+/** 单阶段任务；等待 `gate` 后以 null 结果完成。 */
 function gated(name: string, gate: Promise<void>) {
 	return oneStep(name, async (_task, runtime, ctx) => {
 		await gate;
@@ -68,7 +68,7 @@ async function openRoot(
 	return { ...opened, root };
 }
 
-/** Start `abortTask()` and resolve once its mark is durable, before it has joined the run. */
+/** 启动 `abortTask()`，并在中止标记持久化后、等待运行结束前返回。 */
 async function markDurably(
 	harness: Awaited<ReturnType<typeof openRoot>>["harness"],
 	id: TaskId,
@@ -120,7 +120,7 @@ describe("task phases", () => {
 	it("faults a phase without durable progress and a throwing phase", async () => {
 		const Idle = oneStep("test.idle", async () => {});
 		const DocumentOnly = oneStep("test.document-only", async (_task, runtime, ctx) => {
-			// A commit that returns no state is not progress.
+			// 未返回状态的提交不算作进展。
 			await runtime.commit(() => undefined, ctx);
 		});
 		const Throws = oneStep("test.throws", async () => {
@@ -165,7 +165,7 @@ describe("task phases", () => {
 			phases: {
 				collect: async (task, runtime, ctx) => {
 					const items = task.state.checkpoint.items;
-					// Two rounds of progress, then an equal copy of the checkpoint, which is no progress.
+					// 连续两轮产生进展后，再提交一个值相同的检查点；这不算进展。
 					const next = items.length < 2 ? [...items, `item${items.length}`] : [...items];
 					await runtime.commit(() => ({ status: "running", checkpoint: { phase: "collect", items: next } }), ctx);
 				},
@@ -208,12 +208,12 @@ describe("task phases", () => {
 					const winners = await Promise.all([runtime.memo("choice", "a", ctx), runtime.memo("choice", "b", ctx)]);
 					expect(winners).toEqual(["a", "a"]);
 					expect(await runtime.memo("choice", ctx)).toBe("a");
-					// Memo names never resolve to inherited object properties.
+					// memo 名称不会解析到对象继承来的属性。
 					expect(await runtime.memo("toString", ctx)).toBeUndefined();
 					expect(await runtime.memo("toString", "own", ctx)).toBe("own");
 					await runtime.commit(async (tx) => {
 						(await tx.doc(Progress, task.id)).lines.push("wrote");
-						// Task creation defaults to the task's own conversation.
+						// 创建任务时，默认使用该任务所属的会话。
 						childId = await tx.createTask(Child, null, { ownership: { kind: "conversation" } });
 						return { status: "running", checkpoint: { phase: "answer" } };
 					}, ctx);
@@ -347,7 +347,7 @@ describe("task phases", () => {
 			[waiter, 2_000, undefined],
 		]);
 
-		// The waiter runs again at 5_000; its start stays the first run.
+		// 等待任务会在 5_000 时再次运行，但开始时间仍是首次运行的时间。
 		clock = 5_000;
 		gate.resolve();
 		const settledWaiter = await harness.waitForTask(waiter, context);
@@ -456,11 +456,11 @@ describe("task phases", () => {
 		);
 		harness.resume();
 
-		// Configured during the phase but before its first use: the lazy resolution reads it.
+		// 在阶段开始后、首次使用前完成配置：延迟解析会读取新配置。
 		await waitingBeforeUse.promise;
 		await root.configure({ thinkingLevel: "low" }, context);
 		beforeUse.resolve();
-		// Configured and installed after the first use: not seen until the next phase.
+		// 在首次使用后完成配置并安装：要到下一阶段才会生效。
 		await waitingAfterUse.promise;
 		addHooks(registry, Phases, { ping: () => void pings.push("late") });
 		await root.configure({ thinkingLevel: "high" }, context);
@@ -506,7 +506,7 @@ describe("task phases", () => {
 			caller.cancel(new Error("caller gone"));
 			fail = true;
 			await runtime.agent(caller.context).catch(() => {});
-			// Let an unobserved rejection surface before the task ends.
+			// 在任务结束前让尚未被观察到的拒绝暴露出来。
 			await new Promise((resolve) => setTimeout(resolve, 0));
 			resolved = await runtime.agent(ctx).catch((error: unknown) => error);
 			await runtime.commit(() => completed(null), ctx);
@@ -556,7 +556,7 @@ describe("task runtime", () => {
 		harness.resume();
 		await harness.waitForTask(id, context);
 		expect(absent).toBeUndefined();
-		// The watch stops when the step after the phase ends the invocation; later commits deliver nothing.
+		// 阶段后的步骤结束该次调用时，监听随之停止；之后的提交不会再传递任何内容。
 		expect(await watchClosed).toEqual({ reason: "stopped" });
 		await harness.commit(async (tx) => {
 			(await tx.doc(Notes)).text = "after";
@@ -569,7 +569,7 @@ describe("task runtime", () => {
 		await expect(runtime.memo("x", 1, context)).rejects.toThrow("invocation has ended");
 		await expect(runtime.sleep(0, context)).rejects.toThrow("invocation has ended");
 		await expect(runtime.watchDoc(Notes, context)).rejects.toThrow("invocation has ended");
-		// The handler's own context is cancelled by now; the ended invocation still wins.
+		// 此时处理器自身的上下文已取消，但已经结束的调用仍然优先。
 		await expect(runtime.agent(handlerContext!)).rejects.toThrow("invocation has ended");
 		expect(() => runtime.now()).toThrow("invocation has ended");
 		expect(() => runtime.report(new Error("late"))).toThrow("invocation has ended");
@@ -612,7 +612,7 @@ describe("task runtime", () => {
 		await harness.waitForTask(id, context);
 		expect(seen).toEqual(["two", "one", 1, 2, 1234]);
 		expect(reports).toEqual([new Error("reported")]);
-		// The step after the phase ends the invocation.
+		// 阶段后的步骤会结束该次调用。
 		await flush();
 		await expect(captured!.snapshot(Notes, root.id, context)).rejects.toThrow("invocation has ended");
 		await expect(captured!.context(root.id, context)).rejects.toThrow("invocation has ended");
@@ -626,13 +626,13 @@ describe("task runtime", () => {
 		let held: ReturnType<ControlledStorage["holdCommits"]> | undefined;
 		let harnessRef: Awaited<ReturnType<typeof openRoot>>["harness"] | undefined;
 		const Detached = oneStep<string>("test.detached", async (_task, runtime) => {
-			// Hold the line, queue a commit without awaiting it, and return; the step queues behind that commit.
+			// 暂停串行队列，不等待地排入一个提交后返回；步骤会排在该提交之后。
 			held = storage.holdCommits();
 			void harnessRef!.commit(async (tx) => {
 				await tx.appendEntry(runtime.conversationId, { kind: "blocker" });
 			}, context);
 			before = runtime.commit(() => completed("before"), context);
-			// Queued after the handler returned, so after the step.
+			// 该操作在处理器返回后才入队，因此排在步骤之后。
 			setTimeout(() => {
 				after = runtime.commit(() => completed("after"), context);
 			}, 0);
@@ -667,7 +667,7 @@ describe("task runtime", () => {
 			void harnessRef!.commit(async (tx) => {
 				await tx.appendEntry(runtime.conversationId, { kind: "blocker" });
 			}, context);
-			// Starts after the handler returned, so its line job queues behind the step that ends the invocation.
+			// 该操作在处理器返回后才启动，因此它的队列任务会排在结束此次调用的步骤之后。
 			setTimeout(() => {
 				watching = runtime.watchDoc(Notes, context).catch((error: unknown) => error);
 			}, 0);
@@ -700,7 +700,7 @@ describe("task runtime", () => {
 		const { harness, root } = await openRoot([Sleeper], { now: () => clock });
 		const id = await start(root, Sleeper);
 		harness.resume();
-		// The clock stands still, so real timers keep firing without waking the task.
+		// 时钟保持不变，因此真实计时器会持续触发，却不会唤醒任务。
 		await new Promise((resolve) => setTimeout(resolve, 30));
 		expect(await settled(woke.promise)).toBe(false);
 		clock = 1_005;
@@ -758,7 +758,7 @@ describe("task scheduling", () => {
 		const end = await harness.closed;
 		expect(end).toEqual({ reason: "failed", error: failure });
 		expect(reports).toEqual([failure]);
-		// The pending wait and every later call get SessionFailed with the storage error.
+		// 等待中的操作及其后所有调用都会因存储错误而收到 SessionFailed。
 		await expect(waiting).rejects.toMatchObject({ name: "SessionFailed", cause: failure });
 		await expect(harness.getTask(id, context)).rejects.toMatchObject({ name: "SessionFailed", cause: failure });
 		await expect(root.submit({ type: "input", content: "x" }, context)).rejects.toMatchObject({
@@ -780,7 +780,7 @@ describe("task scheduling", () => {
 		const failure = new Error("disk gone");
 		const Throws = oneStep("test.failed-fault", async () => {
 			runs++;
-			// The next commit is the step's fault write.
+			// 下一次提交是步骤写入的故障状态。
 			if (runs === 1) storage.failNextCommit(failure);
 			throw new Error("boom");
 		});
@@ -792,7 +792,7 @@ describe("task scheduling", () => {
 		expect(reports).toEqual([failure]);
 		await harness.close(context);
 
-		// Reopening recovers the task as after a crash: still running, so its phase runs again.
+		// 重新打开后按崩溃恢复任务：任务仍处于运行状态，因此会再次执行该阶段。
 		const reopened = await openRoot([Throws], { storage: storage.reopen() });
 		reopened.harness.resume();
 		expect((await reopened.harness.waitForTask(id, context)).state.outcome).toEqual({
@@ -815,7 +815,7 @@ describe("task scheduling", () => {
 		const foreground = await start(root, Gated);
 		const background = await start(root, Gated, { background: true });
 		const elsewhere = await start(other, Gated);
-		// Work that has not started yet is live; cancelling a wait only rejects that wait.
+		// 尚未开始的工作仍然有效；取消等待只会拒绝这次等待。
 		const cancelled = new AbortController();
 		const cancelledWait = harness.waitForIdle(withSignal(cancelled.signal));
 		cancelled.abort(new Error("stop waiting"));
@@ -878,7 +878,7 @@ describe("task scheduling", () => {
 		const { harness, root } = await openRoot([Blocking], { storage });
 		const id = await start(root, Blocking);
 
-		// Hold the line with a commit, then queue waits behind it.
+		// 通过提交占住串行队列，再将等待操作排在其后。
 		const held = storage.holdCommits();
 		const blocker = harness.commit(async (tx) => {
 			await tx.appendEntry(root.id, { kind: "blocker" });
@@ -926,7 +926,7 @@ describe("task abort", () => {
 				runRuntime = runtime;
 				await runtime.memo("kept", 1, ctx);
 				reached.resolve();
-				// Keep working after the signal: every later write of this run must reject.
+				// 收到信号后仍继续执行：本次运行后续的所有写入都必须被拒绝。
 				await aborted(runtime.signal).catch(() => {});
 				memoRead = await runtime.memo("kept", context);
 				await runtime.memo("late", 2, context).catch((error: unknown) => errors.push((error as Error).message));
@@ -971,7 +971,7 @@ describe("task abort", () => {
 					phases.push("one");
 					await runtime.commit(() => ({ status: "running", checkpoint: { phase: "two" } }), ctx);
 					reached.resolve();
-					// Ignores the signal and returns normally after the mark.
+					// 忽略信号，并在标记写入后正常返回。
 					await proceed.promise;
 				},
 				two: async () => {
@@ -1061,7 +1061,7 @@ describe("task abort", () => {
 		const Run = oneStep(
 			"test.abort-again",
 			async () => {
-				// Ignores the signal, so the first caller is still joining when it gives up.
+				// 忽略信号，因此第一个调用方放弃时仍在等待该运行结束。
 				await runRelease.promise;
 			},
 			async (runtime, ctx) => {
@@ -1076,7 +1076,7 @@ describe("task abort", () => {
 		const id = await start(root, Run);
 		harness.resume();
 		await flush();
-		// This caller gives up while joining; the mark and the abort invocation are unaffected.
+		// 该调用方在等待运行结束时放弃；这不会影响标记或中止调用。
 		const controller = new AbortController();
 		const cancelled = harness.abortTask(id, withSignal(controller.signal));
 		while (!(await harness.getTask(id, context))?.abortRequested) await flush();
@@ -1124,7 +1124,7 @@ describe("task abort", () => {
 		const held = storage.holdCommits();
 		harness.resume();
 		await held.entered;
-		// The reservation commit is in storage; the abort mark commit queues behind it.
+		// 预留提交已进入存储队列；中止标记提交会排在它后面。
 		const aborting = harness.abortTask(id, context);
 		held.release();
 		expect(await aborting).toBe("marked");
@@ -1142,7 +1142,7 @@ describe("task abort", () => {
 			held = storage.holdCommits();
 			marking = harnessRef!.abortTask(task.id, context);
 			await held.entered;
-			// The mark is in storage but not committed when the handler throws, so the fault commit queues behind it.
+			// 处理器抛出异常时，标记已进入存储队列但尚未提交，因此故障提交会排在标记之后。
 			throw new Error("would fault");
 		});
 		const { harness, root } = await openRoot([Racing], { storage });
@@ -1174,7 +1174,7 @@ describe("task close", () => {
 					phases.push("one");
 					await runtime.commit(() => ({ status: "running", checkpoint: { phase: "two" } }), ctx);
 					reached.resolve();
-					// Ignores signals and returns normally once released; the closing rule wins over the next phase.
+					// 忽略信号，并在释放后正常返回；关闭规则会阻止进入下一阶段。
 					await proceed.promise;
 				},
 				two: async () => {
@@ -1219,7 +1219,7 @@ describe("task close", () => {
 		let harnessRef: Awaited<ReturnType<typeof openRoot>>["harness"] | undefined;
 		let watchEnd: unknown;
 		const Stubborn = oneStep("test.stubborn", async (_task, runtime) => {
-			// Uses a context close does not cancel, then waits for the watch to close.
+			// 使用不会被 close 取消的上下文，然后等待监听关闭。
 			const watch = await runtime.watchDoc(Notes, context);
 			runtime.signal.addEventListener("abort", () => {
 				fromListener = harnessRef!.commit(() => {}, context);
@@ -1306,7 +1306,7 @@ describe("task close", () => {
 				await tx.appendEntry(runtime.conversationId, { kind: "blocker" });
 			}, context);
 			queued = runtime.commit(() => completed(null), context).catch((error: unknown) => error);
-			// Ignores the close signal, so the invocation is still alive when the queued commit reaches the line.
+			// 忽略关闭信号，因此排队的提交到达串行队列时，此次调用仍未结束。
 			await proceed.promise;
 		});
 		const { harness, root } = await openRoot([Queued], { storage });
@@ -1333,7 +1333,7 @@ describe("task close", () => {
 		let harnessRef: Awaited<ReturnType<typeof openRoot>>["harness"] | undefined;
 		let closing: Promise<void> | undefined;
 		let closeOnSnapshot = false;
-		// The step refreshes the snapshot after progress, inside its line callback and after its closing check.
+		// 步骤在产生进展后刷新快照；此时仍处于串行队列回调内，且已完成关闭检查。
 		const reader: RegistryReader = {
 			snapshot: () => {
 				if (closeOnSnapshot) {

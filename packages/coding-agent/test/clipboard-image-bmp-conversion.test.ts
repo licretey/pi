@@ -1,16 +1,16 @@
 /**
- * Test for BMP to PNG conversion in clipboard image handling.
- * Separate from clipboard-image.test.ts due to different mocking requirements.
+ * 测试剪贴板图像处理中 BMP 到 PNG 的转换。
+ * 由于模拟需求不同，本测试与 clipboard-image.test.ts 分开。
  *
- * This tests the fix for WSL2/WSLg where clipboard often provides image/bmp
- * instead of image/png.
+ * 此测试验证 WSL2/WSLg 的修复：剪贴板经常提供 image/bmp，
+ * 而不是 image/png。
  */
 import { describe, expect, test, vi } from "vitest";
 import { readClipboardImage } from "../src/utils/clipboard-image.ts";
 
 function createTinyBmp1x1Red24bpp(): Uint8Array {
-	// Minimal 1x1 24bpp BMP (BGR + row padding to 4 bytes)
-	// File size = 14 (BMP header) + 40 (DIB header) + 4 (pixel row) = 58
+	// 最小的 1x1 24 位 BMP（BGR 格式，每行填充至 4 字节）。
+	// 文件大小 = 14（BMP 标头）+ 40（DIB 标头）+ 4（像素行）= 58 字节。
 	const buffer = Buffer.alloc(58);
 
 	// BITMAPFILEHEADER
@@ -33,16 +33,16 @@ function createTinyBmp1x1Red24bpp(): Uint8Array {
 	buffer.writeUInt32LE(0, 46); // colors used
 	buffer.writeUInt32LE(0, 50); // important colors
 
-	// Pixel data (B, G, R) + 1 byte padding
+	// 像素数据（B、G、R）及 1 个字节的填充。
 	buffer[54] = 0x00; // B
 	buffer[55] = 0x00; // G
 	buffer[56] = 0xff; // R
-	buffer[57] = 0x00; // padding
+	buffer[57] = 0x00; // 填充字节。
 
 	return new Uint8Array(buffer);
 }
 
-// Mock wl-paste to return BMP
+// 模拟 wl-paste 返回 BMP 图像。
 vi.mock("../src/utils/clipboard-command.ts", () => ({
 	runClipboardCommand: vi.fn(async (command: string, args: string[]) => {
 		if (command === "wl-paste" && args.includes("--list-types")) return Buffer.from("image/bmp\n");

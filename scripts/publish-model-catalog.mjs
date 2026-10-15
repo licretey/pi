@@ -22,9 +22,8 @@ import {
 	parseModelCatalogIndex,
 } from "./model-catalog-protocol.ts";
 
-// The storage layout, index format, and version ordering are defined in
-// model-catalog-protocol.ts, which pi.dev shares to serve these artifacts.
-// Bump this only when generated model metadata requires behavior unavailable in older pi clients.
+// model-catalog-protocol.ts 定义了存储结构、索引格式和版本排序方式；pi.dev 也会使用该文件提供这些产物。
+// 只有生成的模型元数据需要旧版 pi 客户端不支持的行为时，才升级此版本。
 const MINIMUM_PI_VERSION = "0.80.7";
 const JSON_CONTENT_TYPE = "application/json; charset=utf-8";
 const IMMUTABLE_CACHE_CONTROL = "public, max-age=31536000, immutable";
@@ -110,7 +109,7 @@ function validateBundle(inputDir) {
 		if (!Object.hasOwn(models, providerId)) throw new Error(`Required provider is missing: ${providerId}`);
 	}
 
-	// modelCount remains the legacy chat-catalog count for existing consumers.
+	// 为兼容现有使用方，modelCount 仍表示旧版聊天模型目录中的模型数量。
 	let modelCount = 0;
 	let imageModelCount = 0;
 	let classifierModelCount = 0;
@@ -137,7 +136,7 @@ function validateBundle(inputDir) {
 			else classifierModelCount++;
 		}
 
-		// The legacy variant must be exactly the chat projection of the full catalog.
+		// 旧版目录必须与完整目录中的聊天模型投影完全一致。
 		const chatModels = chatProjection(providerModels);
 		if (!isDeepStrictEqual(models[providerId], chatModels)) {
 			throw new Error(`models.json is not the chat projection of models.all.json: ${providerId}`);
@@ -156,8 +155,8 @@ function validateBundle(inputDir) {
 		throw new Error(`Refusing to publish only ${modelCount} models; expected at least ${MINIMUM_MODEL_COUNT}`);
 	}
 
-	// The full catalog is a superset of the chat catalog, so hashing it alone
-	// changes the revision for chat-only and image-only updates alike.
+	// 完整目录包含聊天模型目录中的全部内容，因此仅对完整目录计算哈希，
+	// 聊天模型或图像模型发生变化时都会更新修订版本。
 	const digest = createHash("sha256").update(allModelsBytes).digest("hex");
 	return {
 		modelsPath,
@@ -228,8 +227,7 @@ function uploadJson(bucket, endpoint, sourcePath, key, cacheControl) {
 	]);
 }
 
-// Validate with the same parser pi.dev uses, but keep the stored entries so
-// the publication metadata of existing revisions is preserved.
+// 使用 pi.dev 相同的解析器进行校验，但保留已存储的条目，以免丢失现有修订版本的发布元数据。
 function validateIndex(index) {
 	parseModelCatalogIndex(index);
 	return index;
@@ -270,13 +268,13 @@ async function main() {
 		revision: bundle.revision,
 		sourceCommit: options.sourceCommit || gitSourceCommit(),
 		providerCount: bundle.providerCount,
-		/** Legacy count for the chat-only `models.json` catalog. */
+		/** 仅含聊天模型的旧版 `models.json` 目录中的模型数量。 */
 		modelCount: bundle.modelCount,
 		chatModelCount: bundle.chatModelCount,
 		imageModelCount: bundle.imageModelCount,
 		classifierModelCount: bundle.classifierModelCount,
 		totalModelCount: bundle.totalModelCount,
-		/** Types present in the `.all` variant of this revision. */
+		/** 此修订版本的 `.all` 变体中包含的模型类型。 */
 		modelTypes: MODEL_TYPES,
 	};
 	writeFileSync(join(inputDir, "publication.json"), `${JSON.stringify(publication, null, 2)}\n`);

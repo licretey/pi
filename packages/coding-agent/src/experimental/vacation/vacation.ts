@@ -10,9 +10,9 @@ import {
 	section,
 } from "@earendil-works/pi-durable";
 
-// ─── search: slow, fake, and safe to rerun ──────────────────────────────────
+// ─── 搜索：速度较慢、结果模拟且可安全重试 ──────────────────────────────────
 
-/** Canned results; each topic takes a different time, so a crash can land between them. */
+/** 预设结果；每个主题耗时不同，因此进程可能在处理主题之间崩溃。 */
 const SEARCHES = {
 	weather: {
 		seconds: 6,
@@ -40,7 +40,7 @@ const search = defineTool({
 		topic: Type.Union([Type.Literal("weather"), Type.Literal("museums"), Type.Literal("trains")]),
 		city: Type.String(),
 	}),
-	// Only reads, so a call cut off by a crash simply runs again.
+	// 此操作只读取数据，因此调用因崩溃中断后可以直接重试。
 	replay: "safe",
 	execute: async (args, api, context) => {
 		const found = SEARCHES[args.topic];
@@ -54,28 +54,28 @@ const search = defineTool({
 	},
 });
 
-/** What the research subagent gets: only `search`. */
+/** 提供给研究子代理的内容：只有 `search` 工具。 */
 export const Search = defineExtension({ name: "vacation-search", tools: [search] });
 
-// ─── research: a background subagent that reports back ──────────────────────
+// ─── 研究：后台子代理完成后汇报结果 ─────────────────────────────────────────
 
 type ResearchState = { phase: "deliver" } | { phase: "report"; report: string };
 
-/** Delivers the task to its subagent and posts the report to the main conversation as a new message. */
+/** 将任务交给子代理，并把报告作为新消息发送到主对话。 */
 const Research = defineTask<{ task: string }, ResearchState, null>({
 	name: "vacation.research",
 	version: 1,
 	initial: () => ({ phase: "deliver" }),
 	phases: {
 		deliver: async (task, runtime, context) => {
-			// The subagent's conversation is owned by this task. No Session call may run inside a commit.
+			// 子代理的对话由此任务拥有。Session 调用不能在 commit 回调中执行。
 			let owned: ConversationId | undefined;
 			await runtime.commit(async (tx) => {
 				owned = (await tx.scanConversations({ ownerTaskId: task.id }, 1)).items[0]?.id;
 				return undefined;
 			}, context);
 			const child = await runtime.conversation(owned!, context);
-			// A rerun after a crash gets the same submission back.
+			// 崩溃后重新运行会取回同一条提交。
 			const request = { type: "input", content: task.input.task, requestId: `research:${task.id}` } as const;
 			const settled = await (await child!.submit(request, context)).wait(context);
 			await runtime.commit(async (tx) => {
@@ -109,7 +109,7 @@ const research = defineTool({
 	parameters: Type.Object({ task: Type.String({ description: "What to research, with the city and dates" }) }),
 	execute: async (args, api, context) => {
 		await api.commit(async (tx) => {
-			// Background: the main conversation stays free while the research runs.
+			// 这是后台任务：研究期间，主对话仍可继续使用。
 			const owner = await tx.createTask(
 				Research,
 				{ task: args.task },
@@ -126,7 +126,7 @@ const research = defineTool({
 	},
 });
 
-/** What the main conversation gets: the prompt, `research`, and the task that delivers its report. */
+/** 提供给主对话的内容：提示词、`research` 工具，以及负责发送研究报告的任务。 */
 export const Vacation = defineExtension({
 	name: "vacation",
 	tools: [research],

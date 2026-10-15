@@ -17,7 +17,7 @@ export interface ConfiguredServerPluginPackage {
 	build(): Promise<readonly FacetBundleArtifact[]>;
 }
 
-/** Persist an explicit plugin package selection or restore it for a later server generation. */
+/** 持久化显式选择的插件包，或为后续服务器进程恢复该选择。 */
 export async function restoreServerPluginPackageProfile(
 	directory: string,
 	serverId: ServerId,
@@ -33,7 +33,7 @@ export async function restoreServerPluginPackageProfile(
 	return packagePaths;
 }
 
-/** Read the explicit plugin selection stored for one durable Session. */
+/** 读取为某个持久化会话保存的显式插件选择。 */
 export function readSessionPluginPackageProfile(
 	directory: string,
 	serverId: ServerId,
@@ -42,7 +42,7 @@ export function readSessionPluginPackageProfile(
 	return readPluginPackageProfile(sessionPluginProfilePath(directory, serverId, sessionPath), true, sessionPath);
 }
 
-/** Remove the plugin selection stored for one deleted Session. */
+/** 删除为已删除会话保存的插件选择。 */
 export async function removeSessionPluginPackageProfile(
 	directory: string,
 	serverId: ServerId,
@@ -51,7 +51,7 @@ export async function removeSessionPluginPackageProfile(
 	await rm(sessionPluginProfilePath(directory, serverId, sessionPath), { force: true });
 }
 
-/** Persist the plugin selection for one durable Session. */
+/** 持久化某个会话的插件选择。 */
 export function writeSessionPluginPackageProfile(
 	directory: string,
 	serverId: ServerId,
@@ -65,7 +65,7 @@ export function writeSessionPluginPackageProfile(
 	);
 }
 
-/** Create a serialized server-owned builder for one configured plugin package. */
+/** 为已配置的插件包创建由服务器管理的序列化构建器。 */
 export function createServerPluginPackage(
 	directory: string,
 	serverId: ServerId,

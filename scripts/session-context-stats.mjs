@@ -117,7 +117,7 @@ async function loadContextWindows() {
 		text = await fs.readFile(MODELS_GENERATED_PATH, "utf8");
 		sources.push(MODELS_GENERATED_PATH);
 	} catch {
-		// Optional in non-repo usage.
+		// 在非代码库场景中，此配置为可选项。
 	}
 	const providerRegex = /\n\t"([^"]+)": \{([\s\S]*?\n\t)\},/g;
 	let providerMatch;
@@ -147,7 +147,7 @@ async function loadContextWindows() {
 			}
 		}
 	} catch {
-		// Optional user config.
+		// 用户配置为可选项。
 	}
 
 	return { windows, sources };

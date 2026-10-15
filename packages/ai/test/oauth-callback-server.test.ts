@@ -19,7 +19,7 @@ function interaction(prompt: (prompt: AuthPrompt) => Promise<string>, signal?: A
 	return { signal: signal ?? new AbortController().signal, notify: () => {}, prompt };
 }
 
-/** A manual prompt that stays open until its signal aborts. */
+/** 手动输入提示会一直保持打开，直到收到中止信号。 */
 function pendingPrompt(onPrompt?: (prompt: AuthPrompt) => void): (prompt: AuthPrompt) => Promise<string> {
 	return (prompt) => {
 		onPrompt?.(prompt);
@@ -129,7 +129,7 @@ describe.sequential("OAuth callback server", () => {
 		await vi.waitFor(() => expect(finishExchange).toBeDefined());
 		const second = await nativeFetch(url);
 		expect(second.status).toBe(409);
-		// A claimed callback keeps completing even when the caller switches to manual input.
+		// 即使调用方切换为手动输入，已接收的回调仍会继续完成。
 		server.cancel();
 		finishExchange?.("done");
 		expect((await first).status).toBe(200);

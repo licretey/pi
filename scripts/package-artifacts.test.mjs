@@ -15,7 +15,7 @@ function writePackage(directory, manifest, files) {
 	}
 }
 
-// #10633: Covers npm 12's package-keyed `npm pack --json` output only when npm 12 is on PATH.
+// #10633：仅当 PATH 中使用 npm 12 时，才覆盖 npm 12 按软件包分组的 `npm pack --json` 输出格式。
 test("produces a verified, content-addressed artifact set", (t) => {
 	const temporaryRoot = mkdtempSync(join(tmpdir(), "pi-package-artifacts-test-"));
 	t.after(() => rmSync(temporaryRoot, { recursive: true, force: true }));

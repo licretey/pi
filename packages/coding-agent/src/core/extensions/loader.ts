@@ -1,5 +1,5 @@
 /**
- * Extension loader - loads TypeScript extension modules using jiti.
+ * 扩展加载器：使用 jiti 加载 TypeScript 扩展模块。
  *
  */
 
@@ -61,8 +61,8 @@ function getVirtualModules(): Promise<Record<string, unknown>> {
 }
 
 /**
- * Get aliases for jiti (used in built Node.js mode).
- * In compiled binary mode, virtualModules is used instead.
+ * 获取供 jiti 使用的别名（用于 Node.js 构建模式）。
+ * 在编译后的二进制模式下改用 virtualModules。
  */
 let _aliases: Record<string, string> | null = null;
 
@@ -88,9 +88,8 @@ function getAliases(): Record<string, string> {
 	const piCodingAgentEntry = packageIndex;
 	const piAgentCoreEntry = resolveWorkspaceOrImport("agent/dist/index.js", "@earendil-works/pi-agent-core");
 	const piTuiEntry = resolveWorkspaceOrImport("tui/dist/index.js", "@earendil-works/pi-tui");
-	// Extensions resolve the pi-ai root to the compat entrypoint (a strict
-	// superset of the core entrypoint): existing extensions using the old
-	// global API keep working at runtime until compat is removed.
+	// 扩展将 pi-ai 根路径解析到 compat 入口；该入口严格包含 core 入口的全部能力。
+	// 这样，使用旧全局 API 的现有扩展在 compat 移除前仍能正常运行。
 	const piAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@earendil-works/pi-ai/compat");
 	const piAiOauthEntry = resolveWorkspaceOrImport("ai/dist/oauth.js", "@earendil-works/pi-ai/oauth");
 	const piAiProvidersEntry = resolveWorkspaceOrImport(
@@ -151,8 +150,8 @@ function useExtensionCacheCwd(cwd: string): ExtensionCacheToken {
 }
 
 /**
- * Create a runtime with throwing stubs for action methods.
- * Runner.bindCore() replaces these with real implementations.
+ * 创建一个运行时，其中的操作方法暂由调用时会抛错的桩函数实现。
+ * Runner.bindCore() 会将它们替换为实际实现。
  */
 export function createExtensionRuntime(): ExtensionRuntime {
 	const notInitialized = () => {
@@ -177,7 +176,7 @@ export function createExtensionRuntime(): ExtensionRuntime {
 		getAllTools: notInitialized,
 		getSettings: notInitialized,
 		setActiveTools: notInitialized,
-		// registerTool() is valid during extension load; refresh is only needed post-bind.
+		// 扩展加载期间可以调用 registerTool()；只有绑定完成后才需要刷新工具。
 		refreshTools: () => {},
 		getCommands: notInitialized,
 		setModel: () => Promise.reject(new Error("Extension runtime not initialized")),
@@ -209,8 +208,8 @@ export function createExtensionRuntime(): ExtensionRuntime {
 			eventBusUnsubscribers.add(trackedUnsubscribe);
 			return trackedUnsubscribe;
 		},
-		// Pre-bind: queue registrations so bindCore() can flush them once the
-		// model registry is available. bindCore() replaces both with direct calls.
+		// 绑定前先将注册操作排队，待模型注册表可用后由 bindCore() 统一处理。
+		// bindCore() 会将这两个方法替换为直接调用。
 		registerProvider: (name, config, extensionPath = "<unknown>") => {
 			runtime.pendingProviderRegistrations.push({ name, config, extensionPath });
 		},
@@ -237,9 +236,8 @@ export function createExtensionRuntime(): ExtensionRuntime {
 }
 
 /**
- * Create the ExtensionAPI for an extension.
- * Registration methods write to the extension object.
- * Action methods delegate to the shared runtime.
+ * 为扩展创建 ExtensionAPI。
+ * 注册方法会写入扩展对象；操作方法则委托给共享运行时。
  */
 function createExtensionAPI(
 	extension: Extension,
@@ -268,7 +266,7 @@ function createExtensionAPI(
 	};
 
 	const api = {
-		// Registration methods - write to extension
+		// 注册方法：写入扩展对象。
 		on(event: string, handler: HandlerFn): () => void {
 			assertActive();
 			const registeredHandler: HandlerFn = (...args) => handler(...args);
@@ -370,14 +368,14 @@ function createExtensionAPI(
 			extension.toolRenderers.push(resolver);
 		},
 
-		// Flag access - checks extension registered it, reads from runtime
+		// 标志访问：检查扩展是否注册该标志，并从运行时读取其值。
 		getFlag(name: string): boolean | string | undefined {
 			assertActive();
 			if (!extension.flags.has(name)) return undefined;
 			return runtime.flagValues.has(name) ? runtime.flagValues.get(name) : pendingFlagValues.get(name);
 		},
 
-		// Action methods - delegate to shared runtime
+		// 操作方法：委托给共享运行时。
 		sendMessage(message, options): void {
 			assertActive();
 			runtime.sendMessage(message, options);
@@ -478,7 +476,7 @@ function createExtensionAPI(
 			if (owner !== undefined && owner !== extension.path) {
 				throw new Error(`MCP server "${name}" is already registered by extension "${owner}"`);
 			}
-			// Names that differ only in `-` and `_` would share a namespace.
+			// 仅 `-` 和 `_` 不同的名称会处于同一命名空间。
 			const clash = runtime.mcpServers
 				.list()
 				.find((server) => server.name !== name && mcpNamespace(server.name) === mcpNamespace(name));
@@ -499,8 +497,7 @@ function createExtensionAPI(
 
 		registerVirtualModel<TState>(model: ExtensionVirtualModel<TState>) {
 			assertActive();
-			// Routing runs after the runner binds, so the context is created per request. The state
-			// comes from the session branch that this router wrote.
+			// 路由会在 runner 绑定后运行，因此每个请求都会创建新的 context。状态取自此路由器写入的会话分支。
 			const definition: VirtualModelDefinition = {
 				...model,
 				route: (request) => model.route(request as ModelRouteRequest<TState>, runtime.createContext()),
@@ -565,9 +562,9 @@ async function loadExtensionModule(extensionPath: string, cacheToken?: Extension
 	}
 
 	const createJitiImpl = await getCreateJiti();
-	// Compiled binaries and the bundled Node distribution use embedded modules.
-	// Source TypeScript reuses host modules and root tsconfig paths. Unbundled
-	// Node builds use dist aliases and do not need the bundled virtual modules.
+	// 编译后的二进制文件和打包的 Node 发行版使用嵌入模块。
+	// TypeScript 源码复用宿主模块和根目录 tsconfig 路径配置；未打包的 Node 构建使用 dist 别名，
+	// 不需要打包版本中的虚拟模块。
 	const resolutionOptions = usesEmbeddedModules
 		? { virtualModules: await getVirtualModules(), tryNative: false }
 		: isTypeScriptSourceRuntime
@@ -590,7 +587,7 @@ async function loadExtensionModule(extensionPath: string, cacheToken?: Extension
 }
 
 /**
- * Create an Extension object with empty collections.
+ * 创建一个集合均为空的 Extension 对象。
  */
 function createExtension(extensionPath: string, resolvedPath: string): Extension {
 	const source = getSyntheticPathSource(extensionPath) ?? "local";
@@ -657,7 +654,7 @@ async function loadExtension(
 }
 
 /**
- * Create an Extension from an inline factory function.
+ * 根据内联工厂函数创建 Extension。
  */
 export async function loadExtensionFromFactory(
 	factory: ExtensionFactory,
@@ -671,7 +668,7 @@ export async function loadExtensionFromFactory(
 }
 
 /**
- * Load extensions from paths.
+ * 从指定路径加载扩展。
  */
 async function loadExtensionsInternal(
 	paths: string[],
@@ -738,16 +735,16 @@ function isExtensionFile(name: string): boolean {
 }
 
 /**
- * Resolve extension entry points from a directory.
+ * 解析目录中的扩展入口。
  *
- * Checks for:
- * 1. package.json with "pi.extensions" field -> returns declared paths
- * 2. index.ts or index.js -> returns the index file
+ * 检查以下入口：
+ * 1. package.json 中的 "pi.extensions" 字段：返回声明的路径
+ * 2. index.ts 或 index.js：返回对应索引文件
  *
- * Returns resolved paths or null if no entry points found.
+ * 返回解析出的路径；未找到入口时返回 null。
  */
 function resolveExtensionEntries(dir: string): string[] | null {
-	// Check for package.json with "pi" field first
+	// 优先检查 package.json 中的 "pi" 字段。
 	const packageJsonPath = path.join(dir, "package.json");
 	if (fs.existsSync(packageJsonPath)) {
 		const manifest = readPiManifest(packageJsonPath);
@@ -765,7 +762,7 @@ function resolveExtensionEntries(dir: string): string[] | null {
 		}
 	}
 
-	// Check for index.ts or index.js
+	// 检查 index.ts 或 index.js。
 	const indexTs = path.join(dir, "index.ts");
 	const indexJs = path.join(dir, "index.js");
 	if (fs.existsSync(indexTs)) {
@@ -779,14 +776,14 @@ function resolveExtensionEntries(dir: string): string[] | null {
 }
 
 /**
- * Discover extensions in a directory.
+ * 在目录中发现扩展。
  *
- * Discovery rules:
- * 1. Direct files: `extensions/*.ts` or `*.js` → load
- * 2. Subdirectory with index: `extensions/* /index.ts` or `index.js` → load
- * 3. Subdirectory with package.json: `extensions/* /package.json` with "pi" field → load what it declares
+ * 发现规则：
+ * 1. 加载扩展目录中的直接 TypeScript 或 JavaScript 文件。
+ * 2. 加载包含索引文件的一级子目录。
+ * 3. 对于包含 package.json 的子目录，若其中声明了 "pi" 字段，则加载对应入口。
  *
- * No recursion beyond one level. Complex packages must use package.json manifest.
+ * 最多只向下扫描一层。复杂的软件包必须使用 package.json 清单声明入口。
  */
 function discoverExtensionsInDir(dir: string): string[] {
 	if (!fs.existsSync(dir)) {
@@ -801,13 +798,13 @@ function discoverExtensionsInDir(dir: string): string[] {
 		for (const entry of entries) {
 			const entryPath = path.join(dir, entry.name);
 
-			// 1. Direct files: *.ts or *.js
+			// 1. 直接文件：*.ts 或 *.js。
 			if ((entry.isFile() || entry.isSymbolicLink()) && isExtensionFile(entry.name)) {
 				discovered.push(entryPath);
 				continue;
 			}
 
-			// 2 & 3. Subdirectories
+			// 2 和 3. 子目录。
 			if (entry.isDirectory() || entry.isSymbolicLink()) {
 				const entries = resolveExtensionEntries(entryPath);
 				if (entries) {
@@ -823,7 +820,7 @@ function discoverExtensionsInDir(dir: string): string[] {
 }
 
 /**
- * Discover and load extensions from standard locations.
+ * 从标准位置发现并加载扩展。
  */
 export async function discoverAndLoadExtensions(
 	configuredPaths: string[],
@@ -846,25 +843,25 @@ export async function discoverAndLoadExtensions(
 		}
 	};
 
-	// 1. Project-local extensions: cwd/${CONFIG_DIR_NAME}/extensions/
+	// 1. 项目本地扩展：cwd/配置目录名/extensions/
 	const localExtDir = path.join(resolvedCwd, CONFIG_DIR_NAME, "extensions");
 	addPaths(discoverExtensionsInDir(localExtDir));
 
-	// 2. Global extensions: agentDir/extensions/
+	// 2. 全局扩展：agentDir/extensions/
 	const globalExtDir = path.join(resolvedAgentDir, "extensions");
 	addPaths(discoverExtensionsInDir(globalExtDir));
 
-	// 3. Explicitly configured paths
+	// 3. 显式配置的路径。
 	for (const p of configuredPaths) {
 		const resolved = resolvePath(p, resolvedCwd, { normalizeUnicodeSpaces: true });
 		if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
-			// Check for package.json with pi manifest or index.ts
+			// 检查含有 pi 清单的 package.json 或 index.ts。
 			const entries = resolveExtensionEntries(resolved);
 			if (entries) {
 				addPaths(entries);
 				continue;
 			}
-			// No explicit entries - discover individual files in directory
+			// 未声明明确入口：发现目录中的独立文件。
 			addPaths(discoverExtensionsInDir(resolved));
 			continue;
 		}

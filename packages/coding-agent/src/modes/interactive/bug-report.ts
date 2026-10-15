@@ -46,7 +46,7 @@ const DISCLAIMER =
 const TRANSCRIPT_NOTE =
 	"The transcript contains your messages, model output, tool calls and their results, including file contents and command output read during this session.";
 
-/** Run the `/bug` flow: consent, optional summary, then upload or export. */
+/** 执行 `/bug` 流程：征求同意、可选生成摘要，然后上传或导出。 */
 export async function reportBug(context: BugReportContext, initialHint?: string): Promise<void> {
 	const options = await promptForOptions(context, initialHint);
 	if (!options) {

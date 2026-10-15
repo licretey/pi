@@ -81,7 +81,7 @@ function automaticErrorStatus(error: unknown): SpanStatus {
 			return { status: "error", error: { name: error.name, message: error.message } };
 		}
 	} catch {
-		// Error inspection is passive. Fall through to an error status without details.
+		// 检查错误不会产生副作用。继续执行并设置不含详情的错误状态。
 	}
 	return { status: "error" };
 }
@@ -143,7 +143,7 @@ function startInMemorySpan<T>(
 			try {
 				recordedSpan.events.push({ name, attributes: copyAttributes(attributes) });
 			} catch {
-				// Recording is passive. Ignore malformed or unreadable telemetry payloads.
+				// 记录过程不应影响业务。忽略格式错误或无法读取的遥测负载。
 			}
 		},
 		setAttributes(attributes) {
@@ -151,7 +151,7 @@ function startInMemorySpan<T>(
 			try {
 				recordedSpan.attributes = mergeAttributes(recordedSpan.attributes, attributes);
 			} catch {
-				// Recording is passive. Ignore malformed or unreadable telemetry payloads.
+				// 记录过程不应影响业务。忽略格式错误或无法读取的遥测负载。
 			}
 		},
 		setStatus(status) {
@@ -160,7 +160,7 @@ function startInMemorySpan<T>(
 				recordedSpan.status = copyStatus(status);
 				recordedSpan.explicitStatus = true;
 			} catch {
-				// Recording is passive. Ignore malformed or unreadable telemetry payloads.
+				// 记录过程不应影响业务。忽略格式错误或无法读取的遥测负载。
 			}
 		},
 	};
@@ -186,8 +186,8 @@ function startInMemorySpan<T>(
 }
 
 /**
- * Backend-neutral reference implementation that records spans in process memory.
- * Create a fresh instance to isolate tests or independent recording scopes.
+ * 与后端无关的参考实现，将 span 记录在进程内存中。
+ * 创建新实例可隔离测试或彼此独立的记录范围。
  */
 export class InMemoryTelemetryContext implements TelemetryContext {
 	private readonly state: InMemoryTelemetryState = {
@@ -200,7 +200,7 @@ export class InMemoryTelemetryContext implements TelemetryContext {
 		return startInMemorySpan(this.state, undefined, options, callback);
 	}
 
-	/** Returns detached snapshots in span-start order. */
+	/** 按 span 开始顺序返回相互独立的快照。 */
 	getSpans(): readonly RecordedTelemetrySpan[] {
 		return this.state.spans.map((span) => ({
 			id: span.id,

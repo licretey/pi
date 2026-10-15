@@ -4,8 +4,8 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
-    # nixpkgs unstable no longer supports Intel macOS. Keep using the final
-    # Darwin branch that does so for pi's x86_64-darwin package.
+    # nixpkgs unstable 已不再支持 Intel Mac；继续使用仍支持该平台的最后一个
+    # Darwin 分支，以构建 pi 的 x86_64-darwin 软件包。
     nixpkgs-darwin-x64.url = "github:NixOS/nixpkgs/nixpkgs-26.05-darwin";
 
   };

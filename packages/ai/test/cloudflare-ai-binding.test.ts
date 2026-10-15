@@ -34,7 +34,7 @@ describe("createAiBindingFetch", () => {
 			headers: { "content-type": "text/event-stream", "cf-aig-log-id": "log-1" },
 		});
 		const { binding, requests } = fakeBinding(bindingResponse);
-		// No cast at the call site: an `Ai` binding is accepted as-is, the way `env.AI` is typed.
+		// 调用处无需类型断言：可以像 env.AI 的实际类型那样直接传入 `Ai` binding。
 		const fetchFn = createAiBindingFetch(binding);
 		const body = JSON.stringify({ model: "claude", messages: [{ role: "user", content: "hi" }] });
 
@@ -52,7 +52,7 @@ describe("createAiBindingFetch", () => {
 		expect(requests[0].method).toBe("POST");
 		expect(Object.fromEntries(requests[0].headers)).toEqual({
 			"content-type": "application/json",
-			// The gateway recognizes and strips the sentinel itself; nothing here touches headers.
+			// gateway 会自行识别并剥除哨兵值；此处不会处理请求头。
 			"cf-aig-authorization": `Bearer ${CLOUDFLARE_GATEWAY_BINDING_AUTH_SENTINEL}`,
 			"anthropic-version": "2023-06-01",
 		});
@@ -62,15 +62,14 @@ describe("createAiBindingFetch", () => {
 	});
 
 	it("rejects a binding with no fetch() at construction, not on first request", () => {
-		// A well-typed binding on a runtime that predates `Ai#fetch`: `fetch` is optional on the
-		// type, so the check has to happen at runtime — early, with a message that names the cause.
+		// 在尚不支持 `Ai#fetch` 的运行时中，binding 在类型上仍然有效：类型定义将 `fetch` 设为可选，
+		// 因此必须尽早在运行时检查，并通过错误消息指出具体原因。
 		expect(() => createAiBindingFetch({ aiGatewayLogId: null })).toThrow("does not expose fetch()");
 	});
 
 	it("keeps SDK placeholder auth off the wire when paired with null auth headers", async () => {
-		// The full header contract from the module docs, end to end through a real API impl: the
-		// sentinel satisfies pi's request-auth check, and the explicit nulls make the OpenAI SDK
-		// delete its own `Authorization: Bearer unused` placeholder before dispatch.
+		// 通过真实 API 实现端到端验证模块文档中的完整请求头约定：哨兵值满足 pi 的请求身份验证检查，
+		// 显式设置为 null 会让 OpenAI SDK 在发送前移除自身的 `Authorization: Bearer unused` 占位值。
 		const { binding, requests } = fakeBinding(
 			Response.json({ error: { type: "bad_request", message: "stubbed" } }, { status: 400 }),
 		);

@@ -22,7 +22,7 @@ export function opencodeProvider(): Provider<OpenCodeApi> {
 			"openai-completions": withOpenCodeSessionHeader(openAICompletionsApi()),
 			"openai-responses": withOpenCodeSessionHeader(openAIResponsesApi()),
 		},
-		// OpenCode Zen serves TypeSafe's System One protocol at /zen/v1/systemone.
+		// OpenCode Zen 在 /zen/v1/systemone 提供 TypeSafe 的 System One 协议。
 		classifiers: { "typesafe-system-one": typesafeSystemOneApi() },
 	});
 }

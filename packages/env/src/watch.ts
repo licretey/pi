@@ -3,13 +3,13 @@ import { FileError, type FileWatcher, type WatchChange, type WatchTarget } from 
 import { type Connection, isConnectionLost } from "./connection.ts";
 import { toFileError } from "./errors.ts";
 
-/** How the daemon watches, like `NodeExecutionEnv`'s `NodeWatchOptions`. */
+/** 守护进程的监视方式，与 `NodeExecutionEnv` 的 `NodeWatchOptions` 类似。 */
 export interface RemoteWatchOptions {
-	/** Force a mode; by default Windows and file systems that do not report remote changes poll. */
+	/** 强制指定模式；默认情况下，Windows 和无法报告远程变更的文件系统会使用轮询。 */
 	mode?: "native" | "polling";
-	/** Interval between snapshots in `polling` mode; default 2000 ms. */
+	/** `polling` 模式下两次快照之间的间隔；默认为 2000 毫秒。 */
 	pollIntervalMs?: number;
-	/** Most directories one watcher covers; default 10,000. */
+	/** 单个监视器最多覆盖的目录数；默认为 10,000。 */
 	maxDirectories?: number;
 }
 
@@ -17,8 +17,8 @@ const RECONNECT_FIRST_MS = 1000;
 const RECONNECT_MAX_MS = 30_000;
 
 /**
- * A watcher running in the daemon (Durable's `NodeFileWatcher` next to the files). When the connection is lost, it is
- * opened again once the connection can be started again, and reports `overflow`: changes in between were not seen.
+ * 在守护进程中运行的监视器（即文件所在机器上的 Durable `NodeFileWatcher`）。连接断开后，会在连接恢复时重新打开监视器，
+ * 并报告 `overflow`，表示断开期间的变更未被观察到。
  */
 export class RemoteWatcher implements FileWatcher {
 	readonly #connection: Connection;
@@ -43,7 +43,7 @@ export class RemoteWatcher implements FileWatcher {
 		this.#options = options;
 	}
 
-	/** Watch `targets` (resolved paths); fails like `NodeFileWatcher.open` if coverage cannot be established. */
+	/** 监视 `targets`（已解析的路径）；无法确认监视范围时，行为与 `NodeFileWatcher.open` 一样会失败。 */
 	static async open(
 		connection: Connection,
 		targets: readonly WatchTarget[],
@@ -72,11 +72,11 @@ export class RemoteWatcher implements FileWatcher {
 		try {
 			this.#onChange(change);
 		} catch {
-			// A throwing callback must not stop watching.
+			// 回调抛出异常时，监视过程仍应继续。
 		}
 	}
 
-	/** Open the daemon's watcher; resolves once it reports coverage. */
+	/** 打开守护进程的文件监视器；确认监视范围后才会完成。 */
 	#start(): Promise<void> {
 		return new Promise((resolve, reject) => {
 			let ready = false;
@@ -144,7 +144,7 @@ export class RemoteWatcher implements FileWatcher {
 			if (this.#closed) return;
 			try {
 				await this.#start();
-				// Changes while disconnected were not seen.
+				// 断开连接期间的变更未被观察到。
 				this.#deliver({ overflow: true });
 				return;
 			} catch (error) {

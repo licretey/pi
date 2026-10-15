@@ -35,10 +35,10 @@ export const DEFAULT_PROGRESS_POLICY: ProgressPolicy = {
 	outputIntervalMs: 100,
 };
 
-/** The reserved section key of the agent's `instructions`. */
+/** agent `instructions` 占用的保留 section 键。 */
 export const INSTRUCTIONS_KEY = "instructions";
 
-/** Built-in agent document; rewindable so forks start from the agent at their fork entry. */
+/** 内建的 agent 文档；可回退，因此分叉能从其分叉点处的 agent 状态开始。 */
 export const AgentDoc = defineDoc<AgentState>({
 	kind: "pi.agent",
 	version: 1,
@@ -49,10 +49,10 @@ export const AgentDoc = defineDoc<AgentState>({
 	checkpointWhen: () => true,
 });
 
-/** Default `settings.contextRetentionMs`: ten minutes. */
+/** 默认的 `settings.contextRetentionMs`：十分钟。 */
 const DEFAULT_CONTEXT_RETENTION_MS = 600_000;
 
-/** Resolve the host settings: every field over its built-in default, object fields merged. */
+/** 解析宿主设置：每个字段覆盖其内建默认值，对象字段做合并。 */
 export function resolveSettings(settings: HarnessSettings | undefined): Settings {
 	const extensions = settings?.extensions;
 	return {
@@ -60,7 +60,7 @@ export function resolveSettings(settings: HarnessSettings | undefined): Settings
 		stream: { ...settings?.stream },
 		retry: { ...DEFAULT_RETRY_POLICY, ...settings?.retry },
 		compaction: { ...DEFAULT_COMPACTION_POLICY, ...settings?.compaction },
-		// Field by field, so an explicitly undefined interval keeps its default.
+		// 逐字段处理，让显式的 undefined 间隔仍旧保有默认值。
 		progress: {
 			partialIntervalMs: settings?.progress?.partialIntervalMs ?? DEFAULT_PROGRESS_POLICY.partialIntervalMs,
 			outputIntervalMs: settings?.progress?.outputIntervalMs ?? DEFAULT_PROGRESS_POLICY.outputIntervalMs,
@@ -72,16 +72,15 @@ export function resolveSettings(settings: HarnessSettings | undefined): Settings
 	};
 }
 
-/** Apply one change to `pi.agent`: a given field replaces the stored one, `null` clears it, `undefined` changes nothing. */
+/** 对 `pi.agent` 应用一次变更：给定的字段替换存储值，`null` 清除它，`undefined` 不造成任何改变。 */
 export async function configure(tx: Tx, conversationId: ConversationId, change: AgentChange): Promise<void> {
 	const state = await tx.doc(AgentDoc, conversationId);
 	applyChange(state, change);
 }
 
 /**
- * `addTools` of a tool round, applied to `tools` and `modelTools`, so the next request offers the tools: an array gets
- * each name it lacks appended, `{ remove }` loses the names, and an unset filter already lets every tool through, so
- * nothing is written.
+ * 工具轮次中的 `addTools`，同时应用于 `tools` 与 `modelTools`，让下一个请求提供这些工具：数组形式把缺少的
+ * 名称逐个追加，`{ remove }` 形式删去这些名称，而未设置的过滤器本就放行所有工具，因此什么也不写。
  */
 export async function addTools(tx: Tx, conversationId: ConversationId, added: readonly string[]): Promise<void> {
 	const state = await tx.doc(AgentDoc, conversationId);
@@ -143,9 +142,8 @@ function names(items: readonly { readonly name: string }[]): string[] {
 }
 
 /**
- * Built-in part of every Harness commit that creates or forks a conversation, for `pi.agent`: a fork keeps its `asOf`
- * copy; a new task-owned conversation copies the stored agent of its owner task's conversation; a new ownerless one
- * starts empty.
+ * 每个创建或分叉对话的 Harness 提交中为 `pi.agent` 执行的内建部分：分叉保留其 `asOf` 副本；任务所有的
+ * 新对话复制其属主任务的对话所存储的 agent；新的无主对话则空起炉灶。
  */
 export async function createAgent(tx: Tx, conversation: ConversationRecord): Promise<void> {
 	if (conversation.parent !== undefined) return;
@@ -155,7 +153,7 @@ export async function createAgent(tx: Tx, conversation: ConversationRecord): Pro
 	Object.assign(agent, copyJson(owner) as AgentState);
 }
 
-/** Handlers of the selected extensions' hooks for a task name, in extension order. */
+/** 按扩展顺序，取所选扩展中属于某任务名的钩子处理器。 */
 export function agentHooks(agent: Agent, taskName: string): object[] {
 	const handlers: object[] = [];
 	for (const extension of agent.extensions) {
@@ -165,8 +163,8 @@ export function agentHooks(agent: Agent, taskName: string): object[] {
 }
 
 /**
- * Resolve an agent from its stored state (absent: every field unset), a registry snapshot, and resolved settings. A
- * wrapper that throws or renames drops its target and is reported; a wrapper without a target does nothing.
+ * 从已存状态（缺失时表示所有字段未设置）、注册表快照与已解析设置中解析出一个 agent。抛错或改名的包装器
+ * 会丢弃其目标并被上报；没有目标的包装器不做任何事。
  */
 export function resolveAgent<Tool extends ToolRegistration>(
 	state: Readonly<AgentState> | undefined,
@@ -226,7 +224,7 @@ export function resolveAgent<Tool extends ToolRegistration>(
 	return agent;
 }
 
-/** `tools` through a stored filter: an array selects exactly its names, in its order; `{ remove }` drops names. */
+/** 用已存的过滤器过滤 `tools`：数组精确选出其名称、按其顺序；`{ remove }` 删去相应名称。 */
 function filterTools<Tool extends ToolRegistration>(tools: Tool[], filter: AgentState["tools"]): Tool[] {
 	if (filter === undefined) return tools;
 	if (Array.isArray(filter)) {
@@ -240,7 +238,7 @@ function filterTools<Tool extends ToolRegistration>(tools: Tool[], filter: Agent
 	return tools.filter((tool) => !removed.has(tool.name));
 }
 
-/** Selected installed extensions: the stored array, or the default selection edited by `{ add, remove }`. */
+/** 选中的已安装扩展：用已存数组，或用 `{ add, remove }` 编辑后的默认选择。 */
 function selectExtensions<Tool extends ToolRegistration>(
 	stored: AgentState["extensions"],
 	snapshot: RegistrySnapshot<Tool>,

@@ -155,7 +155,7 @@ describe("AgentSession retry", () => {
 	});
 
 	it("caps agent retry delay", async () => {
-		// Regression for #8826.
+		// 回归测试：#8826。
 		const created = await createSession({ failCount: 4, maxRetries: 5, maxAgentDelayMs: 5 });
 		const delays: number[] = [];
 		created.session.subscribe((event) => {
@@ -235,10 +235,10 @@ describe("AgentSession retry", () => {
 	});
 
 	it("prompt waits for full agent loop when retry produces tool calls", async () => {
-		// Regression: when auto-retry fires and the retry response includes tool_use,
-		// session.prompt() must wait for the entire tool loop to finish before returning.
-		// Previously, _resolveRetry() on the first successful message_end would unblock
-		// waitForRetry() while the agent was still executing tools.
+		// 回归场景：自动重试触发且重试响应包含 tool_use 时，
+		// session.prompt() 必须等待整个工具循环结束后才能返回。
+		// 先前会在首次成功的 message_end 事件中调用 _resolveRetry() 并解除阻塞，
+		// 此时 agent 仍在执行工具，waitForRetry() 也必须等待。
 		let callCount = 0;
 		const toolExecuted = { value: false };
 
@@ -262,7 +262,7 @@ describe("AgentSession retry", () => {
 				const stream = createAssistantMessageEventStream();
 				queueMicrotask(() => {
 					if (callCount === 1) {
-						// First call: overloaded error
+						// 第一次调用：服务过载错误
 						const msg = createAssistantMessage("", {
 							stopReason: "error",
 							errorMessage: "overloaded_error",
@@ -270,7 +270,7 @@ describe("AgentSession retry", () => {
 						stream.push({ type: "start", partial: msg });
 						stream.push({ type: "error", reason: "error", error: msg });
 					} else if (callCount === 2) {
-						// Second call (retry): text + tool_use
+						// 第二次调用（重试）：文本 + tool_use。
 						const msg: AssistantMessage = {
 							...createAssistantMessage("Looking that up now."),
 							stopReason: "toolUse",
@@ -282,7 +282,7 @@ describe("AgentSession retry", () => {
 						stream.push({ type: "start", partial: msg });
 						stream.push({ type: "done", reason: "toolUse", message: msg });
 					} else {
-						// Third call (after tool result): final response
+						// 第三次调用（工具返回结果后）：最终回答
 						const msg = createAssistantMessage("Final answer.");
 						stream.push({ type: "start", partial: msg });
 						stream.push({ type: "done", reason: "stop", message: msg });
@@ -311,13 +311,13 @@ describe("AgentSession retry", () => {
 
 		await session.prompt("Test");
 
-		// All three LLM calls must have completed
+		// 三次大语言模型调用都必须已完成
 		expect(callCount).toBe(3);
-		// Tool must have been executed
+		// 工具必须已执行
 		expect(toolExecuted.value).toBe(true);
-		// Agent must not be streaming after prompt returns
+		// prompt 返回后，agent 不应仍处于流式输出状态。
 		expect(session.isStreaming).toBe(false);
-		// A follow-up prompt must work (no "Agent is already processing" error)
+		// 后续提示必须可以正常处理（不能出现 "Agent is already processing" 错误）。
 		await session.prompt("Follow-up");
 		expect(callCount).toBe(4);
 	});

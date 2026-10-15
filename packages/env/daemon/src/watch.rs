@@ -1,6 +1,6 @@
-//! `watch`: Durable's `NodeFileWatcher` (packages/durable/src/env/node-watch.ts) running next to the files, so a scan
-//! costs no round trips. Native events only trigger a debounced rescan; changes are the difference between snapshots
-//! plus the event paths. Events go out as `change` events of the request, which lasts until it is cancelled.
+//! `watch`：在文件所在机器运行 Durable 的 `NodeFileWatcher`（packages/durable/src/env/node-watch.ts），扫描无需网络往返。
+//! 原生事件只会触发经过防抖处理的重新扫描；变更由两次快照的差异和事件路径组成。
+//! 事件以请求的 `change` 事件发送，请求会持续运行，直到被取消。
 
 use crate::errors::Failure;
 use crate::exec::Control;
@@ -19,25 +19,24 @@ use std::sync::mpsc::{self, RecvTimeoutError, Sender};
 use std::time::{Duration, Instant, SystemTime};
 
 const DEBOUNCE: Duration = Duration::from_millis(50);
-/// macOS: FSEvents streams go live after `watch` returns; a rescan this long after installing watchers catches changes
-/// made in between.
+/// macOS：`watch` 返回后 FSEvents 流才会开始工作；在安装监视器后等待此时长再扫描，可捕获期间发生的变更。
 const FSEVENTS_SETTLE: Duration = Duration::from_millis(500);
 const DEFAULT_POLL_MS: u64 = 2000;
 const DEFAULT_MAX_DIRECTORIES: usize = 10_000;
-/// In polling mode, recently modified small files are also compared by content.
+/// 轮询模式下还会比较近期修改的小文件内容。
 const HASH_MAX_BYTES: u64 = 256 * 1024;
 const HASH_RECENT: Duration = Duration::from_secs(5);
-/// How often a waiting watcher looks for a cancel.
+/// 等待中的监视器检查取消信号的间隔。
 const CANCEL_POLL: Duration = Duration::from_millis(100);
 
-/// Linux `statfs` magic numbers of file systems that accept watches but do not report changes made elsewhere.
+/// Linux 上支持监视、但不会报告其他位置所做变更的文件系统 `statfs` 魔数。
 #[cfg(any(target_os = "linux", target_os = "android"))]
 const UNRELIABLE_FILE_SYSTEMS: [u64; 12] = [
     0x6969,     // NFS
     0x517b,     // SMB
     0xff534d42, // CIFS
     0xfe534d42, // SMB2
-    0x65735546, // FUSE (sshfs, Android shared storage)
+    0x65735546, // FUSE（sshfs、Android 共享存储）
     0x01021997, // 9P (WSL2 Windows drives)
     0x0bd00bd0, // Lustre
     0x47504653, // GPFS
@@ -62,7 +61,7 @@ enum Kind {
     Other,
 }
 
-/// What a snapshot remembers of one path. Directories and ancestors are compared by identity only.
+/// 快照为单个路径记录的信息。目录及其祖先仅按身份标识进行比较。
 #[derive(Clone, PartialEq, Eq)]
 struct Entry {
     kind: Kind,
@@ -96,7 +95,7 @@ enum ScanError {
 }
 
 impl ScanError {
-    /// The error `NodeExecutionEnv.watch` returns when opening fails.
+    /// 打开失败时 `NodeExecutionEnv.watch` 返回的错误。
     fn failure(&self) -> Failure {
         match self {
             ScanError::Budget(max) => {
@@ -106,7 +105,7 @@ impl ScanError {
         }
     }
 
-    /// The `FileError` code `NodeFileWatcher` reports when a later rescan fails.
+    /// 后续重新扫描失败时 `NodeFileWatcher` 报告的 `FileError` 代码。
     fn code(&self) -> &'static str {
         match self {
             ScanError::Io(error, ..) if denied(error) => "permission_denied",
@@ -132,7 +131,7 @@ fn kind_of(metadata: &Metadata) -> Kind {
     }
 }
 
-/// What a snapshot remembers of `path`, whose `metadata` came from `stat` (`follow`) or `lstat`.
+/// 快照为 `path` 记录的信息；其 `metadata` 来自 `stat`（跟随链接）或 `lstat`。
 fn entry_of(path: &str, metadata: &Metadata, follow: bool, hash: Option<u64>) -> Entry {
     let kind = kind_of(metadata);
     let (dev, ino) = sys::path_identity(path, metadata, follow);
@@ -151,7 +150,7 @@ fn entry_of(path: &str, metadata: &Metadata, follow: bool, hash: Option<u64>) ->
     }
 }
 
-/// Ancestors of `path`, nearest first, up to the root.
+/// `path` 的祖先目录，按从近到远的顺序一直到根目录。
 fn ancestors(path: &str) -> Vec<String> {
     Path::new(path)
         .ancestors()
@@ -168,7 +167,7 @@ fn with_separator(directory: &str) -> String {
     }
 }
 
-/// Whether `path` is `ancestor` or below it.
+/// 判断 `path` 是否为 `ancestor` 本身或其后代。
 fn is_within(path: &str, ancestor: &str) -> bool {
     path == ancestor || path.starts_with(&with_separator(ancestor))
 }
@@ -177,12 +176,12 @@ fn excluded(target: &Target, name: &str) -> bool {
     (target.hidden && name.starts_with('.')) || target.names.contains(name)
 }
 
-/// JavaScript's default sort: by UTF-16 code units.
+/// JavaScript 默认排序规则：按 UTF-16 代码单元排序。
 fn sort_like_javascript(paths: &mut [String]) {
     paths.sort_by(|a, b| a.encode_utf16().cmp(b.encode_utf16()));
 }
 
-/// Whether any path, or its nearest existing ancestor, is on a file system that does not report remote changes.
+/// 判断路径本身或最近存在的祖先是否位于不会报告远程变更的文件系统上。
 #[cfg(any(target_os = "linux", target_os = "android"))]
 fn any_unreliable(targets: &[Target]) -> bool {
     use std::ffi::CString;
@@ -191,7 +190,7 @@ fn any_unreliable(targets: &[Target]) -> bool {
             let Ok(name) = CString::new(candidate) else {
                 break;
             };
-            // SAFETY: a NUL-terminated path and a zeroed statfs buffer for the call to fill.
+            // 安全性：路径以 NUL 结尾，并提供已清零、供 statfs 填充的缓冲区。
             let mut info: libc::statfs = unsafe { std::mem::zeroed() };
             if unsafe { libc::statfs(name.as_ptr(), &mut info) } != 0 {
                 continue;
@@ -212,21 +211,21 @@ fn any_unreliable(_targets: &[Target]) -> bool {
     false
 }
 
-/// One scan: the snapshot, and targets that are symbolic links to files, whose files need their own watchers.
+/// 单次扫描的结果：快照，以及指向文件的符号链接目标；这些文件需要单独监视。
 struct Scan {
     snapshot: Snapshot,
     linked_files: HashSet<String>,
-    /// Directories counted against the limit, and directories traversed per target.
+    /// 计入数量限制的目录，以及每个目标遍历到的目录。
     counted: HashSet<String>,
     traversed: HashSet<(usize, String)>,
-    /// Kinds of listed entries without following links.
+    /// 枚举条目的类型；不会跟随符号链接。
     listed: HashMap<String, Kind>,
 }
 
 struct Installed {
     dev: u64,
     ino: u64,
-    /// The watched path with links resolved, as FSEvents spells event paths (`/private/var` for `/var`).
+    /// 跟随链接解析后的监视路径，FSEvents 会以此形式表示事件路径（例如 `/var` 会显示为 `/private/var`）。
     canonical: Option<String>,
 }
 
@@ -299,7 +298,7 @@ impl FileWatcher<'_> {
             return Ok(());
         }
         let skip = |error: io::Error| -> Result<(), ScanError> {
-            // The watched directory itself must be readable; below it, unreadable directories are skipped.
+            // 被监视的目录本身必须可读；其下不可读的目录会跳过。
             if directory == target.path && denied(&error) {
                 return Err(ScanError::Io(error, "scandir", directory.to_string()));
             }
@@ -336,7 +335,7 @@ impl FileWatcher<'_> {
                     };
                     let kind = kind_of(&metadata);
                     scan.listed.insert(path.clone(), kind);
-                    // A target's own entry (following links) wins over its listing by another target.
+                    // 优先使用目标自身的条目（跟随链接），而不是其他目标枚举出的同一路径条目。
                     if !scan.snapshot.contains_key(&path) {
                         self.record(scan, &path, &metadata, false);
                     }
@@ -364,7 +363,7 @@ impl FileWatcher<'_> {
                 if scan.snapshot.contains_key(&ancestor) {
                     continue;
                 }
-                // Identity only: an ancestor's own timestamps change with every unrelated sibling.
+                // 只比较身份标识：祖先目录的时间戳会因任意同级目录变更而改变。
                 if let Ok(metadata) = fs::symlink_metadata(&ancestor) {
                     let entry = Entry {
                         size: 0,
@@ -374,8 +373,8 @@ impl FileWatcher<'_> {
                     scan.snapshot.insert(ancestor, entry);
                 }
             }
-            // The target may be a symbolic link to what is watched; follow it. A missing target is watched for its
-            // creation; one that cannot be reached for lack of permission fails.
+            // 目标可能是指向被监视对象的符号链接，因此要跟随链接。目标不存在时继续监视，以便捕获其创建；
+            // 因权限不足而无法访问的目标则视为失败。
             let metadata = match fs::metadata(&target.path) {
                 Ok(metadata) => metadata,
                 Err(error) if denied(&error) => {
@@ -398,7 +397,7 @@ impl FileWatcher<'_> {
         Ok(scan)
     }
 
-    /// An ancestor that changed identity moved every target below it; report those targets.
+    /// 祖先目录的身份标识变化意味着其下所有目标都已移动；报告这些目标。
     fn reported(&self, path: &str) -> String {
         if self
             .targets
@@ -428,7 +427,7 @@ impl FileWatcher<'_> {
         changed
     }
 
-    /// Rescan, report differences, and install watchers for new directories, rescanning until none are new.
+    /// 重新扫描并报告差异，为新目录安装监视器；重复扫描，直到没有新目录。
     fn sync(&mut self, mut report: bool) -> Result<HashSet<String>, ScanError> {
         let mut changed = HashSet::new();
         for _ in 0..10 {
@@ -446,15 +445,14 @@ impl FileWatcher<'_> {
             if cfg!(target_os = "macos") {
                 self.settle_at = Some(Instant::now() + FSEVENTS_SETTLE);
             }
-            // Something written into a new directory before its watcher existed shows up in the next round.
+            // 监视器安装前写入新目录的内容，会在下一轮扫描中发现。
             report = true;
         }
         Ok(changed)
     }
 
-    /// Watch every existing ancestor of each target, each target directory, each target that links to a file, and on
-    /// Linux each directory below a recursive target (elsewhere one recursive watcher per target). Returns whether a
-    /// watcher was added.
+    /// 监视每个目标的所有现存祖先、目标目录、指向文件的目标；在 Linux 上还会监视递归目标下的每个目录
+    ///（其他平台则为每个递归目标安装一个递归监视器）。返回是否新增了监视器。
     fn reconcile(&mut self, linked_files: &HashSet<String>) -> bool {
         let per_directory = cfg!(any(target_os = "linux", target_os = "android"));
         let mut wanted: HashMap<String, bool> = linked_files
@@ -490,7 +488,7 @@ impl FileWatcher<'_> {
                 }
             }
         }
-        // Gone, or replaced: a watcher follows the directory it was installed on, not the path.
+        // 目录已消失或被替换：监视器跟踪的是安装时对应的目录，而不是路径名称。
         let stale: Vec<String> = self
             .installed
             .iter()
@@ -562,7 +560,7 @@ impl FileWatcher<'_> {
                         }
                         _ => false,
                     };
-                    // Out of watches or unsupported: compare snapshots from now on, and say coverage was uncertain.
+                    // 监视器数量已达上限或功能不受支持：之后改为比较快照，并标明监视覆盖范围不确定。
                     if !gone {
                         self.switch_to_polling();
                         return false;
@@ -604,7 +602,7 @@ impl FileWatcher<'_> {
         false
     }
 
-    /// An event path in the spelling of the watched path it is under.
+    /// 事件路径采用其所属监视路径的表示形式。
     fn watched_spelling(&self, path: &str) -> String {
         let mut best: Option<(&str, &str)> = None;
         for (watched, installed) in &self.installed {
@@ -621,19 +619,19 @@ impl FileWatcher<'_> {
         }
     }
 
-    /// Note a native event; returns whether it calls for a rescan.
+    /// 记录原生事件；返回是否需要重新扫描。
     fn on_event(&mut self, event: notify::Result<Event>) -> bool {
         let event = match event {
             Ok(event) => event,
             Err(error) => {
-                // A watched directory that disappears or fails: rescan, which also replaces its watcher.
+                // 被监视的目录消失或访问失败：重新扫描，并在过程中替换其监视器。
                 for path in &error.paths {
                     self.installed.remove(&*path.to_string_lossy());
                 }
                 return true;
             }
         };
-        // Reads are not changes (libuv does not ask for them).
+        // 读取不属于变更（libuv 不会为读取操作请求事件）。
         if matches!(event.kind, EventKind::Access(_)) {
             return false;
         }
@@ -643,7 +641,7 @@ impl FileWatcher<'_> {
         let mut flush = false;
         for path in &event.paths {
             let path = self.watched_spelling(&path.to_string_lossy());
-            // Events about unrelated siblings of an ancestor, or about excluded entries, are ignored.
+            // 忽略与祖先无关的同级目录事件，以及针对排除条目的事件。
             if self.in_scope(&path) {
                 let reported = self.reported(&path);
                 self.events.insert(reported);
@@ -653,7 +651,7 @@ impl FileWatcher<'_> {
         flush
     }
 
-    /// Rescan and report what changed; an error ends the watcher.
+    /// 重新扫描并报告变更；发生错误时结束监视。
     fn flush(&mut self) -> bool {
         let events = std::mem::take(&mut self.events);
         match self.sync(true) {
@@ -700,12 +698,12 @@ fn parse_targets(json: &Value) -> Result<Vec<Target>, Failure> {
         .collect()
 }
 
-/// Watch until cancelled: a `ready` event once coverage is established, then `change` events, or an `error` event
-/// after which nothing follows.
+/// 持续监视直到取消：监视范围建立后发送一次 `ready` 事件，之后发送 `change` 事件；发生错误时发送 `error` 事件，
+/// 此后不再发送其他事件。
 pub fn run(id: u32, json: &Value, output: &Output, control: &Control) -> Result<Value, Failure> {
     let targets = parse_targets(json)?;
-    // Windows refuses to rename a directory while a directory below it is open, and native watchers keep watched
-    // directories open, so Windows polls, as do file systems that do not report remote changes.
+    // Windows 不允许在目录的子目录处于打开状态时重命名该目录，而原生监视器会持续打开被监视目录，
+    // 因此 Windows 使用轮询；不会报告远程变更的文件系统也使用轮询。
     let mode = match json["mode"].as_str() {
         Some("native") => Mode::Native,
         Some("polling") => Mode::Polling,

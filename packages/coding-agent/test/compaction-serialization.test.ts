@@ -21,7 +21,7 @@ describe("serializeConversation", () => {
 		expect(result).toContain("[Tool result]:");
 		expect(result).toContain("[... 3000 more characters truncated]");
 		expect(result).not.toContain("x".repeat(3000));
-		// First 2000 chars should be present
+		// 前 2000 个字符应保留。
 		expect(result).toContain("x".repeat(2000));
 	});
 

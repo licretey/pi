@@ -150,7 +150,7 @@ describe("Session document checkpoints", () => {
 			.map((writes) => (writes[0]!.type === "document.change" ? writes[0]!.content.kind : writes[0]!.type));
 		expect(kinds).toEqual(["delta", "delta", "base", "delta"]);
 
-		// A required version base resets the count without calling the predicate.
+		// 必需的版本基线会重置计数，且不会调用判断函数。
 		await increment(V2);
 		await increment(V2);
 		expect(seen).toEqual([0, 1, 2, 0, 0]);
@@ -395,7 +395,7 @@ describe("Session document migrations", () => {
 		const { session, storage, publications } = openTestSession();
 		await session.commit((tx) => tx.doc(Old).then(() => undefined), context);
 		await session.unloadDocuments();
-		// An observer of the older shape.
+		// 监听旧结构的观察者。
 		const watch = (await session.watchDoc(Old, context))!;
 		const frames: unknown[] = [];
 		watch.start(async (value, ops) => {
@@ -403,7 +403,7 @@ describe("Session document migrations", () => {
 		});
 		expect(await session.snapshot(Current, context)).toEqual({ count: 4 });
 		const snapshot = await session.snapshot(Current, context);
-		// An observer of the new shape: the migration changes nothing it sees.
+		// 监听新结构的观察者：迁移对其观察到的内容没有影响。
 		const current = (await session.watchDoc(Current, context))!;
 		const currentFrames: unknown[] = [];
 		current.start(async (value) => {
@@ -417,7 +417,7 @@ describe("Session document migrations", () => {
 			content: { kind: "base", version: 3, value: { count: 4 } },
 		});
 		expect(checkpoints).toBe(0);
-		// The migration-only base is published, so the older-shape watch receives the new value as a root replacement.
+		// 迁移生成的基线会被发布，因此旧结构监听器会收到新值，并将其作为根节点替换。
 		expect(documentChanges(publications.at(-1)!)).toMatchObject([{ version: 3, value: { count: 4 }, ops: [] }]);
 		expect(frames).toEqual([{ value: { count: 4 }, ops: [["r", { count: 4 }]] }]);
 		expect(currentFrames).toEqual([]);
@@ -794,7 +794,7 @@ describe("Session tracker cache across definition versions", () => {
 		await session.commit((tx) => tx.doc(V1Doc), context);
 		expect(await session.snapshot(V1Doc, context)).toEqual({ name: "first" });
 
-		// Reloaded extension code accesses the still-cached document with a newer token.
+		// 重新加载的扩展代码使用更新后的令牌访问仍在缓存中的文档。
 		expect(await session.snapshot(V2Doc, context)).toEqual({ names: ["first"] });
 		await session.commit(async (tx) => {
 			(await tx.doc(V2Doc)).names.push("second");

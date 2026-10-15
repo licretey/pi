@@ -21,7 +21,7 @@ interface SessionShareContext {
 	showError: (message: string) => void;
 }
 
-/** Trailing `pi.share` entry carrying the system prompt and tool schemas for the session viewer. */
+/** 附加在末尾的 `pi.share` 条目，包含会话查看器所需的系统提示词和工具架构。 */
 export function createShareTrailingEntries(
 	session: AgentSession,
 	parentId: string | null,
@@ -46,14 +46,14 @@ export function createShareTrailingEntries(
 	];
 }
 
-/** Export the current branch with presentation metadata for Radius. */
+/** 导出当前分支，并附加 Radius 所需的展示元数据。 */
 export function exportSessionForShare(filePath: string, session: AgentSession): void {
 	exportSessionToJsonl(session.sessionManager, filePath, (parentId, timestamp) =>
 		createShareTrailingEntries(session, parentId, timestamp),
 	);
 }
 
-/** Share the current session through Radius, falling back to a private gist. */
+/** 通过 Radius 分享当前会话；失败时回退到私有 gist。 */
 export async function shareSession(context: SessionShareContext): Promise<void> {
 	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-share-"));
 	const jsonlFile = path.join(tempDir, "session.jsonl");
@@ -90,7 +90,7 @@ export async function shareSession(context: SessionShareContext): Promise<void> 
 		try {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		} catch {
-			// Ignore cleanup errors
+			// 忽略清理错误。
 		}
 	}
 }

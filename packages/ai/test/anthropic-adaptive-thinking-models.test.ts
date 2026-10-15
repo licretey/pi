@@ -38,8 +38,8 @@ describe("Anthropic adaptive thinking model metadata", () => {
 		expect(flaggedModels).toEqual(
 			flaggedModels.filter(
 				(modelId) =>
-					// Regression for #9323: Fireworks uses catalog effort metadata and
-					// verified fallbacks, not a fixed set of adaptive model names.
+					// #9323 回归测试：Fireworks 使用目录中的 effort 元数据和已验证的回退级别，
+					// 而不是依赖固定的自适应模型名称列表。
 					modelId.startsWith("fireworks/") ||
 					/(opus[-.](4[-.][678]|5)|sonnet[-.]4[-.]6|sonnet[-.]5|haiku[-.]5[-.]5|fable[-.]5|kimi-coding\/)/.test(
 						modelId,

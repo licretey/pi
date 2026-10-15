@@ -6,7 +6,7 @@ import { pathToFileURL } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 import { VERSION } from "../src/config.ts";
 
-// --import takes a module specifier, not a filesystem path.
+// --import 接收模块说明符，而不是文件系统路径。
 const sourceResolverUrl = pathToFileURL(resolve(__dirname, "../src/experimental/source-resolver.ts")).href;
 const tempDirs: string[] = [];
 
@@ -45,7 +45,7 @@ function runEntry(entry: string, experimental: boolean) {
 }
 
 describe("stable and development CLI entrypoints", () => {
-	// #9132: enabling experiments must not pull remote-server dependencies into the published CLI.
+	// #9132：启用实验功能不得将 remote-server 依赖引入已发布的 CLI。
 	it("does not dispatch experimental commands from the stable entrypoint", () => {
 		const result = runEntry("cli.ts", true);
 		expect(result.status, result.stderr).toBe(0);

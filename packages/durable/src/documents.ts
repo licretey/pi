@@ -35,19 +35,19 @@ type FamilyInput<T extends JsonObject, I extends JsonValue> = Omit<CommonDocDefi
 	initial(seed: I): T;
 };
 
-/** Define a Session-scoped singleton document. */
+/** 定义一个会话（Session）作用域的单例文档。 */
 export function defineDoc<T extends JsonObject>(
 	definition: CommonDocDefinition<T> & { readonly scope: "session" },
 ): SessionDocToken<T>;
-/** Define a latest-only conversation singleton document. */
+/** 定义一个仅保留最新版本的对话单例文档。 */
 export function defineDoc<T extends JsonObject>(
 	definition: CommonDocDefinition<T> & LatestConversationSemantics,
 ): ConversationDocToken<T>;
-/** Define a rewindable conversation singleton document. */
+/** 定义一个可回退的对话单例文档。 */
 export function defineDoc<T extends JsonObject>(
 	definition: CommonDocDefinition<T> & RewindableConversationSemantics,
 ): RewindableConversationDocToken<T>;
-/** Define a task-scoped singleton document. */
+/** 定义一个任务作用域的单例文档。 */
 export function defineDoc<T extends JsonObject>(
 	definition: CommonDocDefinition<T> & { readonly scope: "task" },
 ): TaskDocToken<T>;
@@ -56,19 +56,19 @@ export function defineDoc<T extends JsonObject>(definition: DocDefinition<T>): D
 	return { definition };
 }
 
-/** Define a Session-scoped document family. */
+/** 定义一个会话（Session）作用域的文档族。 */
 export function defineDocFamily<T extends JsonObject, I extends JsonValue>(
 	definition: FamilyInput<T, I> & { readonly scope: "session" },
 ): SessionDocFamilyToken<T, I>;
-/** Define a latest-only conversation document family. */
+/** 定义一个仅保留最新版本的对话文档族。 */
 export function defineDocFamily<T extends JsonObject, I extends JsonValue>(
 	definition: FamilyInput<T, I> & LatestConversationSemantics,
 ): ConversationDocFamilyToken<T, I>;
-/** Define a rewindable conversation document family. */
+/** 定义一个可回退的对话文档族。 */
 export function defineDocFamily<T extends JsonObject, I extends JsonValue>(
 	definition: FamilyInput<T, I> & RewindableConversationSemantics,
 ): RewindableConversationDocFamilyToken<T, I>;
-/** Define a task-scoped document family. */
+/** 定义一个任务作用域的文档族。 */
 export function defineDocFamily<T extends JsonObject, I extends JsonValue>(
 	definition: FamilyInput<T, I> & { readonly scope: "task" },
 ): TaskDocFamilyToken<T, I>;
@@ -79,7 +79,7 @@ export function defineDocFamily<T extends JsonObject, I extends JsonValue>(
 	return { definition };
 }
 
-/** Erased definition shape used by the Session after overload resolution. */
+/** 重载解析后由会话使用的、类型已被擦除的定义形态。 */
 export type AnyDocDefinition = DocumentSemantics & {
 	readonly kind: string;
 	readonly version: number;
@@ -89,7 +89,7 @@ export type AnyDocDefinition = DocumentSemantics & {
 	checkpointWhen?(value: Readonly<JsonObject>, ops: readonly Op[], info: CheckpointInfo): boolean;
 };
 
-/** Erased singleton or family token. */
+/** 类型已擦除的单例或文档族令牌。 */
 export type AnyDocToken = { readonly definition: AnyDocDefinition };
 
 function validateDefinition(definition: AnyDocDefinition): void {
@@ -98,14 +98,14 @@ function validateDefinition(definition: AnyDocDefinition): void {
 	}
 }
 
-/** Logical address plus its string identity for maps. */
+/** 逻辑地址及其用于映射的字符串身份。 */
 export type ResolvedAddress = {
 	readonly address: DocumentAddress;
 	readonly id: string;
 	readonly nextArgument: number;
 };
 
-/** Resolve an overloaded argument list and return the index after the owner and family key. */
+/** 解析重载的参数列表，返回指向 owner 与族键之后位置的索引。 */
 export function resolveAddress(definition: AnyDocDefinition, args: readonly unknown[]): ResolvedAddress {
 	let index = 0;
 	let scope: DocumentAddress["scope"];
@@ -133,7 +133,7 @@ function ownerId<I extends Id<string>>(value: unknown, definition: AnyDocDefinit
 	return idFromNumber<I>(value);
 }
 
-/** Stable string identity of one logical address. */
+/** 单个逻辑地址的稳定字符串身份。 */
 export function addressId(address: DocumentAddress): string {
 	const owner =
 		address.scope.kind === "session"
@@ -144,7 +144,7 @@ export function addressId(address: DocumentAddress): string {
 	return JSON.stringify([address.kind, address.scope.kind, owner, address.key ?? null]);
 }
 
-/** Build the storage create record for a new incarnation at an address. */
+/** 为某地址上新一次具现（incarnation）构建存储创建记录。 */
 export function documentCreate(definition: AnyDocDefinition, address: DocumentAddress, id: DocumentId): DocumentCreate {
 	const key = address.key === undefined ? {} : { key: address.key };
 	switch (address.scope.kind) {
@@ -164,7 +164,7 @@ export function documentCreate(definition: AnyDocDefinition, address: DocumentAd
 	}
 }
 
-/** Reject typed access whose token disagrees with the persisted scope, history, or fork semantics. */
+/** 当令牌与持久化的作用域、历史或分叉语义不一致时，拒绝该带类型的访问。 */
 export function checkRecordScope(definition: AnyDocDefinition, record: DocumentCreate | DocumentRecord): void {
 	if (
 		record.scope.kind !== definition.scope ||
@@ -175,7 +175,7 @@ export function checkRecordScope(definition: AnyDocDefinition, record: DocumentC
 	}
 }
 
-/** Reject typed access to a stored version the supplied definition cannot use. */
+/** 当存储版本超出所给定义的可用范围时，拒绝该带类型的访问。 */
 export function checkRecordVersion(
 	definition: AnyDocDefinition,
 	record: DocumentCreate | DocumentRecord,
@@ -189,12 +189,12 @@ export function checkRecordVersion(
 	}
 }
 
-/** Validate and materialize a detached stored value for typed access. */
+/** 校验并具体化一个尚未挂接的存储值，供带类型的访问使用。 */
 export function materializeDocument(definition: AnyDocDefinition, stored: StoredDocument): JsonObject {
 	return materializeDocumentValue(definition, stored.record, stored.version, stored.value);
 }
 
-/** Validate and materialize one detached value before its first persisted incarnation. */
+/** 在首次持久化具现之前，校验并具体化一个尚未挂接的值。 */
 export function materializeDocumentValue(
 	definition: AnyDocDefinition,
 	record: DocumentCreate | DocumentRecord,

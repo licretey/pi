@@ -223,7 +223,7 @@ describe("AgentSession bash and persistence characterization", () => {
 		await harness.session.prompt("start");
 
 		const entries = harness.sessionManager.getEntries();
-		// The prompt is declared by the first request, after the queued custom message.
+		// 提示词由第一个请求声明，位置在排队的自定义消息之后。
 		expect(entries.map((entry) => entry.type)).toEqual([
 			"custom_message",
 			"message",
@@ -338,9 +338,9 @@ describe("AgentSession bash and persistence characterization", () => {
 		]);
 	});
 
-	// Regression tests for https://github.com/earendil-works/pi/issues/10504
+	// https://github.com/earendil-works/pi/issues/10504 的回归测试。
 	describe("escape sequences split across output chunks", () => {
-		/** Runs a user bash command whose fake shell emits the given chunks; `beforeExit` sees what was streamed by then. */
+		/** 运行用户的 Bash 命令，由模拟 shell 分块输出指定内容；beforeExit 可读取此前已输出的内容。 */
 		async function runChunks(chunks: Array<string | Buffer>, beforeExit?: (streamed: string) => void) {
 			const harness = await createHarness();
 			harnesses.push(harness);

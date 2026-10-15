@@ -26,31 +26,30 @@
  * SOFTWARE.
  */
 
-// Valid string terminator sequences are BEL, ESC\, and 0x9c
+// 有效的字符串终止符序列包括 BEL、ESC\ 和 0x9c。
 const ST = "(?:\\u0007|\\u001B\\u005C|\\u009C)";
 
-// OSC sequences: ESC ] ... ST
+// OSC 序列：ESC ] ... ST。
 const OSC_START = "\\u001B\\]";
 
-// CSI and related: ESC/C1, optional intermediates, optional params (supports ; and :), then final byte
+// CSI 及相关序列：ESC/C1、可选中间字节、可选参数（支持 ; 和 :），最后是终止字节。
 const CSI_START = "[\\u001B\\u009B][[\\]()#;?]*(?:\\d{1,4}(?:[;:]\\d{0,4})*)?";
 const CSI_FINAL = "[\\dA-PR-TZcf-nq-uy=><~]";
 
-// Complete sequences. OSC is non-greedy until the first ST.
+// 完整序列。OSC 使用非贪婪匹配，直到遇到第一个 ST。
 const ansiRegex = new RegExp(`(?:${OSC_START}[\\s\\S]*?${ST})|${CSI_START}${CSI_FINAL}`, "g");
 
-// Unfinished sequence at the end of the text: OSC without its ST (a trailing ESC may start ESC\),
-// or CSI without its final byte.
+// 文本末尾未完成的序列：缺少 ST 的 OSC（末尾 ESC 可能是 ESC\ 的开头），
+// 或缺少终止字节的 CSI。
 const unfinishedAnsiAtEndRegex = new RegExp(
 	`(?:${OSC_START}(?:[^\\u0007\\u009C\\u001B]|\\u001B(?!\\\\))*|${CSI_START})$`,
 );
 
-// Longest unfinished sequence held back while streaming. Longer ones are processed as-is.
+// 流式处理中暂存的未完成序列的最大长度。超过此长度的序列按原样处理。
 const MAX_PENDING_ANSI_LENGTH = 256;
 
 /**
- * Split streamed text into a part that is safe to pass to stripAnsi now and a trailing
- * unfinished escape sequence that should be prepended to the next chunk.
+ * 将流式文本拆分为可立即传给 stripAnsi 的部分，以及应前置到下一块文本的末尾未完成转义序列。
  */
 export function splitIncompleteAnsiSuffix(value: string): { complete: string; pending: string } {
 	if (!value.includes("\u001B") && !value.includes("\u009B")) {
@@ -70,13 +69,12 @@ export function stripAnsi(value: string): string {
 		throw new TypeError(`Expected a \`string\`, got \`${typeof value}\``);
 	}
 
-	// Fast path: ANSI codes require ESC (7-bit) or CSI (8-bit) introducer
+	// 快速路径：ANSI 控制码必须以 ESC（7 位）或 CSI（8 位）引导符开头。
 	if (!value.includes("\u001B") && !value.includes("\u009B")) {
 		return value;
 	}
 
-	// Even though the regex is global, we don't need to reset the `.lastIndex`
-	// because unlike `.exec()` and `.test()`, `.replace()` does it automatically
-	// and doing it manually has a performance penalty.
+	// 尽管正则表达式带有全局标志，也无需重置 `.lastIndex`：与 `.exec()` 和 `.test()` 不同，
+	// `.replace()` 会自动重置它；手动重置还会带来性能开销。
 	return value.replace(ansiRegex, "");
 }

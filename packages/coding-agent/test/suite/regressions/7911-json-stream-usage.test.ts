@@ -16,7 +16,7 @@ describe("regression #7911: JSON message updates retain usage", () => {
 
 		await harness.session.prompt("respond");
 
-		// #7290's delta-only wire projection dropped this fixed-size metadata with the snapshots.
+		// #7290：仅包含差量的线协议投影会随快照一起丢弃这段固定大小的元数据。
 		const update = harness
 			.eventsOfType("message_update")
 			.find((event) => event.message.role === "assistant" && event.message.usage.totalTokens > 0);

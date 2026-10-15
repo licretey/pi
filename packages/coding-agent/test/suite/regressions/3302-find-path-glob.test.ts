@@ -5,16 +5,14 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFindToolDefinition } from "../../../src/core/tools/find.ts";
 
 /**
- * Regression test for https://github.com/earendil-works/pi/issues/3302
+ * https://github.com/earendil-works/pi/issues/3302 的回归测试。
  *
- * The `find` tool advertises glob patterns like `src/**\/*.spec.ts`, but the
- * default fd-backed implementation used `fd --glob <pattern>` without
- * `--full-path`, which makes fd match only against the basename. Any pattern
- * containing a `/` therefore silently returned no matches.
+ * `find` 工具声明支持 `src/**\/*.spec.ts` 这样的 glob 模式，但默认的 fd 实现
+ * 使用 `fd --glob <pattern>` 时没有指定 `--full-path`，导致 fd 只匹配文件名。
+ * 因此，包含 `/` 的模式会静默地返回空结果。
  *
- * The fix switches fd into full-path mode when the pattern contains a `/`
- * and prepends `**\/` so the pattern can match against the absolute candidate
- * path that fd feeds to the matcher.
+ * 修复方案是在模式包含 `/` 时让 fd 使用完整路径模式，
+ * 并在模式前添加 `**\/`，使其能够匹配 fd 传给匹配器的候选绝对路径。
  */
 describe("issue #3302 find returns no results for path-based glob patterns", () => {
 	let tempRoot: string;
@@ -34,7 +32,7 @@ describe("issue #3302 find returns no results for path-based glob patterns", () 
 
 	async function runFind(pattern: string): Promise<string[]> {
 		const def = createFindToolDefinition(tempRoot);
-		// The find tool implementation does not touch ctx; pass a minimal stub.
+		// find 工具实现不会访问 ctx，因此传入最小化的桩对象。
 		const ctx = {} as Parameters<typeof def.execute>[4];
 		const result = (await def.execute("call-1", { pattern }, undefined, undefined, ctx)) as {
 			content: Array<{ type: string; text?: string }>;
@@ -54,7 +52,7 @@ describe("issue #3302 find returns no results for path-based glob patterns", () 
 
 	it("directory-prefixed pattern with ** tail matches subtree", async () => {
 		const files = await runFind("some/parent/child/**");
-		// Matches files (and possibly directories) under the subtree. Assert the two files are present.
+		// 匹配子树中的文件（也可能包括目录），并断言两个文件均出现在结果中。
 		expect(files).toContain("some/parent/child/file.ext");
 		expect(files).toContain("some/parent/child/test.spec.ts");
 	});

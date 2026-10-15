@@ -11,9 +11,8 @@ export type ModelsDevReasoningOption =
 const THINKING_LEVELS: readonly ThinkingLevel[] = ["minimal", "low", "medium", "high", "xhigh", "max"];
 
 /**
- * Converts models.dev verified effort values into Pi's selectable thinking levels.
- * Values without a Pi equivalent (`default` and JSON `null`) are intentionally
- * omitted.
+ * 将 models.dev 确认支持的 effort 值转换为 Pi 中可选的思考级别。
+ * Pi 中没有对应项的值（`default` 和 JSON `null`）会被有意省略。
  */
 export function getEffortThinkingLevelMap(options: readonly ModelsDevReasoningOption[]): ThinkingLevelMap | undefined {
 	const effortValues = options.flatMap((option) => (option.type === "effort" ? option.values : []));

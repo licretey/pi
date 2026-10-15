@@ -12,9 +12,9 @@ function resolveImagesApiProvider(api: ImageApi) {
 }
 
 /**
- * Global image generation dispatched on `model.api` through the images api
- * registry. Auth must be passed explicitly via `options.apiKey`; prefer
- * `Models.generateImages()`, which resolves provider auth.
+ * 全局图像生成，通过 images api 注册表按 `model.api` 分发。认证必须通过
+ * `options.apiKey` 显式传入；优先使用会解析 provider 认证的
+ * `Models.generateImages()`。
  */
 export async function generateImages(
 	model: ImageModel<ImageApi>,

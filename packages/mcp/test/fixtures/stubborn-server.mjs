@@ -1,4 +1,4 @@
-// Answers initialize, spawns a grandchild that outlives stdin, and ignores stdin EOF and SIGTERM.
+// 响应 initialize 请求，创建一个在标准输入关闭后仍存活的孙进程，并忽略标准输入 EOF 和 SIGTERM。
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
 

@@ -25,8 +25,8 @@ export { createReadTool, type ReadToolDetails, type ReadToolInput, type ReadTool
 export { createWriteTool, type WriteToolInput } from "./write.ts";
 
 /**
- * The `coding-tools` extension: `read`, `write`, `edit`, and `bash`; nothing installs it automatically.
- * `createPowerShellTool()` adds `powershell`. `images` prepares the images `read` returns (see `ReadToolOptions`).
+ * `coding-tools` 扩展：`read`、`write`、`edit` 和 `bash`；没有任何机制自动安装它。
+ * `createPowerShellTool()` 额外提供 `powershell`。`images` 负责准备 `read` 返回的图像（见 `ReadToolOptions`）。
  */
 export function createCodingTools(options: ReadToolOptions = {}) {
 	return defineExtension({
@@ -35,5 +35,5 @@ export function createCodingTools(options: ReadToolOptions = {}) {
 	});
 }
 
-/** `createCodingTools()` without an image processor. */
+/** 不带图像处理器的 `createCodingTools()`。 */
 export const CodingTools = createCodingTools();

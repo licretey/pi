@@ -89,7 +89,7 @@ describe("regression #5109: exclude tools", () => {
 		try {
 			await harness.session.bindExtensions({});
 
-			// Patterns that match a tool activate it like its name.
+			// 与工具名称匹配的模式也会激活该工具。
 			expect(toolNames(harness.session.getAllTools())).toEqual(["dynamic_tool", "read"]);
 			expect(harness.session.getActiveToolNames().sort()).toEqual(["dynamic_tool", "read"]);
 		} finally {

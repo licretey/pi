@@ -25,7 +25,7 @@ afterEach(async () => {
 
 describe.skipIf(process.platform === "win32")("experimental internal process launcher", () => {
 	test("starts the coordinator through the current runtime", async () => {
-		// Keep Unix socket paths below macOS's short sun_path limit.
+		// 确保 Unix 套接字路径不超过 macOS 较短的 sun_path 长度限制。
 		const directory = await mkdtemp(join(tmpdir(), "pi-ip-"));
 		directories.add(directory);
 		const publicPath = join(directory, "p.sock");

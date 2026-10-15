@@ -39,7 +39,7 @@ export interface CoordinatorConnectionOptions {
 	readonly serverConnectionId?: string;
 }
 
-/** The server-side endpoint of the coordinator's intentionally opaque message router. */
+/** 协调器不解析消息内容，其消息路由器在服务端的端点。 */
 export class CoordinatorConnection {
 	readonly serverConnectionId: string;
 	readonly replaced: Promise<void>;
@@ -257,8 +257,7 @@ function writeJsonLine(socket: Socket, message: unknown): Promise<void> {
 	});
 }
 
-// This process is intentionally a transport shim. It depends only on Node
-// built-ins and never interprets Pi, session, worker, or lifecycle payloads.
+// 此进程有意设计为传输适配层，只依赖 Node.js 内置能力，绝不解析 Pi、会话、工作进程或生命周期载荷。
 
 const EMPTY_STARTUP_GRACE_MS = 30_000;
 const EMPTY_SHUTDOWN_GRACE_MS = 250;

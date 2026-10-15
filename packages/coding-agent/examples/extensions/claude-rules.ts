@@ -1,20 +1,20 @@
 /**
- * Claude Rules Extension
+ * Claude 规则扩展。
  *
- * Scans the project's .claude/rules/ folder for rule files and lists them
- * in the system prompt. The agent can then use the read tool to load
- * specific rules when needed.
+ * 扫描项目的 .claude/rules/ 目录，查找规则文件并将其列入系统提示词。
+ * 随后，智能体可以使用 read 工具加载
+ * 在需要时应用特定规则。
  *
- * Best practices for .claude/rules/:
- * - Keep rules focused: Each file should cover one topic (e.g., testing.md, api-design.md)
- * - Use descriptive filenames: The filename should indicate what the rules cover
- * - Use conditional rules sparingly: Only add paths frontmatter when rules truly apply to specific file types
- * - Organize with subdirectories: Group related rules (e.g., frontend/, backend/)
+ * .claude/rules/ 的使用建议：
+ * - 规则主题应明确：每个文件聚焦一个主题（例如 testing.md、api-design.md）
+ * - 文件名应具有描述性：通过文件名即可了解规则涵盖的内容
+ * - 谨慎使用条件规则：仅在规则确实适用于特定文件类型时添加 paths 前置元数据
+ * - 使用子目录整理文件：将相关规则归类（例如 frontend/、backend/）
  *
- * Usage:
- * 1. Copy this file to ~/.pi/agent/extensions/ or your project's .pi/extensions/
- * 2. Create .claude/rules/ folder in your project root
- * 3. Add .md files with your rules
+ * 用法：
+ * 1. 将此文件复制到 ~/.pi/agent/extensions/ 或项目的 .pi/extensions/ 目录
+ * 2. 在项目根目录创建 .claude/rules/ 文件夹
+ * 3. 在其中添加包含规则的 .md 文件
  */
 
 import * as fs from "node:fs";
@@ -22,7 +22,7 @@ import * as path from "node:path";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 /**
- * Recursively find all .md files in a directory
+ * 递归查找目录中的所有 .md 文件。
  */
 function findMarkdownFiles(dir: string, basePath: string = ""): string[] {
 	const results: string[] = [];
@@ -50,7 +50,7 @@ export default function claudeRulesExtension(pi: ExtensionAPI) {
 	let ruleFiles: string[] = [];
 	let rulesDir: string = "";
 
-	// Scan for rules on session start
+	// 会话开始时扫描规则文件。
 	pi.on("session_start", async (_event, ctx) => {
 		rulesDir = path.join(ctx.cwd, ".claude", "rules");
 		ruleFiles = findMarkdownFiles(rulesDir);
@@ -60,7 +60,7 @@ export default function claudeRulesExtension(pi: ExtensionAPI) {
 		}
 	});
 
-	// Append available rules to system prompt
+	// 将可用规则追加到系统提示词。
 	pi.on("before_agent_start", async (event) => {
 		if (ruleFiles.length === 0) {
 			return;

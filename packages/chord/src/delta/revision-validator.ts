@@ -4,7 +4,7 @@ type JsonContainer = JsonValue[] | Record<string, JsonValue>;
 
 const isContainer = (value: JsonValue): value is JsonContainer => typeof value === "object" && value !== null;
 
-/** Validates immutable replica revisions while skipping containers validated in earlier revisions. */
+/** 验证不可变副本版本，并跳过在先前版本中已验证的容器。 */
 export class JsonRevisionValidator {
 	readonly #validated = new WeakSet<object>();
 

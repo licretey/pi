@@ -7,14 +7,14 @@ describe("SessionManager labels", () => {
 
 		const msgId = session.appendMessage({ role: "user", content: "hello", timestamp: 1 });
 
-		// No label initially
+		// 初始时没有标签。
 		expect(session.getLabel(msgId)).toBeUndefined();
 
-		// Set a label
+		// 设置标签。
 		const labelId = session.appendLabelChange(msgId, "checkpoint");
 		expect(session.getLabel(msgId)).toBe("checkpoint");
 
-		// Label entry should be in entries
+		// 标签条目应包含在 entries 中。
 		const entries = session.getEntries();
 		const labelEntry = entries.find((e) => e.type === "label") as LabelEntry;
 		expect(labelEntry).toBeDefined();
@@ -31,7 +31,7 @@ describe("SessionManager labels", () => {
 		session.appendLabelChange(msgId, "checkpoint");
 		expect(session.getLabel(msgId)).toBe("checkpoint");
 
-		// Clear the label
+		// 清除标签。
 		session.appendLabelChange(msgId, undefined);
 		expect(session.getLabel(msgId)).toBeUndefined();
 	});
@@ -84,12 +84,12 @@ describe("SessionManager labels", () => {
 		const msg2LabelEntry = entries.find((e) => e.id === msg2LabelId) as LabelEntry;
 		const tree = session.getTree();
 
-		// Find the message nodes (skip label entries)
+		// 查找消息节点（跳过标签条目）。
 		const msg1Node = tree.find((n) => n.entry.id === msg1Id);
 		expect(msg1Node?.label).toBe("start");
 		expect(msg1Node?.labelTimestamp).toBe(msg1LabelEntry.timestamp);
 
-		// msg2 is a child of msg1
+		// msg2 是 msg1 的子条目。
 		const msg2Node = msg1Node?.children.find((n) => n.entry.id === msg2Id);
 		expect(msg2Node?.label).toBe("response");
 		expect(msg2Node?.labelTimestamp).toBe(msg2LabelEntry.timestamp);
@@ -123,14 +123,14 @@ describe("SessionManager labels", () => {
 		const msg1LabelEntry = originalEntries.find((e) => e.id === msg1LabelId) as LabelEntry;
 		const msg2LabelEntry = originalEntries.find((e) => e.id === msg2LabelId) as LabelEntry;
 
-		// Branch from msg2 (in-memory mode returns null, but updates internal state)
+		// 从 msg2 创建分支（内存模式返回 null，但会更新内部状态）。
 		session.createBranchedSession(msg2Id);
 
-		// Labels should be preserved
+		// 应保留原有标签。
 		expect(session.getLabel(msg1Id)).toBe("important");
 		expect(session.getLabel(msg2Id)).toBe("also-important");
 
-		// New label entries should exist
+		// 应生成新的标签条目。
 		const entries = session.getEntries();
 		const labelEntries = entries.filter((e) => e.type === "label") as LabelEntry[];
 		expect(labelEntries).toHaveLength(2);
@@ -178,15 +178,15 @@ describe("SessionManager labels", () => {
 		});
 		const msg3Id = session.appendMessage({ role: "user", content: "followup", timestamp: 3 });
 
-		// Label all messages
+		// 为所有消息添加标签。
 		session.appendLabelChange(msg1Id, "first");
 		session.appendLabelChange(msg2Id, "second");
 		session.appendLabelChange(msg3Id, "third");
 
-		// Branch from msg2 (excludes msg3)
+		// 从 msg2 创建分支（不包含 msg3）。
 		session.createBranchedSession(msg2Id);
 
-		// Only labels for msg1 and msg2 should be preserved
+		// 只应保留 msg1 和 msg2 的标签。
 		expect(session.getLabel(msg1Id)).toBe("first");
 		expect(session.getLabel(msg2Id)).toBe("second");
 		expect(session.getLabel(msg3Id)).toBeUndefined();

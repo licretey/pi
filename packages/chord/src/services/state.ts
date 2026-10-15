@@ -15,7 +15,7 @@ import type {
 } from "../types.ts";
 import { registerReplicatedStateInternals } from "./state-internals.ts";
 
-/** The void signature also accepts synchronous callbacks that return an ignored value. */
+/** void 返回类型也允许同步回调返回一个会被忽略的值。 */
 type StateListener<T> = (value: T, context: Context, delivery: ReplicatedStateDelivery) => void;
 
 type StateDelivery<T> = {
@@ -24,7 +24,7 @@ type StateDelivery<T> = {
 	readonly delivery: ReplicatedStateDelivery;
 };
 
-/** One public subscription, independent of producer and other subscriber progress. */
+/** 一个公开订阅，其进度独立于生产者和其他订阅者。 */
 class StateSubscriber<T> {
 	readonly #listener: StateListener<T>;
 	readonly #reportError: (error: Error) => void;
@@ -41,7 +41,7 @@ class StateSubscriber<T> {
 	push(frame: StateDelivery<T>): void {
 		if (this.#closed) return;
 		if (this.#pending.length === 100) {
-			// A cold replica can queue updates reentrantly before this subscriber's first hydration starts.
+			// 尚未水合的副本可能会在订阅者首次开始水合前，通过重入方式排队更新。
 			const hydration = this.#started ? undefined : this.#pending[0];
 			this.#pending.length = 0;
 			if (hydration !== undefined) this.#pending.push(hydration);
@@ -105,7 +105,7 @@ type Publication<T> = {
 	readonly context: Context;
 };
 
-/** Maintains local publication order independently of how revisions are produced. */
+/** 独立于版本生成方式，维护本地发布顺序。 */
 class ReplicatedStatePublisher<T> {
 	readonly #listeners = new Map<StateSubscriber<T>, number>();
 	readonly #reportError: (error: Error) => void;
@@ -145,7 +145,7 @@ class ReplicatedStatePublisher<T> {
 		return () => this.#sourceListeners.delete(listener);
 	}
 
-	/** Publish an already-prepared immutable revision and return isolated listener failures. */
+	/** 发布已准备好的不可变版本，并返回单独收集的监听器错误。 */
 	publish(value: T, ops: readonly Op[], context: Context): unknown[] {
 		this.#value = value;
 		this.#sequence += 1;
@@ -320,7 +320,7 @@ class AttachedReplicatedStateImpl<T> implements AttachedReplicatedState<T> {
 	}
 }
 
-/** Attach a publication-only replicated state to one authoritative immutable source stream. */
+/** 将仅发布数据的副本状态附加到一个权威不可变来源流。 */
 export function attachReplicatedStateSource<T>(
 	source: ReplicatedStateSource<T>,
 	options: ReplicatedStateSourceOptions = {},
@@ -340,7 +340,7 @@ export function attachReplicatedStateSource<T>(
 	}
 }
 
-/** A cold read-only state used by service consumers until a complete snapshot arrives. */
+/** 服务使用方在收到完整快照前使用的未初始化只读状态。 */
 export class ReplicatedStateReplica<T extends JsonValue = JsonValue> implements ReplicatedState<T> {
 	readonly #listeners = new Set<StateSubscriber<T>>();
 	readonly #reportError: (error: Error) => void;
@@ -417,15 +417,15 @@ export class ReplicatedStateReplica<T extends JsonValue = JsonValue> implements 
 		if (this.#value === undefined) return;
 		const frame = { value: this.#value, context, delivery };
 		const subscribers = [...this.#listeners];
-		// Enqueue for everyone before user code can publish another revision reentrantly.
+		// 在用户代码重入并发布另一个修订版本之前，先为所有订阅者排队。
 		for (const subscriber of subscribers) subscriber.push(frame);
 		for (const subscriber of subscribers) subscriber.drain();
 	}
 }
 
-/** @internal Context for synthetic service deliveries without a caller. */
+/** @internal 用于没有调用方的模拟服务送达操作的上下文。 */
 export function serviceDeliveryContext(): Context {
-	// TODO: Add delivery-scoped cancellation or metadata if deliveries gain an owned lifecycle.
+	// TODO：如果送达操作拥有独立生命周期，再添加针对单次送达的取消机制或元数据。
 	return BACKGROUND_CONTEXT;
 }
 

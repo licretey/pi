@@ -26,7 +26,7 @@ afterAll(() => rmSync(directory, { recursive: true, force: true }));
 
 type Rgb = readonly [number, number, number];
 
-/** A `width` by `height` image of `block`-pixel squares coloured row by row from `colors`. */
+/** 宽为 `width`、高为 `height` 的图像，由 `block` 像素大小的方块按行使用 `colors` 着色。 */
 function blocks(
 	colors: readonly (readonly Rgb[])[],
 	block: number,
@@ -42,7 +42,7 @@ function blocks(
 	return { rgba, width, height };
 }
 
-/** RGBA pixels of a `width` by `height` image: red, with a green top-left pixel. */
+/** 宽为 `width`、高为 `height` 的 RGBA 像素数据：底色为红色，左上角像素为绿色。 */
 function pixels(width: number, height: number): Uint8Array {
 	const rgba = new Uint8Array(width * height * 4);
 	for (let index = 0; index < width * height; index++) rgba.set([255, 0, 0, 255], index * 4);
@@ -63,7 +63,7 @@ function encode(width: number, height: number, format: "png" | "jpeg"): Uint8Arr
 	return encodeRgba(pixels(width, height), width, height, format);
 }
 
-/** Noise, which neither PNG nor JPEG compresses well, so the byte limit decides. */
+/** 随机噪点，PNG 和 JPEG 都难以有效压缩，因此由字节数限制决定结果。 */
 function noisyPng(width: number, height: number): Uint8Array {
 	const rgba = new Uint8Array(width * height * 4);
 	let seed = 1;
@@ -74,7 +74,7 @@ function noisyPng(width: number, height: number): Uint8Array {
 	return encodeRgba(rgba, width, height, "png");
 }
 
-/** A 24-bit BMP, which providers do not take inline. */
+/** 24 位 BMP 图像；提供商不接受以内联形式传入的 BMP。 */
 function bmp(width: number, height: number): Uint8Array {
 	const row = Math.ceil((width * 3) / 4) * 4;
 	const bytes = new Uint8Array(54 + row * height);
@@ -92,7 +92,7 @@ function bmp(width: number, height: number): Uint8Array {
 	return bytes;
 }
 
-/** A 1x1 GIF with its logical screen size set to `width` by `height`. */
+/** 1x1 GIF，其逻辑屏幕尺寸设为 `width` 乘 `height`。 */
 function gif(width = 1, height = 1): Uint8Array {
 	const bytes = Uint8Array.from(Buffer.from("R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7", "base64"));
 	new DataView(bytes.buffer).setUint16(6, width, true);
@@ -100,7 +100,7 @@ function gif(width = 1, height = 1): Uint8Array {
 	return bytes;
 }
 
-/** A TIFF header whose first directory holds only Orientation = `orientation`. */
+/** TIFF 文件头；其首个目录仅包含 Orientation = `orientation`。 */
 function tiff(orientation: number, littleEndian: boolean): number[] {
 	const bytes = new Uint8Array(26);
 	const view = new DataView(bytes.buffer);
@@ -117,7 +117,7 @@ function tiff(orientation: number, littleEndian: boolean): number[] {
 
 const EXIF_HEADER = [0x45, 0x78, 0x69, 0x66, 0, 0];
 
-/** `jpeg` with an APP1 segment whose EXIF says `orientation`, after an APP0 segment when `app0`. */
+/** `jpeg` 图像，包含 EXIF 标记为 `orientation` 的 APP1 段；`app0` 为真时，APP1 段位于 APP0 段之后。 */
 function withOrientation(jpeg: Uint8Array, orientation: number, options: { little?: boolean; app0?: boolean } = {}) {
 	const exif = [...EXIF_HEADER, ...tiff(orientation, options.little ?? false)];
 	const app1 = [0xff, 0xe1, (exif.length + 2) >> 8, (exif.length + 2) & 0xff, ...exif];
@@ -125,7 +125,7 @@ function withOrientation(jpeg: Uint8Array, orientation: number, options: { littl
 	return new Uint8Array([...jpeg.subarray(0, 2), ...app0, ...app1, ...jpeg.subarray(2)]);
 }
 
-/** A RIFF WebP with a dummy `VP8 ` chunk and an `EXIF` chunk saying `orientation`, its TIFF data bare or prefixed. */
+/** RIFF WebP 图像，包含虚设的 `VP8 ` 块和标记 `orientation` 的 `EXIF` 块；TIFF 数据可带前缀或不带前缀。 */
 function webpWithOrientation(orientation: number, prefixed: boolean): Uint8Array {
 	const chunk = (type: string, data: number[]): number[] => {
 		const size = data.length;
@@ -147,8 +147,8 @@ function decodedImage(data: string): { width: number; height: number; rgba: Uint
 }
 
 /**
- * The environment of a `read` call, with `onRead` seeing each positional read of an opened file, and the largest
- * read so far in `reads.largest`.
+ * `read` 调用所使用的环境。`onRead` 可以观察已打开文件的每次定位读取，
+ * 已读取的最大字节数记录在 `reads.largest` 中。
  */
 function readEnv(onRead?: (offset: number, length: number) => void) {
 	const env = new NodeExecutionEnv({ cwd: directory });
@@ -174,7 +174,7 @@ function readEnv(onRead?: (offset: number, length: number) => void) {
 	return { env, reads };
 }
 
-/** Run `read` on `bytes` written to `name`, for a conversation whose model takes `input`. */
+/** 将 `bytes` 写入 `name` 后调用 `read`；对话所用模型接受 `input` 指定的输入类型。 */
 async function read(
 	name: string,
 	bytes: Uint8Array,
@@ -227,7 +227,7 @@ describe("read of images, without an image processor", () => {
 		const result = await read("big.png", noisyPng(1100, 1100), { env });
 		expect(result).toMatchObject({ output: [], isError: true });
 		expect(messages(result)[0]).toMatch(/^big\.png is an image \(image\/png\) of .*, too large to send/);
-		// Only the header and the chunk walk, in blocks of at most 64 KiB.
+		// 只读取文件头和遍历数据块，每次最多 64 KiB。
 		expect(reads.largest).toBeLessThanOrEqual(64 * 1024);
 	});
 
@@ -276,7 +276,7 @@ describe("read of an image that changes while it is read", () => {
 		const png = encode(8, 6, "png");
 		const wholeReads: number[] = [];
 		const { env } = readEnv((offset, length) => {
-			// A writer appends during the first read of the whole file; the second read sees it all.
+			// 首次读取整个文件时，写入方会追加内容；第二次读取应能看到全部内容。
 			if (offset !== 0 || length < png.length) return;
 			wholeReads.push(length);
 			if (wholeReads.length === 1) appendFileSync(join(directory, "growing.png"), new Uint8Array(16));
@@ -378,10 +378,10 @@ describe("EXIF orientation", () => {
 		[W, K, Y],
 	];
 	const mirror = <T>(grid: readonly (readonly T[])[]): T[][] => grid.map((row) => [...row].reverse());
-	// A quarter turn clockwise: the left column, read bottom to top, becomes the top row.
+	// 顺时针旋转四分之一圈：从下往上读取的左侧列会成为顶行。
 	const turn = <T>(grid: readonly (readonly T[])[]): T[][] =>
 		grid[0]!.map((_, x) => grid.map((row) => row[x]!).reverse());
-	// What each orientation shows, from its EXIF definition: mirror, then turn clockwise.
+	// 根据 EXIF 定义说明各个方向的显示结果：先镜像，再顺时针旋转。
 	const upright: Record<number, Rgb[][]> = {
 		1: stored.map((row) => [...row]),
 		2: mirror(stored),
@@ -404,7 +404,7 @@ describe("EXIF orientation", () => {
 				width: expected[0]!.length * 16,
 				height: expected.length * 16,
 			});
-			// The colour at the centre of each block, rounded to full channels against JPEG noise.
+			// 每个方块中心的颜色；针对 JPEG 噪点，将各颜色通道取整到完整通道值。
 			const seen = expected.map((row, by) =>
 				row.map((_, bx) => {
 					const at = ((by * 16 + 8) * image.width + bx * 16 + 8) * 4;
@@ -456,12 +456,12 @@ describe("imageDimensions", () => {
 				...data,
 				...new Array(16).fill(0),
 			]);
-		// VP8: frame tag, start code, then 14-bit width and height.
+		// VP8：帧标记、起始码，随后是 14 位宽度和高度。
 		expect(imageDimensions(webp("VP8 ", [0, 0, 0, 0x9d, 0x01, 0x2a, 0x2c, 0x01, 0xc8, 0x00]), "image/webp")).toEqual({
 			width: 300,
 			height: 200,
 		});
-		// VP8L: signature, then width - 1 and height - 1 in 14 bits each.
+		// VP8L：签名，随后分别以 14 位表示宽度 - 1 和高度 - 1。
 		const bits = 299 | (199 << 14);
 		expect(
 			imageDimensions(
@@ -469,7 +469,7 @@ describe("imageDimensions", () => {
 				"image/webp",
 			),
 		).toEqual({ width: 300, height: 200 });
-		// VP8X: flags, then width - 1 and height - 1 in 24 bits each.
+		// VP8X：标志，随后分别以 24 位表示宽度 - 1 和高度 - 1。
 		expect(imageDimensions(webp("VP8X", [0, 0, 0, 0, 0x2b, 0x01, 0, 0xc7, 0, 0]), "image/webp")).toEqual({
 			width: 300,
 			height: 200,

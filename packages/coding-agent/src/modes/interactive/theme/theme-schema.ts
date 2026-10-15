@@ -1,10 +1,10 @@
 /**
- * Theme JSON validation, kept out of `theme.ts` on purpose.
+ * 主题 JSON 校验逻辑，特意与 `theme.ts` 分开。
  *
- * Validating user-authored theme files needs typebox, which costs ~17 MB of module graph to import.
- * Palette lookup does not, so a presentation that only uses built-in themes should never pay for it.
- * `main.ts` installs this validator before runtime resource loading; other consumers can opt in with
- * `setThemeJsonValidator()`. Built-in themes do not need validation.
+ * 校验用户编写的主题文件需要导入 typebox，会增加约 17 MB 的模块依赖图。
+ * 调色板查询不需要 typebox，因此只使用内置主题的界面不应承担这项开销。
+ * `main.ts` 会在加载运行时资源前注册此校验器；其他调用方可以通过 `setThemeJsonValidator()` 选择启用。
+ * 内置主题无需校验。
  */
 
 import { type Static, type TProperties, Type } from "typebox";
@@ -93,7 +93,7 @@ const compiledThemeSchema = Compile(ThemeJsonSchema);
 
 export type ValidatedThemeJson = Static<typeof ThemeJsonSchema>;
 
-/** Validate one theme document, throwing a message that names the offending tokens. */
+/** 校验单个主题文档；校验失败时抛出包含问题 token 名称的错误。 */
 export function validateThemeJson(label: string, json: unknown): ValidatedThemeJson {
 	if (
 		typeof json === "object" &&

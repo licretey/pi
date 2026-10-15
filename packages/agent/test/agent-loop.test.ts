@@ -69,7 +69,7 @@ function createUserMessage(text: string): UserMessage {
 	};
 }
 
-// Simple identity converter for tests - just passes through standard messages
+// 测试用的简单恒等转换器：仅透传标准消息。
 function identityConverter(messages: AgentMessage[]): Message[] {
 	return messages.filter(
 		(m) => m.role === "system" || m.role === "user" || m.role === "assistant" || m.role === "toolResult",
@@ -142,12 +142,12 @@ describe("agentLoop with AgentMessage", () => {
 
 		const messages = await stream.result();
 
-		// Should have user message and assistant message
+		// 应包含一条用户消息和一条助手消息。
 		expect(messages.length).toBe(2);
 		expect(messages[0].role).toBe("user");
 		expect(messages[1].role).toBe("assistant");
 
-		// Verify event sequence
+		// 验证事件顺序。
 		const eventTypes = events.map((e) => e.type);
 		expect(eventTypes).toContain("agent_start");
 		expect(eventTypes).toContain("turn_start");
@@ -178,7 +178,7 @@ describe("agentLoop with AgentMessage", () => {
 			config,
 			undefined,
 			(_model, providerContext) => {
-				// The provider receives a transcript: no top-level prompt or tool fields.
+				// 提供商收到的是消息记录，不包含顶层提示词或工具字段。
 				expect(Object.keys(providerContext)).toEqual(["messages"]);
 				expect(providerContext.messages[0]).toBe(initialSystem);
 				const response = createAssistantMessageEventStream();
@@ -197,7 +197,7 @@ describe("agentLoop with AgentMessage", () => {
 	});
 
 	it("should handle custom message types via convertToLlm", async () => {
-		// Create a custom message type
+		// 创建自定义消息类型。
 		interface CustomNotification {
 			role: "notification";
 			text: string;
@@ -211,7 +211,7 @@ describe("agentLoop with AgentMessage", () => {
 		};
 
 		const context: AgentContext = {
-			messages: [notification as unknown as AgentMessage], // Custom message in context
+			messages: [notification as unknown as AgentMessage], // 上下文中的自定义消息。
 			tools: [],
 		};
 
@@ -221,7 +221,7 @@ describe("agentLoop with AgentMessage", () => {
 		const config: AgentLoopConfig = {
 			model: createModel(),
 			convertToLlm: (messages) => {
-				// Filter out notifications, convert rest
+				// 过滤通知消息，并转换其余消息。
 				convertedMessages = messages
 					.filter((m) => (m as { role: string }).role !== "notification")
 					.filter((m) => m.role === "user" || m.role === "assistant" || m.role === "toolResult") as Message[];
@@ -245,8 +245,8 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// The notification should have been filtered out in convertToLlm
-		expect(convertedMessages.length).toBe(1); // Only user message
+		// 通知消息应已在 convertToLlm 中被过滤。
+		expect(convertedMessages.length).toBe(1); // 只有一条用户消息。
 		expect(convertedMessages[0].role).toBe("user");
 	});
 
@@ -269,7 +269,7 @@ describe("agentLoop with AgentMessage", () => {
 		const config: AgentLoopConfig = {
 			model: createModel(),
 			transformContext: async (messages) => {
-				// Keep only last 2 messages (prune old ones)
+				// 仅保留最后两条消息（移除较早的消息）。
 				transformedMessages = messages.slice(-2);
 				return transformedMessages;
 			},
@@ -293,12 +293,12 @@ describe("agentLoop with AgentMessage", () => {
 		const stream = agentLoop([userPrompt], context, config, undefined, streamFn);
 
 		for await (const _ of stream) {
-			// consume
+			// 消费该事件。
 		}
 
-		// transformContext should have been called first, keeping only last 2
+		// transformContext 应先执行，并且只保留最后两条消息。
 		expect(transformedMessages.length).toBe(2);
-		// Then convertToLlm receives the pruned messages
+		// 随后 convertToLlm 会收到裁剪后的消息。
 		expect(convertedMessages.length).toBe(2);
 	});
 
@@ -358,14 +358,14 @@ describe("agentLoop with AgentMessage", () => {
 			const stream = createAssistantMessageEventStream();
 			queueMicrotask(() => {
 				if (callIndex === 0) {
-					// First call: return tool call
+					// 第一次调用：返回工具调用。
 					const message = createAssistantMessage(
 						[{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "hello" } }],
 						"toolUse",
 					);
 					stream.push({ type: "done", reason: "toolUse", message });
 				} else {
-					// Second call: return final response
+					// 第二次调用：返回最终响应。
 					const message = createAssistantMessage([{ type: "text", text: "done" }]);
 					stream.push({ type: "done", reason: "stop", message });
 				}
@@ -381,10 +381,10 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// Tool should have been executed
+		// 工具应已执行。
 		expect(executed).toEqual(["hello"]);
 
-		// Should have tool execution events
+		// 应包含工具执行事件。
 		const toolStart = events.find((e) => e.type === "tool_execution_start");
 		const toolEnd = events.find((e) => e.type === "tool_execution_end");
 		expect(toolStart).toBeDefined();
@@ -441,7 +441,7 @@ describe("agentLoop with AgentMessage", () => {
 		};
 		const stream = agentLoop([createUserMessage("go")], { messages: [], tools: [tool] }, config, undefined, streamFn);
 		for await (const _event of stream) {
-			// drain
+			// 排空队列。
 		}
 		const results = (await stream.result()).filter(
 			(message): message is ToolResultMessage => message.role === "toolResult",
@@ -485,9 +485,8 @@ describe("agentLoop with AgentMessage", () => {
 			const stream = createAssistantMessageEventStream();
 			queueMicrotask(() => {
 				if (callIndex === 0) {
-					// Output hit the token limit mid tool call. The salvage parser can
-					// produce arguments that validate but are silently truncated, so
-					// nothing in this message may execute.
+					// 输出在工具调用过程中达到令牌上限。修复解析器可能生成校验通过但已被静默截断的参数，
+					// 因此不得执行此消息中的任何调用。
 					const message = createAssistantMessage(
 						[{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "hel" } }],
 						"length",
@@ -508,7 +507,7 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// The tool must never execute with potentially truncated arguments.
+		// 绝不能使用可能已被截断的参数执行工具。
 		expect(executed).toEqual([]);
 
 		const toolEnd = events.find((e) => e.type === "tool_execution_end");
@@ -519,7 +518,7 @@ describe("agentLoop with AgentMessage", () => {
 			expect(text && "text" in text ? text.text : "").toContain("output token limit");
 		}
 
-		// The loop continues so the model can re-issue the tool call.
+		// 循环会继续运行，让模型重新发起工具调用。
 		expect(callIndex).toBe(2);
 		const messages = await stream.result();
 		expect(messages[messages.length - 1].role).toBe("assistant");
@@ -580,7 +579,7 @@ describe("agentLoop with AgentMessage", () => {
 
 		const stream = agentLoop([userPrompt], context, config, undefined, streamFn);
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		expect(executed).toEqual([123]);
@@ -659,7 +658,7 @@ describe("agentLoop with AgentMessage", () => {
 
 		const stream = agentLoop([userPrompt], context, config, undefined, streamFn);
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		expect(executed).toEqual([[{ oldText: "before", newText: "after" }]]);
@@ -793,7 +792,7 @@ describe("agentLoop with AgentMessage", () => {
 			convertToLlm: identityConverter,
 			toolExecution: "sequential",
 			getSteeringMessages: async () => {
-				// Return steering message after tool execution has started.
+				// 工具开始执行后返回引导消息。
 				if (executed.length >= 1 && !queuedDelivered) {
 					queuedDelivered = true;
 					return [queuedUserMessage];
@@ -804,7 +803,7 @@ describe("agentLoop with AgentMessage", () => {
 
 		const events: AgentEvent[] = [];
 		const stream = agentLoop([userPrompt], context, config, undefined, (_model, ctx, _options) => {
-			// Check if interrupt message is in context on second call
+			// 检查第二次调用时上下文中是否包含中断消息。
 			if (callIndex === 1) {
 				sawInterruptInContext = ctx.messages.some(
 					(m) => m.role === "user" && typeof m.content === "string" && m.content === "interrupt",
@@ -814,7 +813,7 @@ describe("agentLoop with AgentMessage", () => {
 			const mockStream = createAssistantMessageEventStream();
 			queueMicrotask(() => {
 				if (callIndex === 0) {
-					// First call: return two tool calls
+					// 第一次调用：返回两个工具调用。
 					const message = createAssistantMessage(
 						[
 							{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "first" } },
@@ -824,7 +823,7 @@ describe("agentLoop with AgentMessage", () => {
 					);
 					mockStream.push({ type: "done", reason: "toolUse", message });
 				} else {
-					// Second call: return final response
+					// 第二次调用：返回最终响应。
 					const message = createAssistantMessage([{ type: "text", text: "done" }]);
 					mockStream.push({ type: "done", reason: "stop", message });
 				}
@@ -837,7 +836,7 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// Both tools should execute before steering is injected
+		// 注入引导消息前，两个工具都应已执行。
 		expect(executed).toEqual(["first", "second"]);
 
 		const toolEnds = events.filter(
@@ -847,7 +846,7 @@ describe("agentLoop with AgentMessage", () => {
 		expect(toolEnds[0].isError).toBe(false);
 		expect(toolEnds[1].isError).toBe(false);
 
-		// Queued message should appear in events after both tool result messages
+		// 排队消息应在两个工具结果消息之后出现在事件流中。
 		const eventSequence = events.flatMap((event) => {
 			if (event.type !== "message_start") return [];
 			if (event.message.role === "toolResult") return [`tool:${event.message.toolCallId}`];
@@ -860,7 +859,7 @@ describe("agentLoop with AgentMessage", () => {
 		expect(eventSequence.indexOf("tool:tool-1")).toBeLessThan(eventSequence.indexOf("interrupt"));
 		expect(eventSequence.indexOf("tool:tool-2")).toBeLessThan(eventSequence.indexOf("interrupt"));
 
-		// Interrupt message should be in context when second LLM call is made
+		// 第二次调用 LLM 时，上下文中应包含中断消息。
 		expect(sawInterruptInContext).toBe(true);
 	});
 
@@ -900,7 +899,7 @@ describe("agentLoop with AgentMessage", () => {
 		};
 
 		const userPrompt: AgentMessage = createUserMessage("run both");
-		// config is parallel (default), but tool forces sequential
+		// 配置默认为并行，但该工具会强制顺序执行。
 		const config: AgentLoopConfig = {
 			model: createModel(),
 			convertToLlm: identityConverter,
@@ -934,7 +933,7 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// With sequential execution, second tool should NOT start before first finishes
+		// 顺序执行时，第二个工具不得在第一个工具完成前开始。
 		expect(parallelObserved).toBe(false);
 
 		const toolResultIds = events.flatMap((event) => {
@@ -977,7 +976,7 @@ describe("agentLoop with AgentMessage", () => {
 			label: "Fast",
 			description: "Fast tool",
 			parameters: toolSchema,
-			// no executionMode = defaults to parallel
+			// 未指定 executionMode 时默认为并行。
 			async execute(_toolCallId, params) {
 				executionOrder.push(`fast:${params.value}`);
 				return {
@@ -996,7 +995,7 @@ describe("agentLoop with AgentMessage", () => {
 		const config: AgentLoopConfig = {
 			model: createModel(),
 			convertToLlm: identityConverter,
-			// parallel by default, but slowTool forces sequential
+			// 默认并行，但 slowTool 会强制顺序执行。
 		};
 
 		let callIndex = 0;
@@ -1027,7 +1026,7 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// Fast tool should NOT run before slow tool finishes
+		// 快速工具不得在慢速工具完成前运行。
 		expect(executionOrder[0]).toBe("slow:a");
 		expect(executionOrder).toContain("fast:b");
 	});
@@ -1101,7 +1100,7 @@ describe("agentLoop with AgentMessage", () => {
 			events.push(event);
 		}
 
-		// With executionMode=parallel, second tool should start before first finishes
+		// executionMode=parallel 时，第二个工具应在第一个工具完成前开始。
 		expect(parallelObserved).toBe(true);
 	});
 
@@ -1496,7 +1495,7 @@ describe("agentLoop with AgentMessage", () => {
 
 		expect(requestIncludedSteering).toEqual([false, true]);
 		expect(requestPreparations).toBe(2);
-		// Startup, post-turn delivery, then the final natural-stop check.
+		// 依次执行启动、轮次结束后的消息交付，最后检查是否自然停止。
 		expect(steeringPolls).toBe(3);
 	});
 
@@ -1569,7 +1568,7 @@ describe("agentLoop with AgentMessage", () => {
 		});
 
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		expect(llmCalls).toBe(2);
@@ -1709,7 +1708,7 @@ describe("agentLoop with AgentMessage", () => {
 		expect(followUpPolls).toBe(0);
 		expect(callbackToolResultIds).toEqual(["tool-1"]);
 		expect(callbackContextRoles).toEqual(["system", "user", "assistant", "toolResult"]);
-		// The context declares no tools, so the loop announces the loadout with a system message.
+		// 上下文未声明任何工具，因此循环会通过系统消息告知当前工具配置。
 		expect(messages.map((message) => message.role)).toEqual(["system", "user", "assistant", "toolResult"]);
 		expect(events.map((event) => event.type)).toEqual([
 			"agent_start",
@@ -1824,7 +1823,7 @@ describe("agentLoop with AgentMessage", () => {
 		});
 
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		const messages = await stream.result();
@@ -1889,7 +1888,7 @@ describe("agentLoop with AgentMessage", () => {
 		});
 
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		expect(executed).toEqual(["second"]);
@@ -1946,7 +1945,7 @@ describe("agentLoop with AgentMessage", () => {
 		});
 
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		const messages = await stream.result();
@@ -2002,7 +2001,7 @@ describe("agentLoop with AgentMessage", () => {
 		});
 
 		for await (const _event of stream) {
-			// consume
+			// 消费事件流。
 		}
 
 		expect(llmCalls).toBe(1);
@@ -2059,18 +2058,18 @@ describe("agentLoopContinue with AgentMessage", () => {
 
 		const messages = await stream.result();
 
-		// Should only return the new assistant message (not the existing user message)
+		// 应仅返回新的助手消息，不包含已有的用户消息。
 		expect(messages.length).toBe(1);
 		expect(messages[0].role).toBe("assistant");
 
-		// Should NOT have user message events (that's the key difference from agentLoop)
+		// 不应产生用户消息事件；这是它与 agentLoop 的关键区别。
 		const messageEndEvents = events.filter((e) => e.type === "message_end");
 		expect(messageEndEvents.length).toBe(1);
 		expect((messageEndEvents[0] as any).message.role).toBe("assistant");
 	});
 
 	it("should allow custom message types as last message (caller responsibility)", async () => {
-		// Custom message that will be converted to user message by convertToLlm
+		// 此自定义消息会由 convertToLlm 转换为用户消息。
 		interface CustomMessage {
 			role: "custom";
 			text: string;
@@ -2091,7 +2090,7 @@ describe("agentLoopContinue with AgentMessage", () => {
 		const config: AgentLoopConfig = {
 			model: createModel(),
 			convertToLlm: (messages) => {
-				// Convert custom to user message
+				// 将自定义消息转换为用户消息。
 				return messages
 					.map((m) => {
 						if ((m as any).role === "custom") {
@@ -2116,7 +2115,7 @@ describe("agentLoopContinue with AgentMessage", () => {
 			return stream;
 		};
 
-		// Should not throw - the custom message will be converted to user message
+		// 不应抛出异常；自定义消息会被转换为用户消息。
 		const stream = agentLoopContinue(context, config, undefined, streamFn);
 
 		const events: AgentEvent[] = [];
@@ -2201,13 +2200,13 @@ describe("runToolCall", () => {
 			result: { content: [{ type: "text", text: "Tool missing not found" }] },
 			isError: true,
 		});
-		// Error results keep their details.
+		// 错误结果会保留其 details。
 		expect(await runToolCall(call("e", "failing", {}), options)).toMatchObject({
 			result: { details: { partial: true } },
 			isError: true,
 		});
 		expect(updates).toEqual([{ content: [{ type: "text", text: "partial" }], details: {} }]);
-		// Validation failures and unknown tools never reach the hooks; blocked calls skip afterToolCall.
+		// 验证失败和未知工具不会触发钩子；被阻止的调用会跳过 afterToolCall。
 		expect(hookCalls).toEqual(["before a", "after a", "before c", "before e", "after e"]);
 	});
 

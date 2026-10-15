@@ -1,18 +1,18 @@
 /**
- * Settings Configuration
+ * 设置配置
  *
- * Override settings using SettingsManager.
+ * 使用 SettingsManager 覆盖设置。
  */
 
 import { createAgentSession, SessionManager, SettingsManager } from "@earendil-works/pi-coding-agent";
 
 const cwd = process.cwd();
 
-// Load current settings (merged global + project)
+// 加载当前设置（合并全局设置和项目设置）
 const settingsManagerFromDisk = SettingsManager.create(cwd);
 console.log("Current settings:", JSON.stringify(settingsManagerFromDisk.getGlobalSettings(), null, 2));
 
-// Override specific settings
+// 覆盖指定设置
 const settingsManager = SettingsManager.create(cwd);
 settingsManager.applyOverrides({
 	compaction: { enabled: false },
@@ -26,12 +26,12 @@ const { session: customSettingsSession } = await createAgentSession({
 console.log("Session created with custom settings");
 customSettingsSession.dispose();
 
-// Setters update memory immediately and queue persistence writes.
-// Call flush() when you need a durability boundary.
+// setter 会立即更新内存，并将持久化写入加入队列。
+// 需要确保数据持久化时，调用 flush()。
 settingsManager.setDefaultThinkingLevel("low");
 await settingsManager.flush();
 
-// Surface settings I/O errors at the app layer.
+// 在应用层处理设置读写错误。
 const settingsErrors = settingsManager.drainErrors();
 if (settingsErrors.length > 0) {
 	for (const { scope, error } of settingsErrors) {
@@ -39,7 +39,7 @@ if (settingsErrors.length > 0) {
 	}
 }
 
-// For testing without file I/O:
+// 测试时可使用不涉及文件读写的内存设置：
 const inMemorySettings = SettingsManager.inMemory({
 	compaction: { enabled: false },
 	retry: { enabled: false },

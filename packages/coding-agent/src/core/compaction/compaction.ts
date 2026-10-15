@@ -1,8 +1,8 @@
 /**
- * Context compaction for long sessions.
+ * 长会话的 context compaction。
  *
- * Pure functions for compaction logic. The session manager handles I/O,
- * and after compaction the session is reloaded.
+ * compaction 逻辑为纯函数。I/O 由 session manager 处理，
+ * compaction 完成后重新加载会话。
  */
 
 import type { AgentMessage, StreamFn, ThinkingLevel } from "@earendil-works/pi-agent-core";
@@ -45,17 +45,17 @@ import {
 } from "./utils.ts";
 
 // ============================================================================
-// File Operation Tracking
+// 文件操作跟踪
 // ============================================================================
 
-/** Details stored in CompactionEntry.details for file tracking */
+/** 存储在 CompactionEntry.details 中用于文件跟踪的详情 */
 export interface CompactionDetails {
 	readFiles: string[];
 	modifiedFiles: string[];
 }
 
 /**
- * Extract file operations from messages and previous compaction entries.
+ * 从 messages 和此前的 compaction 条目中提取文件操作。
  */
 function extractFileOperations(
 	messages: AgentMessage[],
@@ -64,11 +64,11 @@ function extractFileOperations(
 ): FileOperations {
 	const fileOps = createFileOps();
 
-	// Collect from previous compaction's details (if pi-generated)
+	// 从上一次 compaction 的 details 采集（若是 pi 生成的）
 	if (prevCompactionIndex >= 0) {
 		const prevCompaction = entries[prevCompactionIndex] as CompactionEntry;
 		if (!prevCompaction.fromHook && prevCompaction.details) {
-			// fromHook field kept for session file compatibility
+			// fromHook 字段保留以保证 session 文件兼容性
 			const details = prevCompaction.details as CompactionDetails;
 			if (Array.isArray(details.readFiles)) {
 				for (const f of details.readFiles) fileOps.read.add(f);
@@ -79,7 +79,7 @@ function extractFileOperations(
 		}
 	}
 
-	// Extract from tool calls in messages
+	// 从 messages 中的 tool call 提取
 	for (const msg of messages) {
 		extractFileOpsFromMessage(msg, fileOps);
 	}
@@ -88,33 +88,33 @@ function extractFileOperations(
 }
 
 // ============================================================================
-// Message Extraction
+// 消息提取
 // ============================================================================
 
 /**
- * Extract AgentMessage from an entry if it produces one.
- * Returns undefined for entries that don't contribute to LLM context.
+ * 从 entry 中提取其产生的 AgentMessage（若有的话）。
+ * 对不进入 LLM 上下文的 entry 返回 undefined。
  */
 function getMessagesFromProjectedEntryForCompaction(entry: ProjectedSessionEntry): AgentMessage[] {
 	if (entry.sourceEntry.type === "compaction") return [];
-	// System messages are prompt state, not conversation; the compaction entry carries their replay.
+	// system 消息属于提示状态而非对话内容；它们的重放由 compaction 条目携带。
 	return entry.messages.filter((message) => message.role !== "system");
 }
 
-/** Result from compact() - SessionManager adds uuid/parentUuid when saving */
+/** compact() 的结果——保存时 SessionManager 会添加 uuid/parentUuid */
 export interface CompactionResult<T = unknown> {
 	summary: string;
 	firstKeptEntryId: string;
 	tokensBefore: number;
 	estimatedTokensAfter?: number;
-	/** Usage from the LLM call(s) that generated this summary, if available */
+	/** 生成此 summary 的 LLM 调用的 usage（如有） */
 	usage?: Usage;
-	/** Extension-specific data (e.g., ArtifactIndex, version markers for structured compaction) */
+	/** 扩展专属数据（如 ArtifactIndex、structured compaction 的版本标记） */
 	details?: T;
 }
 
 // ============================================================================
-// Types
+// 类型
 // ============================================================================
 
 export interface CompactionSettings {
@@ -130,20 +130,20 @@ export const DEFAULT_COMPACTION_SETTINGS: CompactionSettings = {
 };
 
 // ============================================================================
-// Token calculation
+// Token 计算
 // ============================================================================
 
 /**
- * Calculate total context tokens from usage.
- * Uses the native totalTokens field when available, falls back to computing from components.
+ * 从 usage 计算总 context tokens。
+ * 优先使用原生 totalTokens 字段，没有时从各分量求和计算。
  */
 export function calculateContextTokens(usage: Usage): number {
 	return usage.totalTokens || usage.input + usage.output + usage.cacheRead + usage.cacheWrite;
 }
 
 /**
- * Get usage from an assistant message if available.
- * Skips aborted, error, and all-zero usage messages as they don't have valid usage data.
+ * 在 assistant 消息可用时取出其 usage。
+ * 跳过 aborted、error 以及全零 usage 的消息——它们没有有效的 usage 数据。
  */
 function getAssistantUsage(msg: AgentMessage): Usage | undefined {
 	if (msg.role === "assistant" && "usage" in msg) {
@@ -161,7 +161,7 @@ function getAssistantUsage(msg: AgentMessage): Usage | undefined {
 }
 
 /**
- * Find the last valid assistant message usage from session entries.
+ * 从 session entries 中找最后一条有效的 assistant 消息 usage。
  */
 export function getLastAssistantUsage(entries: SessionEntry[]): Usage | undefined {
 	for (let i = entries.length - 1; i >= 0; i--) {
@@ -190,8 +190,8 @@ function getLastAssistantUsageInfo(messages: AgentMessage[]): { usage: Usage; in
 }
 
 /**
- * Estimate context tokens from messages, using the last assistant usage when available.
- * If there are messages after the last usage, estimate their tokens with estimateTokens.
+ * 从 messages 估算 context tokens，可利用最近的 assistant usage。
+ * 若最后一条 usage 之后还有消息，则用 estimateTokens 估算它们的 tokens。
  */
 export function estimateContextTokens(messages: AgentMessage[]): ContextUsageEstimate {
 	const usageInfo = getLastAssistantUsageInfo(messages);
@@ -223,7 +223,7 @@ export function estimateContextTokens(messages: AgentMessage[]): ContextUsageEst
 	};
 }
 
-/** Estimate projected context without trusting usage captured before a later edit or compaction. */
+/** 估算投射后的 context，不信任在后一次 edit 或 compaction 之前捕获的 usage。 */
 export function estimateProjectedContextTokens(
 	projection: SessionProjection,
 	branchEntries: SessionEntry[],
@@ -262,7 +262,7 @@ export function estimateProjectedContextTokens(
 }
 
 /**
- * Check if compaction should trigger based on context usage.
+ * 根据 context usage 判断是否应触发 compaction。
  */
 export function shouldCompact(contextTokens: number, contextWindow: number, settings: CompactionSettings): boolean {
 	if (!settings.enabled) return false;
@@ -270,7 +270,7 @@ export function shouldCompact(contextTokens: number, contextWindow: number, sett
 }
 
 // ============================================================================
-// Cut point detection
+// 切分点检测
 // ============================================================================
 
 const ESTIMATED_IMAGE_CHARS = 4800;
@@ -292,8 +292,8 @@ function estimateTextAndImageContentChars(content: string | Array<{ type: string
 }
 
 /**
- * Estimate token count for a message using chars/4 heuristic.
- * This is conservative (overestimates tokens).
+ * 用 chars/4 启发式估算一条消息的 token 数。
+ * 这是保守做法（会高估 tokens）。
  */
 export function estimateTokens(message: AgentMessage): number {
 	let chars = 0;
@@ -386,10 +386,9 @@ function isTurnStartEntry(entry: SessionEntry): boolean {
 }
 
 /**
- * Find valid cut points: indices of context-visible user-like or assistant messages.
- * Never cut at tool results (they must follow their tool call).
- * When we cut at an assistant message with tool calls, its tool results follow it
- * and will be kept.
+ * 找出有效的切分点：context 可见的类用户或 assistant 消息的索引。
+ * 绝不在 tool 结果处切分（它们必须跟在自己的 tool call 之后）。
+ * 在带 tool call 的 assistant 消息处切分时，其后的 tool 结果会保留。
  */
 function findValidCutPoints(entries: SessionEntry[], startIndex: number, endIndex: number): number[] {
 	const cutPoints: number[] = [];
@@ -406,8 +405,8 @@ function findValidCutPoints(entries: SessionEntry[], startIndex: number, endInde
 }
 
 /**
- * Find the context-visible user-role message that starts the turn containing the given entry index.
- * Returns -1 if no turn start found before the index.
+ * 找到开启包含给定 entry index 的 turn 的 context 可见 user 消息。
+ * 若在索引之前找不到 turn 起点，返回 -1。
  */
 export function findTurnStartIndex(entries: SessionEntry[], entryIndex: number, startIndex: number): number {
 	for (let i = entryIndex; i >= startIndex; i--) {
@@ -419,29 +418,29 @@ export function findTurnStartIndex(entries: SessionEntry[], entryIndex: number, 
 }
 
 export interface CutPointResult {
-	/** Index of first entry to keep */
+	/** 要保留的第一个 entry 的索引 */
 	firstKeptEntryIndex: number;
-	/** Index of user message that starts the turn being split, or -1 if not splitting */
+	/** 被切分 turn 的起始 user 消息索引，未切分则为 -1 */
 	turnStartIndex: number;
-	/** Whether this cut splits a turn (cut point is not a user message) */
+	/** 本次切分是否将一个 turn 拦腰截断（切分点不是 user 消息） */
 	isSplitTurn: boolean;
 }
 
 /**
- * Find the cut point in session entries that keeps approximately `keepRecentTokens`.
+ * 在 session entries 中找切分点，使保留部分约等于 `keepRecentTokens`。
  *
- * Algorithm: Walk backwards from newest, accumulating estimated message sizes.
- * Stop when we've accumulated >= keepRecentTokens. Cut at that point.
+ * 算法：从最新的条目向前走，累加估算的消息大小。
+ * 当累计 >= keepRecentTokens 时停下来，在该点切分。
  *
- * Can cut at user OR assistant messages (never tool results). When cutting at an
- * assistant message with tool calls, its tool results come after and will be kept.
+ * 可以在 user 或 assistant 消息处切分（绝不在 tool 结果处）。
+ * 在带 tool call 的 assistant 消息处切分时，其后的 tool 结果会保留。
  *
- * Returns CutPointResult with:
- * - firstKeptEntryIndex: the entry index to start keeping from
- * - turnStartIndex: if cutting mid-turn, the user message that started that turn
- * - isSplitTurn: whether we're cutting in the middle of a turn
+ * 返回的 CutPointResult 包含：
+ * - firstKeptEntryIndex：开始保留的 entry 索引
+ * - turnStartIndex：若在 turn 中途切分，即开启该 turn 的 user 消息
+ * - isSplitTurn：是否在 turn 中途切分
  *
- * Only considers entries between `startIndex` and `endIndex` (exclusive).
+ * 只考虑 `startIndex` 到 `endIndex` 之间（不含）的 entries。
  */
 export function findCutPoint(
 	entries: SessionEntry[],
@@ -455,9 +454,9 @@ export function findCutPoint(
 		return { firstKeptEntryIndex: startIndex, turnStartIndex: -1, isSplitTurn: false };
 	}
 
-	// Walk backwards from newest, accumulating estimated message sizes
+	// 从最新的条目向前走，累加估算的消息大小
 	let accumulatedTokens = 0;
-	let cutIndex = cutPoints[0]; // Default: keep from first message (not header)
+	let cutIndex = cutPoints[0]; // 默认：从第一条消息开始保留（不含 header）
 
 	for (let i = endIndex - 1; i >= startIndex; i--) {
 		const entry = entries[i];
@@ -468,27 +467,27 @@ export function findCutPoint(
 		if (messageTokens === 0) continue;
 		accumulatedTokens += messageTokens;
 
-		// Check if we've exceeded the budget
+		// 检查是否超出预算
 		if (accumulatedTokens >= keepRecentTokens) {
-			// Prefer the closest valid cut point at or after this entry. If trailing
-			// tool results exceed the budget by themselves, keep their preceding
-			// assistant tool call instead of falling back to the first message.
+			// 优先选择本 entry 处或之后最近的合法切分点。若尾部 tool 结果
+			// 自身就超预算，则保留其前面的 assistant tool call，
+			// 而不是退回到第一条消息。
 			cutIndex = cutPoints.find((candidate) => candidate >= i) ?? cutPoints[cutPoints.length - 1];
 			break;
 		}
 	}
 
-	// Scan backwards from cutIndex to include adjacent metadata entries that do not affect context.
+	// 从 cutIndex 向前扫描，把不影响 context 的相邻 metadata entries 一并纳入。
 	while (cutIndex > startIndex) {
 		const prevEntry = entries[cutIndex - 1];
-		// Stop at compaction boundaries or context-visible entries.
+		// 遇到 compaction 边界或 context 可见的 entry 时停止。
 		if (prevEntry.type === "compaction" || sessionEntryToContextMessages(prevEntry).length > 0) {
 			break;
 		}
 		cutIndex--;
 	}
 
-	// Determine if this is a split turn
+	// 判断这是否为 split turn
 	const cutEntry = entries[cutIndex];
 	const startsTurn = isTurnStartEntry(cutEntry);
 	const turnStartIndex = startsTurn ? -1 : findTurnStartIndex(entries, cutIndex, startIndex);
@@ -501,7 +500,7 @@ export function findCutPoint(
 }
 
 // ============================================================================
-// Summarization
+// 摘要生成
 // ============================================================================
 
 const SUMMARIZATION_PROMPT = `The messages above are a conversation to summarize. Create a structured context checkpoint summary that another LLM will use to continue the work.
@@ -579,8 +578,8 @@ const UPDATE_SUMMARIZATION_PROMPT = `The messages above are NEW conversation mes
 ${UPDATE_SUMMARIZATION_INSTRUCTIONS}`;
 
 /**
- * Returns an error message when a summarization response cannot safely be persisted.
- * A length stop contains partial text and must not become a session checkpoint.
+ * 当 summarization 响应无法安全落盘时返回错误信息。
+ * 因长度停止的响应只含部分文本，绝不能成为 session 检查点。
  */
 export function getSummarizationFailure(response: AssistantMessage, label: string): string | undefined {
 	if (response.stopReason === "error") {
@@ -610,11 +609,11 @@ function createSummarizationOptions(
 }
 
 /**
- * Shared choke point for every compaction/branch-summary summarization call. Wraps the
- * single LLM call in {@link retryAssistantCall} so transient stream drops (e.g.
- * `terminated`, socket close) honor the configured retry policy instead of failing
- * the whole compaction on the first attempt. Deterministic errors and aborts return
- * immediately (see {@link retryAssistantCall}).
+ * 所有 compaction/branch-summary 摘要调用的统一入口。它把单次 LLM 调用
+ * 包在 {@link retryAssistantCall} 里，让瞬时流中断（如 `terminated`、
+ * socket 关闭）遵循已配置的重试策略，而不是第一次尝试失败就让整个
+ * compaction 失败。确定性错误与中止会立即返回
+ * （见 {@link retryAssistantCall}）。
  */
 export async function completeSummarization(
 	model: Model<any>,
@@ -624,8 +623,8 @@ export async function completeSummarization(
 	retry?: RetryPolicy,
 	callbacks?: RetryCallbacks,
 ): Promise<AssistantMessage> {
-	// Avoid cache writes for one-off summaries. Reuse caller-supplied routing when available;
-	// callers without a session ID, including branch summaries, receive a fresh routing ID.
+	// 一次性摘要避免写 cache。有则复用调用方提供的 routing；
+	// 没有 session ID 的调用方（包括 branch summary）会拿到新的 routing ID。
 	const requestOptions: SimpleStreamOptions = {
 		...options,
 		cacheRetention: "none",
@@ -639,8 +638,8 @@ export async function completeSummarization(
 }
 
 /**
- * Generate a summary of the conversation using the LLM.
- * If previousSummary is provided, uses the update prompt to merge.
+ * 用 LLM 生成对话摘要。
+ * 若提供了 previousSummary，则使用 update prompt 进行合并。
  */
 export async function generateSummary(
 	currentMessages: AgentMessage[],
@@ -678,7 +677,7 @@ export async function generateSummary(
 	).text;
 }
 
-/** Build the provider context for a standalone summary request. */
+/** 为独立摘要请求构建 provider context。 */
 function buildSummarizationContext(promptText: string): TranscriptContext {
 	return normalizeContext({
 		systemPrompt: SUMMARIZATION_SYSTEM_PROMPT,
@@ -692,7 +691,7 @@ function buildSummarizationContext(promptText: string): TranscriptContext {
 	});
 }
 
-/** Generate or update a conversation summary and return its provider usage. */
+/** 生成或更新对话摘要，并返回其 provider usage。 */
 export async function generateSummaryWithUsage(
 	currentMessages: AgentMessage[],
 	model: Model<any>,
@@ -714,18 +713,18 @@ export async function generateSummaryWithUsage(
 		model.maxTokens > 0 ? model.maxTokens : Number.POSITIVE_INFINITY,
 	);
 
-	// Use update prompt if we have a previous summary, otherwise initial prompt
+	// 已有上一次摘要时使用 update prompt，否则用初始 prompt
 	let basePrompt = previousSummary ? UPDATE_SUMMARIZATION_PROMPT : SUMMARIZATION_PROMPT;
 	if (customInstructions) {
 		basePrompt = `${basePrompt}\n\nAdditional focus: ${customInstructions}`;
 	}
 
-	// Serialize conversation to text so model doesn't try to continue it
-	// Convert to LLM messages first (handles custom types like bashExecution, custom, etc.)
+	// 把对话序列化成文本，避免模型试图续写对话
+	// 先转换为 LLM 消息（处理 bashExecution、custom 等自定义类型）
 	const llmMessages = convertToLlm(currentMessages);
 	const conversationText = serializeConversation(llmMessages);
 
-	// Build the prompt with conversation wrapped in tags
+	// 构建用标签包裹对话的 prompt
 	let promptText = `<conversation>\n${conversationText}\n</conversation>\n\n`;
 	if (previousSummary) {
 		promptText += `<previous-summary>\n${previousSummary}\n</previous-summary>\n\n`;
@@ -766,24 +765,24 @@ export async function generateSummaryWithUsage(
 }
 
 // ============================================================================
-// Compaction Preparation (for extensions)
+// Compaction 准备（供扩展使用）
 // ============================================================================
 
 export interface CompactionPreparation {
-	/** UUID of first entry to keep */
+	/** 要保留的第一个 entry 的 UUID */
 	firstKeptEntryId: string;
-	/** Messages that will be summarized and discarded */
+	/** 将被摘要并丢弃的 messages */
 	messagesToSummarize: AgentMessage[];
-	/** Messages that will be turned into turn prefix summary (if splitting) */
+	/** 将被转成 turn prefix summary 的 messages（若在切分） */
 	turnPrefixMessages: AgentMessage[];
-	/** Whether this is a split turn (cut point in middle of turn) */
+	/** 是否为 split turn（切分点在 turn 中途） */
 	isSplitTurn: boolean;
 	tokensBefore: number;
-	/** Summary from previous compaction, for iterative update */
+	/** 上一次 compaction 的 summary，用于迭代更新 */
 	previousSummary?: string;
-	/** File operations extracted from messagesToSummarize */
+	/** 从 messagesToSummarize 提取出的文件操作 */
 	fileOps: FileOperations;
-	/** Compaction settions from settings.jsonl	*/
+	/** settings.jsonl 中的 compaction 设置	*/
 	settings: CompactionSettings;
 }
 
@@ -828,9 +827,9 @@ function findProjectedCutPoint(
 		}
 	}
 
-	// A recovery attempt and its omission edits are context-invisible after the last
-	// visible input. Advance only for a closed suffix containing an omitted assistant
-	// attempt; arbitrary metadata must not move the cut past unsent input.
+	// 一条恢复尝试及其省略 edits，在最后一条可见输入之后是 context 不可见的。
+	// 只有当后缀是包含被省略 assistant 尝试的封闭后缀时才前进；
+	// 任意 metadata 不得把切分点推过未发送的输入。
 	const suffix = entries.slice(cutIndex + 1, endIndex);
 	const isIntrinsicallyVisible = (entry: ProjectedSessionEntry): boolean =>
 		entry.sourceEntry.type !== "context_edit" && sessionEntryToContextMessages(entry.sourceEntry).length > 0;
@@ -880,8 +879,8 @@ export function prepareCompaction(
 	const projection = buildSessionProjection(pathEntries);
 	const projectedEntries = projection.entries;
 	const sourceEntries = projectedEntries.map((entry) => entry.sourceEntry);
-	// The newest compaction is projected first. Older compaction entries can still
-	// occur in its retained raw range, but their projected contribution is empty.
+	// 最新的 compaction 先被投射。更早的 compaction entries 仍可能出现在
+	// 它保留的原始范围内，但其投射贡献为空。
 	const prevCompactionIndex = projectedEntries.findIndex(
 		(entry) => entry.sourceEntry.type === "compaction" && entry.messages.length > 0,
 	);
@@ -890,7 +889,7 @@ export function prepareCompaction(
 	let boundaryStart = 0;
 	if (prevCompactionIndex >= 0) {
 		previousSummary = (projectedEntries[prevCompactionIndex].sourceEntry as CompactionEntry).summary;
-		// The canonical projection has already selected the previous compaction's retained tail.
+		// 规范投射已选定上一次 compaction 保留的尾部。
 		boundaryStart = prevCompactionIndex + 1;
 	}
 	const boundaryEnd = projectedEntries.length;
@@ -913,10 +912,10 @@ export function prepareCompaction(
 
 	if (messagesToSummarize.length === 0 && turnPrefixMessages.length === 0) return undefined;
 
-	// Extract file operations from edited model-visible messages and the previous compaction.
+	// 从被编辑的模型可见 messages 和上一次 compaction 中提取文件操作。
 	const fileOps = extractFileOperations(messagesToSummarize, sourceEntries, prevCompactionIndex);
 
-	// Also extract file ops from turn prefix if splitting
+	// 若在切分 turn，还要从 turn prefix 提取文件操作
 	if (cutPoint.isSplitTurn) {
 		for (const msg of turnPrefixMessages) {
 			extractFileOpsFromMessage(msg, fileOps);
@@ -936,7 +935,7 @@ export function prepareCompaction(
 }
 
 // ============================================================================
-// Main compaction function
+// 主 compaction 函数
 // ============================================================================
 
 const TURN_PREFIX_SUMMARIZATION_PROMPT = `The messages above are earlier context from an ongoing conversation. Later messages are stored separately and do not need to be reconstructed.
@@ -955,12 +954,12 @@ Create a concise checkpoint of the user's request and the progress shown above. 
 Only summarize information explicitly present above. Do not infer or recreate later messages.`;
 
 /**
- * Generate summaries for compaction using prepared data.
- * Returns CompactionResult - SessionManager adds uuid/parentUuid when saving.
+ * 使用准备好的数据为 compaction 生成摘要。
+ * 返回 CompactionResult——保存时 SessionManager 会添加 uuid/parentUuid。
  *
- * @param preparation - Pre-calculated preparation from prepareCompaction()
- * @param customInstructions - Optional custom focus for the summary
- * @param sessionId - Optional routing session ID forwarded without enabling prompt caching
+ * @param preparation - prepareCompaction() 预先算好的准备结果
+ * @param customInstructions - 摘要的可选自定义关注点
+ * @param sessionId - 可选的 routing session ID，转发它但不启用 prompt caching
  */
 export async function compact(
 	preparation: CompactionPreparation,
@@ -987,7 +986,7 @@ export async function compact(
 		settings,
 	} = preparation;
 
-	// Generate summaries and merge into one
+	// 生成摘要并合并为一条
 	let summary: string;
 	let summaryUsage: Usage;
 
@@ -1028,11 +1027,11 @@ export async function compact(
 			callbacks,
 			sessionId,
 		);
-		// Merge into single summary
+		// 合并为单条摘要
 		summary = `${historyText}\n\n---\n\n**Turn Context (split turn):**\n\n${turnPrefixResult.text}`;
 		summaryUsage = historyUsage ? combineUsage(historyUsage, turnPrefixResult.usage) : turnPrefixResult.usage;
 	} else {
-		// Just generate history summary
+		// 只生成历史摘要
 		const result = await generateSummaryWithUsage(
 			messagesToSummarize,
 			model,
@@ -1053,7 +1052,7 @@ export async function compact(
 		summaryUsage = result.usage;
 	}
 
-	// Compute file lists and append to summary
+	// 计算文件清单并追加到摘要末尾
 	const { readFiles, modifiedFiles } = computeFileLists(fileOps);
 	summary += formatFileOperations(readFiles, modifiedFiles);
 
@@ -1071,7 +1070,7 @@ export async function compact(
 }
 
 /**
- * Generate a summary for a turn prefix (when splitting a turn).
+ * 为 turn prefix 生成摘要（在切分 turn 时）。
  */
 async function generateTurnPrefixSummary(
 	messages: AgentMessage[],
@@ -1090,7 +1089,7 @@ async function generateTurnPrefixSummary(
 	const maxTokens = Math.min(
 		Math.floor(0.5 * reserveTokens),
 		model.maxTokens > 0 ? model.maxTokens : Number.POSITIVE_INFINITY,
-	); // Smaller budget for turn prefix
+	); // turn prefix 的预算更小
 	const llmMessages = convertToLlm(messages);
 	const conversationText = serializeConversation(llmMessages);
 	const promptText = `# Conversation\n${conversationText}\n\n# Instructions\n${TURN_PREFIX_SUMMARIZATION_PROMPT}`;

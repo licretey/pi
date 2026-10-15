@@ -194,7 +194,7 @@ describe("ProcessTerminal Kitty keyboard protocol negotiation", () => {
 			harness.send("\x1b[?62;4;52c");
 			assert.equal(harness.getInput(), undefined);
 
-			// The TUI's color query uses DA1 as its own sentinel.
+			// TUI 的颜色查询使用 DA1 作为自身的结束标记。
 			harness.send("\x1b[?62;4;52c");
 			assert.equal(harness.getInput(), "\x1b[?62;4;52c");
 		} finally {
@@ -320,7 +320,7 @@ describe("ProcessTerminal Kitty keyboard protocol negotiation", () => {
 					harness.terminal.stop();
 					(harness.terminal as unknown as { queryAndEnableKittyProtocol(): void }).queryAndEnableKittyProtocol();
 
-					// The first start's replies arrive late: its DA, then the second start's reply and DA.
+					// 第一次启动的响应延迟到达：先是第一次启动的 DA，再是第二次启动的查询响应和 DA。
 					harness.send("\x1b[?62;4;52c");
 					harness.send("\x1b]7501;?\x1b\\");
 					harness.send("\x1b[?62;4;52c");
@@ -341,7 +341,7 @@ describe("ProcessTerminal Kitty keyboard protocol negotiation", () => {
 					harness.terminal.stop();
 					assert.ok(harness.writes.includes(clear));
 
-					// Stopped: nothing is written until the restarted terminal confirms support again.
+					// 停止后，在重启的终端再次确认支持该功能前，不会写入任何内容。
 					const writesBeforeRestart = harness.writes.length;
 					harness.terminal.setProgramStatus({ state: "working", app: "pi" });
 					assert.equal(harness.writes.length, writesBeforeRestart);
@@ -361,7 +361,7 @@ describe("ProcessTerminal Kitty keyboard protocol negotiation", () => {
 		const harness = setupNegotiation();
 		try {
 			harness.send("\x1b[");
-			mock.timers.tick(50); // StdinBuffer sequence timeout, not the lone-ESC timeout
+			mock.timers.tick(50); // 等待 StdinBuffer 序列超时，而非单独 ESC 键的超时。
 
 			assert.equal(harness.getInput(), undefined);
 

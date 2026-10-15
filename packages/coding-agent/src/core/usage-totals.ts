@@ -27,7 +27,7 @@ export function addUsageToTotals(totals: UsageTotals, usage: Usage): void {
 	totals.cost += usage.cost.total;
 }
 
-/** Sum of two usages, keeping the optional token splits when either side reports them. */
+/** 合并两份用量；任一方报告了可选的 token 分类用量时，保留该分类数据。 */
 export function combineUsage(first: Usage, second: Usage): Usage {
 	return {
 		input: first.input + second.input,
@@ -57,7 +57,7 @@ export interface UsageCostBreakdownEntry {
 	tokens: number;
 }
 
-/** Group model-attributed usage by model and all other usage into a separate bucket. */
+/** 按模型归集可归属到模型的用量，并将其他用量单独归为一组。 */
 export function getUsageCostBreakdown(entries: SessionEntry[]): UsageCostBreakdownEntry[] {
 	const totalsByKey = new Map<string, UsageTotals>();
 

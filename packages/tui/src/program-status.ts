@@ -1,32 +1,32 @@
 /**
- * Program Status Protocol (OSC 7501): a program tells the terminal whether it is idle, working,
- * blocked on the user, done, or failed. Only the root record is supported.
+ * 程序状态协议（OSC 7501）：程序向终端报告自身处于空闲、运行中、等待用户、已完成或失败状态。
+ * 目前仅支持根记录。
  *
- * Spec: https://www.superlogical.com/rex/docs/build/program-status
+ * 规范：https://www.superlogical.com/rex/docs/build/program-status
  */
 
 export interface ProgramStatus {
-	/** `clear` removes the status instead of reporting one. */
+	/** `clear` 用于清除状态，而不是报告新状态。 */
 	state: "idle" | "working" | "blocked" | "done" | "error" | "clear";
-	/** Stable program name, `[A-Za-z0-9_.+-]{1,32}`. Other values are omitted. */
+	/** 稳定的程序名称，格式为 `[A-Za-z0-9_.+-]{1,32}`。不符合格式的值会被省略。 */
 	app?: string;
-	/** What a blocked program waits for. Omitted for other states. */
+	/** 程序阻塞时正在等待的事项；其他状态下省略。 */
 	kind?: "permission" | "question" | "auth";
-	/** One human-readable line. Control characters become spaces; longer text is cut to the spec limit. */
+	/** 一行可读文本。控制字符会替换为空格；超长文本会按规范限制截断。 */
 	message?: string;
 }
 
-/** Feature detection query. A supporting terminal replies with the same body. */
+/** 功能探测查询。支持此功能的终端会返回相同的消息体。 */
 export const PROGRAM_STATUS_QUERY = "\x1b]7501;?\x1b\\";
 
-/** The reply to {@link PROGRAM_STATUS_QUERY}. Later spec revisions may add pairs after the `?`. */
+/** 对 {@link PROGRAM_STATUS_QUERY} 的响应。后续规范版本可能会在 `?` 后添加键值对。 */
 export function isProgramStatusReply(sequence: string): boolean {
 	return /^\x1b\]7501;\?[^\x07\x1b]*(?:\x07|\x1b\\)$/.test(sequence);
 }
 
 const APP_PATTERN = /^[A-Za-z0-9_.+-]{1,32}$/;
 const CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]+/g;
-/** Decoded `msg` limit. Its base64 encoding stays under the 2732-byte encoded limit. */
+/** 解码后 `msg` 的长度上限；其 Base64 编码长度不超过 2732 字节。 */
 const MAX_MESSAGE_BYTES = 2048;
 
 function truncateUtf8(text: string, maxBytes: number): string {
@@ -42,7 +42,7 @@ function truncateUtf8(text: string, maxBytes: number): string {
 	return text.slice(0, end);
 }
 
-/** Encode a status report. Terminals discard reports whose text contains control characters, so they are replaced. */
+/** 编码状态报告。终端会丢弃文本含控制字符的报告，因此此处会先替换这些字符。 */
 export function formatProgramStatus(status: ProgramStatus): string {
 	const pairs = [`state=${status.state}`];
 	if (status.app !== undefined && APP_PATTERN.test(status.app)) pairs.push(`app=${status.app}`);

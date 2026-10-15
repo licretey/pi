@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Live probe for OpenAI Codex Responses websocket-cached mode.
+ * 用于 OpenAI Codex Responses WebSocket 缓存模式的实时探测程序。
  *
- * Runs a simple tool loop directly against the pi-ai provider source so it does not
- * depend on built dist packages or coding-agent SDK wiring.
+ * 直接基于 pi-ai 提供方源码运行简单的工具调用循环，
+ * 不依赖构建后的 dist 包或 coding-agent SDK 装配。
  */
 
 import { tmpdir } from "node:os";

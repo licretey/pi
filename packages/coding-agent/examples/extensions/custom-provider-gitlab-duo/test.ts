@@ -1,10 +1,10 @@
 /**
- * Test script for GitLab Duo extension
- * Run: node test.ts [model-id] [--thinking]
+ * GitLab Duo 扩展的测试脚本。
+ * 运行：node test.ts [model-id] [--thinking]
  *
- * Examples:
- *   node test.ts                              # Test default (claude-sonnet-4-5-20250929)
- *   node test.ts gpt-5-codex                  # Test GPT-5 Codex
+ * 示例：
+ *   node test.ts                              # 测试默认模型（claude-sonnet-4-5-20250929）
+ *   node test.ts gpt-5-codex                  # 测试 GPT-5 Codex
  *   node test.ts claude-sonnet-4-5-20250929 --thinking
  */
 
@@ -27,7 +27,7 @@ async function main() {
 		process.exit(1);
 	}
 
-	// Read auth
+	// 读取身份验证信息。
 	const authPath = join(getAgentDir(), "extensions", "auth.json");
 	const authData = JSON.parse(readFileSync(authPath, "utf-8"));
 	const gitlabCred = authData["gitlab-duo"];
@@ -36,14 +36,14 @@ async function main() {
 		process.exit(1);
 	}
 
-	// Register provider
+	// 注册提供方。
 	registerApiProvider({
 		api: "gitlab-duo-api" as Api,
 		stream: streamGitLabDuo,
 		streamSimple: streamGitLabDuo,
 	});
 
-	// Create model
+	// 创建模型。
 	const model: Model<Api> = {
 		id: cfg.id,
 		name: cfg.name,

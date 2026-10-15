@@ -25,7 +25,7 @@ import { context } from "./session-support.ts";
 
 const anthropicToken = await resolveApiKey("anthropic");
 
-/** Sets both mid-conversation compat flags, so tool changes use Anthropic's native additions when allowed. */
+/** 设置两项对话中途兼容标志，使工具变更在允许时使用 Anthropic 原生的追加机制。 */
 const MODEL = { provider: "anthropic", modelId: "claude-sonnet-5-5" } as const;
 
 function instructions(nonce: string): string {
@@ -55,7 +55,7 @@ const second = defineTool({
 	execute: async () => ({ output: [] }),
 });
 
-/** Puts the leading system message back after the user messages before it: the request order before the fix. */
+/** 将开头的系统消息移到其前面的用户消息之后，复现修复前的请求顺序。 */
 function committedOrder(messages: readonly Message[]): Message[] {
 	if (messages[0]?.role !== "system") return [...messages];
 	const [system, ...rest] = messages;
@@ -64,7 +64,7 @@ function committedOrder(messages: readonly Message[]): Message[] {
 	return [...rest.slice(0, at), system!, ...rest.slice(at)];
 }
 
-/** Share of the prompt the second turn read from cache after adding a tool. */
+/** 添加工具后，第二轮请求从缓存读取的提示词占比。 */
 async function cacheReadAfterToolChange(token: string, legacyOrder: boolean): Promise<number> {
 	const base = builtinModels();
 	const models = new Proxy(base, {
@@ -129,15 +129,15 @@ async function cacheReadAfterToolChange(token: string, legacyOrder: boolean): Pr
 }
 
 describe("Durable system message order e2e", () => {
-	// Live regression coverage for #10542; skipped without Anthropic credentials in ~/.pi/agent/auth.json.
+	// #10542 的实时回归测试；若 ~/.pi/agent/auth.json 中没有 Anthropic 凭据，则跳过。
 	it.skipIf(!anthropicToken)(
 		"keeps the prompt cache across a tool change only when the system message leads",
 		{ retry: 1, timeout: 180_000 },
 		async () => {
-			// Before the fix: the input precedes the system message, so Anthropic sends the tool list at the top of the
-			// request, and adding a tool changes the cached prefix from its first token.
+			// 修复前：输入消息位于系统消息之前，因此 Anthropic 会在请求开头发送工具列表，
+			// 因此添加工具会从首个令牌开始改变缓存前缀。
 			expect(await cacheReadAfterToolChange(anthropicToken!, true)).toBeLessThan(0.2);
-			// The fix: the system message leads, the initial tools stay fixed, and the new tool arrives in the conversation.
+			// 修复后：系统消息位于开头，初始工具列表保持固定，新工具则在对话中发送。
 			expect(await cacheReadAfterToolChange(anthropicToken!, false)).toBeGreaterThan(0.8);
 		},
 	);
